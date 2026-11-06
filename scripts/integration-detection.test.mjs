@@ -30,7 +30,9 @@ test('AWS services are detected by the Datadog prefix of their CloudWatch namesp
   const { awsMetricPrefix } = await import('../web/src/api/integrations/detection.ts');
   assert.equal(awsMetricPrefix('AWS/EC2'), 'aws.ec2.');
   assert.equal(awsMetricPrefix('AWS/ApplicationELB'), 'aws.applicationelb.');
-  assert.equal(awsMetricPrefix('AWS/RDS/Proxy'), 'aws.rds_proxy.');
+  // As Datadog names them: aws.rds.proxy.*, ecs.containerinsights.*.
+  assert.equal(awsMetricPrefix('AWS/RDS/Proxy'), 'aws.rds.proxy.');
+  assert.equal(awsMetricPrefix('ECS/ContainerInsights'), 'ecs.containerinsights.');
   assert.equal(awsMetricPrefix('/aws/sagemaker/Endpoints'), 'aws.sagemaker_endpoints.');
   assert.equal(hasReportedMetrics('aws-ec2', [], new Set(['aws.ec2.cpuutilization']), [awsMetricPrefix('AWS/EC2')]), true);
   assert.equal(hasReportedMetrics('aws-ec2', [], new Set(['aws.ecs.cpuutilization']), [awsMetricPrefix('AWS/EC2')]), false);

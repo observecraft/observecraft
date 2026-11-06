@@ -22,10 +22,20 @@ const snake = (m) => underscored(m.replace(/([a-z])([A-Z])/g, '$1_$2'));
 /** The statistics the AWS crawler reads and their name suffixes (aws/naming.rs STATS); others read the average. */
 const AWS_STATS = { Average: '', Sum: '.sum', Maximum: '.maximum' };
 
-/** A CloudWatch metric as our AWS crawler publishes it: `aws.<namespace>.<metric>[.sum|.maximum]`. */
-export function metricOf(namespace, metric, statistic) {
-  const ns = namespace.toLowerCase().replace(/^\/?aws\//, '');
-  return `aws.${underscored(ns)}.${snake(metric)}${AWS_STATS[statistic] ?? ''}`;
+/** Namespaces Datadog doesn't name `aws.<namespace>.` (aws/naming.rs PREFIXES). */
+const AWS_PREFIXES = { 'AWS/RDS/Proxy': 'aws.rds.proxy', 'ECS/ContainerInsights': 'ecs.containerinsights' };
+
+/** The metric prefix of a CloudWatch namespace: `AWS/EC2` → `aws.ec2` (aws/naming.rs metric_prefix). */
+export const awsPrefix = (namespace) => AWS_PREFIXES[namespace] ?? `aws.${underscored(namespace.toLowerCase().replace(/^\/?aws\//, ''))}`;
+
+/**
+ * A CloudWatch metric as our AWS crawler publishes it: `aws.<namespace>.<metric>[.sum|.maximum]`. In the namespaces
+ * that follow Datadog (`datadog`, scripts/aws-datadog-metrics.json) the metric's statistic is its bare name's, and
+ * Datadog's name (`datadog_name`) and dimension set's segment (`variant`: aws.ecs.service.*) are used.
+ */
+export function metricOf(namespace, metric, statistic, { datadog = false, datadog_name, variant } = {}) {
+  const name = `${awsPrefix(namespace)}.${variant ? `${variant}.` : ''}${datadog_name ?? snake(metric)}`;
+  return datadog ? name : `${name}${AWS_STATS[statistic] ?? ''}`;
 }
 
 /** `ConcurrentExecutions` → `Concurrent executions`. */
@@ -69,8 +79,9 @@ const AGGREGATION = { sum: ' (sum)', max: ' (max)', avg: '' };
  * charts: [{ title, metric, agg: 'sum' | 'avg' | 'max', grouped, key: a key metric (true, or its rank) or not }]
  */
 function serviceDashboard({ cloud, service, note, variables, tag, charts, color, metricsSource }) {
-  const vars = variables.map((v) => `$${v.name}`).join(',');
-  const query = (c, grouped = true) => `${c.agg}:${c.metric}{${vars}}${grouped && c.grouped ? ` by {${tag}}` : ''}`;
+  const vars = variables.map((v) => `$${v.name}`);
+  // A chart may split by its own tag and keep tags of its own (filters: `rule:ALL`, `dbinstanceidentifier:*`).
+  const query = (c, grouped = true) => `${c.agg}:${c.metric}{${[...vars, ...(c.filters ?? [])].join(',')}}${grouped && c.grouped ? ` by {${c.tag ?? tag}}` : ''}`;
   // Key charts by rank (`true` ranks first), then the others in their order.
   const ranked = [
     ...charts.filter((c) => c.key !== undefined && c.key !== false).sort((a, b) => Number(a.key === true ? -1 : a.key) - Number(b.key === true ? -1 : b.key)),
@@ -87,7 +98,7 @@ function serviceDashboard({ cloud, service, note, variables, tag, charts, color,
     widget(
       {
         type: 'timeseries',
-        title: `${c.title}${AGGREGATION[c.agg]}${c.grouped ? ` by ${tag}` : ''}`,
+        title: `${c.title}${AGGREGATION[c.agg]}${c.grouped ? ` by ${c.tag ?? tag}` : ''}`,
         requests: [
           { response_format: 'timeseries', queries: [{ data_source: 'metrics', name: 'query1', query: query(c) }], formulas: [{ formula: 'query1' }], display_type: c.agg === 'sum' ? 'bars' : 'line' },
         ],
@@ -129,7 +140,7 @@ function serviceDashboard({ cloud, service, note, variables, tag, charts, color,
                   requests: [
                     {
                       response_format: 'scalar',
-                      queries: [{ data_source: 'metrics', name: 'query1', query: query(c, false), aggregator: c.agg === 'sum' ? 'sum' : 'avg' }],
+                      queries: [{ data_source: 'metrics', name: 'query1', query: query(c, false), aggregator: c.time ?? (c.agg === 'sum' ? 'sum' : 'avg') }],
                       formulas: [{ formula: 'query1' }],
                     },
                   ],
@@ -163,21 +174,32 @@ function serviceDashboard({ cloud, service, note, variables, tag, charts, color,
 function awsDashboard(service, spec, source) {
   const dim = spec.dimension;
   const tag = dim ? underscored(dim) : null;
-  const agg = (m) => (m.statistic === 'Sum' ? 'sum' : m.statistic === 'Maximum' ? 'max' : 'avg');
+  const agg = (m) => m.space ?? (m.statistic === 'Sum' ? 'sum' : m.statistic === 'Maximum' ? 'max' : 'avg');
+  // Datadog-following namespaces (scripts/aws-datadog-metrics.json) name the dimension each chart splits by and the
+  // other resources to filter by; a chart split by a resource keeps only its series (RDS publishes CPU per instance and
+  // per cluster: an instance chart leaves the cluster's out).
+  const groupOf = (m) => m.group ?? (dim && m.dimensions.includes(dim) ? dim : null);
+  const extra = (spec.variables ?? []).map(underscored);
+  const variables = [...(tag ? [tag] : []), ...extra];
   return serviceDashboard({
     cloud: 'aws',
     service,
     color: 'vivid_orange',
-    note: `The ${service.name} metrics CloudWatch publishes (namespace \`${service.namespace}\`), collected by the [AWS integration](/integrations/aws). Filter by account, region${tag ? ` and ${tag}` : ''} above; each chart splits ${tag ? `by ${tag}` : 'the whole service'}.`,
-    variables: [{ name: 'account', prefix: 'aws_account' }, { name: 'region', prefix: 'region' }, ...(tag ? [{ name: tag, prefix: tag }] : [])],
+    note: `The ${service.name} metrics CloudWatch publishes (namespace \`${service.namespace}\`), collected by the [AWS integration](/integrations/aws). Filter by account, region${variables.length ? ` and ${variables.join(', ')}` : ''} above; each chart splits ${tag ? `by ${tag}${spec.datadog ? ' or the resource it is published for' : ''}` : 'the whole service'}.`,
+    variables: [{ name: 'account', prefix: 'aws_account' }, { name: 'region', prefix: 'region' }, ...variables.map((v) => ({ name: v, prefix: v }))],
     tag,
-    charts: spec.metrics.map((m) => ({
-      title: words(m.name),
-      metric: metricOf(service.namespace, m.name, m.statistic),
-      agg: agg(m),
-      grouped: !!tag && m.dimensions.includes(dim),
-      key: KEY.test(m.name),
-    })),
+    charts: spec.metrics.map((m) => {
+      const group = groupOf(m);
+      const filters = m.filter ? [m.filter] : [];
+      return {
+        title: words(m.name),
+        metric: metricOf(service.namespace, m.name, m.statistic, { datadog: spec.datadog, datadog_name: m.datadog_name, variant: m.variant }),
+        agg: agg(m),
+        grouped: !!group,
+        ...(spec.datadog ? { tag: group ? underscored(group) : undefined, filters: [...filters, ...(group ? [`${underscored(group)}:*`] : [])], time: m.space ? 'avg' : undefined } : {}),
+        key: m.key ?? (!spec.datadog && KEY.test(m.name)),
+      };
+    }),
     metricsSource: source,
   });
 }
@@ -235,7 +257,7 @@ export function buildServiceDashboards() {
   const lines = [
     ...json('aws_integration.json')
       .namespaces.filter((s) => aws.namespaces[s.namespace]?.metrics.length)
-      .map((s) => ({ logo: `tile:${s.id}`, prefix: `${metricOf(s.namespace, 'x', 'Average').slice(0, -1)}`, dashboards: [awsDashboard(s, aws.namespaces[s.namespace], aws.source)] })),
+      .map((s) => ({ logo: `tile:${s.id}`, prefix: `${awsPrefix(s.namespace)}.`, dashboards: [awsDashboard(s, aws.namespaces[s.namespace], aws.source)] })),
     ...json('azure_integration.json')
       .resource_types.filter((t) => azure.resource_types[t.type]?.metrics.length)
       .map((t) => ({ logo: `tile:${t.id}`, prefix: `${t.prefix}.`, dashboards: [azureDashboard(t, azure.resource_types[t.type], azure.source)] })),
@@ -249,6 +271,16 @@ export function buildServiceDashboards() {
 /** The units of the metrics the service dashboards chart (Datadog unit names), for the server: the crawlers send none. */
 export function serviceUnits() {
   const units = new Map();
+  // AWS: the units of the namespaces that follow Datadog (scripts/aws-datadog-metrics.json), on every name the crawler gives them.
+  for (const [ns, spec] of Object.entries(json('integrations/cloud/aws-metrics.json').namespaces))
+    if (spec.datadog)
+      for (const m of spec.metrics)
+        if (m.unit) {
+          for (const variant of [m.variant, undefined]) {
+            const name = metricOf(ns, m.name, m.statistic, { datadog: true, datadog_name: m.datadog_name, variant });
+            for (const suffix of ['', '.sum', '.maximum']) units.set(`${name}${suffix}`, m.unit);
+          }
+        }
   for (const [type, spec] of Object.entries(json('integrations/cloud/azure-metrics.json').resource_types)) {
     const prefix = json('azure_integration.json').resource_types.find((t) => t.type === type).prefix;
     for (const m of spec.metrics) if (m.unit) for (const suffix of ['', '.total', '.maximum']) units.set(`${prefix}.${snake(m.name)}${suffix}`, m.unit);
@@ -264,11 +296,15 @@ export function serviceUnits() {
 export const MOCK_SERVICES = [
   'tile:aws-apigateway',
   'tile:aws-applicationelb',
+  'tile:aws-cloudfront',
   'tile:aws-dynamodb',
   'tile:aws-ec2',
+  'tile:aws-ecs',
+  'tile:aws-ecs-containerinsights',
   'tile:aws-lambda',
   'tile:aws-rds',
   'tile:aws-s3',
+  'tile:aws-wafv2',
   'tile:azure-compute-virtualmachines',
   'tile:azure-storage-storageaccounts',
   'tile:azure-web-sites',

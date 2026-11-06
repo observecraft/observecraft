@@ -12,6 +12,9 @@
 //!   the resource's AWS tags, written to `oc.otlp-json.metrics` keyed by org with the org's headers.
 //!   The watermark advances only after Kafka acknowledged every record of the window, so a crash or a
 //!   Kafka outage re-reads the window instead of losing it.
+//! - **Global services** (CloudFront, the web ACLs of CloudFront distributions, Route 53 health checks,
+//!   billing) have their metrics in us-east-1 only: an account whose regions leave us-east-1 out still
+//!   gets a us-east-1 job, which collects only those (`naming::global_series`).
 //! - **Failures** become the account's issues: a missing permission (with the action AWS names), a role
 //!   that can't be assumed, throttling (exponential backoff), a disabled region (retried daily). Tag
 //!   lookups that are denied don't stop the run.
@@ -43,6 +46,18 @@ const DEFAULT_REGIONS: [&str; 17] = [
     "ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2", "eu-west-3", "eu-north-1", "sa-east-1",
 ];
 
+/// The region CloudWatch keeps the global services' metrics in.
+const GLOBAL_REGION: &str = "us-east-1";
+
+/// The regions an account's jobs run in: its regions, and us-east-1 for the global services.
+pub fn job_regions(partition: &str, aws_regions: &Value) -> Vec<String> {
+    let mut all = regions(partition, aws_regions);
+    if partition == "aws" && !all.iter().any(|r| r == GLOBAL_REGION) {
+        all.push(GLOBAL_REGION.to_string());
+    }
+    all
+}
+
 /// The regions an account is crawled in.
 pub fn regions(partition: &str, aws_regions: &Value) -> Vec<String> {
     if let Some(only) = aws_regions["include_only"].as_array() {
@@ -67,7 +82,7 @@ pub async fn desired(st: &AppState) -> Result<Vec<(String, String, String)>, sql
     Ok(rows
         .into_iter()
         .filter(|r| r.4)
-        .flat_map(|(org, id, partition, aws_regions, _)| regions(&partition, &aws_regions).into_iter().map(move |region| (org.clone(), id.clone(), region)))
+        .flat_map(|(org, id, partition, aws_regions, _)| job_regions(&partition, &aws_regions).into_iter().map(move |region| (org.clone(), id.clone(), region)))
         .collect())
 }
 
@@ -80,6 +95,8 @@ pub struct Job {
     pub metrics_config: Value,
     /// The watermark, epoch ms.
     pub collected_until: Option<i64>,
+    /// A region the account doesn't collect, crawled for the global services only.
+    pub global_only: bool,
 }
 
 /// A job with its account's configuration and credentials (None when the account is gone).
@@ -97,6 +114,7 @@ pub async fn load_job(st: &AppState, key: &JobKey) -> Result<Option<Job>, sqlx::
         target: Target { partition: account.aws_partition.clone(), account_id: account.aws_account_id.clone(), region: key.scope.clone(), auth },
         account_tags: account.account_tags.as_array().map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default(),
         metrics_config: account.metrics_config.clone(),
+        global_only: !regions(&account.aws_partition, &account.aws_regions).contains(&key.scope),
         org_id: key.org_id.clone(),
         collected_until: key.collected_until,
     }))
@@ -134,6 +152,7 @@ pub async fn crawl(api: &dyn AwsApi, sink: &dyn MetricSink, headers: &[(String, 
     };
     let candidates: Vec<MetricId> = listed
         .into_iter()
+        .filter(|m| naming::series_collected(&m.namespace, &m.dimensions) && (!job.global_only || naming::global_series(&m.namespace, &m.dimensions)))
         .filter(|m| naming::namespace_selected(&config["namespace_filters"], &m.namespace, known.contains(m.namespace.as_str()), custom))
         .filter(|m| naming::metric_selected(&config["metric_name_filters"], &m.namespace, &naming::metric_name(&m.namespace, &m.name)))
         .collect();
@@ -160,20 +179,25 @@ pub async fn crawl(api: &dyn AwsApi, sink: &dyn MetricSink, headers: &[(String, 
     let mut points = vec![];
     for chunk in metrics.chunks(BATCH) {
         let ids: Vec<MetricId> = chunk.iter().map(|(m, _)| m.clone()).collect();
-        for (stat, suffix) in STATS {
+        for (stat, _) in STATS {
             let series = match api.get_metric_data(t, &ids, stat, start, end, 60).await {
                 Ok(s) => s,
                 Err(e) => return Outcome::Failed(issue(&e)),
             };
             for s in series {
                 let Some((m, resource)) = chunk.get(s.metric) else { continue };
-                let name = format!("{}{suffix}", naming::metric_name(&m.namespace, &m.name));
+                let names = naming::series_names(&m.namespace, &m.name, &m.dimensions, stat);
+                if names.is_empty() {
+                    continue;
+                }
                 let host = m.dimensions.iter().find(|(k, _)| m.namespace == "AWS/EC2" && k == "InstanceId").map(|(_, v)| v.clone());
                 let mut tags: BTreeMap<String, String> = base.iter().cloned().collect();
                 tags.extend(resource.iter().map(|t| split_tag(t)));
                 tags.extend(m.dimensions.iter().map(|(k, v)| (naming::tag_key(k), v.clone())));
                 let tags: Vec<(String, String)> = tags.into_iter().collect();
-                points.extend(s.points.iter().map(|&(time_ms, value)| Point { name: name.clone(), host: host.clone(), tags: tags.clone(), time_ms, value }));
+                for name in &names {
+                    points.extend(s.points.iter().map(|&(time_ms, value)| Point { name: name.clone(), host: host.clone(), tags: tags.clone(), time_ms, value }));
+                }
             }
         }
     }
@@ -262,6 +286,7 @@ mod tests {
             account_tags: vec!["env:prod".into()],
             metrics_config,
             collected_until,
+            global_only: false,
         }
     }
 
@@ -365,6 +390,10 @@ mod tests {
         assert_eq!(regions("aws", &json!({ "include_only": ["eu-west-1"] })), ["eu-west-1"]);
         assert_eq!(regions("aws", &json!({ "include_all": true })).len(), DEFAULT_REGIONS.len());
         assert_eq!(regions("aws-us-gov", &json!({ "include_all": true })), ["us-gov-west-1", "us-gov-east-1"]);
+        // Global services live in us-east-1: an account without it still gets a job there.
+        assert_eq!(job_regions("aws", &json!({ "include_only": ["eu-west-1"] })), ["eu-west-1", "us-east-1"]);
+        assert_eq!(job_regions("aws", &json!({ "include_only": ["us-east-1", "eu-west-1"] })), ["us-east-1", "eu-west-1"]);
+        assert_eq!(job_regions("aws-cn", &json!({ "include_all": true })), ["cn-north-1", "cn-northwest-1"]);
         let denied = issue(&AwsError::AccessDenied { action: Some("tag:GetResources".into()), message: "m".into() });
         assert_eq!((denied.kind, denied.missing_action.as_deref(), denied.backoff), ("access_denied", Some("tag:GetResources"), Backoff::Interval));
         assert_eq!(issue(&AwsError::Throttled("x".into())).backoff, Backoff::Exponential);
@@ -406,7 +435,9 @@ mod tests {
         let change = json!({ "aws_regions": { "include_only": ["eu-west-1"] } });
         accounts::update_row(st, &org, &id, change.as_object().unwrap()).await.unwrap();
         planned(st).await;
-        assert_eq!(jobs_of(st, &org).await, ["eu-west-1"]);
+        assert_eq!(jobs_of(st, &org).await, ["eu-west-1", "us-east-1"], "us-east-1 stays for the global services");
+        let key = JobKey { scope: "us-east-1".into(), ..key };
+        assert!(load_job(st, &key).await.unwrap().unwrap().global_only);
         let off = json!({ "metrics_config": { "enabled": false } });
         accounts::update_row(st, &org, &id, off.as_object().unwrap()).await.unwrap();
         planned(st).await;
@@ -446,5 +477,73 @@ mod tests {
         jobs::record(st, &key, &c.run(st, &key, NOW + 600_000).await.unwrap(), 600).await.unwrap();
         let s = status().await;
         assert_eq!((s.collected_until, s.error.as_ref().and_then(|e| e.missing_action.clone())), (Some((NOW - LAG_MS) / 60_000 * 60_000), Some("cloudwatch:ListMetrics".to_string())));
+    }
+
+    #[tokio::test]
+    async fn the_four_web_services_are_published_as_datadog_names_and_tags_them() {
+        let aws = FakeAws {
+            metrics: vec![
+                metric("AWS/CloudFront", "Requests", &[("DistributionId", "E1A2B3C4D5E6F7"), ("Region", "Global")]),
+                metric("AWS/WAFV2", "BlockedRequests", &[("Region", "us-east-1"), ("Rule", "ALL"), ("WebACL", "storefront-alb")]),
+                metric("AWS/ECS", "CPUUtilization", &[("ClusterName", "storefront"), ("ServiceName", "order-service")]),
+                metric("ECS/ContainerInsights", "RunningTaskCount", &[("ClusterName", "storefront"), ("ServiceName", "order-service")]),
+                metric("AWS/RDS", "CPUUtilization", &[("DBInstanceIdentifier", "orders-db")]),
+                metric("AWS/RDS", "CPUUtilization", &[("EngineName", "postgres")]),
+                metric("AWS/RDS", "VolumeBytesUsed", &[("DBClusterIdentifier", "orders")]),
+            ],
+            tags: HashMap::from([
+                ("arn:aws:cloudfront::123456789012:distribution/E1A2B3C4D5E6F7".to_string(), vec!["service:storefront-api".to_string()]),
+                ("arn:aws:ecs:us-east-1:123456789012:service/storefront/order-service".to_string(), vec!["team:orders".to_string()]),
+            ]),
+            ..Default::default()
+        };
+        let sink = FakeSink::default();
+        let outcome = crawl(&aws, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await;
+        assert!(matches!(outcome, Outcome::Collected { metrics: 6, .. }), "the RDS engine aggregate is left out: {outcome:?}");
+        let points = published(&sink);
+        let names: std::collections::BTreeSet<&str> = points.iter().map(|p| p.0.as_str()).collect();
+        for name in [
+            "aws.cloudfront.requests",
+            "aws.cloudfront.requests.sum",
+            "aws.wafv2.blocked_requests",
+            "aws.ecs.cpuutilization",
+            "aws.ecs.service.cpuutilization",
+            "aws.ecs.service.cpuutilization.maximum",
+            "ecs.containerinsights.running_task_count",
+            "aws.rds.cpuutilization",
+            "aws.rds.volume_bytes_used",
+        ] {
+            assert!(names.contains(name), "{name} in {names:?}");
+        }
+        // CloudFront's request count is published once per point, from the Sum (the Average names nothing).
+        let count = |n: &str| points.iter().filter(|p| p.0 == n).count();
+        assert_eq!((count("aws.cloudfront.requests"), count("aws.cloudfront.requests.sum")), (2, 2));
+        let attrs = |n: &str| points.iter().find(|p| p.0 == n).map(|p| p.2.iter().cloned().collect::<HashMap<_, _>>()).unwrap();
+        assert_eq!(attrs("aws.cloudfront.requests")["distributionid"], "E1A2B3C4D5E6F7");
+        assert_eq!(attrs("aws.cloudfront.requests")["service"], "storefront-api");
+        assert_eq!((attrs("aws.wafv2.blocked_requests")["webacl"].as_str(), attrs("aws.wafv2.blocked_requests")["rule"].as_str()), ("storefront-alb", "ALL"));
+        let ecs = attrs("aws.ecs.service.cpuutilization");
+        assert_eq!((ecs["clustername"].as_str(), ecs["servicename"].as_str(), ecs["team"].as_str()), ("storefront", "order-service", "orders"));
+        assert_eq!(attrs("aws.rds.cpuutilization")["dbinstanceidentifier"], "orders-db");
+        assert_eq!(attrs("aws.rds.volume_bytes_used")["dbclusteridentifier"], "orders");
+    }
+
+    #[tokio::test]
+    async fn a_region_the_account_leaves_out_collects_only_the_global_services() {
+        let aws = FakeAws {
+            metrics: vec![
+                metric("AWS/CloudFront", "Requests", &[("DistributionId", "E1A2B3C4D5E6F7"), ("Region", "Global")]),
+                metric("AWS/WAFV2", "AllowedRequests", &[("Rule", "ALL"), ("WebACL", "storefront-cdn")]),
+                metric("AWS/WAFV2", "AllowedRequests", &[("Region", "us-east-1"), ("Rule", "ALL"), ("WebACL", "storefront-alb")]),
+                metric("AWS/EC2", "CPUUtilization", &[("InstanceId", "i-0a1b2c3d4e5f60001")]),
+            ],
+            ..Default::default()
+        };
+        let sink = FakeSink::default();
+        let global = Job { global_only: true, ..job(None, config()) };
+        let outcome = crawl(&aws, &sink, &[], &global, NOW, 600_000, &known_namespaces()).await;
+        assert!(matches!(outcome, Outcome::Collected { metrics: 2, .. }), "{outcome:?}");
+        let webacls: HashSet<String> = published(&sink).into_iter().filter_map(|p| p.2.into_iter().find(|(k, _)| k == "webacl").map(|(_, v)| v)).collect();
+        assert_eq!(webacls, HashSet::from(["storefront-cdn".to_string()]));
     }
 }

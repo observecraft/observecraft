@@ -1,5 +1,5 @@
 {
- "source": "aws-cdk-lib@2.275.0 (Apache-2.0), lib/*/lib/*-canned-metrics.generated.*; the other namespaces from their CloudWatch metrics pages of the AWS documentation (doc)",
+ "source": "aws-cdk-lib@2.275.0 (Apache-2.0), lib/*/lib/*-canned-metrics.generated.*; the other namespaces from their CloudWatch metrics pages of the AWS documentation (doc); CloudFront, ECS, ECS Container Insights, RDS, RDS Proxy and WAF as Datadog publishes them (scripts/aws-datadog-metrics.json)",
  "namespaces": {
   "/aws/sagemaker/Endpoints": {
    "dimension": "EndpointName",
@@ -1959,22 +1959,18 @@
   },
   "AWS/CloudFront": {
    "dimension": "DistributionId",
+   "doc": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/programming-cloudwatch-metrics.html",
+   "datadog": true,
    "metrics": [
     {
-     "name": "4xxErrorRate",
-     "statistic": "Average",
+     "name": "Requests",
+     "statistic": "Sum",
      "dimensions": [
       "DistributionId",
       "Region"
-     ]
-    },
-    {
-     "name": "5xxErrorRate",
-     "statistic": "Average",
-     "dimensions": [
-      "DistributionId",
-      "Region"
-     ]
+     ],
+     "unit": "request",
+     "key": true
     },
     {
      "name": "BytesDownloaded",
@@ -1982,7 +1978,8 @@
      "dimensions": [
       "DistributionId",
       "Region"
-     ]
+     ],
+     "unit": "byte"
     },
     {
      "name": "BytesUploaded",
@@ -1990,15 +1987,8 @@
      "dimensions": [
       "DistributionId",
       "Region"
-     ]
-    },
-    {
-     "name": "Requests",
-     "statistic": "Sum",
-     "dimensions": [
-      "DistributionId",
-      "Region"
-     ]
+     ],
+     "unit": "byte"
     },
     {
      "name": "TotalErrorRate",
@@ -2006,7 +1996,184 @@
      "dimensions": [
       "DistributionId",
       "Region"
-     ]
+     ],
+     "unit": "percent",
+     "key": true
+    },
+    {
+     "name": "4xxErrorRate",
+     "statistic": "Average",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "percent"
+    },
+    {
+     "name": "5xxErrorRate",
+     "statistic": "Average",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "percent",
+     "key": true
+    },
+    {
+     "name": "CacheHitRate",
+     "statistic": "Average",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "percent",
+     "key": true
+    },
+    {
+     "name": "OriginLatency",
+     "statistic": "Average",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "millisecond"
+    },
+    {
+     "name": "401ErrorRate",
+     "statistic": "Average",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "percent",
+     "datadog_name": "401_error_rate"
+    },
+    {
+     "name": "403ErrorRate",
+     "statistic": "Average",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "percent",
+     "datadog_name": "403_error_rate"
+    },
+    {
+     "name": "404ErrorRate",
+     "statistic": "Average",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "percent",
+     "datadog_name": "404_error_rate"
+    },
+    {
+     "name": "502ErrorRate",
+     "statistic": "Average",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "percent",
+     "datadog_name": "502_error_rate"
+    },
+    {
+     "name": "503ErrorRate",
+     "statistic": "Average",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "percent",
+     "datadog_name": "503_error_rate"
+    },
+    {
+     "name": "504ErrorRate",
+     "statistic": "Average",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "percent",
+     "datadog_name": "504_error_rate"
+    },
+    {
+     "name": "LambdaExecutionError",
+     "statistic": "Sum",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "error"
+    },
+    {
+     "name": "LambdaValidationError",
+     "statistic": "Sum",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "error"
+    },
+    {
+     "name": "LambdaLimitExceededError",
+     "statistic": "Sum",
+     "dimensions": [
+      "DistributionId",
+      "Region"
+     ],
+     "unit": "error"
+    },
+    {
+     "name": "FunctionInvocations",
+     "statistic": "Sum",
+     "dimensions": [
+      "FunctionName",
+      "Region"
+     ],
+     "unit": "invocation",
+     "group": "FunctionName"
+    },
+    {
+     "name": "FunctionExecutionErrors",
+     "statistic": "Average",
+     "dimensions": [
+      "FunctionName",
+      "Region"
+     ],
+     "unit": "error",
+     "group": "FunctionName"
+    },
+    {
+     "name": "FunctionValidationErrors",
+     "statistic": "Average",
+     "dimensions": [
+      "FunctionName",
+      "Region"
+     ],
+     "unit": "error",
+     "group": "FunctionName"
+    },
+    {
+     "name": "FunctionThrottles",
+     "statistic": "Sum",
+     "dimensions": [
+      "FunctionName",
+      "Region"
+     ],
+     "unit": "throttle",
+     "group": "FunctionName"
+    },
+    {
+     "name": "FunctionComputeUtilization",
+     "statistic": "Average",
+     "dimensions": [
+      "FunctionName",
+      "Region"
+     ],
+     "unit": "percent",
+     "group": "FunctionName"
     }
    ]
   },
@@ -3856,41 +4023,204 @@
   },
   "AWS/ECS": {
    "dimension": "ClusterName",
+   "variables": [
+    "ServiceName"
+   ],
+   "doc": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/available-metrics.html",
+   "datadog": true,
    "metrics": [
-    {
-     "name": "CPUReservation",
-     "statistic": "Average",
-     "dimensions": [
-      "ClusterName"
-     ]
-    },
     {
      "name": "CPUUtilization",
      "statistic": "Average",
      "dimensions": [
       "ClusterName"
-     ]
-    },
-    {
-     "name": "GPUReservation",
-     "statistic": "Average",
-     "dimensions": [
-      "ClusterName"
-     ]
-    },
-    {
-     "name": "MemoryReservation",
-     "statistic": "Average",
-     "dimensions": [
-      "ClusterName"
-     ]
+     ],
+     "unit": "percent",
+     "variant": "cluster",
+     "key": true
     },
     {
      "name": "MemoryUtilization",
      "statistic": "Average",
      "dimensions": [
       "ClusterName"
-     ]
+     ],
+     "unit": "percent",
+     "variant": "cluster",
+     "key": true
+    },
+    {
+     "name": "CPUReservation",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName"
+     ],
+     "unit": "percent",
+     "variant": "cluster",
+     "key": true
+    },
+    {
+     "name": "MemoryReservation",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName"
+     ],
+     "unit": "percent",
+     "variant": "cluster",
+     "key": true
+    },
+    {
+     "name": "GPUReservation",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName"
+     ],
+     "unit": "percent",
+     "variant": "cluster"
+    },
+    {
+     "name": "CPUUtilization",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "percent",
+     "variant": "service",
+     "group": "ServiceName"
+    },
+    {
+     "name": "MemoryUtilization",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "percent",
+     "variant": "service",
+     "group": "ServiceName"
+    },
+    {
+     "name": "EBSFilesystemUtilization",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "percent",
+     "variant": "service",
+     "group": "ServiceName"
+    },
+    {
+     "name": "RequestCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName",
+      "DiscoveryName"
+     ],
+     "unit": "request",
+     "variant": "service",
+     "group": "ServiceName"
+    },
+    {
+     "name": "NewConnectionCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName",
+      "DiscoveryName"
+     ],
+     "unit": "connection",
+     "variant": "service",
+     "group": "ServiceName"
+    },
+    {
+     "name": "ActiveConnectionCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName",
+      "DiscoveryName"
+     ],
+     "unit": "connection",
+     "variant": "service",
+     "group": "ServiceName"
+    },
+    {
+     "name": "TargetResponseTime",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName",
+      "DiscoveryName"
+     ],
+     "unit": "millisecond",
+     "variant": "service",
+     "group": "ServiceName"
+    },
+    {
+     "name": "HTTPCode_Target_5XX_Count",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName",
+      "DiscoveryName"
+     ],
+     "unit": "response",
+     "variant": "service",
+     "group": "ServiceName",
+     "datadog_name": "httpcode_target_5xxcount"
+    },
+    {
+     "name": "HTTPCode_Target_4XX_Count",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName",
+      "DiscoveryName"
+     ],
+     "unit": "response",
+     "variant": "service",
+     "group": "ServiceName",
+     "datadog_name": "httpcode_target_4xxcount"
+    },
+    {
+     "name": "HTTPCode_Target_2XX_Count",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName",
+      "DiscoveryName"
+     ],
+     "unit": "response",
+     "variant": "service",
+     "group": "ServiceName",
+     "datadog_name": "httpcode_target_2xxcount"
+    },
+    {
+     "name": "ProcessedBytes",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName",
+      "DiscoveryName"
+     ],
+     "unit": "byte",
+     "variant": "service",
+     "group": "ServiceName"
+    },
+    {
+     "name": "ClientTLSNegotiationErrorCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName",
+      "DiscoveryName"
+     ],
+     "unit": "error",
+     "variant": "service",
+     "group": "ServiceName"
     }
    ]
   },
@@ -9948,55 +10278,316 @@
   },
   "AWS/RDS": {
    "dimension": "DBInstanceIdentifier",
+   "variables": [
+    "DBClusterIdentifier"
+   ],
+   "doc": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-metrics.html",
+   "datadog": true,
    "metrics": [
     {
      "name": "CPUUtilization",
      "statistic": "Average",
      "dimensions": [
       "DBInstanceIdentifier"
-     ]
+     ],
+     "unit": "percent",
+     "key": true
     },
     {
      "name": "DatabaseConnections",
-     "statistic": "Sum",
+     "statistic": "Average",
      "dimensions": [
       "DBInstanceIdentifier"
-     ]
+     ],
+     "unit": "connection",
+     "key": true,
+     "space": "sum"
     },
     {
      "name": "FreeableMemory",
      "statistic": "Average",
      "dimensions": [
       "DBInstanceIdentifier"
-     ]
+     ],
+     "unit": "byte",
+     "key": true
     },
     {
      "name": "FreeStorageSpace",
      "statistic": "Average",
      "dimensions": [
       "DBInstanceIdentifier"
-     ]
+     ],
+     "unit": "byte"
+    },
+    {
+     "name": "FreeLocalStorage",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "byte"
+    },
+    {
+     "name": "SwapUsage",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "byte"
     },
     {
      "name": "ReadIOPS",
      "statistic": "Average",
      "dimensions": [
       "DBInstanceIdentifier"
-     ]
+     ],
+     "unit": "operation"
+    },
+    {
+     "name": "WriteIOPS",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "operation"
     },
     {
      "name": "ReadLatency",
      "statistic": "Average",
      "dimensions": [
       "DBInstanceIdentifier"
-     ]
+     ],
+     "unit": "second"
+    },
+    {
+     "name": "WriteLatency",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "second"
     },
     {
      "name": "ReadThroughput",
      "statistic": "Average",
      "dimensions": [
       "DBInstanceIdentifier"
+     ],
+     "unit": "byte"
+    },
+    {
+     "name": "WriteThroughput",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "byte"
+    },
+    {
+     "name": "NetworkReceiveThroughput",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "byte"
+    },
+    {
+     "name": "NetworkTransmitThroughput",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "byte"
+    },
+    {
+     "name": "DiskQueueDepth",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "request"
+    },
+    {
+     "name": "ReplicaLag",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "second"
+    },
+    {
+     "name": "BurstBalance",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "percent"
+    },
+    {
+     "name": "CPUCreditBalance",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
      ]
+    },
+    {
+     "name": "CPUCreditUsage",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ]
+    },
+    {
+     "name": "BinLogDiskUsage",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "byte"
+    },
+    {
+     "name": "TransactionLogsDiskUsage",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "byte"
+    },
+    {
+     "name": "OldestReplicationSlotLag",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "byte"
+    },
+    {
+     "name": "MaximumUsedTransactionIDs",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ]
+    },
+    {
+     "name": "DBLoad",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "session",
+     "key": true
+    },
+    {
+     "name": "DBLoadCPU",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "session"
+    },
+    {
+     "name": "DBLoadNonCPU",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "session"
+    },
+    {
+     "name": "DBLoadRelativeToNumVCPUs",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ]
+    },
+    {
+     "name": "AuroraReplicaLag",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "millisecond"
+    },
+    {
+     "name": "BufferCacheHitRatio",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "percent"
+    },
+    {
+     "name": "CommitLatency",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "millisecond"
+    },
+    {
+     "name": "CommitThroughput",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "transaction"
+    },
+    {
+     "name": "DMLLatency",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "millisecond"
+    },
+    {
+     "name": "DMLThroughput",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "query"
+    },
+    {
+     "name": "SelectLatency",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "millisecond"
+    },
+    {
+     "name": "SelectThroughput",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "query"
+    },
+    {
+     "name": "Deadlocks",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "lock"
+    },
+    {
+     "name": "EngineUptime",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "second"
+    },
+    {
+     "name": "ACUUtilization",
+     "statistic": "Average",
+     "dimensions": [
+      "DBInstanceIdentifier"
+     ],
+     "unit": "percent"
     },
     {
      "name": "ServerlessDatabaseCapacity",
@@ -10006,32 +10597,194 @@
      ]
     },
     {
-     "name": "WriteIOPS",
+     "name": "AuroraReplicaLagMaximum",
      "statistic": "Average",
      "dimensions": [
-      "DBInstanceIdentifier"
-     ]
+      "DBClusterIdentifier"
+     ],
+     "unit": "millisecond",
+     "group": "DBClusterIdentifier"
     },
     {
-     "name": "WriteLatency",
+     "name": "VolumeBytesUsed",
      "statistic": "Average",
      "dimensions": [
-      "DBInstanceIdentifier"
-     ]
+      "DBClusterIdentifier"
+     ],
+     "unit": "byte",
+     "group": "DBClusterIdentifier"
     },
     {
-     "name": "WriteThroughput",
+     "name": "VolumeReadIOPs",
      "statistic": "Average",
      "dimensions": [
-      "DBInstanceIdentifier"
-     ]
+      "DBClusterIdentifier"
+     ],
+     "unit": "operation",
+     "group": "DBClusterIdentifier"
+    },
+    {
+     "name": "VolumeWriteIOPs",
+     "statistic": "Average",
+     "dimensions": [
+      "DBClusterIdentifier"
+     ],
+     "unit": "operation",
+     "group": "DBClusterIdentifier"
+    },
+    {
+     "name": "BackupRetentionPeriodStorageUsed",
+     "statistic": "Average",
+     "dimensions": [
+      "DBClusterIdentifier"
+     ],
+     "unit": "byte",
+     "group": "DBClusterIdentifier"
+    },
+    {
+     "name": "SnapshotStorageUsed",
+     "statistic": "Average",
+     "dimensions": [
+      "DBClusterIdentifier"
+     ],
+     "unit": "byte",
+     "group": "DBClusterIdentifier"
     }
    ]
   },
   "AWS/RDS/Proxy": {
    "dimension": "ProxyName",
    "doc": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy.monitoring.html",
+   "datadog": true,
    "metrics": [
+    {
+     "name": "ClientConnections",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "connection",
+     "key": true,
+     "space": "sum"
+    },
+    {
+     "name": "ClientConnectionsReceived",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "connection"
+    },
+    {
+     "name": "ClientConnectionsSetupFailedAuth",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "connection"
+    },
+    {
+     "name": "ClientConnectionsTLS",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "connection"
+    },
+    {
+     "name": "DatabaseConnections",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "connection",
+     "key": true,
+     "space": "sum"
+    },
+    {
+     "name": "DatabaseConnectionRequests",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "request",
+     "space": "sum"
+    },
+    {
+     "name": "DatabaseConnectionsBorrowLatency",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "microsecond"
+    },
+    {
+     "name": "DatabaseConnectionsCurrentlyBorrowed",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "connection"
+    },
+    {
+     "name": "DatabaseConnectionsCurrentlyInTransaction",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "connection"
+    },
+    {
+     "name": "DatabaseConnectionsCurrentlySessionPinned",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "connection"
+    },
+    {
+     "name": "DatabaseConnectionsSetupFailed",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "connection"
+    },
+    {
+     "name": "MaxDatabaseConnectionsAllowed",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "connection"
+    },
+    {
+     "name": "QueryRequests",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "request",
+     "key": true,
+     "space": "sum"
+    },
+    {
+     "name": "QueryResponseLatency",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "microsecond",
+     "key": true
+    },
+    {
+     "name": "QueryDatabaseResponseLatency",
+     "statistic": "Average",
+     "dimensions": [
+      "ProxyName"
+     ],
+     "unit": "microsecond"
+    },
     {
      "name": "AvailabilityPercentage",
      "statistic": "Average",
@@ -10039,193 +10792,8 @@
       "ProxyName",
       "TargetGroup",
       "TargetRole"
-     ]
-    },
-    {
-     "name": "ClientConnections",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "ClientConnectionsClosed",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "ClientConnectionsInSetup",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "ClientConnectionsNoTLS",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "ClientConnectionsReceived",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "ClientConnectionsSetupFailedAuth",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "ClientConnectionsSetupSucceeded",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "ClientConnectionsTLS",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "DatabaseConnectionRequests",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "DatabaseConnectionRequestsWithTLS",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "DatabaseConnections",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "DatabaseConnectionsBorrowLatency",
-     "statistic": "Average",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "DatabaseConnectionsBorrowRequests",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName",
-      "TargetGroup",
-      "TargetRole"
-     ]
-    },
-    {
-     "name": "DatabaseConnectionsBorrowRequestsAborted",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName",
-      "TargetGroup",
-      "TargetRole"
-     ]
-    },
-    {
-     "name": "DatabaseConnectionsCurrentlyBorrowed",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "DatabaseConnectionsCurrentlyInTransaction",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "DatabaseConnectionsCurrentlySessionPinned",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "DatabaseConnectionsSetupFailed",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "DatabaseConnectionsSetupSucceeded",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "DatabaseConnectionsWithTLS",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "MaxDatabaseConnectionsAllowed",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "QueryDatabaseResponseLatency",
-     "statistic": "Average",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "QueryRequests",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "QueryRequestsNoTLS",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "QueryRequestsTLS",
-     "statistic": "Sum",
-     "dimensions": [
-      "ProxyName"
-     ]
-    },
-    {
-     "name": "QueryResponseLatency",
-     "statistic": "Average",
-     "dimensions": [
-      "ProxyName"
-     ]
+     ],
+     "unit": "percent"
     }
    ]
   },
@@ -12384,256 +12952,258 @@
   "AWS/WAFV2": {
    "dimension": "WebACL",
    "doc": "https://docs.aws.amazon.com/waf/latest/developerguide/waf-metrics.html",
+   "datadog": true,
    "metrics": [
     {
      "name": "AllowedRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "Rule"
-     ]
+     ],
+     "unit": "request",
+     "filter": "rule:ALL",
+     "key": true
     },
     {
      "name": "BlockedRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "Rule"
-     ]
+     ],
+     "unit": "request",
+     "filter": "rule:ALL",
+     "key": true
     },
     {
      "name": "CountedRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "Rule"
-     ]
+     ],
+     "unit": "request",
+     "filter": "rule:ALL",
+     "key": true
     },
     {
      "name": "CaptchaRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "Rule"
-     ]
-    },
-    {
-     "name": "RequestsWithValidCaptchaToken",
-     "statistic": "Sum",
-     "dimensions": [
-      "Region",
-      "WebACL",
-      "Rule"
-     ]
-    },
-    {
-     "name": "CaptchasAttempted",
-     "statistic": "Sum",
-     "dimensions": [
-      "Region",
-      "WebACL",
-      "Rule"
-     ]
-    },
-    {
-     "name": "CaptchasSolved",
-     "statistic": "Sum",
-     "dimensions": [
-      "Region",
-      "WebACL",
-      "Rule"
-     ]
+     ],
+     "unit": "request",
+     "filter": "rule:ALL"
     },
     {
      "name": "ChallengeRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "Rule"
-     ]
+     ],
+     "unit": "request",
+     "filter": "rule:ALL",
+     "key": true
     },
     {
-     "name": "ChallengesAttempted",
+     "name": "BlockedRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "Rule"
-     ]
+     ],
+     "unit": "request",
+     "group": "Rule",
+     "filter": "!rule:ALL"
     },
     {
-     "name": "ChallengesSolved",
+     "name": "CountedRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "Rule"
-     ]
+     ],
+     "unit": "request",
+     "group": "Rule",
+     "filter": "!rule:ALL"
     },
     {
      "name": "PassedRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "RuleGroup"
-     ]
+     ],
+     "unit": "request",
+     "group": "RuleGroup"
+    },
+    {
+     "name": "RequestsWithValidCaptchaToken",
+     "statistic": "Sum",
+     "dimensions": [
+      "WebACL",
+      "Rule"
+     ],
+     "unit": "request",
+     "filter": "rule:ALL"
     },
     {
      "name": "RequestsWithValidChallengeToken",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "Rule"
-     ]
+     ],
+     "unit": "request",
+     "filter": "rule:ALL"
     },
     {
-     "name": "LowReputationPacketsDropped",
+     "name": "CaptchasAttempted",
      "statistic": "Sum",
      "dimensions": [
-      "LoadBalancerArn"
-     ]
+      "WebACL",
+      "Rule"
+     ],
+     "filter": "rule:ALL"
     },
     {
-     "name": "LowReputationRequestsDenied",
+     "name": "CaptchasSolved",
      "statistic": "Sum",
      "dimensions": [
-      "LoadBalancerArn"
-     ]
+      "WebACL",
+      "Rule"
+     ],
+     "filter": "rule:ALL"
+    },
+    {
+     "name": "ChallengesAttempted",
+     "statistic": "Sum",
+     "dimensions": [
+      "WebACL",
+      "Rule"
+     ],
+     "filter": "rule:ALL"
+    },
+    {
+     "name": "ChallengesSolved",
+     "statistic": "Sum",
+     "dimensions": [
+      "WebACL",
+      "Rule"
+     ],
+     "filter": "rule:ALL"
     },
     {
      "name": "MonetizeRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "Rule"
-     ]
+     ],
+     "unit": "request",
+     "filter": "rule:ALL"
     },
     {
-     "name": "MonetizeRequestsFailedVerification",
+     "name": "DDoSAttackRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
-      "WebACL",
-      "Rule"
-     ]
+      "WebACL"
+     ],
+     "unit": "request",
+     "datadog_name": "ddos_attack_requests"
     },
     {
      "name": "AllowRuleMatch",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "LabelNamespace",
       "Label"
-     ]
+     ],
+     "group": "Label"
     },
     {
      "name": "BlockRuleMatch",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "LabelNamespace",
       "Label"
-     ]
+     ],
+     "group": "Label"
     },
     {
      "name": "CountRuleMatch",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "LabelNamespace",
       "Label"
-     ]
+     ],
+     "group": "Label"
     },
     {
      "name": "CaptchaRuleMatch",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "LabelNamespace",
       "Label"
-     ]
+     ],
+     "group": "Label"
     },
     {
      "name": "ChallengeRuleMatch",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL",
       "LabelNamespace",
       "Label"
-     ]
-    },
-    {
-     "name": "CaptchaRuleMatchWithValidToken",
-     "statistic": "Sum",
-     "dimensions": [
-      "Region",
-      "WebACL",
-      "LabelNamespace",
-      "Label"
-     ]
-    },
-    {
-     "name": "ChallengeRuleMatchWithValidToken",
-     "statistic": "Sum",
-     "dimensions": [
-      "Region",
-      "WebACL",
-      "LabelNamespace",
-      "Label"
-     ]
+     ],
+     "group": "Label"
     },
     {
      "name": "SampleAllowedRequest",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL"
-     ]
+     ],
+     "unit": "request"
     },
     {
      "name": "SampleBlockedRequest",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL"
-     ]
-    },
-    {
-     "name": "SampleCaptchaRequest",
-     "statistic": "Sum",
-     "dimensions": [
-      "Region",
-      "WebACL"
-     ]
-    },
-    {
-     "name": "SampleChallengeRequest",
-     "statistic": "Sum",
-     "dimensions": [
-      "Region",
-      "WebACL"
-     ]
+     ],
+     "unit": "request"
     },
     {
      "name": "SampleCountRequest",
      "statistic": "Sum",
      "dimensions": [
-      "Region",
       "WebACL"
-     ]
+     ],
+     "unit": "request"
+    },
+    {
+     "name": "SampleCaptchaRequest",
+     "statistic": "Sum",
+     "dimensions": [
+      "WebACL"
+     ],
+     "unit": "request"
+    },
+    {
+     "name": "SampleChallengeRequest",
+     "statistic": "Sum",
+     "dimensions": [
+      "WebACL"
+     ],
+     "unit": "request"
     },
     {
      "name": "CaptchasAttemptedSdk",
@@ -12661,13 +13231,6 @@
      "statistic": "Sum",
      "dimensions": [
       "Region"
-     ]
-    },
-    {
-     "name": "ResourceCount",
-     "statistic": "Maximum",
-     "dimensions": [
-      "Resource"
      ]
     }
    ]
@@ -13825,6 +14388,292 @@
     }
    ]
   },
+  "ECS/ContainerInsights": {
+   "dimension": "ClusterName",
+   "variables": [
+    "ServiceName"
+   ],
+   "doc": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-metrics-ECS.html",
+   "datadog": true,
+   "metrics": [
+    {
+     "name": "ContainerInstanceCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName"
+     ],
+     "unit": "instance",
+     "space": "sum"
+    },
+    {
+     "name": "ServiceCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName"
+     ],
+     "unit": "service",
+     "key": true,
+     "space": "sum"
+    },
+    {
+     "name": "TaskCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName"
+     ],
+     "unit": "task",
+     "space": "sum"
+    },
+    {
+     "name": "RunningTaskCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "task",
+     "group": "ServiceName",
+     "key": true,
+     "space": "sum"
+    },
+    {
+     "name": "DesiredTaskCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "task",
+     "group": "ServiceName",
+     "key": true,
+     "space": "sum"
+    },
+    {
+     "name": "PendingTaskCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "task",
+     "group": "ServiceName",
+     "key": true,
+     "space": "sum"
+    },
+    {
+     "name": "DeploymentCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "group": "ServiceName",
+     "space": "sum"
+    },
+    {
+     "name": "TaskSetCount",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "task",
+     "group": "ServiceName",
+     "space": "sum"
+    },
+    {
+     "name": "CpuUtilized",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "group": "ServiceName"
+    },
+    {
+     "name": "CpuReserved",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "group": "ServiceName"
+    },
+    {
+     "name": "MemoryUtilized",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "mebibyte",
+     "group": "ServiceName"
+    },
+    {
+     "name": "MemoryReserved",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "mebibyte",
+     "group": "ServiceName"
+    },
+    {
+     "name": "NetworkRxBytes",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "byte",
+     "group": "ServiceName"
+    },
+    {
+     "name": "NetworkTxBytes",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "byte",
+     "group": "ServiceName"
+    },
+    {
+     "name": "StorageReadBytes",
+     "statistic": "Sum",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "byte",
+     "group": "ServiceName"
+    },
+    {
+     "name": "StorageWriteBytes",
+     "statistic": "Sum",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "byte",
+     "group": "ServiceName"
+    },
+    {
+     "name": "EphemeralStorageReserved",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "gigabyte",
+     "group": "ServiceName"
+    },
+    {
+     "name": "EphemeralStorageUtilized",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "gigabyte",
+     "group": "ServiceName"
+    },
+    {
+     "name": "RestartCount",
+     "statistic": "Sum",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "group": "ServiceName"
+    },
+    {
+     "name": "UnhealthyContainerHealthStatus",
+     "statistic": "Sum",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "container",
+     "group": "ServiceName"
+    },
+    {
+     "name": "TaskCpuUtilization",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "percent",
+     "group": "ServiceName"
+    },
+    {
+     "name": "TaskMemoryUtilization",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "ServiceName"
+     ],
+     "unit": "percent",
+     "group": "ServiceName"
+    },
+    {
+     "name": "CpuUtilized",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "TaskDefinitionFamily"
+     ],
+     "variant": "family",
+     "group": "TaskDefinitionFamily"
+    },
+    {
+     "name": "MemoryUtilized",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName",
+      "TaskDefinitionFamily"
+     ],
+     "unit": "mebibyte",
+     "variant": "family",
+     "group": "TaskDefinitionFamily"
+    },
+    {
+     "name": "instance_cpu_utilization",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName"
+     ],
+     "unit": "percent"
+    },
+    {
+     "name": "instance_memory_utilization",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName"
+     ],
+     "unit": "percent"
+    },
+    {
+     "name": "instance_filesystem_utilization",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName"
+     ],
+     "unit": "percent"
+    },
+    {
+     "name": "instance_number_of_running_tasks",
+     "statistic": "Average",
+     "dimensions": [
+      "ClusterName"
+     ],
+     "unit": "task",
+     "space": "sum"
+    }
+   ]
+  },
   "Glue": {
    "dimension": "JobName",
    "doc": "https://docs.aws.amazon.com/glue/latest/dg/monitoring-awsglue-with-cloudwatch-metrics.html",
@@ -14049,31 +14898,63 @@
   },
   "WAF": {
    "dimension": "WebACL",
-   "doc": "https://docs.aws.amazon.com/waf/latest/developerguide/classic-web-acl-testing.html",
+   "doc": "https://docs.aws.amazon.com/waf/latest/developerguide/classic-monitoring-cloudwatch.html",
+   "datadog": true,
    "metrics": [
     {
      "name": "AllowedRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Rule",
-      "WebACL"
-     ]
+      "WebACL",
+      "Rule"
+     ],
+     "unit": "request",
+     "filter": "rule:ALL",
+     "key": true
     },
     {
      "name": "BlockedRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Rule",
-      "WebACL"
-     ]
+      "WebACL",
+      "Rule"
+     ],
+     "unit": "request",
+     "filter": "rule:ALL",
+     "key": true
     },
     {
      "name": "CountedRequests",
      "statistic": "Sum",
      "dimensions": [
-      "Rule",
-      "WebACL"
-     ]
+      "WebACL",
+      "Rule"
+     ],
+     "unit": "request",
+     "filter": "rule:ALL",
+     "key": true
+    },
+    {
+     "name": "PassedRequests",
+     "statistic": "Sum",
+     "dimensions": [
+      "WebACL",
+      "Rule"
+     ],
+     "unit": "request",
+     "filter": "rule:ALL",
+     "key": true
+    },
+    {
+     "name": "BlockedRequests",
+     "statistic": "Sum",
+     "dimensions": [
+      "WebACL",
+      "Rule"
+     ],
+     "unit": "request",
+     "group": "Rule",
+     "filter": "!rule:ALL"
     }
    ]
   }

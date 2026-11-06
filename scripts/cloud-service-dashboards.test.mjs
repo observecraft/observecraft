@@ -55,6 +55,40 @@ test('a metric is named as our AWS crawler publishes it', () => {
   assert.equal(metricOf('AWS/EC2', 'CPUUtilization', 'Average'), 'aws.ec2.cpuutilization');
   assert.equal(metricOf('AWS/ApplicationELB', 'HTTPCode_Target_5XX_Count', 'Sum'), 'aws.applicationelb.httpcode_target_5xx_count.sum');
   assert.equal(metricOf('AWS/RDS', 'FreeStorageSpace', 'Minimum'), 'aws.rds.free_storage_space', 'statistics we don’t crawl read the average');
+  // Namespaces that follow Datadog: the bare name carries the metric's statistic, with Datadog's names and prefixes.
+  assert.equal(metricOf('AWS/CloudFront', 'Requests', 'Sum', { datadog: true }), 'aws.cloudfront.requests');
+  assert.equal(metricOf('AWS/CloudFront', '401ErrorRate', 'Average', { datadog: true, datadog_name: '401_error_rate' }), 'aws.cloudfront.401_error_rate');
+  assert.equal(metricOf('AWS/ECS', 'CPUUtilization', 'Average', { datadog: true, variant: 'service' }), 'aws.ecs.service.cpuutilization');
+  assert.equal(metricOf('ECS/ContainerInsights', 'RunningTaskCount', 'Average', { datadog: true }), 'ecs.containerinsights.running_task_count');
+  assert.equal(metricOf('AWS/RDS/Proxy', 'ClientConnections', 'Average', { datadog: true }), 'aws.rds.proxy.client_connections');
+});
+
+test('CloudFront, ECS, RDS and WAF dashboards chart Datadog’s names, split by the resource each metric is published for', () => {
+  const lines = bundle();
+  const of = (logo) => lines.find((l) => l.logo === logo);
+  const text = (logo) => JSON.stringify(of(logo).dashboards[0].widgets);
+  assert.equal(of('tile:aws-cloudfront').prefix, 'aws.cloudfront.');
+  assert.match(text('tile:aws-cloudfront'), /sum:aws\.cloudfront\.requests\{\$account,\$region,\$distributionid,distributionid:\*\} by \{distributionid\}/);
+  assert.match(text('tile:aws-cloudfront'), /avg:aws\.cloudfront\.401_error_rate\{/);
+  // WAF counts each web ACL's totals as rule:ALL beside its rules: totals keep rule:ALL, the rules leave it out.
+  assert.match(text('tile:aws-wafv2'), /sum:aws\.wafv2\.blocked_requests\{\$account,\$region,\$webacl,rule:ALL,webacl:\*\} by \{webacl\}/);
+  assert.match(text('tile:aws-wafv2'), /sum:aws\.wafv2\.blocked_requests\{\$account,\$region,\$webacl,!rule:ALL,rule:\*\} by \{rule\}/);
+  assert.match(text('tile:aws-waf'), /sum:aws\.waf\.allowed_requests\{/);
+  assert.match(text('tile:aws-ecs'), /avg:aws\.ecs\.cluster\.cpuutilization\{[^}]*\} by \{clustername\}/);
+  assert.match(text('tile:aws-ecs'), /avg:aws\.ecs\.service\.memory_utilization\{[^}]*\} by \{servicename\}/);
+  assert.equal(of('tile:aws-ecs-containerinsights').prefix, 'ecs.containerinsights.');
+  assert.match(text('tile:aws-ecs-containerinsights'), /sum:ecs\.containerinsights\.running_task_count\{[^}]*servicename:\*\} by \{servicename\}/);
+  assert.match(text('tile:aws-ecs-containerinsights'), /ecs\.containerinsights\.family\.cpu_utilized\{[^}]*\} by \{taskdefinitionfamily\}/);
+  const rds = of('tile:aws-rds').dashboards[0];
+  assert.deepEqual(
+    rds.templateVariables.map((v) => v.prefix),
+    ['aws_account', 'region', 'dbinstanceidentifier', 'dbclusteridentifier'],
+  );
+  assert.match(text('tile:aws-rds'), /avg:aws\.rds\.cpuutilization\{[^}]*dbinstanceidentifier:\*\} by \{dbinstanceidentifier\}/);
+  assert.match(text('tile:aws-rds'), /avg:aws\.rds\.volume_bytes_used\{[^}]*dbclusteridentifier:\*\} by \{dbclusteridentifier\}/);
+  assert.match(text('tile:aws-rds'), /avg:aws\.rds\.dbload\{/);
+  assert.doesNotMatch(text('tile:aws-rds'), /aws\.rds\.database_connections\.sum/);
+  assert.equal(of('tile:aws-rds-proxy').prefix, 'aws.rds.proxy.');
 });
 
 const bundle = () =>
@@ -112,6 +146,10 @@ test('service metrics carry their units for the server', () => {
   assert.equal(units.get('azure.vm.percentage_cpu'), 'percent');
   assert.equal(units.get('azure.vm.network_in_total.total'), 'byte');
   assert.equal(units.get('gcp.gce.instance.cpu.utilization'), 'fraction');
+  assert.equal(units.get('aws.cloudfront.bytes_downloaded'), 'byte');
+  assert.equal(units.get('aws.rds.read_latency'), 'second');
+  assert.equal(units.get('aws.ecs.service.cpuutilization'), 'percent');
+  assert.equal(units.get('ecs.containerinsights.memory_utilized'), 'mebibyte');
 });
 
 test('service dashboards fit the grid without overlapping', () => {

@@ -241,6 +241,11 @@ or SDK features.
   Monitor's supported-metrics reference; GCP: Cloud Monitoring's metrics list; names, units and aggregations only), and
   `scripts/cloud-service-dashboards.mjs` turns them into `integrations/cloud/services.ndjson.gz` (installed lazily like
   integrations-core's, by metric prefix), `service-units.csv` and the mock subset `cloudServiceDashboards.generated.json`.
+  CloudFront, ECS (+ `ECS/ContainerInsights` → `ecs.containerinsights.*`), RDS (+ Proxy → `aws.rds.proxy.*`) and WAF
+  follow Datadog exactly (`scripts/aws-datadog-metrics.json`, merged into `aws-metrics.json` by `import-cloud-metrics.mjs
+  --aws-datadog`): the crawler publishes their bare names with Datadog's statistic (counts are sums), its names and
+  `aws.ecs.cluster.*` / `.service.*` variants, and collects the global services (CloudFront, CloudFront web ACLs) from
+  us-east-1 even when the account's regions leave it out (`aws/naming.rs`).
 - **Integration dashboards are listed once their integration is enabled** (`routes/dashboards.rs`, by the dashboard's
   `logo`): AWS / Azure / GCP with an account, synthetics with a test, Kubernetes / hosts / APM with data in the last
   day; other logos always. Cached 30 s per server (`EnabledChange` drops it when an account is added or removed);

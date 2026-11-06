@@ -27,6 +27,18 @@ const VALUES: Record<string, string[]> = {
   topic: ['orders', 'payments', 'inventory-updates', 'catalog-changes'],
   queue: ['orders', 'emails', 'payments', 'webhooks'],
   env: ['prod', 'prod', 'prod', 'qa'],
+  // The AWS services' dimensions (cloudServiceDashboards.generated.json): account 123456789012's demo resources.
+  distributionid: ['E1A2B3C4D5E6F7', 'E2B3C4D5E6F7A8', 'E3C4D5E6F7A8B9', 'E4D5E6F7A8B9C0'],
+  webacl: ['storefront-cdn', 'api-gateway-alb', 'checkout-alb', 'storefront-cdn'],
+  rule: ['ALL', 'AWS-AWSManagedRulesCommonRuleSet', 'ALL', 'rate-limit-checkout'],
+  rulegroup: ['AWSManagedRulesCommonRuleSet', 'AWSManagedRulesKnownBadInputsRuleSet', 'AWSManagedRulesSQLiRuleSet', 'AWSManagedRulesCommonRuleSet'],
+  clustername: ['storefront-prod', 'storefront-prod', 'storefront-prod', 'storefront-staging'],
+  servicename: ['order-service', 'catalog-service', 'billing', 'inventory-service'],
+  taskdefinitionfamily: ['order-service', 'catalog-service', 'billing', 'inventory-service'],
+  dbinstanceidentifier: ['orders-db', 'catalog-db', 'billing-db', 'inventory-db'],
+  dbclusteridentifier: ['orders-aurora', 'orders-aurora', 'catalog-aurora', 'catalog-aurora'],
+  proxyname: ['orders-proxy', 'catalog-proxy', 'billing-proxy', 'orders-proxy'],
+  functionname: ['storefront-headers', 'cart-redirects', 'storefront-headers', 'image-rewrite'],
 };
 
 /** Sized by unit: fractions and percentages in range, bytes in megabytes to gigabytes, times in milliseconds. */
@@ -36,6 +48,7 @@ function base(unit: string | undefined): Pick<CoreMetricDef, 'base' | 'max' | 'i
   if (u === 'percent') return { base: (_e, r) => 5 + r() * 60, max: 100 };
   if (u && /byte$/.test(u)) return { base: (_e, r) => 2e6 + Math.pow(r(), 2) * 4e9 };
   if (u && /(second|millisecond|microsecond|nanosecond)$/.test(u)) return { base: (_e, r) => (u === 'second' ? 0.01 : 10) + r() * (u === 'second' ? 2 : 400) };
+  if (u && /^(task|instance|service|container|node)$/.test(u)) return { base: (_e, r) => 1 + r() * 12, integer: true };
   return { base: (_e, r) => 1 + Math.pow(r(), 2) * 900, integer: true };
 }
 
@@ -50,6 +63,10 @@ const tagsOf = new Map<string, Set<string>>();
 for (const d of dashboards) {
   const tags = tagsOf.get(d.logo) ?? new Set(['host']);
   for (const v of d.templateVariables) if (v.prefix) tags.add(v.prefix);
+  // The tags its queries split by or keep (`by {rule}`, `rule:ALL`), so those charts have data too.
+  const text = JSON.stringify(d.widgets);
+  for (const [, keys] of text.matchAll(/ by \{([a-z0-9_.,]+)\}/g)) for (const k of keys.split(',')) tags.add(k);
+  for (const [, filters] of text.matchAll(/:[a-z][a-z0-9_.]*\{([^}]*)\}/g)) for (const f of filters.split(',')) if (/^!?[a-z][a-z0-9_]*:/.test(f)) tags.add(f.replace(/^!/, '').split(':')[0]);
   tagsOf.set(d.logo, tags);
 }
 for (const [logo, tags] of tagsOf) CORE_SETS[`core_${logo}`] = HOSTS.map((host, i) => Object.fromEntries([...tags].map((t) => [t, t === 'host' ? host : (VALUES[t]?.[i] ?? `${t}-${i + 1}`)])));
