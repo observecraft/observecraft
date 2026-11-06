@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { EChartsOption } from 'echarts';
+import { statusColor } from '../../theme/chartTheme';
 import { Info } from 'lucide-react';
 import type { LlmCheckSummary } from '../../api/llm/client';
 import { Chart } from '../../components/charts/Chart';
@@ -130,8 +131,8 @@ function CheckCard({ c, times, stepMs, active, onClick }: { c: LlmCheckSummary; 
       yAxis: { type: 'value', show: false },
       tooltip: { trigger: 'axis' },
       series: [
-        { name: 'Passed', type: 'bar', stack: 'r', barMaxWidth: 6, color: '#3ec46d', data: times.map((t, i) => [t + stepMs / 2, c.passSeries[i] ?? 0]) },
-        { name: 'Failed', type: 'bar', stack: 'r', barMaxWidth: 6, color: '#e5383b', data: times.map((t, i) => [t + stepMs / 2, c.failSeries[i] ?? 0]) },
+        { name: 'Passed', type: 'bar', stack: 'r', barMaxWidth: 6, color: statusColor('ok'), data: times.map((t, i) => [t + stepMs / 2, c.passSeries[i] ?? 0]) },
+        { name: 'Failed', type: 'bar', stack: 'r', barMaxWidth: 6, color: statusColor('error'), data: times.map((t, i) => [t + stepMs / 2, c.failSeries[i] ?? 0]) },
       ],
     }),
     [c, times, stepMs],

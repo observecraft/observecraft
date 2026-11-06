@@ -83,6 +83,11 @@
   border-right: 1px solid var(--border-strong);
 }
 
+:root[data-theme='dark'] .sx-letter {
+  background: #2a2440;
+  color: #c3a8ff;
+}
+
 .sx-scope {
   position: relative;
   display: flex;
@@ -244,7 +249,7 @@
 }
 
 .sx-dot.error {
-  background: #e5383b;
+  background: var(--status-error);
 }
 
 .sx-main {
@@ -399,7 +404,7 @@
 }
 
 .sx-bar-col i.error {
-  background: #e5383b;
+  background: var(--status-error);
 }
 
 .sx-date {
@@ -413,7 +418,7 @@
 }
 
 .sx-err {
-  color: #e5383b;
+  color: var(--status-error);
   font-weight: var(--fw-semibold);
 }
 
@@ -452,7 +457,7 @@
 }
 
 .sx-code-badge.err {
-  background: #e5383b;
+  background: var(--status-error);
 }
 
 .sx-toplist-cell {
@@ -510,7 +515,7 @@
 }
 
 .tv-head.err {
-  border-top-color: #e5383b;
+  border-top-color: var(--status-error);
 }
 
 .tv-title {
@@ -550,8 +555,8 @@
 .tv-pct {
   padding: 2px 8px;
   border-radius: var(--radius-sm);
-  background: #dcf4e6;
-  color: #1d7a4b;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
   font-weight: var(--fw-semibold);
 }
 
@@ -609,7 +614,7 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: #e5383b;
+  background: var(--status-error);
   color: #fff;
   font-size: var(--fs-xs);
 }
@@ -753,7 +758,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #e5383b;
+  background: var(--status-error);
   flex-shrink: 0;
 }
 
@@ -764,15 +769,15 @@
 }
 
 .wf2-code.ok {
-  color: #1d8a52;
+  color: var(--badge-ok-fg);
 }
 
 .wf2-code.warn {
-  color: #c96a10;
+  color: var(--badge-warn-fg);
 }
 
 .wf2-code.err {
-  color: #e5383b;
+  color: var(--status-error);
 }
 
 .wf2-track {
@@ -788,7 +793,7 @@
 }
 
 .wf2-bar.err {
-  box-shadow: inset 0 0 0 2px #e5383b;
+  box-shadow: inset 0 0 0 2px var(--status-error);
 }
 
 .wf2-dur {
@@ -852,7 +857,7 @@
 }
 
 .tv-map-node.err {
-  stroke: #e5383b;
+  stroke: var(--status-error);
   stroke-width: 2;
 }
 
@@ -899,7 +904,7 @@
 }
 
 .sp-err-icon {
-  color: #e5383b;
+  color: var(--status-error);
 }
 
 .sp-res {
@@ -975,7 +980,7 @@
 }
 
 .sp-error svg {
-  color: #e5383b;
+  color: var(--status-error);
   flex-shrink: 0;
 }
 
@@ -1045,7 +1050,7 @@
 }
 
 .sp-logs tr.near {
-  background: #fff8e1;
+  background: var(--cf-light-yellow);
 }
 
 .sp-log-msg {
@@ -1062,11 +1067,11 @@
 }
 
 .sp-log-status.s-error {
-  background: #fde4e4;
-  color: #b3122e;
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
 }
 
 .sp-log-status.s-warn {
-  background: #fdefd6;
-  color: #9a5b06;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }

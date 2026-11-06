@@ -12,7 +12,7 @@ import { facetLabel } from './catalogModel';
 import { CatalogPanel } from './CatalogPanel';
 import { CloudDiagram, type DiagramHandle } from './CloudDiagram';
 import { boxFaces, layoutDiagram, type PlacedBlock, type ViewMode } from './cloudMapLayout';
-import { DEFAULT_PALETTE, faces, groupColor } from './cloudMapStyle';
+import { faces, groupColor, readPalette } from './cloudMapStyle';
 import { CLOUD_LABEL, CloudIcon } from './hostIcons';
 import { useCloudMap } from './queries';
 import './cloudcraft.css';
@@ -161,7 +161,7 @@ function ExportMenu({ diagram }: { diagram: React.RefObject<DiagramHandle | null
 /** Our own isometric illustration for the onboarding card: a region with two clusters of blocks. */
 function Illustration() {
   const unit = 13;
-  const p = DEFAULT_PALETTE;
+  const p = readPalette();
   const platform = (x: number, y: number, w: number, d: number, z: number, key: string, level: number) => {
     const f = boxFaces(x, y, w, d, z, 0.25, 'iso', unit);
     const c = groupColor(p, key, level);
@@ -256,7 +256,7 @@ function Onboarding() {
 }
 
 function Legend({ overlay }: { overlay: CloudMapOverlay }) {
-  const p = DEFAULT_PALETTE;
+  const p = readPalette();
   const items =
     overlay === 'health'
       ? [

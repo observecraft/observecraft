@@ -44,7 +44,7 @@
   display: grid;
   place-items: center;
   border-radius: 4px;
-  background: var(--primary, #3b6fd8);
+  background: var(--primary);
   color: #fff;
   font-weight: 600;
   font-size: var(--fs-sm);
@@ -56,7 +56,7 @@
   height: 30px;
   border: 1px solid var(--border);
   border-radius: 4px;
-  background: var(--bg, #fff);
+  background: var(--bg);
   padding: 0 8px;
   font: inherit;
   color: inherit;
@@ -73,7 +73,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--text-muted, #6b6f80);
+  color: var(--text-muted);
 }
 
 .mx-field input {
@@ -147,7 +147,7 @@
 
 .mx-query {
   font-size: var(--fs-sm);
-  color: var(--text-muted, #6b6f80);
+  color: var(--text-muted);
 }
 
 .mx-chart {

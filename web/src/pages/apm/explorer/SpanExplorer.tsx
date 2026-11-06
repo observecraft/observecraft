@@ -9,7 +9,7 @@ import { TimePicker } from '../../../components/shell/PageHeader';
 import { useTime } from '../../../components/shell/TimeContext';
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { Pager } from '../../../components/ui/Pager';
-import { palette } from '../../../theme/chartTheme';
+import { palette, statusColor } from '../../../theme/chartTheme';
 import { Facet, ValuesFacet } from '../../monitors/common';
 import { useExploreSpans, useSpanFacets, useSpanSummary } from '../queries';
 import { fmtLatency } from '../visuals';
@@ -387,7 +387,7 @@ function RelCharts({ data }: { data: NonNullable<ReturnType<typeof useSpanSummar
     const at = (vals: (number | null | undefined)[]) => data.times.map((t, i) => [t + data.stepMs / 2, vals[i] ?? null]);
     return {
       requests: base([{ name: 'Requests', type: 'bar', barMaxWidth: 10, color: colors[0], data: at(data.hits) }]),
-      errors: base([{ name: 'Errors', type: 'bar', barMaxWidth: 10, color: '#e5383b', data: at(data.errors) }]),
+      errors: base([{ name: 'Errors', type: 'bar', barMaxWidth: 10, color: statusColor('error'), data: at(data.errors) }]),
       latency: base(
         [
           { name: 'p50', type: 'line', showSymbol: false, color: colors[2], data: at(data.p50Ms) },

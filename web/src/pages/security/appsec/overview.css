@@ -236,7 +236,7 @@
   color: #e8a33d;
 }
 .ov-exposure {
-  border: 1px solid #f0c060;
+  border: 1px solid var(--sec-warn-border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -246,8 +246,8 @@
   gap: 6px;
   margin: 0;
   padding: 6px 12px;
-  background: #fff4dc;
-  color: #8a5a00;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
   font-size: var(--fs-xs);
 }
 .ov-exposure > div {
@@ -448,7 +448,7 @@
 .ov-progress {
   height: 8px;
   border-radius: 4px;
-  background: #ece6f8;
+  background: var(--group-purple-light);
   overflow: hidden;
 }
 .ov-progress i {
@@ -492,7 +492,7 @@
 .ov-stack .monitoring,
 .ov-cov-legend .monitoring {
   border: 1px dashed #f0a830;
-  background: #fff6e2;
+  background: var(--cf-light-yellow);
 }
 .ov-stack .off,
 .ov-cov-legend .off {
@@ -566,5 +566,5 @@
   color: var(--sev-high);
 }
 .ov-change.down {
-  color: #2e9d57;
+  color: var(--status-ok);
 }

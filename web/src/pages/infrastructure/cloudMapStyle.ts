@@ -2,6 +2,7 @@
 // level and health. Base colours come from the theme tokens (read once per render).
 import type { CatalogType } from '../../api/catalog/client';
 import type { CloudMapHealth, CloudMapOverlay } from '../../api/cloudMap/client';
+import { token } from '../../theme/chartTheme';
 
 export interface Palette {
   brand: string;
@@ -36,6 +37,28 @@ export const DEFAULT_PALETTE: Palette = {
   border: '#d7dbe3',
   bg: '#ffffff',
 };
+
+/** The palette of the current theme, from the tokens (call at render). */
+export function readPalette(): Palette {
+  const t = (name: string, fallback: string) => token(name) || fallback;
+  const d = DEFAULT_PALETTE;
+  return {
+    brand: t('--brand', d.brand),
+    blue: t('--group-blue', d.blue),
+    purple: t('--group-purple', d.purple),
+    orange: t('--group-orange', d.orange),
+    green: t('--group-green', d.green),
+    gray: t('--group-gray', d.gray),
+    ok: t('--status-ok', d.ok),
+    warn: t('--status-warn', d.warn),
+    error: t('--status-error', d.error),
+    nodata: t('--status-nodata', d.nodata),
+    text: t('--text', d.text),
+    muted: t('--text-muted', d.muted),
+    border: t('--border', d.border),
+    bg: t('--bg', d.bg),
+  };
+}
 
 function rgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
@@ -89,6 +112,7 @@ export function groupColor(p: Palette, key: string, level: number): { top: strin
     team: p.orange,
   };
   const c = base[key] ?? p.gray;
-  const top = mix(c, '#ffffff', Math.max(0.78, 0.93 - level * 0.05));
-  return { top, side: mix(c, '#ffffff', 0.55), stroke: mix(c, '#ffffff', 0.35), label: mix(c, '#000000', 0.25) };
+  // Tinted towards the page background, so platforms stay light in the light theme and dark in the dark one.
+  const top = mix(c, p.bg, Math.max(0.78, 0.93 - level * 0.05));
+  return { top, side: mix(c, p.bg, 0.55), stroke: mix(c, p.bg, 0.35), label: mix(c, p.text, 0.25) };
 }

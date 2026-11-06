@@ -28,7 +28,7 @@ import { Chart } from '../../components/charts/Chart';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
 import { formatMetricQuery, formulaQueries, parseMetricQuery } from '../../lib/metricQuery';
-import { palette } from '../../theme/chartTheme';
+import { palette, statusColor } from '../../theme/chartTheme';
 import { useTeams } from '../settings/queries';
 import { fmtValue, RecipientIcon, recipientLabel } from './common';
 import { useMonitor, useSaveMonitor } from './queries';
@@ -725,15 +725,15 @@ function Backtest({ type, query, options, hasThreshold }: { type: MonitorType; q
         ? [
             {
               yAxis: t.critical,
-              lineStyle: { color: '#e5383b', type: 'dashed' as const },
-              label: { formatter: 'Alert', color: '#e5383b' },
+              lineStyle: { color: statusColor('error'), type: 'dashed' as const },
+              label: { formatter: 'Alert', color: statusColor('error') },
             },
             ...(t.warning !== null && t.warning !== undefined
               ? [
                   {
                     yAxis: t.warning,
-                    lineStyle: { color: '#f2a93b', type: 'dashed' as const },
-                    label: { formatter: 'Warn', color: '#f2a93b' },
+                    lineStyle: { color: statusColor('warn'), type: 'dashed' as const },
+                    label: { formatter: 'Warn', color: statusColor('warn') },
                   },
                 ]
               : []),

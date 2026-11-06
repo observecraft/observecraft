@@ -4,8 +4,8 @@
   --ff-hero-from: #073f3d;
   --ff-hero-mid: #0b6e69;
   --ff-hero-to: #2a9d8f;
-  --ff-on: #2ea86b;
-  --ff-off: #b4b9c4;
+  --ff-on: var(--status-ok);
+  --ff-off: var(--status-debug);
 }
 
 .ff-layout {
@@ -158,8 +158,16 @@
   color: var(--brand-strong);
 }
 
+:root[data-theme='dark'] .ff-btn-white {
+  color: #073f3d;
+}
+
 .ff-btn-white:hover {
   background: var(--brand-subtle);
+}
+
+:root[data-theme='dark'] .ff-btn-white:hover {
+  background: #e3f2ee;
 }
 
 .ff-btn-ghost {

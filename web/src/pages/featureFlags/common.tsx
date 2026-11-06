@@ -176,52 +176,52 @@ export function HeroArt() {
         </linearGradient>
       </defs>
       {/* Targeting card */}
-      <rect x="16" y="14" width="330" height="222" rx="12" fill="#ffffff" />
-      <rect x="36" y="34" width="22" height="22" rx="11" fill="#e3f2ee" />
-      <path d="M43 50 V40 h9 l-2 3 l2 3 h-9" fill="none" stroke="#0b6e69" strokeWidth="1.8" strokeLinejoin="round" />
-      <rect x="68" y="38" width="130" height="10" rx="5" fill="#1c2333" opacity="0.85" />
-      <rect x="276" y="35" width="50" height="20" rx="10" fill="#2ea86b" />
+      <rect x="16" y="14" width="330" height="222" rx="12" fill="var(--bg)" />
+      <rect x="36" y="34" width="22" height="22" rx="11" fill="var(--primary-subtle)" />
+      <path d="M43 50 V40 h9 l-2 3 l2 3 h-9" fill="none" stroke="var(--primary)" strokeWidth="1.8" strokeLinejoin="round" />
+      <rect x="68" y="38" width="130" height="10" rx="5" fill="var(--text)" opacity="0.85" />
+      <rect x="276" y="35" width="50" height="20" rx="10" fill="var(--status-ok)" />
       <circle cx="315" cy="45" r="7" fill="#ffffff" />
       {[0, 1, 2].map((i) => (
         <g key={i} transform={`translate(36 ${76 + i * 50})`}>
-          <rect width="290" height="38" rx="8" fill="#f6f7f9" stroke="#e1e3ea" />
-          <circle cx="18" cy="19" r="9" fill="#eef0f4" />
-          <text x="18" y="23" textAnchor="middle" fontSize="11" fill="#5a6273" fontFamily="sans-serif">
+          <rect width="290" height="38" rx="8" fill="var(--bg-subtle)" stroke="var(--border)" />
+          <circle cx="18" cy="19" r="9" fill="var(--bg-muted)" />
+          <text x="18" y="23" textAnchor="middle" fontSize="11" fill="var(--text-muted)" fontFamily="sans-serif">
             {i + 1}
           </text>
-          <rect x="36" y="11" width={[64, 52, 80][i]} height="7" rx="3.5" fill="#8b93a3" />
-          <rect x="36" y="23" width={[110, 90, 70][i]} height="6" rx="3" fill="#c8ccd6" />
-          <rect x="204" y="10" width="72" height="18" rx="9" fill={['#dcebfb', '#fdefd6', '#e3f2ee'][i]} />
-          <rect x="214" y="16" width="10" height="6" rx="2" fill={['#3d7fe0', '#f2a93b', '#29a8a0'][i]} />
-          <rect x="229" y="16" width="38" height="6" rx="3" fill={['#1d5aa6', '#9a5b06', '#073f3d'][i]} opacity="0.7" />
+          <rect x="36" y="11" width={[64, 52, 80][i]} height="7" rx="3.5" fill="var(--text-faint)" />
+          <rect x="36" y="23" width={[110, 90, 70][i]} height="6" rx="3" fill="var(--border-strong)" />
+          <rect x="204" y="10" width="72" height="18" rx="9" fill={['var(--badge-info-bg)', 'var(--badge-warn-bg)', 'var(--primary-subtle)'][i]} />
+          <rect x="214" y="16" width="10" height="6" rx="2" fill={['var(--chart-1)', 'var(--chart-4)', 'var(--chart-3)'][i]} />
+          <rect x="229" y="16" width="38" height="6" rx="3" fill={['var(--badge-info-fg)', 'var(--badge-warn-fg)', 'var(--brand-strong)'][i]} opacity="0.7" />
         </g>
       ))}
       {/* Rollout card */}
-      <rect x="236" y="196" width="306" height="118" rx="12" fill="#ffffff" />
-      <rect x="256" y="214" width="96" height="9" rx="4.5" fill="#1c2333" opacity="0.85" />
-      <rect x="470" y="212" width="52" height="14" rx="7" fill="#e3f2ee" />
-      <text x="496" y="223" textAnchor="middle" fontSize="10" fill="#073f3d" fontFamily="sans-serif" fontWeight="600">
+      <rect x="236" y="196" width="306" height="118" rx="12" fill="var(--bg)" />
+      <rect x="256" y="214" width="96" height="9" rx="4.5" fill="var(--text)" opacity="0.85" />
+      <rect x="470" y="212" width="52" height="14" rx="7" fill="var(--primary-subtle)" />
+      <text x="496" y="223" textAnchor="middle" fontSize="10" fill="var(--brand-strong)" fontFamily="sans-serif" fontWeight="600">
         40%
       </text>
-      <rect x="256" y="238" width="266" height="10" rx="5" fill="#eef0f4" />
+      <rect x="256" y="238" width="266" height="10" rx="5" fill="var(--bg-muted)" />
       <rect x="256" y="238" width="106" height="10" rx="5" fill="url(#ff-art-bar)" />
       {[0, 1, 2, 3].map((i) => (
         <g key={i}>
-          <circle cx={262 + i * 84} cy="270" r="6" fill={i < 2 ? '#0b6e69' : '#ffffff'} stroke="#0b6e69" strokeWidth="2" />
-          <rect x={250 + i * 84} y="284" width="26" height="6" rx="3" fill="#c8ccd6" />
-          {i < 3 && <line x1={268 + i * 84} y1="270" x2={340 + i * 84} y2="270" stroke={i < 1 ? '#0b6e69' : '#c8ccd6'} strokeWidth="2" strokeDasharray={i < 1 ? '' : '4 4'} />}
+          <circle cx={262 + i * 84} cy="270" r="6" fill={i < 2 ? 'var(--primary)' : 'var(--bg)'} stroke="var(--primary)" strokeWidth="2" />
+          <rect x={250 + i * 84} y="284" width="26" height="6" rx="3" fill="var(--border-strong)" />
+          {i < 3 && <line x1={268 + i * 84} y1="270" x2={340 + i * 84} y2="270" stroke={i < 1 ? 'var(--primary)' : 'var(--border-strong)'} strokeWidth="2" strokeDasharray={i < 1 ? '' : '4 4'} />}
         </g>
       ))}
       {/* Evaluations card */}
-      <rect x="370" y="14" width="172" height="164" rx="12" fill="#ffffff" />
-      <rect x="388" y="32" width="70" height="8" rx="4" fill="#1c2333" opacity="0.85" />
+      <rect x="370" y="14" width="172" height="164" rx="12" fill="var(--bg)" />
+      <rect x="388" y="32" width="70" height="8" rx="4" fill="var(--text)" opacity="0.85" />
       {[38, 52, 46, 64, 58, 76, 70, 88, 82, 96].map((h, i) => (
         <g key={i}>
-          <rect x={390 + i * 14} y={158 - h} width="9" height={h * 0.6} rx="2" fill="#3d7fe0" />
-          <rect x={390 + i * 14} y={158 - h * 0.4} width="9" height={h * 0.4} rx="2" fill="#f2a93b" />
+          <rect x={390 + i * 14} y={158 - h} width="9" height={h * 0.6} rx="2" fill="var(--chart-1)" />
+          <rect x={390 + i * 14} y={158 - h * 0.4} width="9" height={h * 0.4} rx="2" fill="var(--chart-4)" />
         </g>
       ))}
-      <line x1="386" y1="160" x2="528" y2="160" stroke="#e1e3ea" />
+      <line x1="386" y1="160" x2="528" y2="160" stroke="var(--border)" />
     </svg>
   );
 }

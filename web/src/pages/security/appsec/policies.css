@@ -10,8 +10,8 @@
   gap: 10px;
   margin: -4px -20px 0;
   padding: 7px 20px;
-  background: #fff4e5;
-  color: #6b4500;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
   font-size: var(--fs-sm);
   text-align: center;
 }
@@ -263,13 +263,13 @@
 }
 
 .aapp-tag.blue {
-  background: #e3effd;
-  color: #1f6fd1;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 
 .aapp-tag.orange {
-  background: #fff1d6;
-  color: #c26a00;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 
 .aapp-tag.link {
@@ -281,7 +281,7 @@
 }
 
 .aapp-new {
-  color: #8b3fd9;
+  color: var(--sec-purple-fg);
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
 }
@@ -302,13 +302,13 @@
 }
 
 .aapp-rules .b {
-  background: #e3effd;
-  color: #1f6fd1;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 
 .aapp-rules .m {
-  background: #fff1d6;
-  color: #c26a00;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 
 .aapp-rules .d {
@@ -409,8 +409,8 @@
   gap: 5px;
   padding: 1px 8px;
   border-radius: 3px;
-  background: #f1e9fd;
-  color: #6d3fc8;
+  background: var(--group-purple-light);
+  color: var(--sec-purple-fg);
   font-size: var(--fs-sm);
   white-space: nowrap;
 }
@@ -429,13 +429,13 @@
 }
 
 .aapp-status.monitoring {
-  background: #fff1d6;
-  color: #c26a00;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 
 .aapp-status.blocking {
-  background: #e3effd;
-  color: #1f6fd1;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 
 .aapp-status.disabled {
@@ -454,23 +454,27 @@
 }
 
 .aapp-sev.critical {
-  background: #fde7ea;
-  color: #b3122e;
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
 }
 
 .aapp-sev.high {
-  background: #fde9ec;
-  color: #d1324a;
+  background: var(--badge-error-bg);
+  color: var(--status-error);
 }
 
 .aapp-sev.medium {
-  background: #fff1d6;
-  color: #c26a00;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 
 .aapp-sev.low {
-  background: #fdf5d8;
+  background: var(--cf-light-yellow);
   color: #9a7400;
+}
+
+:root[data-theme='dark'] .aapp-sev.low {
+  color: #e8cf6a;
 }
 
 .aapp-sev.info {
@@ -612,7 +616,7 @@
 }
 
 .aapp-preset-bar .d {
-  background: #c7ccd6;
+  background: var(--status-nodata);
 }
 
 .sec-modal .aapp-preset {
@@ -758,9 +762,9 @@
 /* ---------- business logic ---------- */
 .aapp-callout {
   padding: 12px 14px;
-  border: 1px solid #b9d6f6;
+  border: 1px solid var(--sec-info-border);
   border-radius: var(--radius-sm);
-  background: #eef5fe;
+  background: var(--sec-info-tint);
 }
 
 .aapp-callout p {
@@ -893,8 +897,8 @@ a.aapp-card:hover {
   gap: 4px;
   padding: 1px 6px;
   border-radius: 3px;
-  background: #f1e9fd;
-  color: #6d3fc8;
+  background: var(--group-purple-light);
+  color: var(--sec-purple-fg);
   font-size: var(--fs-sm);
   white-space: nowrap;
 }
@@ -1021,8 +1025,8 @@ a.aapp-card:hover {
 
 .aapp-ip.green {
   border-color: transparent;
-  background: #e2f5e7;
-  color: #1d7a3a;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 
 .aapp-star {
@@ -1087,25 +1091,4 @@ a.aapp-card:hover {
   border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--text);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .aapp-rc {
-    background: #3a2c12;
-    color: #f2d29b;
-  }
-  :root:not([data-theme='light']) .aapp-callout {
-    border-color: #2a4a70;
-    background: #14263b;
-  }
-}
-
-:root[data-theme='dark'] .aapp-rc {
-  background: #3a2c12;
-  color: #f2d29b;
-}
-
-:root[data-theme='dark'] .aapp-callout {
-  border-color: #2a4a70;
-  background: #14263b;
 }

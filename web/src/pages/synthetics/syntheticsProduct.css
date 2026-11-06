@@ -1154,6 +1154,16 @@ button.syn-tile:hover {
   color: #3a0d0d;
 }
 
+:root[data-theme='dark'] .syn-region-tile {
+  background: color-mix(in srgb, var(--mon-ok) 30%, var(--bg));
+  color: #d4f2e0;
+}
+
+:root[data-theme='dark'] .syn-region.alert .syn-region-tile {
+  background: color-mix(in srgb, var(--mon-alert) 35%, var(--bg));
+  color: #fcdcdc;
+}
+
 .syn-region-tile:hover {
   filter: brightness(1.05);
 }

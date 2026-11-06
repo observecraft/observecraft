@@ -683,7 +683,7 @@ button.apm-card:hover {
   height: 28px;
   border-radius: 50%;
   background: var(--primary);
-  color: var(--text-on-primary, #fff);
+  color: var(--text-inverse);
   font-size: var(--fs-md);
   font-weight: var(--fw-semibold);
 }
@@ -986,7 +986,7 @@ button.apm-instrument-card:hover {
 }
 
 a.svc-monbar.alert {
-  background: var(--status-error-subtle, #fde6e6);
+  background: var(--badge-error-bg);
   color: var(--status-error);
 }
 
@@ -1341,13 +1341,13 @@ a.svc-monbar.alert {
 }
 
 .svc-rule-state.s-pass {
-  background: #e3f5e8;
-  color: #1d7a3a;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 
 .svc-rule-state.s-fail {
-  background: #fde6e6;
-  color: #b3122e;
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
 }
 
 .svc-check-head {
@@ -1383,13 +1383,13 @@ a.svc-monbar.alert {
 }
 
 .svc-check-state.ok {
-  background: #e3f5e8;
-  color: #1d7a3a;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 
 .svc-check-state.no {
-  background: #fdf0dc;
-  color: #94590a;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 
 .svc-check-row a {

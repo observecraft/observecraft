@@ -489,6 +489,10 @@
   background: linear-gradient(135deg, #eef3f7 0%, #f6f8fb 45%, #e9f2f0 100%);
 }
 
+:root[data-theme='dark'] .stp-list-body {
+  background: linear-gradient(135deg, var(--bg-subtle) 0%, var(--bg) 45%, var(--brand-subtle) 100%);
+}
+
 .stp-list-hero {
   margin: 36px 0 32px;
   text-align: center;
@@ -502,6 +506,10 @@
   padding: 24px;
   border-radius: 16px;
   background: rgb(255 255 255 / 55%);
+}
+
+:root[data-theme='dark'] .stp-list-card {
+  background: rgb(255 255 255 / 4%);
 }
 
 .stp-list-card-head {
@@ -539,6 +547,10 @@
   border: 1px dashed var(--border-strong);
   background: rgb(255 255 255 / 60%);
   color: var(--brand);
+}
+
+:root[data-theme='dark'] .stp-list-empty {
+  background: rgb(255 255 255 / 3%);
 }
 
 .stp-list-empty p {

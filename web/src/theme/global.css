@@ -34,6 +34,13 @@ input {
   color: inherit;
 }
 
+/* Fields without a background of their own take the page's, not the browser's (gray in dark mode). */
+input,
+select,
+textarea {
+  background-color: var(--bg);
+}
+
 a {
   color: var(--link);
   text-decoration: none;
@@ -369,4 +376,14 @@ a:hover {
 
 .toast .link-btn {
   color: #9cc3ff;
+}
+
+:root[data-theme='dark'] .toast {
+  border: 1px solid var(--border-strong);
+  background: var(--bg-group);
+  color: var(--text);
+}
+
+:root[data-theme='dark'] .toast .link-btn {
+  color: var(--link);
 }

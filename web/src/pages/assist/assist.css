@@ -1602,7 +1602,48 @@
 }
 
 .k-code {
-  color: #3d4b5c;
+  color: var(--text-muted);
+}
+
+/* Dark: lighter product colors and dots tinted from them; :where keeps the light rules' specificity so the running and end states still win. */
+:where(:root[data-theme='dark']) .k-logs {
+  color: #6aa5f0;
+}
+
+:where(:root[data-theme='dark']) .k-metrics {
+  color: #a88af5;
+}
+
+:where(:root[data-theme='dark']) .k-apm {
+  color: #3cc4bb;
+}
+
+:where(:root[data-theme='dark']) .k-monitors,
+:where(:root[data-theme='dark']) .k-incidents {
+  color: #f08a55;
+}
+
+:where(:root[data-theme='dark']) .k-errors {
+  color: #f0677f;
+}
+
+:where(:root[data-theme='dark']) .k-kubernetes {
+  color: #6e9af0;
+}
+
+:where(:root[data-theme='dark']) .k-security {
+  color: #e8b44f;
+}
+
+:where(:root[data-theme='dark']) .ai-tl-dot.k-logs,
+:where(:root[data-theme='dark']) .ai-tl-dot.k-metrics,
+:where(:root[data-theme='dark']) .ai-tl-dot.k-apm,
+:where(:root[data-theme='dark']) .ai-tl-dot.k-monitors,
+:where(:root[data-theme='dark']) .ai-tl-dot.k-incidents,
+:where(:root[data-theme='dark']) .ai-tl-dot.k-errors,
+:where(:root[data-theme='dark']) .ai-tl-dot.k-kubernetes,
+:where(:root[data-theme='dark']) .ai-tl-dot.k-security {
+  background: color-mix(in srgb, currentColor 18%, var(--bg));
 }
 
 .ai-tl-item.running .ai-tl-dot {

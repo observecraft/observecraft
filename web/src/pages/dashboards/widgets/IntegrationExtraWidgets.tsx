@@ -12,6 +12,7 @@ import { countryValues, distributionBuckets, hostmapColor, sunburstTree, type Su
 import { loadWorldMap } from '../../../api/integrations/worldMap';
 import { logPatterns } from '../../../api/client';
 import { palette, token } from '../../../theme/chartTheme';
+import { currentTheme } from '../../../theme/mode';
 import { useDashboardContext } from './context';
 import { WidgetState } from './MetricWidgets';
 
@@ -42,7 +43,7 @@ export function IntegrationGeomap({ values }: { values: Value[] }) {
               formatter: (p) =>
                 `${(p as { name: string }).name}: ${(p as { value?: number }).value === undefined || Number.isNaN((p as { value: number }).value) ? '—' : formatMetricValue((p as { value: number }).value, unit)}`,
             },
-            visualMap: { min: 0, max, show: false, inRange: { color: ['#d6e6f5', '#6baed6', '#2171b5', '#08306b'] } },
+            visualMap: { min: 0, max, show: false, inRange: { color: currentTheme() === 'dark' ? ['#1c3350', '#2a5fb0', '#5b9cf0', '#cfe3fb'] : ['#d6e6f5', '#6baed6', '#2171b5', '#08306b'] } },
             series: [
               {
                 type: 'map',

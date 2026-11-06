@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EChartsOption } from 'echarts';
+import { statusColor } from '../../theme/chartTheme';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import type { CiAggregate } from '../../api/ci/client';
 import { Chart } from '../../components/charts/Chart';
@@ -40,7 +41,7 @@ export function OverviewPage() {
           type: 'bar',
           stack: 'x',
           barMaxWidth: 14,
-          color: '#3ec46d',
+          color: statusColor('ok'),
           data: d.times.map((x, j) => [x + d.stepMs / 2, all[j] - errored[j]]),
         },
         {
@@ -48,7 +49,7 @@ export function OverviewPage() {
           type: 'bar',
           stack: 'x',
           barMaxWidth: 14,
-          color: '#e5383b',
+          color: statusColor('error'),
           data: d.times.map((x, j) => [x + d.stepMs / 2, errored[j]]),
         },
       ],

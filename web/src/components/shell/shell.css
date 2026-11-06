@@ -971,3 +971,38 @@ button.pm-org:hover {
 .pm-logout {
   color: #ff6b6b;
 }
+
+.pm-theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+}
+
+.pm-theme-options {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background: var(--pm-line);
+}
+
+.pm-theme-options button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  opacity: 0.75;
+}
+
+.pm-theme-options button:hover {
+  opacity: 1;
+}
+
+.pm-theme-options button.active {
+  background: var(--primary);
+  color: var(--text-inverse);
+  opacity: 1;
+}
