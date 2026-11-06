@@ -7,10 +7,16 @@ import test from 'node:test';
 const require = createRequire(new URL('../web/package.json', import.meta.url));
 const { load } = require('js-yaml');
 const config = load(readFileSync(new URL('../deploy/otel/collector.yaml', import.meta.url), 'utf8'));
+// OC_LOG_INGEST=vector merges this over collector.yaml: its exporter to Vector must keep the same guarantees.
+const vectorLogs = load(readFileSync(new URL('../deploy/otel/logs-vector.yaml', import.meta.url), 'utf8'));
 const vector = load(readFileSync(new URL('../deploy/vector/aggregator.yaml', import.meta.url), 'utf8'));
 
 test('every storage exporter preserves Kafka ownership until export, with unlimited transient retries', () => {
-  for (const [name, exporter] of Object.entries(config.exporters)) {
+  const exporters = { ...config.exporters, ...vectorLogs.exporters };
+  assert.ok(exporters['otlp/vector'], 'the exporter to Vector is checked too');
+  for (const [name, exporter] of Object.entries(exporters)) {
+    // Application logs are the server's with OC_LOG_INGEST=kafka: the Collector receives none, nop drops nothing.
+    if (name === 'nop') continue;
     assert.equal(exporter.sending_queue.wait_for_result, true, `${name}: enqueueing is not delivery`);
     assert.equal(exporter.retry_on_failure.enabled, true, name);
     assert.equal(exporter.retry_on_failure.max_elapsed_time, '0s', `${name}: storage outages must not expire accepted data`);
@@ -23,7 +29,7 @@ test('every storage exporter preserves Kafka ownership until export, with unlimi
     assert.deepEqual(receiver.message_marking, { after: true, on_error: false }, name);
     assert.equal(receiver.error_backoff.enabled, true, name);
   }
-  for (const [name, pipeline] of Object.entries(config.service.pipelines)) {
+  for (const [name, pipeline] of Object.entries({ ...config.service.pipelines, ...vectorLogs.service.pipelines })) {
     assert.ok(!(pipeline.processors ?? []).some((processor) => processor.split('/')[0] === 'batch'), `${name}: a batch processor can return before export`);
   }
 });
