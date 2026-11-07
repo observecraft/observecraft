@@ -4448,6 +4448,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/installed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The integrations installed from Integrations (catalog ids). */
+        get: operations["list_installed_integrations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/netbird": {
         parameters: {
             query?: never;
@@ -4635,6 +4652,24 @@ export interface paths {
         /** Starts "Add to Slack": the URL of Slack's consent page for this install's app. */
         post: operations["start_slack_oauth"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Installs an integration: its log pipelines (those the org has are kept) and its dashboards. */
+        put: operations["install_integration"];
+        post?: never;
+        /** Uninstalls an integration: its log pipelines are removed; its dashboards stay. */
+        delete: operations["uninstall_integration"];
         options?: never;
         head?: never;
         patch?: never;
@@ -16563,6 +16598,16 @@ export interface components {
             name?: string | null;
             /** @description active | suspended */
             status?: string | null;
+        };
+        /** @description An integration's installation state and what it brings. */
+        IntegrationInstall: {
+            /** @description How many integration dashboards it brings. */
+            dashboards: number;
+            installed: boolean;
+            /** @description Catalog id (`supply-chain-firewall`). */
+            integration: string;
+            /** @description Names of its library log pipelines. */
+            pipelines: string[];
         };
         InventoryLibrary: {
             direct?: boolean | null;
@@ -34024,6 +34069,25 @@ export interface operations {
             };
         };
     };
+    list_installed_integrations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+        };
+    };
     netbird_status: {
         parameters: {
             query?: never;
@@ -34346,6 +34410,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SlackOAuthStart"];
+                };
+            };
+        };
+    };
+    install_integration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationInstall"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    uninstall_integration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationInstall"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

@@ -39,6 +39,11 @@ test('every integration’s pipelines are imported with their license, and the m
   const all = JSON.parse(readFileSync(new URL('pipelines.json', dir), 'utf8'));
   assert.ok(all.length >= 240, `${all.length} pipelines`);
   assert.equal(new Set(all.map((p) => p.id)).size, all.length, 'ids are unique');
+  // Integrations → Install installs an integration's pipelines: each names its catalog entry.
+  const catalog = new Set(JSON.parse(readFileSync(new URL('../web/src/api/integrations/catalog.generated.json', import.meta.url), 'utf8')).integrations.map((c) => c.id));
+  for (const p of all) assert.ok(catalog.has(p.integration), `${p.id}: ${p.integration}`);
+  assert.equal(all.find((p) => p.id === 'supply_chain_firewall').integration, 'supply-chain-firewall');
+  assert.equal(all.find((p) => p.id === 'redisdb').integration, 'redis');
   for (const p of all) {
     assert.ok(!JSON.stringify(p).includes('"isOcsf":true'), p.id);
     assert.equal(p.source.license, 'BSD-3-Clause');

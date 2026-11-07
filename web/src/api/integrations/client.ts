@@ -1,12 +1,21 @@
-// Live state is derived from organization-scoped telemetry. Catalog templates do not install collectors.
+// Live state is derived from organization-scoped telemetry and from what the org installed (Integrations → Install
+// installs an integration's log pipelines and dashboards). Catalog templates do not install collectors.
 import * as mock from '../mock/integrations';
-import { API_MODE, get } from '../http';
+import { API_MODE, del, get, put } from '../http';
 import { hasReportedMetrics, reportedMetricNames, type ReportedMetrics } from './detection';
-import type { IntegrationDetail, IntegrationSummary } from './types';
+import type { IntegrationDetail, IntegrationStatus, IntegrationSummary } from './types';
 
 async function reportedMetrics(): Promise<ReportedMetrics> {
   const metrics = await get('/api/v1/metrics', {});
   return reportedMetricNames(metrics);
+}
+
+async function installedIds(): Promise<Set<string>> {
+  return new Set(await get('/api/v1/integrations/installed', {}));
+}
+
+function liveStatus(id: string, installed: Set<string>, detected: boolean): IntegrationStatus {
+  return installed.has(id) ? 'installed' : detected ? 'detected' : 'available';
 }
 
 /**
@@ -15,10 +24,10 @@ async function reportedMetrics(): Promise<ReportedMetrics> {
  */
 export async function listCatalog(): Promise<IntegrationSummary[]> {
   if (API_MODE === 'mock') return mock.listCatalog();
-  const reported = await reportedMetrics();
+  const [reported, installed] = await Promise.all([reportedMetrics(), installedIds()]);
   return mock.catalogMetadata().map((entry) => ({
     ...entry,
-    status: hasReportedMetrics(entry.id, mock.declaredMetrics(entry.id), reported, mock.catalogPrefixes(entry.id)) ? 'detected' : 'available',
+    status: liveStatus(entry.id, installed, hasReportedMetrics(entry.id, mock.declaredMetrics(entry.id), reported, mock.catalogPrefixes(entry.id))),
   }));
 }
 
@@ -30,15 +39,20 @@ export { loadIntegrationDocs } from './catalog';
 export async function getIntegration(id: string): Promise<IntegrationDetail> {
   if (API_MODE === 'mock') return mock.getIntegration(id);
   const detail = mock.integrationMetadata(id);
-  return { ...detail, status: hasReportedMetrics(id, detail.metrics, await reportedMetrics(), mock.catalogPrefixes(id)) ? 'detected' : 'available' };
+  const [reported, installed] = await Promise.all([reportedMetrics(), installedIds()]);
+  return { ...detail, status: liveStatus(id, installed, hasReportedMetrics(id, detail.metrics, reported, mock.catalogPrefixes(id))) };
 }
 
-export function installIntegration(id: string): Promise<IntegrationDetail> {
+/** Installs an integration's log pipelines and dashboards; collection itself is configured on the Agents. */
+export async function installIntegration(id: string): Promise<IntegrationDetail> {
   if (API_MODE === 'mock') return mock.installIntegration(id);
-  return Promise.reject(new Error('Apply the collector configuration manually. Remote installation is not available.'));
+  await put('/api/v1/integrations/{id}/install', { id }, undefined as never);
+  return getIntegration(id);
 }
 
-export function uninstallIntegration(id: string): Promise<IntegrationDetail> {
+/** Removes an integration's log pipelines; its dashboards stay. */
+export async function uninstallIntegration(id: string): Promise<IntegrationDetail> {
   if (API_MODE === 'mock') return mock.uninstallIntegration(id);
-  return Promise.reject(new Error('Remove the configuration from your collector to stop collection.'));
+  await del('/api/v1/integrations/{id}/install', { id });
+  return getIntegration(id);
 }

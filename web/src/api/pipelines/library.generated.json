@@ -1,6 +1,7 @@
 [
   {
     "id": "coredns",
+    "integration": "coredns",
     "name": "CoreDNS",
     "filter": "source:coredns",
     "processors": [
@@ -43,6 +44,7 @@
   },
   {
     "id": "etcd",
+    "integration": "etcd",
     "name": "etcd",
     "filter": "source:etcd",
     "processors": [
@@ -95,6 +97,7 @@
   },
   {
     "id": "kube_scheduler",
+    "integration": "kube-scheduler",
     "name": "Kube Scheduler (glog)",
     "filter": "source:(kube_scheduler OR kube-scheduler)",
     "processors": [
@@ -147,6 +150,7 @@
   },
   {
     "id": "mysql",
+    "integration": "mysql",
     "name": "MySQL",
     "filter": "source:mysql",
     "processors": [
@@ -261,6 +265,7 @@
   },
   {
     "id": "nginx",
+    "integration": "nginx",
     "name": "Nginx",
     "filter": "source:nginx",
     "processors": [
@@ -383,6 +388,7 @@
   },
   {
     "id": "nginx_ingress_controller",
+    "integration": "nginx-ingress-controller",
     "name": "Nginx Ingress Controller",
     "filter": "source:nginx-ingress-controller",
     "processors": [
@@ -507,6 +513,7 @@
   },
   {
     "id": "postgres",
+    "integration": "postgres",
     "name": "Postgresql",
     "filter": "source:postgresql",
     "processors": [
@@ -618,6 +625,7 @@
   },
   {
     "id": "redisdb",
+    "integration": "redis",
     "name": "Redis",
     "filter": "source:redis",
     "processors": [

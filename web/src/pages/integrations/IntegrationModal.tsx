@@ -83,8 +83,9 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
               <Menu trigger={<ChevronDown size={14} />} items={[{ label: 'Uninstall', onClick: () => toggle.mutate(false) }]} />
             </div>
           ) : (
-            <button className="btn btn-primary" disabled={toggle.isPending} onClick={() => setTab('Configure')}>
-              <Plus size={14} /> {API_MODE === 'live' ? 'Configure' : 'Install'}
+            // Datadog's "Install Integration": settings to fill in first (mock) open the Configure tab.
+            <button className="btn btn-primary" disabled={toggle.isPending} onClick={() => (API_MODE === 'mock' && d.settings.length > 0 ? setTab('Configure') : toggle.mutate(true))}>
+              <Plus size={14} /> {toggle.isPending ? 'Installing…' : 'Install Integration'}
             </button>
           )}
           <button className="icon-plain" title="Close (Esc)" onClick={onClose}>
@@ -96,6 +97,11 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
       {d.status === 'warning' && d.warning && (
         <div className="im-warning">
           <TriangleAlert size={15} /> {d.warning}
+        </div>
+      )}
+      {toggle.isError && (
+        <div className="im-warning">
+          <TriangleAlert size={15} /> {toggle.error.message}
         </div>
       )}
 
@@ -290,24 +296,25 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
       )}
 
       <div className="im-install-row">
-        {API_MODE === 'live' ? (
-          <p className="muted-text">
-            ObserveCraft detects matching metrics received in the last 24 hours. Configure collection on your infrastructure; this page does not deploy or remove collectors.
-          </p>
+        {installed ? (
+          <span className="im-installed-note">
+            <Check size={15} /> Installed. Its log pipelines and dashboards are set up.
+          </span>
         ) : (
-          <>
-            {installed ? (
-              <span className="im-installed-note">
-                <Check size={15} /> Installed. Configuration is rolled out to matching collectors.
-              </span>
-            ) : (
-              <button className="btn btn-primary" disabled={pending || missing} onClick={onInstall} title={missing ? 'Fill in all settings first' : undefined}>
-                <Plus size={14} /> {pending ? 'Installing…' : `Install ${d.name}`}
-              </button>
-            )}
-          </>
+          <button
+            className="btn btn-primary"
+            disabled={pending || (API_MODE === 'mock' && missing)}
+            onClick={onInstall}
+            title={API_MODE === 'mock' && missing ? 'Fill in all settings first' : undefined}
+          >
+            <Plus size={14} /> {pending ? 'Installing…' : `Install ${d.name}`}
+          </button>
         )}
       </div>
+      <p className="muted-text">
+        Installing adds the integration&apos;s log pipelines and dashboards. Collection is configured on your Agents or collectors; this page does not deploy them. Metrics received in the last 24
+        hours mark an integration as detected.
+      </p>
     </div>
   );
 }

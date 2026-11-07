@@ -346,8 +346,7 @@ export async function coreBundle(source, catalog, revision = PINNED_REVISION, ex
       const d = convertDashboard(JSON.parse(await readFile(join(dir, path), 'utf8')), c.check, path, rev, repository);
       dashboards.push({ ...d, logo: c.id, widgets: withArtwork(d.widgets, c.id, c.name) });
     }
-    // `source`: the log source of integrations that send only logs, whose dashboards install when their logs arrive.
-    if (dashboards.length) bundle.push({ logo: c.id, prefix: c.metricPrefix ?? '', source: c.logSource ?? '', dashboards });
+    if (dashboards.length) bundle.push({ logo: c.id, prefix: c.metricPrefix ?? '', dashboards });
   }
   return bundle.sort((a, b) => a.logo.localeCompare(b.logo));
 }

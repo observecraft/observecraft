@@ -196,7 +196,6 @@ async fn main() -> anyhow::Result<()> {
     }
     tokio::spawn(org_limits::background(routes::code_security::run_osv_sync(state.clone())));
     tokio::spawn(org_limits::background(routes::security_engine::run(state.clone())));
-    tokio::spawn(org_limits::background(routes::integration_autoinstall::run(state.clone())));
     tokio::spawn(org_limits::background(routes::apm_settings::run_spans_metrics(state.clone())));
     tokio::spawn(org_limits::background(routes::security_feed::run_kev_sync(state.clone())));
     tokio::spawn(org_limits::background(routes::workflows::run_executor(state.clone())));
