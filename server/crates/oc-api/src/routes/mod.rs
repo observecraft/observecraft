@@ -43,8 +43,8 @@ pub mod hosts;
 pub mod identity;
 pub mod incident_views;
 pub mod incidents;
-pub mod integration_autoinstall;
 pub mod integration_dashboards;
+pub mod integration_installs;
 pub mod ingest_keys;
 pub mod instance;
 pub mod kubernetes;
@@ -875,6 +875,9 @@ use crate::state::AppState;
         fleetdm_integration::delete_fleetdm,
         fleetdm_integration::test_fleetdm,
         fleetdm_integration::sync_fleetdm,
+        integration_installs::list,
+        integration_installs::install,
+        integration_installs::uninstall,
         aws_integration::setup,
         aws_integration::external_id,
         aws_integration::list_accounts,
@@ -1660,6 +1663,8 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/integrations/fleetdm", get(fleetdm_integration::get_fleetdm).put(fleetdm_integration::put_fleetdm).delete(fleetdm_integration::delete_fleetdm))
         .route("/api/v1/integrations/fleetdm/test", axum::routing::post(fleetdm_integration::test_fleetdm))
         .route("/api/v1/integrations/fleetdm/sync", axum::routing::post(fleetdm_integration::sync_fleetdm))
+        .route("/api/v1/integrations/installed", get(integration_installs::list))
+        .route("/api/v1/integrations/{id}/install", axum::routing::put(integration_installs::install).delete(integration_installs::uninstall))
         .route("/api/v1/integrations/aws/setup", get(aws_integration::setup))
         .route("/api/v1/integrations/aws/external-id", axum::routing::post(aws_integration::external_id))
         .route("/api/v1/integrations/aws/accounts", get(aws_integration::list_accounts).post(aws_integration::create_account))
@@ -2459,7 +2464,7 @@ mod tests {
             ("incident_views.rs", include_str!("incident_views.rs")),
             ("incidents.rs", include_str!("incidents.rs")),
             ("integration_dashboards.rs", include_str!("integration_dashboards.rs")),
-            ("integration_autoinstall.rs", include_str!("integration_autoinstall.rs")),
+            ("integration_installs.rs", include_str!("integration_installs.rs")),
             ("ingest_keys.rs", include_str!("ingest_keys.rs")),
             ("instance.rs", include_str!("instance.rs")),
             ("kubernetes.rs", include_str!("kubernetes.rs")),

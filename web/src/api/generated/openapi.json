@@ -11393,6 +11393,29 @@
         }
       }
     },
+    "/api/v1/integrations/installed": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The integrations installed from Integrations (catalog ids).",
+        "operationId": "list_installed_integrations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/integrations/netbird": {
       "get": {
         "tags": [
@@ -11783,6 +11806,82 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SlackOAuthStart"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/{id}/install": {
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Installs an integration: its log pipelines (those the org has are kept) and its dashboards.",
+        "operationId": "install_integration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationInstall"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Uninstalls an integration: its log pipelines are removed; its dashboards stay.",
+        "operationId": "uninstall_integration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationInstall"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -49763,6 +49862,37 @@
               "null"
             ],
             "description": "active | suspended"
+          }
+        }
+      },
+      "IntegrationInstall": {
+        "type": "object",
+        "description": "An integration's installation state and what it brings.",
+        "required": [
+          "integration",
+          "installed",
+          "pipelines",
+          "dashboards"
+        ],
+        "properties": {
+          "dashboards": {
+            "type": "integer",
+            "description": "How many integration dashboards it brings.",
+            "minimum": 0
+          },
+          "installed": {
+            "type": "boolean"
+          },
+          "integration": {
+            "type": "string",
+            "description": "Catalog id (`supply-chain-firewall`)."
+          },
+          "pipelines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Names of its library log pipelines."
           }
         }
       },

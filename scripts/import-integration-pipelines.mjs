@@ -74,7 +74,8 @@ async function importAll(source, extras) {
         // One id per pipeline: the integration's for its own (its only file, or the one named after it), the file's for others.
         const stem = file.replace(/\.yaml$/, '');
         const own = files.length === 1 || stem.replace(/-/g, '_') === c.check;
-        pipelines.push({ ...p, id: own ? c.check : `${c.check}-${stem.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}` });
+        const { name, filter, processors, source } = p;
+        pipelines.push({ id: own ? c.check : `${c.check}-${stem.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`, integration: c.id, name, filter, processors, source });
       } catch (e) {
         skipped.push(`${c.check}/${file}: ${e.message}`);
       }
