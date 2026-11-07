@@ -250,6 +250,83 @@ impl AwsApi for Sdk {
     }
 }
 
+/// Short-lived credentials handed to a Cloud Security scanner (docs/adr/0006).
+#[derive(Clone, Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TempCredentials {
+    pub access_key_id: String,
+    pub secret_access_key: String,
+    pub session_token: String,
+    /// Epoch seconds.
+    pub expiration: i64,
+}
+
+/// The AWS managed policies a posture scan's session is narrowed to, with [`SCAN_SESSION_POLICY`].
+pub const SCAN_MANAGED_POLICIES: [&str; 2] = ["SecurityAudit", "job-function/ViewOnlyAccess"];
+
+/// Prowler's read-only additions to those policies (`seeds/posture/README.md`).
+pub const SCAN_SESSION_POLICY: &str = include_str!("../../../../seeds/posture/aws-scan-session-policy.json");
+
+/// The STS region of a partition.
+fn sts_region(partition: &str) -> &'static str {
+    match partition {
+        "aws-us-gov" => "us-gov-west-1",
+        "aws-cn" => "cn-north-1",
+        _ => "us-east-1",
+    }
+}
+
+impl Sdk {
+    /// Credentials for one posture scan of an account, valid `seconds`: AssumeRole into its role (with the external
+    /// id), or GetFederationToken with its keys. Either way the session policies ([`SCAN_MANAGED_POLICIES`] and
+    /// [`SCAN_SESSION_POLICY`]) cap what they can do, whatever the role or user is allowed.
+    pub async fn scan_credentials(&self, partition: &str, account_id: &str, auth: &TargetAuth, seconds: i32) -> Result<TempCredentials, AwsError> {
+        let policy: serde_json::Value = serde_json::from_str(SCAN_SESSION_POLICY).map_err(|e| AwsError::Other(format!("scan session policy: {e}")))?;
+        let policy = policy.to_string();
+        let managed: Vec<aws_sdk_sts::types::PolicyDescriptorType> =
+            SCAN_MANAGED_POLICIES.iter().map(|p| aws_sdk_sts::types::PolicyDescriptorType::builder().arn(format!("arn:{partition}:iam::aws:policy/{p}")).build()).collect();
+        let region = Region::new(sts_region(partition));
+        let credentials = match auth {
+            TargetAuth::Role { role_name, external_id } => {
+                let sts = aws_sdk_sts::Client::from_conf(aws_sdk_sts::config::Builder::from(&self.base).region(region).build());
+                let out = sts
+                    .assume_role()
+                    .role_arn(format!("arn:{partition}:iam::{account_id}:role/{role_name}"))
+                    .role_session_name("observecraft-posture-scan")
+                    .external_id(external_id)
+                    .duration_seconds(seconds)
+                    .policy(policy)
+                    .set_policy_arns(Some(managed))
+                    .send()
+                    .await
+                    .map_err(sdk_error)?;
+                out.credentials().cloned()
+            }
+            TargetAuth::Keys { access_key_id, secret_access_key } => {
+                let keys = aws_sdk_sts::config::Credentials::new(access_key_id, secret_access_key, None, None, "observecraft-aws-account");
+                let sts = aws_sdk_sts::Client::from_conf(aws_sdk_sts::config::Builder::from(&self.base).region(region).credentials_provider(keys).build());
+                let out = sts
+                    .get_federation_token()
+                    .name("observecraft-posture")
+                    .duration_seconds(seconds.max(900))
+                    .policy(policy)
+                    .set_policy_arns(Some(managed))
+                    .send()
+                    .await
+                    .map_err(sdk_error)?;
+                out.credentials().cloned()
+            }
+        };
+        let c = credentials.ok_or_else(|| AwsError::Other("STS returned no credentials".into()))?;
+        Ok(TempCredentials {
+            access_key_id: c.access_key_id().to_string(),
+            secret_access_key: c.secret_access_key().to_string(),
+            session_token: c.session_token().to_string(),
+            expiration: c.expiration().secs(),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

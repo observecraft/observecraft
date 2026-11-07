@@ -2119,6 +2119,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cloud-security/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cloud_security_scans"];
+        put?: never;
+        post: operations["cloud_security_scan_now"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cloud-security/summary": {
         parameters: {
             query?: never;
@@ -10280,7 +10296,6 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Resource collection isn't built: it needs no permissions. */
         get: operations["datadog_get_aws_iam_permissions_resource_collection"];
         put?: never;
         post?: never;
@@ -10709,6 +10724,54 @@ export interface paths {
         head?: never;
         /** Update a RUM application (Datadog-compatible): the body's id must be the URL's (422 otherwise). */
         patch: operations["datadog_update_rum_application"];
+        trace?: never;
+    };
+    "/api/v2/security/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_security_findings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/security/findings/mute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["datadog_mute_security_findings"];
+        trace?: never;
+    };
+    "/api/v2/security/findings/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["datadog_search_security_findings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v2/security_monitoring/configuration/suppressions": {
@@ -11183,6 +11246,30 @@ export interface components {
         };
         /** @enum {string} */
         Access: "read_only" | "standard" | "admin";
+        /** @description A cloud account and its latest posture scan. */
+        AccountScan: {
+            accountId: string;
+            /** @description The integration's account id (`aws_accounts.id`). */
+            accountRef: string;
+            /** @description Posture collection (AWS `cloud_security_posture_management_collection`) is on. */
+            enabled: boolean;
+            error?: string | null;
+            /** Format: int32 */
+            failed?: number | null;
+            /** Format: int64 */
+            finishedAt?: number | null;
+            /** Format: int32 */
+            passed?: number | null;
+            provider: string;
+            /** Format: int64 */
+            queuedAt?: number | null;
+            /** Format: int64 */
+            startedAt?: number | null;
+            /** @description queued | running | done | failed; None before the first scan. */
+            status?: string | null;
+            /** @description Prowler's version that ran. */
+            toolVersion?: string | null;
+        };
         /** @description HTTP-POST binding form fields. */
         AcsForm: {
             RelayState?: string | null;
@@ -19757,6 +19844,13 @@ export interface components {
         PostmortemUpdate: {
             content: string;
         };
+        PostureScans: {
+            accounts: components["schemas"]["AccountScan"][];
+            /** Format: int64 */
+            intervalHours: number;
+            /** @description A scanner can take scans (`OC_SCANNER_TOKEN` is set). */
+            scannerConfigured: boolean;
+        };
         /** @enum {string} */
         PrGateCheckStatus: "passed" | "failed" | "no_data" | "not_evaluated";
         /** @description What CI Visibility knows about the commit. */
@@ -21237,6 +21331,9 @@ export interface components {
             aggregator: components["schemas"]["TimeAggregator"];
             query: string;
             range: components["schemas"]["TimeRange"];
+        };
+        ScanRequest: {
+            accountRef: string;
         };
         /** @description One scope's crawl (scope `""`: the account's discovery of its subscriptions or projects). */
         ScopeStatus: {
@@ -28849,6 +28946,58 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ResourceCategory"][];
                 };
+            };
+        };
+    };
+    cloud_security_scans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostureScans"];
+                };
+            };
+        };
+    };
+    cloud_security_scan_now: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -48844,6 +48993,116 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_security_findings: {
+        parameters: {
+            query?: {
+                "filter[query]"?: string;
+                "page[cursor]"?: string;
+                "page[limit]"?: number;
+                sort?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_mute_security_findings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_search_security_findings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };

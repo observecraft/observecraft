@@ -15,7 +15,7 @@ const SOURCES: { group: string; items: { id: string; label: string }[] }[] = [
     items: [
       { id: 'aws', label: 'AWS' },
       { id: 'azure', label: 'Azure' },
-      { id: 'gcp', label: 'Google Cloud' },
+      { id: 'gcp', label: 'GCP' },
     ],
   },
   { group: 'Containers', items: [{ id: 'kubernetes', label: 'Kubernetes' }] },

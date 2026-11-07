@@ -174,9 +174,15 @@ function compactOption(option) {
   return out;
 }
 
-/** Tiles we name differently from their manifest: Datadog's only Traefik integration is `traefik_mesh`, whose check
+/** Tiles we name differently from their manifest. Datadog's only Traefik integration is `traefik_mesh`, whose check
  *  reads any Traefik Proxy (the Kubernetes ingress controller too), so it is found and shown as Traefik. */
 const TILES = {
+  // Datadog's own products are named as Datadog's: the Agent's metrics, and the open-source security tools whose logs
+  // the integrations read (GuardDog, IDE Shepherd, Supply Chain Firewall).
+  'datadog-agent': { name: 'Datadog Agent' },
+  guarddog: { name: 'Datadog GuardDog' },
+  'ide-shepherd': { name: 'Datadog IDE Shepherd' },
+  'supply-chain-firewall': { name: 'Datadog Supply Chain Firewall' },
   'traefik-mesh': { name: 'Traefik', description: 'Monitor Traefik Proxy, as an ingress controller or on its own, and Traefik Mesh: entrypoints, routers, services and logs.' },
 };
 

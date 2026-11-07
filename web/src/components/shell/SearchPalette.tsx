@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Bell, CornerDownLeft, LayoutDashboard, Plus, Search, Settings, User, Users, X, type LucideIcon } from 'lucide-react';
 import { searchDashboards } from '../../api/dashboards/client';
+import { DashboardIcon } from '../brand/DashboardIcon';
 import { searchMonitors } from '../../api/monitors/client';
 import { searchTeams, searchUsers } from '../../api/identity/client';
 import { NAV_FOOTER, NAV_SECTIONS } from './navMenus';
@@ -36,7 +37,7 @@ const isPageChip = (c: Chip | null): c is PageChip | null => c === null || c ===
 async function searchEntities(kind: EntityChip, query: string, limit: number): Promise<SearchEntry[]> {
   if (kind === 'dashboard') {
     const page = await searchDashboards({ query, preset: 'all', listId: null, team: null, sort: { field: 'popularity', dir: 'desc' }, offset: 0, limit });
-    return page.dashboards.map((d) => ({ kind, name: d.title, category: 'Dashboard', path: `/dashboards/${d.id}` }));
+    return page.dashboards.map((d) => ({ kind, name: d.title, category: 'Dashboard', path: `/dashboards/${d.id}`, logo: d.logo }));
   }
   if (kind === 'monitor') {
     const page = await searchMonitors({ query, offset: 0, limit, sort: 'name', creators: [], drafts: [false], muted: [], priorities: [], recipients: [], statuses: [], teams: [], types: [] });
@@ -142,7 +143,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
                 onMouseMove={() => i !== active && setActive(i)}
                 onClick={() => open(e)}
               >
-                <Icon size={15} className="sp-row-icon" />
+                {e.kind === 'dashboard' ? <DashboardIcon logo={e.logo} title={e.name} size={15} className="sp-row-icon" /> : <Icon size={15} className="sp-row-icon" />}
                 <span className="sp-row-name">{e.name}</span>
                 <span className="sp-row-category">{e.category}</span>
                 <span className="sp-row-path">{e.path}</span>

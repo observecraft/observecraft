@@ -206,6 +206,8 @@ services:
       OC_DEMO_INGEST_KEY: ${OC_DEMO_INGEST_KEY:-ocik_local_demo_only_do_not_use_in_production}
       OC_DEMO_ARCHIVE_ENDPOINT: http://rustfs:9000
       OC_INTERNAL_TOKEN: ${OC_INTERNAL_TOKEN:-}
+      # Cloud Security's account scans (the `scanner` service, `--profile security`); off when empty.
+      OC_SCANNER_TOKEN: ${OC_SCANNER_TOKEN:-}
       OC_DATA_DIR: /var/lib/observecraft
       OC_SECRET_KEY: ${OC_SECRET_KEY:-}
       OC_COOKIE_SECURE: ${OC_COOKIE_SECURE:-false}
@@ -216,6 +218,24 @@ services:
       postgres: { condition: service_healthy }
       kafka-topics: { condition: service_completed_successfully }
       valkey: { condition: service_healthy }
+
+  # Cloud Security's account scanner (docs/adr/0006): Prowler's official image, pinned by digest and unmodified,
+  # with the chart's files/scanner/scan.py as its entrypoint. It claims scans from the server's internal listener
+  # (:8090) and runs Prowler with the read-only credentials the server hands out. Start it with `--profile security`
+  # and the same OC_SCANNER_TOKEN as the server (16+ characters); a server run with `make server` is on the host.
+  scanner:
+    profiles: ["security"]
+    # Prowler 5.47.0 (Apache-2.0). Bump the version and the digest together, in a reviewed change.
+    image: prowlercloud/prowler:5.47.0@sha256:d8fcbd92aa0c3f9a012e6d69e6d62fead75b65cc373d6363527ee3463d7a147f
+    entrypoint: ["python3", "/scanner/scan.py"]
+    environment:
+      OC_SCANNER_SERVER: ${OC_SCANNER_SERVER:-http://host.docker.internal:8090}
+      OC_SCANNER_TOKEN: ${OC_SCANNER_TOKEN:-}
+    volumes:
+      - ./helm/observecraft/files/scanner/scan.py:/scanner/scan.py:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
 
   # The public telemetry endpoint: OTLP (HTTP :4318, gRPC :4317) and the Datadog logs / metrics APIs,
   # authenticated by ingest API key.

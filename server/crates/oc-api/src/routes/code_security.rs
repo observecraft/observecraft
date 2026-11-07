@@ -1456,7 +1456,15 @@ pub async fn triage(State(st): State<AppState>, Writer(ctx): Writer, Json(req): 
     if !["open", "muted"].contains(&req.status.as_str()) {
         return Err(ApiError::BadRequest("status must be open or muted".into()));
     }
-    let known = ["vuln:", "finding:", "iast:", "api-finding:", "workload-finding:"];
+    // Cloud Security's account scan findings keep their mute on the finding (as Datadog's findings API does).
+    if let Some(id) = req.key.strip_prefix("posture:") {
+        let mute = (req.status == "muted").then_some(("OTHER", req.reason.as_str(), None));
+        if crate::posture::store::set_mute(&st.postgres, &ctx.org_id, &[id.to_string()], mute, &ctx.name).await? == 0 {
+            return Err(ApiError::NotFound("finding not found".into()));
+        }
+        return Ok(StatusCode::NO_CONTENT);
+    }
+    let known = ["vuln:", "finding:", "iast:", "api-finding:", "workload-finding:", "misconfig:"];
     if !known.iter().any(|p| req.key.starts_with(p)) || req.key.len() > 512 {
         return Err(ApiError::BadRequest("unknown key".into()));
     }

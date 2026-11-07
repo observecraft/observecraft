@@ -6,7 +6,9 @@ import {
   listInfraPackages,
   listInfraVulnerabilities,
   listMisconfigurations,
+  listPostureScans,
   listResourceCategories,
+  scanAccountNow,
   searchCves,
   triageFinding,
   type CveQuery,
@@ -24,6 +26,19 @@ export const useResourceCategories = () => useQuery({ queryKey: [...keys.all, 'r
 export const useInfraPackages = () => useQuery({ queryKey: [...keys.all, 'packages'], queryFn: listInfraPackages });
 export const useCves = (q: CveQuery) => useQuery({ queryKey: [...keys.all, 'cves', q], queryFn: () => searchCves(q), placeholderData: keepPreviousData });
 export const useCve = (id: string | null) => useQuery({ queryKey: [...keys.all, 'cve', id], queryFn: () => getCve(id!), enabled: !!id });
+
+/** Each cloud account's latest posture scan; polled faster while one is queued or running. */
+export const usePostureScans = () =>
+  useQuery({
+    queryKey: [...keys.all, 'scans'],
+    queryFn: listPostureScans,
+    refetchInterval: (q) => (q.state.data?.accounts.some((a) => a.status === 'queued' || a.status === 'running') ? 15_000 : 120_000),
+  });
+
+export function useScanNow() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: scanAccountNow, onSuccess: () => qc.invalidateQueries({ queryKey: [...keys.all, 'scans'] }) });
+}
 
 export function useTriage() {
   const qc = useQueryClient();

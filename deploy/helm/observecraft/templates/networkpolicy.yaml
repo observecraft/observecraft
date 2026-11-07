@@ -4,7 +4,7 @@
      every request), "ingress" = networkPolicy.ingressFrom (anyone when empty). Egress is open:
      archives (S3), notifications (SMTP, webhooks) and SSO reach outside the cluster. */ -}}
 {{- $rules := dict
-  "server" (list (list 8080 (list "ingress")) (list 8090 (list "vector" "intake")))
+  "server" (list (list 8080 (list "ingress")) (list 8090 (list "vector" "intake" "scanner")))
   "intake" (list (list 4318 (list "*")) (list 4317 (list "*")))
   "collector" (list (list 4318 (list "intake")) (list 4317 (list "intake")))
 -}}

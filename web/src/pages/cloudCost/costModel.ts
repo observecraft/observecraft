@@ -87,7 +87,7 @@ export function rangeOf(value: string, end = today()): { from: number; to: numbe
 
 export const CLOUDS = ['aws', 'azure', 'gcp', 'oci'];
 
-const PROVIDER_LABELS: Record<string, string> = { aws: 'AWS', azure: 'Azure', gcp: 'Google Cloud', oci: 'Oracle Cloud', kubernetes: 'Kubernetes' };
+const PROVIDER_LABELS: Record<string, string> = { aws: 'AWS', azure: 'Azure', gcp: 'GCP', oci: 'Oracle Cloud', kubernetes: 'Kubernetes' };
 export const providerLabel = (p: string) => PROVIDER_LABELS[p] ?? p;
 /** A provider's short name before a service ("Google GeminiAPI"). */
 export const providerVendor = (p: string) => ({ aws: 'AWS', azure: 'Azure', gcp: 'Google', oci: 'Oracle' })[p] ?? p;
@@ -133,4 +133,8 @@ export function tagValues(tags: CostTag[] | undefined, key: string): string[] {
 }
 
 /** The label of a group's tags ("aws, AmazonEC2"). */
-export const groupLabel = (tags: Record<string, string>) => Object.values(tags).join(', ');
+/** A series' name from its tags; providers by their short names (AWS, Azure, GCP). */
+export const groupLabel = (tags: Record<string, string>) =>
+  Object.entries(tags)
+    .map(([k, v]) => (k === 'providername' ? providerLabel(v) : v))
+    .join(', ');

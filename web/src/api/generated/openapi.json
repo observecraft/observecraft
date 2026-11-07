@@ -4810,6 +4810,46 @@
         }
       }
     },
+    "/api/v1/cloud-security/scans": {
+      "get": {
+        "tags": [
+          "cloud-security"
+        ],
+        "operationId": "cloud_security_scans",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostureScans"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "cloud-security"
+        ],
+        "operationId": "cloud_security_scan_now",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {},
+          "400": {},
+          "404": {}
+        }
+      }
+    },
     "/api/v1/cloud-security/summary": {
       "get": {
         "tags": [
@@ -28329,7 +28369,6 @@
         "tags": [
           "datadog-api"
         ],
-        "summary": "Resource collection isn't built: it needs no permissions.",
         "operationId": "datadog_get_aws_iam_permissions_resource_collection",
         "responses": {
           "200": {
@@ -30380,6 +30419,163 @@
         }
       }
     },
+    "/api/v2/security/findings": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_security_findings",
+        "parameters": [
+          {
+            "name": "filter[query]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page[cursor]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page[limit]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/security/findings/mute": {
+      "patch": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_mute_security_findings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/security/findings/search": {
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_search_security_findings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/security_monitoring/configuration/suppressions": {
       "get": {
         "tags": [
@@ -32104,6 +32300,87 @@
           "standard",
           "admin"
         ]
+      },
+      "AccountScan": {
+        "type": "object",
+        "description": "A cloud account and its latest posture scan.",
+        "required": [
+          "provider",
+          "accountRef",
+          "accountId",
+          "enabled"
+        ],
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "accountRef": {
+            "type": "string",
+            "description": "The integration's account id (`aws_accounts.id`)."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Posture collection (AWS `cloud_security_posture_management_collection`) is on."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failed": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "finishedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "passed": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "queuedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "startedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "queued | running | done | failed; None before the first scan."
+          },
+          "toolVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Prowler's version that ran."
+          }
+        }
       },
       "AcsForm": {
         "type": "object",
@@ -60338,6 +60615,30 @@
           }
         }
       },
+      "PostureScans": {
+        "type": "object",
+        "required": [
+          "scannerConfigured",
+          "intervalHours",
+          "accounts"
+        ],
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountScan"
+            }
+          },
+          "intervalHours": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "scannerConfigured": {
+            "type": "boolean",
+            "description": "A scanner can take scans (`OC_SCANNER_TOKEN` is set)."
+          }
+        }
+      },
       "PrGateCheckStatus": {
         "type": "string",
         "enum": [
@@ -65073,6 +65374,17 @@
           },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "ScanRequest": {
+        "type": "object",
+        "required": [
+          "accountRef"
+        ],
+        "properties": {
+          "accountRef": {
+            "type": "string"
           }
         }
       },

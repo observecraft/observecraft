@@ -482,7 +482,67 @@ pub async fn misconfigurations_of(st: &AppState, org: &str) -> Result<(Vec<Misco
     let resources = catalog::load_all(st, org).await?;
     let manifests = manifests(st, org).await?;
     let triage = code_security::triage_map(st, org).await?;
-    Ok(evaluate(&resources, &manifests, &triage))
+    let (mut findings, mut rules) = evaluate(&resources, &manifests, &triage);
+    let (scanned, scanned_rules) = posture_misconfigurations(&crate::posture::store::findings(&st.postgres, org, false).await?);
+    findings.extend(scanned);
+    findings.sort_by(|a, b| model::severity_rank(&b.severity).cmp(&model::severity_rank(&a.severity)).then(a.rule_id.cmp(&b.rule_id)).then(a.resource_name.cmp(&b.resource_name)));
+    rules.extend(scanned_rules);
+    Ok((findings, rules))
+}
+
+/// The cloud account scans' results (`crate::posture`) as findings and rules of this page: the failures, and per
+/// check how many resources it evaluated.
+pub fn posture_misconfigurations(rows: &[crate::posture::store::FindingRow]) -> (Vec<MisconfigFinding>, Vec<MisconfigRuleStatus>) {
+    let tag = |r: &crate::posture::store::FindingRow, key: &str| {
+        r.resource_tags.as_array().into_iter().flatten().filter_map(Value::as_str).find_map(|t| t.strip_prefix(key).and_then(|v| v.strip_prefix(':')).map(str::to_string))
+    };
+    let frameworks = |r: &crate::posture::store::FindingRow| r.compliance.as_ref().and_then(Value::as_object).map(|m| m.keys().cloned().collect::<Vec<_>>()).unwrap_or_default();
+    let mut findings = vec![];
+    let mut stats: BTreeMap<&str, (usize, usize, &crate::posture::store::FindingRow)> = BTreeMap::new();
+    for r in rows {
+        let s = stats.entry(r.check_id.as_str()).or_insert((0, 0, r));
+        s.0 += 1;
+        if r.evaluation != "fail" {
+            continue;
+        }
+        s.1 += 1;
+        findings.push(MisconfigFinding {
+            key: format!("posture:{}", r.id),
+            rule_id: r.check_id.clone(),
+            rule_name: r.title.clone().unwrap_or_else(|| r.check_id.clone()),
+            severity: r.severity.clone(),
+            description: r.description.clone().unwrap_or_default(),
+            remediation: r.remediation.clone().unwrap_or_default(),
+            frameworks: frameworks(r),
+            detail: r.detail.clone(),
+            resource_id: r.resource_uid.clone(),
+            resource_name: r.resource_name.clone(),
+            resource_type: r.resource_type.clone(),
+            cluster: None,
+            namespace: None,
+            account: Some(r.account_id.clone()),
+            region: Some(r.region.clone()).filter(|s| !s.is_empty()),
+            env: tag(r, "env"),
+            service: tag(r, "service"),
+            team: tag(r, "team"),
+            status: if r.muted { "muted" } else { "open" }.into(),
+            last_seen: r.last_seen_at,
+        });
+    }
+    let rules = stats
+        .into_values()
+        .map(|(evaluated, failing, r)| MisconfigRuleStatus {
+            id: r.check_id.clone(),
+            name: r.title.clone().unwrap_or_else(|| r.check_id.clone()),
+            severity: r.severity.clone(),
+            description: r.description.clone().unwrap_or_default(),
+            remediation: r.remediation.clone().unwrap_or_default(),
+            frameworks: frameworks(r),
+            evaluated,
+            failing,
+        })
+        .collect();
+    (findings, rules)
 }
 
 #[utoipa::path(post, path = "/api/v1/cloud-security/misconfigurations", operation_id = "cloud_security_misconfigurations", request_body = FindingStatusFilter,

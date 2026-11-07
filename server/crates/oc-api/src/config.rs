@@ -80,6 +80,11 @@ pub struct Config {
     pub log_ingest_kafka: bool,
     /// Optional bearer token Vector must send to the log indexer.
     pub internal_token: Option<String>,
+    /// Bearer token of the Cloud Security scanners (`OC_SCANNER_TOKEN`, docs/adr/0006): they claim account scans on
+    /// the internal listener and receive the accounts' short-lived credentials, so scans run only when it is set.
+    pub scanner_token: Option<String>,
+    /// Hours between two posture scans of an account (`OC_POSTURE_SCAN_INTERVAL_HOURS`, default 24).
+    pub posture_scan_interval_hours: i64,
     /// SMTP server for monitor notification emails (`smtps://user:pass@host:465`, `smtp://host:25?tls=required`).
     pub smtp_url: Option<String>,
     /// Assist's model (`OC_ASSIST_*`, see `assist::provider_from`): `Ok(None)` when not set up, `Err`
@@ -232,6 +237,8 @@ impl Config {
             logproc_addr: var("OC_LOGPROC_ADDR", "0.0.0.0:8090"),
             log_ingest_kafka: var("OC_LOG_INGEST", "kafka") == "kafka",
             internal_token: env::var("OC_INTERNAL_TOKEN").ok().filter(|s| !s.is_empty()),
+            scanner_token: env::var("OC_SCANNER_TOKEN").ok().filter(|s| s.len() >= 16),
+            posture_scan_interval_hours: var("OC_POSTURE_SCAN_INTERVAL_HOURS", "24").parse().unwrap_or(24).clamp(1, 24 * 7),
             smtp_url: env::var("OC_SMTP_URL").ok().filter(|s| !s.is_empty()),
             assist: crate::assist::provider_from(|k| env::var(k).ok()),
             assist_max_tokens: env::var("OC_ASSIST_MAX_TOKENS").ok().and_then(|v| v.trim().parse().ok()),

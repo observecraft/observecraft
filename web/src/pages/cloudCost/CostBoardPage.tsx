@@ -27,7 +27,7 @@ import {
   useCostTags,
   type Filters,
 } from './costModel';
-import { ChangePill, CostFilterBar, ProviderIcon, ShareBar } from './widgets';
+import { ChangePill, CostFilterBar, ProviderIcon, ShareBar, costAxisTooltip } from './widgets';
 
 type Range = { from: number; to: number };
 
@@ -115,7 +115,7 @@ function stackedBars(res: CostQueryResult, interval: 'day' | 'week' | 'month'): 
   const fmt = (t: number) => (interval === 'month' ? new Date(t).toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' }) : shortDate(t));
   return {
     grid: { left: 8, right: 8, top: 12, bottom: series.length > 1 ? 30 : 4, containLabel: true },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true, valueFormatter: (v) => money(Number(v), { precise: true }) },
+    tooltip: costAxisTooltip((n) => series.find((s) => (groupLabel(s.tags) || 'cost') === n)?.tags),
     legend: series.length > 1 ? { bottom: 0, type: 'scroll', icon: 'rect', itemWidth: 10, itemHeight: 10, textStyle: { color: muted } } : undefined,
     xAxis: { type: 'category', data: res.buckets.map(fmt), axisLabel: { color: muted }, axisTick: { show: false } },
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => moneyAxis(v), color: muted } },

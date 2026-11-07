@@ -40,11 +40,13 @@ secrets:
   # -- Secret you manage (the chart then generates none) with the keys the configuration uses:
   # secret-key (encrypts stored secrets: TOTP seeds, SSO and archive credentials; never change it
   # once set), internal-token, clickhouse-password, clickhouse-ingest-password, postgres-password
-  # (bundled Postgres), postgres-url (external), cache-url (external cache), smtp-url. The bundled
-  # Valkey's password is configured in cache.auth (rendering fails until it is).
+  # (bundled Postgres), postgres-url (external), cache-url (external cache), smtp-url, scanner-token
+  # (with scanner.enabled). The bundled Valkey's password is configured in cache.auth (rendering fails
+  # until it is).
   existingSecret: ""
   secretKey: ""
   internalToken: ""
+  scannerToken: ""
 
 retention:
   logsDays: 15
@@ -83,6 +85,27 @@ synthetics:
   # -- Let synthetic tests reach loopback, private (RFC 1918), link-local (incl. cloud metadata) and
   # other internal addresses. Off by default: tests fetch user-chosen targets from the server.
   allowPrivateTargets: false
+
+# Cloud Security's account scanner (docs/adr/0006): Prowler checks the cloud accounts whose posture
+# collection is on (AWS: resources_config.cloud_security_posture_management_collection) with
+# short-lived read-only credentials the server hands out. The image is Prowler's official one,
+# referenced by digest; change the tag and digest together, in a reviewed upgrade.
+scanner:
+  enabled: false
+  replicas: 1
+  # -- Hours between two scans of an account.
+  intervalHours: 24
+  image:
+    repository: prowlercloud/prowler
+    tag: "5.47.0"
+    digest: "sha256:d8fcbd92aa0c3f9a012e6d69e6d62fead75b65cc373d6363527ee3463d7a147f"
+  # -- Scratch space for Prowler's output while a scan runs.
+  tmpSize: 2Gi
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 2Gi }
+  nodeSelector: {}
+  tolerations: []
 
 # -- Install demo users, dashboards and monitors into the default org. Development only.
 seedDemo: false

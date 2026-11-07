@@ -454,11 +454,15 @@ function Resources({ account, pending, onSave }: TabProps) {
     <div className="aws-form">
       <div className="aws-note">
         <Info size={16} />
-        <span>Resource collection isn&apos;t built yet: these settings are stored for Terraform and API clients, and have no effect.</span>
+        <span>
+          ObserveCraft scanning checks this account's configuration every day; its findings are in <Link to="/security/cloud/findings">Security → Cloud Security → Findings</Link>. The scans use
+          short-lived read-only credentials: attach the AWS managed policies <code>SecurityAudit</code> and <code>job-function/ViewOnlyAccess</code> to the integration&apos;s role, plus the read-only
+          actions <code>GET /api/v2/integration/aws/iam_permissions/resource_collection</code> lists. Extended resource collection isn&apos;t built yet (stored for Terraform and API clients only).
+        </span>
       </div>
       <Toggle label="Extended resource collection" value={draft.extended_collection} onChange={(extended_collection) => setDraft((d) => ({ ...d, extended_collection }))} />
       <Toggle
-        label="Cloud Security Management scanning"
+        label="ObserveCraft scanning (Cloud Security)"
         value={draft.cloud_security_posture_management_collection}
         onChange={(cloud_security_posture_management_collection) => setDraft((d) => ({ ...d, cloud_security_posture_management_collection }))}
       />

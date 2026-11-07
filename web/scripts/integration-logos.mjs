@@ -228,13 +228,17 @@ const OVERRIDES = {
   'azure-dbforpostgresql-flexibleservers': 'logos:postgresql',
   'azure-dbformysql-flexibleservers': 'logos:mysql-icon',
   'azure-powerbidedicated-capacities': 'logos:microsoft-power-bi',
+  // Datadog's own open-source products (Apache-2.0) carry Datadog's logo: the product is theirs (CLAUDE.md, licenses).
+  'datadog-agent': 'logos:datadog-icon',
+  'datadog-cluster-agent': 'logos:datadog-icon',
+  'datadog-operator': 'logos:datadog-icon',
+  guarddog: 'logos:datadog-icon',
+  'ide-shepherd': 'logos:datadog-icon',
+  'supply-chain-firewall': 'logos:datadog-icon',
 };
 
-/** Checks of the host itself and Datadog's own agents: shown with our tile, never a third-party brand. */
+/** Checks of the host itself: shown with our tile, never a third-party brand. */
 const GENERIC = new Set([
-  'datadog-agent',
-  'datadog-cluster-agent',
-  'datadog-operator',
   'disk',
   'network',
   'process',
@@ -260,9 +264,6 @@ const GENERIC = new Set([
   'statsd',
   'openmetrics',
   'lparstats',
-  'supply-chain-firewall',
-  'guarddog',
-  'ide-shepherd',
   // integrations-extras checks of protocols and host states, not of a product
   'ping',
   'reboot-required',

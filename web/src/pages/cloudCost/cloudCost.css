@@ -2597,3 +2597,53 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.ccm-provider img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Cost Explorer → See More (CostBreakdownDrawer). */
+.ccm-breakdown {
+  width: min(720px, 100vw);
+}
+
+.ccm-breakdown-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 18px 8px;
+}
+
+.ccm-breakdown-table td {
+  vertical-align: middle;
+}
+
+.ccm-breakdown-name {
+  max-width: 340px;
+}
+
+.ccm-breakdown-name b,
+.ccm-breakdown-id {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ccm-breakdown-id {
+  font-size: var(--fs-xs);
+}
+
+.ccm-breakdown-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ccm-breakdown-delta {
+  margin-right: 8px;
+}
