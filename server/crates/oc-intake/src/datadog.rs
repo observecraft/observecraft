@@ -643,7 +643,27 @@ pub struct HostMeta {
     pub memory_bytes: Option<i64>,
     pub cloud: String,
     pub instance_id: String,
+    /// The host's cloud resource id (`meta.ccrid`): an Azure resource id, an EC2 instance ARN, a GCE instance name.
+    pub resource_id: String,
     pub tags: Vec<String>,
+}
+
+/// `8-4-4-4-12` hexadecimal digits (an Azure VM id), not a host name of the same length.
+fn is_uuid(s: &str) -> bool {
+    s.len() == 36 && s.char_indices().all(|(i, c)| if matches!(i, 8 | 13 | 18 | 23) { c == '-' } else { c.is_ascii_hexdigit() })
+}
+
+/// The cloud of a cloud resource id (the Agent's `ccrid`), and the instance id it names when it does.
+fn cloud_of_resource(resource_id: &str) -> Option<(&'static str, Option<String>)> {
+    if resource_id.starts_with("/subscriptions/") {
+        Some(("azure", None))
+    } else if resource_id.starts_with("arn:aws") {
+        Some(("aws", resource_id.rsplit_once("instance/").map(|(_, id)| id.to_string())))
+    } else if resource_id.starts_with("//compute.googleapis.com/") {
+        Some(("gcp", None))
+    } else {
+        None
+    }
 }
 
 /// Host metadata from an `/intake/` payload (None for the payloads that carry only events or
@@ -666,8 +686,23 @@ pub fn host_meta(v: &Value) -> Option<HostMeta> {
     let mut tags: Vec<String> = host_tags.map(|t| t.values().filter_map(Value::as_array).flatten().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default();
     tags.sort();
     tags.dedup();
-    let instance_id = s(meta.and_then(|m| m.get("instance-id")));
-    let cloud = if host_tags.is_some_and(|t| t.keys().any(|k| k.contains("google"))) {
+    let resource_id = s(meta.and_then(|m| m.get("ccrid")));
+    let mut instance_id = s(meta.and_then(|m| m.get("instance-id")));
+    let from_resource = cloud_of_resource(&resource_id);
+    if instance_id.is_empty() {
+        instance_id = match &from_resource {
+            Some((_, Some(id))) => id.clone(),
+            // Azure: the VM id, the Agent's alias that isn't a host name.
+            Some(("azure", None)) => {
+                let aliases = meta.and_then(|m| m.get("host_aliases")).and_then(Value::as_array);
+                aliases.into_iter().flatten().filter_map(Value::as_str).find(|a| is_uuid(a)).unwrap_or_default().to_string()
+            }
+            _ => String::new(),
+        };
+    }
+    let cloud = if let Some((cloud, _)) = from_resource {
+        cloud
+    } else if host_tags.is_some_and(|t| t.keys().any(|k| k.contains("google"))) {
         "gcp"
     } else if host_tags.is_some_and(|t| t.keys().any(|k| k.contains("azure"))) {
         "azure"
@@ -687,6 +722,7 @@ pub fn host_meta(v: &Value) -> Option<HostMeta> {
         memory_bytes: num(gohai.pointer("/memory/total")),
         cloud: cloud.into(),
         instance_id,
+        resource_id,
         tags,
     })
 }
@@ -1000,6 +1036,31 @@ mod tests {
         assert_eq!(m.cloud, "aws");
         assert_eq!(m.tags, vec!["env:prod", "team:web"]);
         assert!(host_meta(&serde_json::json!({"events": {}})).is_none());
+    }
+
+    #[test]
+    fn the_cloud_comes_from_the_hosts_cloud_resource_id() {
+        // An AKS node: a VM Scale Set instance. Its instance-id is empty; ccrid and the VM id alias say Azure.
+        let aks = serde_json::json!({
+            "internalHostname": "aks-pool-12345678-vmss000016-example", "systemStats": {"platform": "linux"},
+            "meta": {"hostname": "aks-pool-12345678-vmss000016-example", "instance-id": "", "ec2-hostname": "",
+                "ccrid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/mc_example_eastus/providers/microsoft.compute/virtualmachinescalesets/aks-pool-12345678-vmss/virtualmachines/42",
+                "host_aliases": ["aks-pool-12345678-vmss000016-example", "e0e75ded-4bdf-4430-b379-23cebbe5070f"]},
+            "host-tags": {"system": ["kube_distribution:aks"]}
+        });
+        let m = host_meta(&aks).unwrap();
+        assert_eq!((m.cloud.as_str(), m.instance_id.as_str()), ("azure", "e0e75ded-4bdf-4430-b379-23cebbe5070f"));
+        assert!(m.resource_id.contains("/virtualmachinescalesets/aks-pool-12345678-vmss/"));
+
+        let ec2 = serde_json::json!({"internalHostname": "web-2", "systemStats": {}, "meta": {"instance-id": "", "ccrid": "arn:aws:ec2:us-east-1:123456789012:instance/i-0a1b2c3d4e5f60001"}});
+        let m = host_meta(&ec2).unwrap();
+        assert_eq!((m.cloud.as_str(), m.instance_id.as_str()), ("aws", "i-0a1b2c3d4e5f60001"));
+
+        let gce = serde_json::json!({"internalHostname": "web-3", "systemStats": {}, "meta": {"ccrid": "//compute.googleapis.com/projects/example-project/zones/us-central1-a/instances/1234567890"}});
+        assert_eq!(host_meta(&gce).unwrap().cloud, "gcp");
+        // No resource id and no cloud marker: no cloud.
+        let bare = serde_json::json!({"internalHostname": "laptop", "systemStats": {}, "meta": {}});
+        assert_eq!(host_meta(&bare).unwrap().cloud, "");
     }
 
     #[test]
