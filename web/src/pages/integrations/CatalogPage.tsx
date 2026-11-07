@@ -19,6 +19,7 @@ const OWN_PAGES: Record<string, string> = {
   slack: '/integrations/slack',
   authentik: '/integrations/authentik',
   netbird: '/integrations/netbird',
+  fleetdm: '/integrations/fleetdm',
 };
 
 const STATUSES: Option<IntegrationStatus | 'all'>[] = [

@@ -756,6 +756,8 @@ const SERVICE_UNITS: &str = include_str!("../../../../../seeds/integrations/clou
 const CORE_UNITS: &str = include_str!("../../../../../seeds/integrations/core/units.csv");
 /// Units of the NetBird integration's peer metrics (scripts/netbird-dashboard.mjs).
 const NETBIRD_UNITS: &str = include_str!("../../../../../seeds/integrations/netbird/units.csv");
+/// Units of the FleetDM integration's host metrics (scripts/fleetdm-dashboard.mjs).
+const FLEETDM_UNITS: &str = include_str!("../../../../../seeds/integrations/fleetdm/units.csv");
 const INTEGRATION_DESCRIPTIONS: &str = include_str!("../../../../../seeds/integrations/kubernetes/descriptions.tsv");
 
 /// A metric's unit: what its sender reported, else the integration's, else none.
@@ -765,7 +767,7 @@ pub(super) fn metric_unit(metric: &str, reported: &str) -> Option<String> {
         return Some(reported.to_string());
     }
     let units = UNITS.get_or_init(|| {
-        CORE_UNITS.lines().chain(INTEGRATION_UNITS.lines()).chain(CLOUD_UNITS.lines()).chain(SERVICE_UNITS.lines()).chain(NETBIRD_UNITS.lines()).filter(|l| !l.starts_with('#')).filter_map(|l| l.split_once(',')).collect()
+        CORE_UNITS.lines().chain(INTEGRATION_UNITS.lines()).chain(CLOUD_UNITS.lines()).chain(SERVICE_UNITS.lines()).chain(NETBIRD_UNITS.lines()).chain(FLEETDM_UNITS.lines()).filter(|l| !l.starts_with('#')).filter_map(|l| l.split_once(',')).collect()
     });
     units.get(metric).map(|u| u.to_string())
 }

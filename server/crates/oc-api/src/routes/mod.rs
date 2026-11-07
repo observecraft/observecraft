@@ -2,6 +2,7 @@ pub mod apm;
 pub mod apm_settings;
 pub mod authentik_integration;
 pub mod netbird_integration;
+pub mod fleetdm_integration;
 pub mod aws_integration;
 pub mod azure_integration;
 pub mod gcp_integration;
@@ -868,6 +869,11 @@ use crate::state::AppState;
         netbird_integration::delete_netbird,
         netbird_integration::test_netbird,
         netbird_integration::sync_netbird,
+        fleetdm_integration::get_fleetdm,
+        fleetdm_integration::put_fleetdm,
+        fleetdm_integration::delete_fleetdm,
+        fleetdm_integration::test_fleetdm,
+        fleetdm_integration::sync_fleetdm,
         aws_integration::setup,
         aws_integration::external_id,
         aws_integration::list_accounts,
@@ -1650,6 +1656,9 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/integrations/netbird", get(netbird_integration::get_netbird).put(netbird_integration::put_netbird).delete(netbird_integration::delete_netbird))
         .route("/api/v1/integrations/netbird/test", axum::routing::post(netbird_integration::test_netbird))
         .route("/api/v1/integrations/netbird/sync", axum::routing::post(netbird_integration::sync_netbird))
+        .route("/api/v1/integrations/fleetdm", get(fleetdm_integration::get_fleetdm).put(fleetdm_integration::put_fleetdm).delete(fleetdm_integration::delete_fleetdm))
+        .route("/api/v1/integrations/fleetdm/test", axum::routing::post(fleetdm_integration::test_fleetdm))
+        .route("/api/v1/integrations/fleetdm/sync", axum::routing::post(fleetdm_integration::sync_fleetdm))
         .route("/api/v1/integrations/aws/setup", get(aws_integration::setup))
         .route("/api/v1/integrations/aws/external-id", axum::routing::post(aws_integration::external_id))
         .route("/api/v1/integrations/aws/accounts", get(aws_integration::list_accounts).post(aws_integration::create_account))
@@ -2000,6 +2009,7 @@ mod tests {
             include_str!("gitlab_ci.rs"),
             include_str!("authentik_integration.rs"),
             include_str!("netbird_integration.rs"),
+            include_str!("fleetdm_integration.rs"),
             include_str!("sso.rs"),
             include_str!("spans.rs"),
             include_str!("dashboards.rs"),
@@ -2321,6 +2331,7 @@ mod tests {
         vec![
             ("authentik_integration.rs", include_str!("authentik_integration.rs")),
             ("netbird_integration.rs", include_str!("netbird_integration.rs")),
+            ("fleetdm_integration.rs", include_str!("fleetdm_integration.rs")),
             ("aws_integration.rs", include_str!("aws_integration.rs")),
             ("azure_integration.rs", include_str!("azure_integration.rs")),
             ("gcp_integration.rs", include_str!("gcp_integration.rs")),
@@ -2348,6 +2359,12 @@ mod tests {
             ("../netbird/fixtures.rs", include_str!("../netbird/fixtures.rs")),
             ("../netbird/logs.rs", include_str!("../netbird/logs.rs")),
             ("../netbird/peers.rs", include_str!("../netbird/peers.rs")),
+            ("../fleetdm/mod.rs", include_str!("../fleetdm/mod.rs")),
+            ("../fleetdm/api.rs", include_str!("../fleetdm/api.rs")),
+            ("../fleetdm/crawler.rs", include_str!("../fleetdm/crawler.rs")),
+            ("../fleetdm/fixtures.rs", include_str!("../fleetdm/fixtures.rs")),
+            ("../fleetdm/hosts.rs", include_str!("../fleetdm/hosts.rs")),
+            ("../fleetdm/logs.rs", include_str!("../fleetdm/logs.rs")),
             ("../gitlab/mod.rs", include_str!("../gitlab/mod.rs")),
             ("../gitlab/api.rs", include_str!("../gitlab/api.rs")),
             ("../gitlab/crawler.rs", include_str!("../gitlab/crawler.rs")),

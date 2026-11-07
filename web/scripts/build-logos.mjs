@@ -173,6 +173,7 @@ const MAP = {
   paloaltonetworks: 'si:paloaltonetworks',
   // Downloaded logos (fetch-brand-icons.mjs)
   netbird: 'brand:netbird',
+  fleetdm: 'brand:fleetdm',
 };
 
 /** App logo key → LobeHub icon file (MIT), for providers SVG Logos doesn't have. */

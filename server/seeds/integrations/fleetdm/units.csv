@@ -1,0 +1,7 @@
+# Units of the FleetDM integration's metrics (scripts/fleetdm-dashboard.mjs; the poller sends none).
+fleetdm.host.seen_age,second
+fleetdm.host.uptime,second
+fleetdm.host.memory,byte
+fleetdm.host.disk.available,byte
+fleetdm.host.disk.total,byte
+fleetdm.host.disk.available_percent,percent
