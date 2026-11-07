@@ -11,10 +11,12 @@ use std::sync::OnceLock;
 /// integrations-core's dashboards, and ours of each AWS / Azure / Google Cloud service (`scripts/cloud-service-dashboards.mjs`).
 const BUNDLES: [&[u8]; 2] = [include_bytes!("../../../../seeds/integrations/core/dashboards.ndjson.gz"), include_bytes!("../../../../seeds/integrations/cloud/services.ndjson.gz")];
 
-/// One integration of the bundle: its catalog id (the dashboards' `logo`), metric prefix and raw line.
+/// One integration of the bundle: its catalog id (the dashboards' `logo`), metric prefix, log source and raw line.
 struct Entry {
     logo: String,
     prefix: String,
+    /// The log source of an integration that sends only logs (no metric prefix), `""` otherwise.
+    source: String,
     line: String,
 }
 
@@ -22,6 +24,8 @@ struct Entry {
 struct Head {
     logo: String,
     prefix: String,
+    #[serde(default)]
+    source: String,
 }
 
 fn entries() -> &'static [Entry] {
@@ -36,7 +40,7 @@ fn entries() -> &'static [Entry] {
             }
             entries.extend(text.lines().filter_map(|line| {
                 let head: Head = serde_json::from_str(line).ok()?;
-                Some(Entry { logo: head.logo, prefix: head.prefix, line: line.to_string() })
+                Some(Entry { logo: head.logo, prefix: head.prefix, source: head.source, line: line.to_string() })
             }));
         }
         entries
@@ -53,6 +57,12 @@ pub fn prefix_matches(prefix: &str, seen: &str) -> bool {
 /// The integrations (catalog ids) whose metrics are among `seen` (two-segment metric name prefixes).
 pub fn enabled_logos(seen: &BTreeSet<String>) -> Vec<&'static str> {
     entries().iter().filter(|e| seen.iter().any(|s| prefix_matches(&e.prefix, s))).map(|e| e.logo.as_str()).collect()
+}
+
+/// The integrations that send only logs (no metric prefix) whose log source is among `sources` (Supply Chain Firewall
+/// for `scfw`): their dashboards install when their logs arrive.
+pub fn log_only_logos(sources: &BTreeSet<String>) -> Vec<&'static str> {
+    entries().iter().filter(|e| e.prefix.is_empty() && !e.source.is_empty() && sources.contains(&e.source)).map(|e| e.logo.as_str()).collect()
 }
 
 /// The dashboards of one integration, as seed documents (`id`, document).
@@ -146,5 +156,16 @@ mod tests {
         assert!(enabled.contains(&"postgres"), "{enabled:?}");
         assert!(!enabled.contains(&"mysql"));
         assert!(enabled_logos(&BTreeSet::new()).is_empty());
+    }
+
+    #[test]
+    fn integrations_sending_only_logs_are_enabled_by_their_log_source() {
+        let logos = log_only_logos(&BTreeSet::from(["scfw".to_string(), "nginx".to_string()]));
+        assert!(logos.contains(&"supply-chain-firewall"), "{logos:?}");
+        // nginx has metrics: its logs alone don't install its metric dashboards.
+        assert!(!logos.contains(&"nginx"), "{logos:?}");
+        let titles: BTreeSet<String> = dashboards_of("supply-chain-firewall").iter().map(|(_, d)| d["title"].as_str().unwrap().to_string()).collect();
+        assert!(titles.contains("Supply Chain Firewall"), "{titles:?}");
+        assert!(log_only_logos(&BTreeSet::new()).is_empty());
     }
 }

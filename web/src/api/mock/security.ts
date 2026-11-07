@@ -331,6 +331,38 @@ const PACKS: Pack[] = [
     ],
   },
   {
+    id: 'supply-chain-firewall',
+    name: 'Datadog Supply Chain Firewall',
+    category: 'Supply Chain',
+    platform: 'Developer workstations',
+    logo: 'datadog',
+    description: "Know when developers' npm, pip or Poetry installs are blocked as malicious, or installed despite a warning.",
+    query: 'source:scfw',
+    setup: 'Install Supply Chain Firewall (`pip install scfw`), run `scfw configure` and forward its logs to the Datadog Agent, which sends them to this ObserveCraft intake.',
+    rules: [
+      {
+        id: 'def-scfw-001',
+        name: 'Malicious package installation blocked',
+        message: 'Supply Chain Firewall blocked a package install that would have pulled a known malicious package. Check the workstation and whether the package was installed another way.',
+        query: 'source:scfw @evt.outcome:BLOCK',
+        groupBy: ['@usr.name', 'host'],
+        cases: [['a > 0', 'high', '']],
+        window: 300,
+        tags: ['tactic:TA0001-initial-access', 'technique:T1195.001-compromise-software-dependencies-and-development-tools'],
+      },
+      {
+        id: 'def-scfw-002',
+        name: 'Package installed despite a security warning',
+        message: 'A developer confirmed an install that Supply Chain Firewall warned about. Review the package before it reaches a build.',
+        query: 'source:scfw @evt.outcome:ALLOW @warning:true',
+        groupBy: ['@usr.name', 'host'],
+        cases: [['a > 0', 'medium', '']],
+        window: 300,
+        tags: ['tactic:TA0001-initial-access', 'technique:T1195.001-compromise-software-dependencies-and-development-tools'],
+      },
+    ],
+  },
+  {
     id: 'slack-audit',
     name: 'Slack Audit Logs',
     category: 'Collaboration',
@@ -354,7 +386,7 @@ const PACKS: Pack[] = [
   },
 ];
 /** Sources the demo sends logs for. */
-const DEMO_SOURCES: Record<string, number> = { cloudtrail: 3300, okta: 1500, github: 560, 'kubernetes.audit': 1800, nginx: 14000 };
+const DEMO_SOURCES: Record<string, number> = { cloudtrail: 3300, okta: 1500, github: 560, 'kubernetes.audit': 1800, nginx: 14000, scfw: 140 };
 
 // ---------------------------------------------------------------- rules
 

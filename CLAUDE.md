@@ -231,7 +231,9 @@ or SDK features.
   - Every integration's dashboards: `scripts/import-integration-dashboards.mjs --all --source <checkout>` writes
     `server/seeds/integrations/core/{dashboards.ndjson.gz,units.csv}` and the mock subset
     `web/src/api/integrations/coreDashboards.generated.json`; the server installs an integration's dashboards for an
-    org when its metric prefix is seen (`routes/integration_dashboards.rs`, from `enabled_integrations`).
+    org when its metric prefix is seen (`routes/integration_dashboards.rs`, from `enabled_integrations`), or, for
+    integrations that send only logs (the bundle's `source`, e.g. Supply Chain Firewall's `scfw`), when their logs
+    arrive (`routes/integration_autoinstall.rs`, every 5 minutes, once per org: Postgres `integration_autoinstalls`).
   - Integration dashboards draw as Datadog does: an ordered dashboard flows in its list order (`convertDashboard`);
     log widgets read `POST /api/v1/logs/aggregate` (Datadog's `/api/v2/logs/analytics/aggregate` shape:
     count / cardinality / sum / avg / percentiles, any number of facets, totals or timeseries, `log_analytics.rs`),
@@ -245,8 +247,9 @@ or SDK features.
       (which also writes the units from `metadata.csv` that the Agent doesn't send);
     - `assets/monitors/*.json` as recommended monitors;
     - every integration's log pipelines in `assets/logs/`, converted by `scripts/import-integration-pipelines.mjs --source
-      <checkout>` into `server/seeds/integrations/core/pipelines.json` (Logs → Configuration → Pipelines installs them
-      from its library; the mock carries a few in `web/src/api/pipelines/library.generated.json`);
+      <checkout>` into `server/seeds/integrations/core/pipelines.json` (installed by the server on a source's first
+      logs, once per org, as Datadog does, or from Logs → Configuration → Pipelines' library; the mock carries a few in
+      `web/src/api/pipelines/library.generated.json`);
   - Keep their copyright and LICENSE text with anything copied, and note the source path and version.
 - **Cloud overview dashboards** (AWS, Azure, Google Cloud): Datadog's aren't in integrations-core, so ours are generated
   by `scripts/cloud-dashboards.mjs` (Datadog widget format → the importer's `convertDashboard` →
