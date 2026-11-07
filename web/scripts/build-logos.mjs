@@ -171,6 +171,8 @@ const MAP = {
   istio: 'si:istio',
   ollama: 'si:ollama',
   paloaltonetworks: 'si:paloaltonetworks',
+  // Downloaded logos (fetch-brand-icons.mjs)
+  netbird: 'brand:netbird',
 };
 
 /** App logo key → LobeHub icon file (MIT), for providers SVG Logos doesn't have. */
@@ -228,7 +230,7 @@ function add(group, key, ref) {
   group.icons[ref] = icon;
   group.keys[key] = ref;
 }
-for (const [key, name] of Object.entries(MAP)) add(brand, key, name.startsWith('si:') ? name : `logos:${name}`);
+for (const [key, name] of Object.entries(MAP)) add(brand, key, /^(si|brand):/.test(name) ? name : `logos:${name}`);
 const lobeDir = dirname(require.resolve('@lobehub/icons-static-svg/package.json'));
 for (const [key, name] of Object.entries(LOBE)) {
   let svg;

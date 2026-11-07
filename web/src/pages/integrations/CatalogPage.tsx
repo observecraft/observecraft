@@ -18,6 +18,7 @@ const OWN_PAGES: Record<string, string> = {
   kubernetes: '/integrations/kubernetes',
   slack: '/integrations/slack',
   authentik: '/integrations/authentik',
+  netbird: '/integrations/netbird',
 };
 
 const STATUSES: Option<IntegrationStatus | 'all'>[] = [
