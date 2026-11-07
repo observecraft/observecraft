@@ -509,6 +509,48 @@ How it works:
   Developer Portal connectors' SSRF guard: a management server on a private address needs
   `OC_PORTAL_ALLOW_PRIVATE=true` on the server.
 
+## FleetDM hosts, policies and activities (pulled through Fleet's API)
+
+The FleetDM integration (*Integrations → FleetDM*) reads a Fleet server's REST API (`/api/v1/fleet`), self-hosted or
+Fleet's cloud. Datadog has no Fleet integration, so ObserveCraft polls the API itself:
+
+- the **activity feed** becomes logs: logins and failed logins, policies and saved queries created, edited or deleted,
+  live queries, scripts run, software installed or uninstalled, hosts locked, unlocked or wiped, disk encryption keys
+  read, MDM enrollments, users, roles and teams changed;
+- every **host** becomes `fleetdm.host.*` gauges: online / offline / missing, seconds since last seen, uptime, memory,
+  disk space, failing policies, critical vulnerabilities (Fleet Premium), issues, MDM enrollment and disk encryption,
+  plus `fleetdm.host.count` (1 per host, summed for totals by OS version, osquery version, team, …);
+- Fleet's **host counts** become `fleetdm.hosts.*` (total, online, offline, mia, new, missing 30 days, low disk space,
+  by platform), and each **global policy** `fleetdm.policy.passing_hosts` / `.failing_hosts`;
+- the **FleetDM Overview** dashboard charts them. It's listed in Dashboards once Fleet is connected.
+
+Fleet never connects to ObserveCraft: the server only needs outbound HTTPS to the Fleet server.
+
+1. In Fleet, create an API-only user with the global **Observer** role and copy its token:
+   `fleetctl user create --name ObserveCraft --email observecraft@example.com --api-only --global-role observer`.
+2. In *Integrations → FleetDM*, enter the Fleet URL and the token. **Test connection** shows the token's user and
+   role and how many hosts Fleet has, and checks it can read the activities. Organization admins only.
+3. Save. Within a minute the server reads the last 24 hours of activities and the hosts and policies, then both every
+   minute.
+
+How it works:
+
+- Each activity is a log with `source:fleetdm`, `service:fleetdm`, the Fleet server's host name as `host` and the
+  activity's time. Fleet's activity type is `@evt.name` (`created_policy`, `ran_script`, `user_failed_login`, …), the
+  actor `@usr.*`, a login's address `@network.client.ip`, the host acted on `@fleetdm.host_id` /
+  `@fleetdm.host_display_name`, and Fleet's details `@fleetdm.details`. Failed logins and failed installs are errors;
+  hosts locked or wiped, encryption keys read and deletions are warnings.
+- Each poll reads pages of activities newest first down to a minute before the previous poll's newest one. Log ids are
+  derived from the server and the activity id, so an activity read twice is stored once.
+- Host metrics are tagged `fleet_instance`, `fleet_host`, `fleet_host_id`, `platform`, `os_version`,
+  `osquery_version`, `team` and `hardware_model`. Fleet's hosts aren't infrastructure hosts: they don't appear in the
+  host list. Up to 10,000 hosts are read per poll (the poll warns past that; the host counts include every host).
+  Team policies aren't read; their failures still count in each host's `fleetdm.host.failing_policies`.
+- Logs go through Kafka (`oc.logs.json`) and metrics through `oc.otlp-json.metrics`, with the organization's headers,
+  so `OC_KAFKA_BROKERS` must be set on the server. The token is stored encrypted, and requests go through the
+  Developer Portal connectors' SSRF guard: a Fleet server on a private address needs `OC_PORTAL_ALLOW_PRIVATE=true`
+  on the server.
+
 ## Multi-line logs and stack traces
 
 An application writing to stdout or a file emits a stack trace as many lines, and a collector reading line by line

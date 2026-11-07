@@ -14,6 +14,7 @@ mod cloud;
 mod gcp;
 mod authentik;
 mod netbird;
+mod fleetdm;
 mod gitlab;
 mod cache;
 mod config;
@@ -234,6 +235,11 @@ async fn main() -> anyhow::Result<()> {
         let metrics: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(netbird::crawler::NetbirdCrawler { api: Arc::new(netbird::api::Rest { allow_private: state.config.portal_allow_private }), logs, metrics });
         tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, netbird::crawler::INTERVAL_SECS, concurrency)));
+        // The FleetDM integration's poller: the Fleet servers' activities as logs, their hosts and policies as metrics.
+        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, fleetdm::crawler::LOGS_TOPIC));
+        let metrics: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));
+        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(fleetdm::crawler::FleetCrawler { api: Arc::new(fleetdm::api::Rest { allow_private: state.config.portal_allow_private }), logs, metrics });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, fleetdm::crawler::INTERVAL_SECS, concurrency)));
     }
     // Cloud Cost Management's provider bills (`cost_bill_configs`), for the same clouds; written to ClickHouse directly.
     if state.config.cloud_crawlers.iter().any(|c| c == "aws") {

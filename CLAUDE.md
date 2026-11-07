@@ -170,6 +170,12 @@ or SDK features.
   `netbird_connections`, sealed) on the cloud crawlers' jobs (provider `netbird`, scopes `events` and `peers`): audit
   events as logs (`source:netbird`) to `oc.logs.json`, peers as `netbird.peer.*` gauges to `oc.otlp-json.metrics`.
   Its dashboard is ours (`scripts/netbird-dashboard.mjs` → `seeds/integrations/netbird/`), listed once connected.
+- **FleetDM** (Integrations → FleetDM, `oc-api/src/fleetdm/`, `routes/fleetdm_integration.rs`; Datadog has no Fleet
+  integration): the server polls a Fleet server's REST API (`/api/v1/fleet`, an API-only observer's token in Postgres
+  `fleetdm_connections`, sealed) on the cloud crawlers' jobs (provider `fleetdm`, scopes `activities` and `hosts`):
+  activities as logs (`source:fleetdm`) to `oc.logs.json`; host counts, hosts and global policies as `fleetdm.*` gauges
+  to `oc.otlp-json.metrics` (hosts aren't `host`s). Its dashboard is ours (`scripts/fleetdm-dashboard.mjs` →
+  `seeds/integrations/fleetdm/`), listed once connected.
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **Slack** (`routes/slack.rs`, `datadog_api/slack_integration.rs`, page `web/src/pages/integrations/slack/`): workspaces

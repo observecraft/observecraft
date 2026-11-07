@@ -8,7 +8,7 @@ import { Chart } from '../../../components/charts/Chart';
 import type { IntegrationWidgetDefinition } from '../../../api/integrations/evaluate';
 import { queryIntegrationPanel } from '../../../api/integrations/panels';
 import { formatMetricValue } from '../../../api/integrations/units';
-import { countryValues, distributionBuckets, hostmapColor, sunburstTree, type SunburstNode } from '../../../api/integrations/widgetData';
+import { countryValues, distributionBuckets, groupLabel, hostmapColor, sunburstTree, type SunburstNode } from '../../../api/integrations/widgetData';
 import { loadWorldMap } from '../../../api/integrations/worldMap';
 import { logPatterns } from '../../../api/client';
 import { palette, token } from '../../../theme/chartTheme';
@@ -74,7 +74,11 @@ export function IntegrationBarChart({ values, colorOf }: { values: Value[]; colo
       option={{
         grid: { left: 52, right: 12, top: 12, bottom: 48 },
         tooltip: { trigger: 'axis', confine: true, valueFormatter: (v) => formatMetricValue(Number(v), unit) },
-        xAxis: { type: 'category', data: sorted.map((v) => v.name), axisLabel: { interval: 0, rotate: sorted.length > 6 ? 30 : 0, width: 90, overflow: 'truncate' } },
+        xAxis: {
+          type: 'category',
+          data: sorted.map((v) => groupLabel(v.name)),
+          axisLabel: { interval: 0, rotate: sorted.length > 6 || sorted.some((v) => groupLabel(v.name).length > 12) ? 30 : 0, width: 90, overflow: 'truncate' },
+        },
         yAxis: { type: 'value', axisLabel: { formatter: (v: number) => formatMetricValue(v, unit, 1) } },
         series: [{ type: 'bar', data: sorted.map((v, i) => ({ value: v.value, itemStyle: { color: colorOf(i) } })), barMaxWidth: 48 }],
       }}
