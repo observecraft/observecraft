@@ -2,10 +2,9 @@
 // Each catalog entry declares HOW it is collected; config files, metric lists and hosts are
 // derived from that, so the Configure tab shows the collector config "Install" would apply.
 // Generated configs are templates — verify field names against the pinned collector version.
-import type { CatalogRequest, CatalogResponse, CollectedMetric, CollectorConfig, IntegrationDetail, IntegrationHost, IntegrationStatus, IntegrationSummary } from '../integrations/types';
+import type { CollectedMetric, CollectorConfig, IntegrationDetail, IntegrationHost, IntegrationStatus, IntegrationSummary } from '../integrations/types';
 import { rng } from './generator';
 import { coreCatalog, type CoreIntegration } from '../integrations/catalog';
-import { filterCatalog } from '../integrations/catalogFilter';
 import { linkCore } from '../integrations/coreLink';
 import { awsMetricPrefix } from '../integrations/detection';
 import awsCatalog from '../../../../server/seeds/aws_integration.json';
@@ -1184,16 +1183,19 @@ const AGENT_STEPS = (c: CoreIntegration) => [
   'Restart the Agent. Data appears within a few minutes; detection uses metrics received during the last 24 hours.',
 ];
 
+const BY_ID = new Map(CATALOG.map((e) => [e.id, e]));
+
 function find(id: string): Entry {
-  const e = CATALOG.find((x) => x.id === id);
+  const e = BY_ID.get(id);
   if (!e) throw new Error(`Integration ${id} not found`);
   return e;
 }
 
 // ---------------------------------------------------------------- endpoints
 
-export function searchCatalog(req: CatalogRequest): Promise<CatalogResponse> {
-  return delay({ integrations: filterCatalog(CATALOG.map(summary), req) });
+/** The whole catalog; searches filter it in the browser (`filterCatalog`). */
+export function listCatalog(): Promise<IntegrationSummary[]> {
+  return delay(CATALOG.map(summary));
 }
 
 export function getIntegration(id: string): Promise<IntegrationDetail> {
@@ -1214,6 +1216,11 @@ export function uninstallIntegration(id: string): Promise<IntegrationDetail> {
 /** Static catalog metadata, without the demo installation state or generated hosts. */
 export function catalogMetadata(): IntegrationSummary[] {
   return CATALOG.map((e) => ({ ...summary(e), status: 'available', warning: undefined }));
+}
+
+/** The metrics an integration declares (OTel and Prometheus templates), without building its whole detail. */
+export function declaredMetrics(id: string): { name: string }[] {
+  return metricsFor(find(id));
 }
 
 export function integrationMetadata(id: string): IntegrationDetail {

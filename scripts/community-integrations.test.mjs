@@ -1,5 +1,5 @@
 // Integrations → Community: integrations-extras' community and partner integrations, from the same catalog as the
-// Integration Catalog (filterCatalog with `repository`, used by searchCatalog in mock and live mode).
+// Integration Catalog (filterCatalog with `repository`, used by useCatalog in mock and live mode).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
