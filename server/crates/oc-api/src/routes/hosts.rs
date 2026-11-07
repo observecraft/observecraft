@@ -265,11 +265,12 @@ pub(crate) async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Re
         memory_bytes: Option<i64>,
         cloud: String,
         instance_id: String,
+        resource_id: String,
         host_tags: Vec<String>,
         agent_checks: Vec<String>,
     }
     let dd_hosts = sqlx::query_as::<_, DdHost>(
-        "SELECT host, agent_version, os, platform, kernel, arch, cpu_cores, memory_bytes, cloud, instance_id, host_tags, agent_checks FROM datadog_hosts WHERE org_id = $1",
+        "SELECT host, agent_version, os, platform, kernel, arch, cpu_cores, memory_bytes, cloud, instance_id, COALESCE(payload->'meta'->>'ccrid', '') AS resource_id, host_tags, agent_checks FROM datadog_hosts WHERE org_id = $1",
     )
     .bind(org)
     .fetch_all(&st.postgres);
@@ -300,8 +301,19 @@ pub(crate) async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Re
                 fill("os.description", d.platform.clone());
                 fill("os.version", d.kernel.clone());
                 fill("host.arch", d.arch.clone());
-                fill("cloud.provider", d.cloud.clone());
+                let resource = cloud_resource(&d.resource_id);
+                // Rows stored before the intake read the resource id have no cloud until the Agent's next metadata.
+                let provider = match (&resource, d.cloud.is_empty()) {
+                    (Some((platform, _)), true) => platform.split('_').next().unwrap_or_default().to_string(),
+                    _ => d.cloud.clone(),
+                };
+                fill("cloud.provider", provider);
                 fill("host.id", d.instance_id.clone());
+                if let Some((platform, account)) = resource {
+                    fill("cloud.platform", platform.to_string());
+                    fill("cloud.account.id", account);
+                    fill("cloud.resource_id", d.resource_id.clone());
+                }
                 fill(
                     "host.cpu.count",
                     d.cpu_cores.map(|c| c.to_string()).unwrap_or_default(),
@@ -630,13 +642,7 @@ pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, access: LogAc
     if has_procs > 0 {
         products.push(Product::Processes);
     }
-    let host_type = match get("cloud.platform").as_deref() {
-        Some("aws_ec2") => "EC2 Instance",
-        Some("gcp_compute_engine") => "GCE Instance",
-        Some("azure_vm") => "Azure VM",
-        _ => "Other Host",
-    }
-    .to_string();
+    let host_type = host_type_label(get("cloud.platform").as_deref()).to_string();
     let tags = host
         .res
         .iter()
@@ -935,9 +941,47 @@ pub async fn containers(State(st): State<AppState>, OrgId(org): OrgId, Path(name
     Ok(Json(HostContainerPage { items: items.into_iter().skip(req.offset).take(req.limit.min(500)).collect(), total }))
 }
 
+/// A host's platform (`cloud.platform`) and account (subscription, AWS account, GCP project) from its cloud resource
+/// id (the Datadog Agent's `ccrid`).
+fn cloud_resource(id: &str) -> Option<(&'static str, String)> {
+    let lower = id.to_ascii_lowercase();
+    if let Some(rest) = lower.strip_prefix("/subscriptions/") {
+        let subscription = rest.split('/').next().unwrap_or_default().to_string();
+        let platform = if lower.contains("/virtualmachinescalesets/") { "azure_vmss" } else { "azure_vm" };
+        return Some((platform, subscription));
+    }
+    if id.starts_with("arn:aws") {
+        return Some(("aws_ec2", id.split(':').nth(4).unwrap_or_default().to_string()));
+    }
+    id.strip_prefix("//compute.googleapis.com/projects/").map(|rest| ("gcp_compute_engine", rest.split('/').next().unwrap_or_default().to_string()))
+}
+
+/// What the host page calls a host, by its `cloud.platform`.
+fn host_type_label(platform: Option<&str>) -> &'static str {
+    match platform {
+        Some("aws_ec2") => "EC2 Instance",
+        Some("gcp_compute_engine") => "GCE Instance",
+        Some("azure_vm") => "Azure VM",
+        Some("azure_vmss") => "Azure VM Scale Set Instance",
+        _ => "Other Host",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_hosts_cloud_resource_id_names_its_platform_and_account() {
+        let vmss = "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/mc_example_eastus/providers/microsoft.compute/virtualmachinescalesets/aks-pool-12345678-vmss/virtualmachines/42";
+        assert_eq!(cloud_resource(vmss), Some(("azure_vmss", "00000000-0000-0000-0000-000000000000".to_string())));
+        let vm = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example/providers/Microsoft.Compute/virtualMachines/web-1";
+        assert_eq!(cloud_resource(vm), Some(("azure_vm", "00000000-0000-0000-0000-000000000000".to_string())));
+        assert_eq!(cloud_resource("arn:aws:ec2:us-east-1:123456789012:instance/i-0a1b2c3d4e5f60001"), Some(("aws_ec2", "123456789012".to_string())));
+        assert_eq!(cloud_resource("//compute.googleapis.com/projects/example-project/zones/us-central1-a/instances/1"), Some(("gcp_compute_engine", "example-project".to_string())));
+        assert_eq!(cloud_resource(""), None);
+        assert_eq!(host_type_label(Some("azure_vmss")), "Azure VM Scale Set Instance");
+    }
 
     #[test]
     fn agent_checks_become_the_hosts_apps() {
