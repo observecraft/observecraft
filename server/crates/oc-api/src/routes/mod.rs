@@ -43,6 +43,7 @@ pub mod hosts;
 pub mod identity;
 pub mod incident_views;
 pub mod incidents;
+pub mod integration_autoinstall;
 pub mod integration_dashboards;
 pub mod ingest_keys;
 pub mod instance;
@@ -2458,6 +2459,7 @@ mod tests {
             ("incident_views.rs", include_str!("incident_views.rs")),
             ("incidents.rs", include_str!("incidents.rs")),
             ("integration_dashboards.rs", include_str!("integration_dashboards.rs")),
+            ("integration_autoinstall.rs", include_str!("integration_autoinstall.rs")),
             ("ingest_keys.rs", include_str!("ingest_keys.rs")),
             ("instance.rs", include_str!("instance.rs")),
             ("kubernetes.rs", include_str!("kubernetes.rs")),
