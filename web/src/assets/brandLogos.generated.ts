@@ -3,6 +3,11 @@
 // Brand names and logos are trademarks of their owners; shown only to identify the technology.
 type Logo = { body: string; width: number; height: number };
 const ICONS: Record<string, Logo> = {
+ "brand:netbird": {
+  "body": " <path d=\"M28.5735 0C23.7203 0.445248 21.3049 3.23918 20.3921 4.65284L6.21094 29.2194H23.3196L40.1945 0H28.5735Z\" fill=\"#F68330\"/> <path d=\"M23.331 29.2198L0 4.47517C0 4.47517 26.381 -2.6154 28.9523 19.5023L23.331 29.2198Z\" fill=\"#F68330\"/> <path d=\"M19.8683 5.56728L12.7109 17.9674L23.319 29.2211L28.9402 19.4813C28.0497 11.8787 24.343 7.72674 19.8683 5.55615\" fill=\"#F35E32\"/> ",
+  "width": 41,
+  "height": 30
+ },
  "lobe:azureai-color": {
   "body": "<path clip-rule=\"evenodd\" d=\"M16.233 0c.713 0 1.345.551 1.572 1.329.227.778 1.555 5.59 1.555 5.59v9.562h-4.813L14.645 0h1.588z\" fill=\"url(#lobe-icons-azure-ai-0-_R_0_)\" fill-rule=\"evenodd\"></path><path d=\"M23.298 7.47c0-.34-.275-.6-.6-.6h-2.835a3.617 3.617 0 00-3.614 3.615v5.996h3.436a3.617 3.617 0 003.613-3.614V7.47z\" fill=\"url(#lobe-icons-azure-ai-1-_R_0_)\"></path><path clip-rule=\"evenodd\" d=\"M16.233 0a.982.982 0 00-.989.989l-.097 18.198A4.814 4.814 0 0110.334 24H1.6a.597.597 0 01-.567-.794l7-19.981A4.819 4.819 0 0112.57 0h3.679-.016z\" fill=\"url(#lobe-icons-azure-ai-2-_R_0_)\" fill-rule=\"evenodd\"></path><defs><linearGradient gradientUnits=\"userSpaceOnUse\" id=\"lobe-icons-azure-ai-0-_R_0_\" x1=\"18.242\" x2=\"14.191\" y1=\"16.837\" y2=\".616\"><stop stop-color=\"#712575\"></stop><stop offset=\".09\" stop-color=\"#9A2884\"></stop><stop offset=\".18\" stop-color=\"#BF2C92\"></stop><stop offset=\".27\" stop-color=\"#DA2E9C\"></stop><stop offset=\".34\" stop-color=\"#EB30A2\"></stop><stop offset=\".4\" stop-color=\"#F131A5\"></stop><stop offset=\".5\" stop-color=\"#EC30A3\"></stop><stop offset=\".61\" stop-color=\"#DF2F9E\"></stop><stop offset=\".72\" stop-color=\"#C92D96\"></stop><stop offset=\".83\" stop-color=\"#AA2A8A\"></stop><stop offset=\".95\" stop-color=\"#83267C\"></stop><stop offset=\"1\" stop-color=\"#712575\"></stop></linearGradient><linearGradient gradientUnits=\"userSpaceOnUse\" id=\"lobe-icons-azure-ai-1-_R_0_\" x1=\"19.782\" x2=\"19.782\" y1=\".34\" y2=\"23.222\"><stop stop-color=\"#DA7ED0\"></stop><stop offset=\".08\" stop-color=\"#B17BD5\"></stop><stop offset=\".19\" stop-color=\"#8778DB\"></stop><stop offset=\".3\" stop-color=\"#6276E1\"></stop><stop offset=\".41\" stop-color=\"#4574E5\"></stop><stop offset=\".54\" stop-color=\"#2E72E8\"></stop><stop offset=\".67\" stop-color=\"#1D71EB\"></stop><stop offset=\".81\" stop-color=\"#1471EC\"></stop><stop offset=\"1\" stop-color=\"#1171ED\"></stop></linearGradient><linearGradient gradientUnits=\"userSpaceOnUse\" id=\"lobe-icons-azure-ai-2-_R_0_\" x1=\"18.404\" x2=\"3.236\" y1=\".859\" y2=\"25.183\"><stop stop-color=\"#DA7ED0\"></stop><stop offset=\".05\" stop-color=\"#B77BD4\"></stop><stop offset=\".11\" stop-color=\"#9079DA\"></stop><stop offset=\".18\" stop-color=\"#6E77DF\"></stop><stop offset=\".25\" stop-color=\"#5175E3\"></stop><stop offset=\".33\" stop-color=\"#3973E7\"></stop><stop offset=\".42\" stop-color=\"#2772E9\"></stop><stop offset=\".54\" stop-color=\"#1A71EB\"></stop><stop offset=\".68\" stop-color=\"#1371EC\"></stop><stop offset=\"1\" stop-color=\"#1171ED\"></stop></linearGradient></defs>",
   "width": 24,
@@ -810,6 +815,7 @@ export const BRAND_LOGOS: Record<string, Logo> = {
   "mistral": ICONS["logos:mistral-ai-icon"],
   "mongodb": ICONS["logos:mongodb-icon"],
   "mysql": ICONS["logos:mysql-icon"],
+  "netbird": ICONS["brand:netbird"],
   "nextdotjs": ICONS["logos:nextjs-icon"],
   "nginx": ICONS["logos:nginx"],
   "nodedotjs": ICONS["logos:nodejs-icon"],

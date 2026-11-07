@@ -3,6 +3,7 @@
 import { parseQuery } from '../../lib/searchQuery';
 import type { Facet, FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, MetricSeries, QuerySuggestion, TimeRange } from '../types';
 import { generateLog, rng } from './generator';
+import { netbirdLogs } from './netbird';
 import { logField, matchLog } from './match';
 import { standardPaths } from './standardAttributes';
 import type { LogAggregateRequest, LogAggregateResponse } from '../integrations/logs';
@@ -27,6 +28,8 @@ function logs(): LogEvent[] {
   for (const [count, span] of tiers) {
     for (let i = 0; i < count; i++) out.push(generateLog(r, Math.round(now - r() * span)));
   }
+  // The NetBird integration's audit events (its dashboard and Logs → source:netbird).
+  out.push(...netbirdLogs(rng(7), now));
   out.sort((a, b) => b.timestamp - a.timestamp);
   store = out;
   return out;

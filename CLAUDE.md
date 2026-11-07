@@ -165,6 +165,11 @@ or SDK features.
 - **authentik** (Integrations → authentik, `oc-api/src/authentik/`, `routes/authentik_integration.rs`): the server polls an
   instance's events API (`/api/v3/events/events/`, token in Postgres `authentik_connections`, sealed) on the cloud
   crawlers' jobs (provider `authentik`) and sends each event as a log (`source:authentik`) to `oc.logs.json`.
+- **NetBird** (Integrations → NetBird, `oc-api/src/netbird/`, `routes/netbird_integration.rs`; Datadog has no NetBird
+  integration): the server polls a NetBird Cloud or self-hosted management API (token in Postgres
+  `netbird_connections`, sealed) on the cloud crawlers' jobs (provider `netbird`, scopes `events` and `peers`): audit
+  events as logs (`source:netbird`) to `oc.logs.json`, peers as `netbird.peer.*` gauges to `oc.otlp-json.metrics`.
+  Its dashboard is ours (`scripts/netbird-dashboard.mjs` → `seeds/integrations/netbird/`), listed once connected.
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **Slack** (`routes/slack.rs`, `datadog_api/slack_integration.rs`, page `web/src/pages/integrations/slack/`): workspaces

@@ -1,6 +1,7 @@
 pub mod apm;
 pub mod apm_settings;
 pub mod authentik_integration;
+pub mod netbird_integration;
 pub mod aws_integration;
 pub mod azure_integration;
 pub mod gcp_integration;
@@ -862,6 +863,11 @@ use crate::state::AppState;
         authentik_integration::delete_authentik,
         authentik_integration::test_authentik,
         authentik_integration::sync_authentik,
+        netbird_integration::get_netbird,
+        netbird_integration::put_netbird,
+        netbird_integration::delete_netbird,
+        netbird_integration::test_netbird,
+        netbird_integration::sync_netbird,
         aws_integration::setup,
         aws_integration::external_id,
         aws_integration::list_accounts,
@@ -1641,6 +1647,9 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/integrations/authentik", get(authentik_integration::get_authentik).put(authentik_integration::put_authentik).delete(authentik_integration::delete_authentik))
         .route("/api/v1/integrations/authentik/test", axum::routing::post(authentik_integration::test_authentik))
         .route("/api/v1/integrations/authentik/sync", axum::routing::post(authentik_integration::sync_authentik))
+        .route("/api/v1/integrations/netbird", get(netbird_integration::get_netbird).put(netbird_integration::put_netbird).delete(netbird_integration::delete_netbird))
+        .route("/api/v1/integrations/netbird/test", axum::routing::post(netbird_integration::test_netbird))
+        .route("/api/v1/integrations/netbird/sync", axum::routing::post(netbird_integration::sync_netbird))
         .route("/api/v1/integrations/aws/setup", get(aws_integration::setup))
         .route("/api/v1/integrations/aws/external-id", axum::routing::post(aws_integration::external_id))
         .route("/api/v1/integrations/aws/accounts", get(aws_integration::list_accounts).post(aws_integration::create_account))
@@ -1990,6 +1999,7 @@ mod tests {
             include_str!("ci.rs"),
             include_str!("gitlab_ci.rs"),
             include_str!("authentik_integration.rs"),
+            include_str!("netbird_integration.rs"),
             include_str!("sso.rs"),
             include_str!("spans.rs"),
             include_str!("dashboards.rs"),
@@ -2310,6 +2320,7 @@ mod tests {
     fn server_sources() -> Vec<(&'static str, &'static str)> {
         vec![
             ("authentik_integration.rs", include_str!("authentik_integration.rs")),
+            ("netbird_integration.rs", include_str!("netbird_integration.rs")),
             ("aws_integration.rs", include_str!("aws_integration.rs")),
             ("azure_integration.rs", include_str!("azure_integration.rs")),
             ("gcp_integration.rs", include_str!("gcp_integration.rs")),
@@ -2331,6 +2342,12 @@ mod tests {
             ("../authentik/crawler.rs", include_str!("../authentik/crawler.rs")),
             ("../authentik/fixtures.rs", include_str!("../authentik/fixtures.rs")),
             ("../authentik/logs.rs", include_str!("../authentik/logs.rs")),
+            ("../netbird/mod.rs", include_str!("../netbird/mod.rs")),
+            ("../netbird/api.rs", include_str!("../netbird/api.rs")),
+            ("../netbird/crawler.rs", include_str!("../netbird/crawler.rs")),
+            ("../netbird/fixtures.rs", include_str!("../netbird/fixtures.rs")),
+            ("../netbird/logs.rs", include_str!("../netbird/logs.rs")),
+            ("../netbird/peers.rs", include_str!("../netbird/peers.rs")),
             ("../gitlab/mod.rs", include_str!("../gitlab/mod.rs")),
             ("../gitlab/api.rs", include_str!("../gitlab/api.rs")),
             ("../gitlab/crawler.rs", include_str!("../gitlab/crawler.rs")),

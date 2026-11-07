@@ -11257,6 +11257,142 @@
         }
       }
     },
+    "/api/v1/integrations/netbird": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The NetBird connection and its syncs' status (no token).",
+        "operationId": "netbird_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetbirdStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Saves the NetBird connection (admins). The token is sealed; leave it out to keep the saved one (only while the\nURL stays the same).",
+        "operationId": "netbird_save",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NetbirdInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetbirdStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Removes the NetBird connection, its token and its polling (admins). Stored logs and metrics stay.",
+        "operationId": "netbird_delete",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/netbird/sync": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Polls NetBird now instead of within the minute (admins).",
+        "operationId": "netbird_sync",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/netbird/test": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Tests a connection before or after saving it (admins): the token's user and role, and whether it can read the\naudit log and the peers.",
+        "operationId": "netbird_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NetbirdInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetbirdTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/integrations/slack": {
       "get": {
         "tags": [
@@ -55802,6 +55938,156 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "NetbirdConnection": {
+        "type": "object",
+        "description": "The connection as saved; the token is never answered.",
+        "required": [
+          "baseUrl",
+          "updatedAt"
+        ],
+        "properties": {
+          "baseUrl": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          }
+        }
+      },
+      "NetbirdInput": {
+        "type": "object",
+        "description": "What an admin enters.",
+        "properties": {
+          "baseUrl": {
+            "type": "string",
+            "description": "The management API's URL: `https://api.netbird.io` for NetBird Cloud, the server's for self-hosted NetBird.",
+            "default": ""
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A personal access token of a service user allowed to read the audit log; leave it out to keep the saved one.",
+            "default": null
+          }
+        }
+      },
+      "NetbirdStatus": {
+        "type": "object",
+        "required": [
+          "eventsLastSync",
+          "peers"
+        ],
+        "properties": {
+          "connection": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NetbirdConnection",
+                "description": "None until an admin connects NetBird."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CrawlIssue",
+                "description": "Why the last poll of the events or the peers failed (token refused, role missing, …), or its warning."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eventsLastSync": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Events sent by the last poll."
+          },
+          "lastSyncAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last successful poll of the audit events."
+          },
+          "peers": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Peers read by the last poll."
+          },
+          "peersSyncedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last successful poll of the peers."
+          },
+          "syncedUntil": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms: events recorded up to here were read."
+          }
+        }
+      },
+      "NetbirdTest": {
+        "type": "object",
+        "description": "A connection test's result.",
+        "required": [
+          "ok",
+          "message"
+        ],
+        "properties": {
+          "events": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Audit events the token can read.",
+            "minimum": 0
+          },
+          "message": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "peers": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Peers of the account.",
+            "minimum": 0
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its role (owner, admin, auditor, …)."
+          },
+          "user": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The token's user (name or email)."
           }
         }
       },

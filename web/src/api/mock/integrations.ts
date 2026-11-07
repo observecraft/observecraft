@@ -777,6 +777,20 @@ const CURATED: Entry[] = [
     },
   },
   {
+    id: 'netbird',
+    name: 'NetBird',
+    categories: ['Network', 'Security', 'Log Collection'],
+    about:
+      'Peers of a NetBird overlay network (connected, last seen, expired logins, OS, client versions) as metrics and its audit log (peers, policies, routes, setup keys, users) as logs, read through its management API, with a dashboard.',
+    collect: {
+      kind: 'notify',
+      settings: [
+        { key: 'base_url', label: 'Management URL', placeholder: 'https://api.netbird.io' },
+        { key: 'token', label: 'Personal access token', placeholder: '••••', secret: true },
+      ],
+    },
+  },
+  {
     id: 'okta',
     name: 'Okta',
     categories: ['Security'],
