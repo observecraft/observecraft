@@ -1,6 +1,7 @@
 //! Integration pipelines: the log pipelines of integrations-core (BSD-3-Clause; copyright and terms
 //! in each `server/seeds/integrations/<integration>/LICENSE`), converted by
-//! `scripts/import-integration-pipelines.mjs`. Organizations install them from Logs → Pipelines.
+//! `scripts/import-integration-pipelines.mjs`. Installed on a source's first logs (`routes::integration_autoinstall`)
+//! or from Logs → Pipelines.
 
 use std::sync::OnceLock;
 
