@@ -10,6 +10,7 @@ import { compact, timeAgo } from '../../../lib/format';
 import { formatQuery, parseQuery, type Term } from '../../../lib/searchQuery';
 import { SeverityBadge } from '../common';
 import { FINDING_TABS, SubTabs } from './CloudSecurityLayout';
+import { ResourceType, ResourceTypeIcon, resourceKind } from './resourceTypes';
 import { useCve, useInfraVulnerabilities, useMisconfigurations, usePostureScans, useScanNow, useTriage } from './queries';
 
 const RANK = ['low', 'medium', 'high', 'critical'];
@@ -281,6 +282,8 @@ export function MisconfigurationsPage() {
             terms={terms}
             onChange={(t: Term[]) => (set('rule', null), set('q', formatQuery(t) || null))}
             defaultOpen={['severity', '@rule', 'resource_type', 'namespace']}
+            renderValueIcon={(key, value) => (key === 'resource_type' ? <ResourceTypeIcon type={value} /> : null)}
+            valueLabel={(key, value) => (key === 'resource_type' ? resourceKind(value).name : value)}
             verified={[]}
             noun="facets"
           />
@@ -325,7 +328,13 @@ export function MisconfigurationsPage() {
                         <SeverityBadge severity={worst} />
                       </td>
                       <td className="num">{items.length}</td>
-                      <td>{[...new Set(items.map((x) => x.resourceType.replace(/^kube_/, '')))].join(', ')}</td>
+                      <td>
+                        <div className="csm-rtypes">
+                          {[...new Set(items.map((x) => x.resourceType))].map((t) => (
+                            <ResourceType key={t} type={t} />
+                          ))}
+                        </div>
+                      </td>
                       <td className="csm-detail">{group === 'none' ? f.resourceName : group === 'resource' ? items.map((x) => x.ruleName).join('; ') : f.detail}</td>
                       <td>{items.every((x) => x.status === 'muted') ? 'Muted' : 'Open'}</td>
                     </tr>
@@ -359,7 +368,7 @@ export function MisconfigurationsPage() {
                     <tr key={x.key}>
                       <td>
                         <b>{x.resourceName}</b>
-                        <div className="muted sec-sub">{[x.resourceType.replace(/^kube_/, ''), where(x)].filter(Boolean).join(' · ')}</div>
+                        <div className="muted sec-sub">{[resourceKind(x.resourceType).name, where(x)].filter(Boolean).join(' · ')}</div>
                       </td>
                       <td className="csm-detail">{x.detail}</td>
                       <td className="num">
