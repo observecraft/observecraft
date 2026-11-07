@@ -39,7 +39,10 @@ the origin in a comment):
 
 **Not OK:** Datadog's web app, its design system, icons, logos, illustrations and screenshots are proprietary. Use
 our own interface code and assets; never copy their frontend code or images, and don't use the
-Datadog name or logo as our branding (naming it to describe compatibility is fine). Don't paste text from Datadog's
+Datadog name or logo as our branding (naming it to describe compatibility is fine). Datadog's own open-source products
+(Apache-2.0 or similar: the Agent, Cluster Agent, Operator, GuardDog, IDE Shepherd, Supply Chain Firewall, …) are shown
+under Datadog's name and with Datadog's logo (SVG Logos' `datadog-icon`, `OVERRIDES` in `integration-logos.mjs`), since
+the product is theirs; never for our own features or anything proprietary of theirs. Don't paste text from Datadog's
 documentation site into the repo; write our own. Files in `integrations-core` are BSD-3-Clause and may be kept as they
 are, notes and images embedded in them included; images they only link to (`/static/images/…`, hosted by Datadog)
 are not part of the repository and are replaced by our own artwork. Avoid copyleft or source-available code (GPL, AGPL, SSPL, BSL, Elastic License,
@@ -217,7 +220,8 @@ or SDK features.
     owner's approval, terms in `src/assets/cloud-icons/NOTICE.md`) and the other vendors' logos
     (`fetch-brand-icons.mjs`: public-domain Commons files, MIT/CC0 sets, CNCF artwork or the vendor's site icon,
     sources in `src/assets/brand-icons/NOTICE.md`). They are served as files from `public/images/integrations/logos/`
-    (manifest `integrationLogos.generated.ts`), so pages load only the logos they show. Never Datadog's own images.
+    (manifest `integrationLogos.generated.ts`), so pages load only the logos they show. Datadog's logo only on Datadog's
+    open-source products (see the licenses section); never Datadog's other images.
   - `PINNED_REVISION` (`scripts/import-integration-dashboards.mjs`) is the last revision with every integration: from
     2026-10-30 Datadog moves integrations to a private repository, so a newer pin drops catalog entries. Every
     importer above takes the same revision; rerun them all after changing it.
