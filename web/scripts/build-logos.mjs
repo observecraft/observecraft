@@ -144,6 +144,8 @@ const MAP = {
   ansible: 'ansible',
   jenkins: 'jenkins',
   circleci: 'circleci',
+  // Datadog's open-source products (Supply Chain Firewall's Cloud SIEM pack): Datadog's logo, their product.
+  datadog: 'datadog-icon',
   sentry: 'sentry-icon',
   cypress: 'cypress-icon',
   selenium: 'selenium',
