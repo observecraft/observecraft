@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { catalogEntry, classifierTags, createTemplates, finalizeCatalog, resolveSpec } from './import-integration-catalog.mjs';
-import { hasReportedMetrics } from '../web/src/api/integrations/detection.ts';
+import { hasReportedMetrics, reportedMetricNames } from '../web/src/api/integrations/detection.ts';
 import { instanceOptions, renderAgentConfig } from '../web/src/api/integrations/agentConfig.ts';
 
 const TEMPLATES = {
@@ -158,9 +158,9 @@ test('integrations without metrics or configuration have empty fields, not missi
 });
 
 test('the catalog prefix detects an integration whose name differs from its metrics', () => {
-  assert.equal(hasReportedMetrics('redis', [], new Set(['redis.net.clients']), ['redis.']), true);
-  assert.equal(hasReportedMetrics('ibm_mq', [], new Set(['ibm_mq.queue.depth_current']), ['ibm_mq.']), true);
-  assert.equal(hasReportedMetrics('ibm_mq', [], new Set(['redis.net.clients']), ['ibm_mq.']), false);
+  assert.equal(hasReportedMetrics('redis', [], reportedMetricNames(['redis.net.clients'].map((name) => ({ name, kind: 'gauge' }))), ['redis.']), true);
+  assert.equal(hasReportedMetrics('ibm_mq', [], reportedMetricNames(['ibm_mq.queue.depth_current'].map((name) => ({ name, kind: 'gauge' }))), ['ibm_mq.']), true);
+  assert.equal(hasReportedMetrics('ibm_mq', [], reportedMetricNames(['redis.net.clients'].map((name) => ({ name, kind: 'gauge' }))), ['ibm_mq.']), false);
 });
 
 const REDIS_FILE = {

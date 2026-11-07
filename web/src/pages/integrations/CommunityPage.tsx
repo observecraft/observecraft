@@ -85,7 +85,7 @@ export function CommunityPage() {
             No community integrations match “{query}”{category ? ` in ${category}` : ''}.
           </Empty>
         ) : (
-          <div className={`int-grid${catalog.isPlaceholderData ? ' is-stale' : ''}`}>
+          <div className="int-grid">
             {items.slice(0, 2).map((i) => (
               <IntegrationCard key={i.id} item={i} onOpen={(id) => setParam('integration', id)} />
             ))}

@@ -1,26 +1,25 @@
 // Live state is derived from organization-scoped telemetry. Catalog templates do not install collectors.
 import * as mock from '../mock/integrations';
 import { API_MODE, get } from '../http';
-import { hasReportedMetrics, reportedMetricNames } from './detection';
-import { filterCatalog } from './catalogFilter';
-import type { CatalogRequest, CatalogResponse, IntegrationDetail, IntegrationSummary } from './types';
+import { hasReportedMetrics, reportedMetricNames, type ReportedMetrics } from './detection';
+import type { IntegrationDetail, IntegrationSummary } from './types';
 
-async function reportedMetrics(): Promise<Set<string>> {
+async function reportedMetrics(): Promise<ReportedMetrics> {
   const metrics = await get('/api/v1/metrics', {});
   return reportedMetricNames(metrics);
 }
 
-export async function searchCatalog(req: CatalogRequest): Promise<CatalogResponse> {
-  if (API_MODE === 'mock') return mock.searchCatalog(req);
-  const names = await reportedMetrics();
-  const integrations = filterCatalog(
-    mock.catalogMetadata().map((entry): IntegrationSummary => ({
-      ...entry,
-      status: hasReportedMetrics(entry.id, mock.integrationMetadata(entry.id).metrics, names, mock.catalogPrefixes(entry.id)) ? 'detected' : 'available',
-    })),
-    req,
-  );
-  return { integrations };
+/**
+ * The whole catalog with each integration's status. The catalog is bounded (hundreds of entries), so searches filter
+ * this list in the browser (`filterCatalog`) instead of fetching and detecting again per keystroke.
+ */
+export async function listCatalog(): Promise<IntegrationSummary[]> {
+  if (API_MODE === 'mock') return mock.listCatalog();
+  const reported = await reportedMetrics();
+  return mock.catalogMetadata().map((entry) => ({
+    ...entry,
+    status: hasReportedMetrics(entry.id, mock.declaredMetrics(entry.id), reported, mock.catalogPrefixes(entry.id)) ? 'detected' : 'available',
+  }));
 }
 
 export const listCategories = mock.listCategories;

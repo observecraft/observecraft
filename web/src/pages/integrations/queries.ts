@@ -1,7 +1,9 @@
 // TanStack Query bindings for Integrations / Community / Reference Tables.
+import { useCallback } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getIntegration, installIntegration, loadIntegrationDocs, listCategories, searchCatalog, uninstallIntegration } from '../../api/integrations/client';
-import type { CatalogRequest } from '../../api/integrations/types';
+import { getIntegration, installIntegration, listCatalog, loadIntegrationDocs, listCategories, uninstallIntegration } from '../../api/integrations/client';
+import { filterCatalog } from '../../api/integrations/catalogFilter';
+import type { CatalogRequest, CatalogResponse, IntegrationSummary } from '../../api/integrations/types';
 import { searchDashboards } from '../../api/dashboards/client';
 import { loadAgentSpec } from '../../api/integrations/catalog';
 import { createReferenceTable, deleteReferenceTable, getReferenceTable, listReferenceTables, replaceReferenceTable } from '../../api/referenceTables/client';
@@ -35,13 +37,16 @@ export function useAgentSpec(check: string | undefined) {
 
 export const integrationKeys = {
   all: ['integrations'] as const,
-  catalog: (req: CatalogRequest) => [...integrationKeys.all, 'catalog', req] as const,
+  catalog: () => [...integrationKeys.all, 'catalog'] as const,
   categories: () => [...integrationKeys.all, 'categories'] as const,
   detail: (id: string) => [...integrationKeys.all, 'detail', id] as const,
 };
 
+/** The catalog is fetched (and its statuses detected) once; a search only filters it. */
 export function useCatalog(req: CatalogRequest) {
-  return useQuery({ queryKey: integrationKeys.catalog(req), queryFn: () => searchCatalog(req), placeholderData: keepPreviousData, refetchInterval: 60_000 });
+  const { query, status, category, repository } = req;
+  const select = useCallback((all: IntegrationSummary[]): CatalogResponse => ({ integrations: filterCatalog(all, { query, status, category, repository }) }), [query, status, category, repository]);
+  return useQuery({ queryKey: integrationKeys.catalog(), queryFn: listCatalog, select, refetchInterval: 60_000 });
 }
 
 export function useCategories() {
@@ -59,7 +64,7 @@ export function useInstallToggle(id: string) {
     mutationFn: (install: boolean) => (install ? installIntegration(id) : uninstallIntegration(id)),
     onSuccess: (detail) => {
       qc.setQueryData(integrationKeys.detail(id), detail);
-      qc.invalidateQueries({ queryKey: [...integrationKeys.all, 'catalog'] });
+      qc.invalidateQueries({ queryKey: integrationKeys.catalog() });
     },
   });
 }
