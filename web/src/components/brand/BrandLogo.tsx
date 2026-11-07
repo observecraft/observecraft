@@ -1,5 +1,5 @@
 import { memo, useId, useMemo } from 'react';
-import { BRAND_LOGOS } from '../../assets/brandLogos.generated';
+import { BRAND_LOGOS, BRAND_LOGOS_DARK } from '../../assets/brandLogos.generated';
 
 export function hasBrandLogo(key: string): boolean {
   return key in BRAND_LOGOS;
@@ -35,7 +35,7 @@ export const BrandLogo = memo(function BrandLogo({ name, size = 16, title, maxRa
       height={size}
       role="img"
       aria-label={title ?? name}
-      className="brand-logo"
+      className={BRAND_LOGOS_DARK.has(name) ? 'brand-logo brand-logo-mono' : 'brand-logo'}
       dangerouslySetInnerHTML={{ __html: `${title ? `<title>${title.replace(/[<&]/g, '')}</title>` : ''}${body}` }}
     />
   );

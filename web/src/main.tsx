@@ -7,6 +7,7 @@ import '@fontsource/noto-sans/500.css';
 import '@fontsource/noto-sans/600.css';
 import '@fontsource/noto-sans-mono/400.css';
 import './theme/global.css';
+import './assets/integrationLogos.dark.generated.css';
 import { App } from './App';
 
 const queryClient = new QueryClient({
