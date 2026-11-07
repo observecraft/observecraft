@@ -18,6 +18,7 @@ const OWN_PAGES: Record<string, string> = {
   kubernetes: '/integrations/kubernetes',
   slack: '/integrations/slack',
   authentik: '/integrations/authentik',
+  netbird: '/integrations/netbird',
 };
 
 const STATUSES: Option<IntegrationStatus | 'all'>[] = [
@@ -62,7 +63,7 @@ export function CatalogPage() {
     [setParams],
   );
 
-  // Typing stays responsive; the search request follows the deferred value.
+  // Typing stays responsive; filtering and re-rendering the cards follow the deferred value.
   const deferredQuery = useDeferredValue(query);
   const catalog = useCatalog({ query: deferredQuery, status, category });
   const items = catalog.data?.integrations ?? [];
@@ -88,7 +89,7 @@ export function CatalogPage() {
           No integrations match “{query}”{category ? ` in ${category}` : ''}.
         </Empty>
       ) : (
-        <div className={catalog.isPlaceholderData ? 'is-stale' : undefined}>
+        <div>
           {SECTIONS.map((s) => {
             const list: IntegrationSummary[] = items.filter((i) => s.match(i.status));
             if (list.length === 0) return null;

@@ -37,6 +37,9 @@ pub struct GitlabCiInput {
     pub include_subgroups: bool,
     /// Projects to follow (`example-org/storefront-api`).
     pub project_paths: Vec<String>,
+    /// Every project the token sees, active in the last 30 days (with an admin's or auditor's token: the
+    /// whole instance).
+    pub all_projects: bool,
 }
 
 /// The connection as saved; the token is never answered.
@@ -47,6 +50,7 @@ pub struct GitlabCiConnection {
     pub group_path: String,
     pub include_subgroups: bool,
     pub project_paths: Vec<String>,
+    pub all_projects: bool,
     /// Epoch ms.
     pub updated_at: i64,
 }
@@ -112,10 +116,10 @@ pub fn validate(input: &GitlabCiInput, allow_private: bool) -> Result<Connection
             project_paths.push(p);
         }
     }
-    if group_path.is_empty() && project_paths.is_empty() {
+    if group_path.is_empty() && project_paths.is_empty() && !input.all_projects {
         return Err("Choose a group or at least one project to follow".into());
     }
-    Ok(Connection { base_url, token: String::new(), group_path, include_subgroups: input.include_subgroups, project_paths })
+    Ok(Connection { base_url, token: String::new(), group_path, include_subgroups: input.include_subgroups, project_paths, all_projects: input.all_projects })
 }
 
 fn checked_token(input: &GitlabCiInput) -> Result<Option<String>, ApiError> {
@@ -153,7 +157,7 @@ pub async fn check(api: &dyn GitlabApi, conn: &Connection) -> GitlabCiTest {
     if !scopes.is_empty() && !scopes.iter().any(|s| s == "read_api" || s == "api") {
         return GitlabCiTest { user: Some(user), scopes, ..failed("The token needs the read_api scope".into()) };
     }
-    match discover(api, conn).await {
+    match discover(api, conn, chrono::Utc::now().timestamp_millis()).await {
         Ok(projects) if projects.is_empty() => GitlabCiTest { user: Some(user), scopes, ..failed("The token sees no project in this group".into()) },
         Ok(projects) => GitlabCiTest {
             ok: true,
@@ -168,13 +172,17 @@ pub async fn check(api: &dyn GitlabApi, conn: &Connection) -> GitlabCiTest {
 }
 
 async fn saved(st: &AppState, org: &str) -> Result<Option<(String, GitlabCiConnection)>, sqlx::Error> {
-    let row: Option<(String, String, String, bool, Vec<String>, i64)> = sqlx::query_as(
-        "SELECT id::text, base_url, group_path, include_subgroups, project_paths, (extract(epoch FROM updated_at) * 1000)::bigint FROM gitlab_ci_connections WHERE org_id = $1",
+    /// id, base_url, group_path, include_subgroups, project_paths, all_projects, updated_at
+    type Row = (String, String, String, bool, Vec<String>, bool, i64);
+    let row: Option<Row> = sqlx::query_as(
+        "SELECT id::text, base_url, group_path, include_subgroups, project_paths, all_projects, (extract(epoch FROM updated_at) * 1000)::bigint FROM gitlab_ci_connections WHERE org_id = $1",
     )
     .bind(org)
     .fetch_optional(&st.postgres)
     .await?;
-    Ok(row.map(|(id, base_url, group_path, include_subgroups, project_paths, updated_at)| (id, GitlabCiConnection { base_url, group_path, include_subgroups, project_paths, updated_at })))
+    Ok(row.map(|(id, base_url, group_path, include_subgroups, project_paths, all_projects, updated_at)| {
+        (id, GitlabCiConnection { base_url, group_path, include_subgroups, project_paths, all_projects, updated_at })
+    }))
 }
 
 /// The org's connection and its sync status.
@@ -224,9 +232,9 @@ pub async fn put_gitlab(State(st): State<AppState>, Admin(ctx): Admin, Json(inpu
     let previous = saved(&st, &ctx.org_id).await?;
     let mut tx = st.postgres.begin().await?;
     sqlx::query(
-        "INSERT INTO gitlab_ci_connections (org_id, base_url, token_enc, group_path, include_subgroups, project_paths, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7::uuid) \
+        "INSERT INTO gitlab_ci_connections (org_id, base_url, token_enc, group_path, include_subgroups, project_paths, updated_by, all_projects) VALUES ($1, $2, $3, $4, $5, $6, $7::uuid, $8) \
          ON CONFLICT (org_id) DO UPDATE SET base_url = EXCLUDED.base_url, token_enc = EXCLUDED.token_enc, group_path = EXCLUDED.group_path, \
-         include_subgroups = EXCLUDED.include_subgroups, project_paths = EXCLUDED.project_paths, updated_by = EXCLUDED.updated_by, updated_at = now()",
+         include_subgroups = EXCLUDED.include_subgroups, project_paths = EXCLUDED.project_paths, updated_by = EXCLUDED.updated_by, all_projects = EXCLUDED.all_projects, updated_at = now()",
     )
     .bind(&ctx.org_id)
     .bind(&conn.base_url)
@@ -235,6 +243,7 @@ pub async fn put_gitlab(State(st): State<AppState>, Admin(ctx): Admin, Json(inpu
     .bind(conn.include_subgroups)
     .bind(&conn.project_paths)
     .bind(&ctx.user_id)
+    .bind(conn.all_projects)
     .execute(&mut *tx)
     .await?;
     // Another GitLab: its project and pipeline ids are not the old one's.
@@ -315,12 +324,14 @@ mod tests {
             let err = validate(&input(body.clone()), false).unwrap_err();
             assert!(err.contains(needle), "{body}: {err}");
         }
+        // Every project the token sees, with no group or project listed.
+        assert!(validate(&input(json!({"baseUrl": "https://gitlab.example.com", "allProjects": true})), false).unwrap().all_projects);
         // Internal instances need the operator's flag.
         assert!(validate(&input(json!({"baseUrl": "http://10.0.0.5", "groupPath": "g"})), true).is_ok());
     }
 
     fn conn() -> Connection {
-        Connection { base_url: "https://gitlab.example.com".into(), token: "glpat-test".into(), group_path: String::new(), include_subgroups: true, project_paths: vec!["example-org/storefront-api".into()] }
+        Connection { base_url: "https://gitlab.example.com".into(), token: "glpat-test".into(), group_path: String::new(), include_subgroups: true, project_paths: vec!["example-org/storefront-api".into()], all_projects: false }
     }
 
     #[tokio::test]

@@ -416,7 +416,10 @@ ObserveCraft, so this works when ObserveCraft has no public ingress (the server 
    you follow is the usual choice; a project token only sees its project).
 2. In *Software Delivery → Settings → Add a repository*, choose **GitLab CI**, GitLab.com or self-managed (with its
    URL), enter the token and the group to follow (with or without its subgroups) and/or project paths. **Test
-   connection** shows the token's user, its scopes and the projects found. Organization admins only.
+   connection** shows the token's user, its scopes and the projects found. Organization admins only. To follow a
+   whole self-managed instance, tick **Every project the token can see** and use the token of an auditor (GitLab
+   EE: read-only access to every project) or an administrator: the projects active in the last 30 days are
+   followed (at most 500), and the hourly discovery adds those that become active.
 3. Save. Within a minute the server lists the projects, reads the last 7 days of finished pipelines, then polls each
    project every minute.
 
@@ -467,6 +470,44 @@ How it works:
   the server, and through the organization's log pipelines and indexes like any other log.
 - The token is stored encrypted and requests go through the Developer Portal connectors' SSRF guard: an instance on
   a private address needs `OC_PORTAL_ALLOW_PRIVATE=true` on the server.
+
+## NetBird peers and audit events (pulled through NetBird's management API)
+
+The NetBird integration (*Integrations → NetBird*) reads a NetBird account's management API, from NetBird Cloud or a
+self-hosted management server. Datadog has no NetBird integration, and NetBird's own event streaming exists only in
+NetBird Cloud, so ObserveCraft polls the API itself:
+
+- the **audit log** becomes logs: peers added, removed, approved or expired, policies, routes, networks, nameservers
+  and DNS changed, setup keys created, revoked or overused, users invited, blocked or logged in;
+- every **peer** becomes `netbird.peer.*` gauges: connected, seconds since last seen, login expired, waiting for
+  approval, SSH server enabled, reachable peers, plus `netbird.peer.count` (1 per peer, summed for totals);
+- the **NetBird Overview** dashboard charts both. It's listed in Dashboards once NetBird is connected.
+
+NetBird never connects to ObserveCraft: the server only needs outbound HTTPS to the management API.
+
+1. In NetBird, create a service user (*Team → Service Users*) with the **Auditor** role (or Admin) and create a
+   personal access token for it. Regular users can't read the audit log.
+2. In *Integrations → NetBird*, enter the management URL (`https://api.netbird.io` for NetBird Cloud, the server's
+   URL when self-hosted) and the token. **Test connection** shows the token's user and role and how many peers and
+   events it can read. Organization admins only.
+3. Save. Within a minute the server reads the last 24 hours of audit events and the peers, then both every minute.
+
+How it works:
+
+- Each audit event is a log with `source:netbird`, `service:netbird`, the management server's host name as `host`
+  and the event's time. NetBird's activity code is `@evt.name` (`peer.user.add`, `policy.update`,
+  `setupkey.overuse`, …), its first segment `@netbird.category`; the initiator is `@usr.*`; what it touched is
+  `@netbird.target` / `@netbird.target_id`, the rest of its metadata `@netbird.meta`. Overused setup keys are
+  errors; blocked users, expired logins and revoked keys warnings.
+- NetBird answers its newest 10,000 audit events in one list with no time filter, so each poll keeps those since a
+  minute before the previous poll's newest one. Log ids are derived from the event ids, so an event read twice is
+  stored once. When all 10,000 are newer than that, the poll warns that older ones were skipped.
+- Peer metrics are tagged `netbird_instance`, `peer`, `peer_id`, `os`, `netbird_version`, `country_code` and `city`.
+  Peers aren't hosts: they don't appear in the infrastructure list.
+- Logs go through Kafka (`oc.logs.json`) and metrics through `oc.otlp-json.metrics`, with the organization's headers,
+  so `OC_KAFKA_BROKERS` must be set on the server. The token is stored encrypted, and requests go through the
+  Developer Portal connectors' SSRF guard: a management server on a private address needs
+  `OC_PORTAL_ALLOW_PRIVATE=true` on the server.
 
 ## Multi-line logs and stack traces
 

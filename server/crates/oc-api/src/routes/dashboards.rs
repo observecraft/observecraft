@@ -765,6 +765,8 @@ const INTEGRATION_BUNDLES: &[&str] = &[
     include_str!("../../../../seeds/integrations/aws/dashboards.json"),
     include_str!("../../../../seeds/integrations/azure/dashboards.json"),
     include_str!("../../../../seeds/integrations/gcp/dashboards.json"),
+    // NetBird: ObserveCraft's own (scripts/netbird-dashboard.mjs), over the integration's logs and metrics.
+    include_str!("../../../../seeds/integrations/netbird/dashboards.json"),
 ];
 
 fn seed_documents() -> anyhow::Result<Vec<(String, Value)>> {
@@ -787,8 +789,8 @@ fn seed_documents() -> anyhow::Result<Vec<(String, Value)>> {
 // ================================================================ available integration dashboards
 
 /// Integration dashboards appear once their integration is enabled (by the dashboard's `logo`): a cloud
-/// account, synthetic tests, or its data received in the last day. Others are always available.
-const GATED: [&str; 7] = ["aws", "azure", "gcp", "kubernetes", "linux", "opentelemetry", "tile:synthetics"];
+/// account or connection, synthetic tests, or its data received in the last day. Others are always available.
+const GATED: [&str; 8] = ["aws", "azure", "gcp", "kubernetes", "linux", "netbird", "opentelemetry", "tile:synthetics"];
 
 /// The gated integrations not enabled: their dashboards are left out of searches and recents.
 pub fn hidden_logos(enabled: &std::collections::BTreeSet<String>) -> Vec<String> {
@@ -822,9 +824,10 @@ impl Drop for EnabledChange<'_> {
 pub async fn enabled_integrations(st: &AppState, org: &str) -> Result<std::sync::Arc<std::collections::BTreeSet<String>>, ApiError> {
     enabled_cache()
         .get_or_load(&format!("{org}\0"), || async {
-            let (aws, azure, gcp, synthetics): (bool, bool, bool, bool) = sqlx::query_as(
+            let (aws, azure, gcp, synthetics, netbird): (bool, bool, bool, bool, bool) = sqlx::query_as(
                 "SELECT EXISTS (SELECT 1 FROM aws_accounts WHERE org_id = $1), EXISTS (SELECT 1 FROM azure_accounts WHERE org_id = $1), \
-                 EXISTS (SELECT 1 FROM gcp_accounts WHERE org_id = $1), EXISTS (SELECT 1 FROM synthetic_tests WHERE org_id = $1)",
+                 EXISTS (SELECT 1 FROM gcp_accounts WHERE org_id = $1), EXISTS (SELECT 1 FROM synthetic_tests WHERE org_id = $1), \
+                 EXISTS (SELECT 1 FROM netbird_connections WHERE org_id = $1)",
             )
             .bind(org)
             .fetch_one(&st.postgres)
@@ -850,7 +853,7 @@ pub async fn enabled_integrations(st: &AppState, org: &str) -> Result<std::sync:
                 )
                 .fetch_one::<Seen>()
                 .await?;
-            let flags = [("aws", aws), ("azure", azure), ("gcp", gcp), ("tile:synthetics", synthetics), ("kubernetes", seen.kubernetes), ("linux", seen.hosts), ("opentelemetry", seen.traces)];
+            let flags = [("aws", aws), ("azure", azure), ("gcp", gcp), ("tile:synthetics", synthetics), ("netbird", netbird), ("kubernetes", seen.kubernetes), ("linux", seen.hosts), ("opentelemetry", seen.traces)];
             let mut enabled: std::collections::BTreeSet<String> = flags.into_iter().filter(|(_, on)| *on).map(|(l, _)| l.to_string()).collect();
             // integrations-core integrations sending metrics (their name's first two segments): their dashboards are
             // installed for the org the first time.

@@ -593,6 +593,11 @@ pub async fn send(call: &HttpCall, allow_private: bool) -> Result<Value, String>
 /// [`send`], with the HTTP status of a failed answer (None when no answer came: refused host,
 /// network error, timeout), for callers that back off on throttling.
 pub async fn send_with_status(call: &HttpCall, allow_private: bool) -> Result<Value, (Option<u16>, String)> {
+    send_capped(call, allow_private, MAX_RESPONSE_BYTES).await
+}
+
+/// [`send_with_status`] with another answer cap, for APIs that answer a whole list at once (NetBird's audit log).
+pub async fn send_capped(call: &HttpCall, allow_private: bool, max_bytes: usize) -> Result<Value, (Option<u16>, String)> {
     let no_answer = |e: String| (None, e);
     let url = url::Url::parse(&call.url).map_err(|e| no_answer(format!("Invalid URL: {e}")))?;
     if !(url.scheme() == "https" || (url.scheme() == "http" && allow_private)) {
@@ -627,8 +632,8 @@ pub async fn send_with_status(call: &HttpCall, allow_private: bool) -> Result<Va
     let status = resp.status();
     let mut body = Vec::new();
     while let Some(chunk) = resp.chunk().await.map_err(|e| (Some(status.as_u16()), describe(&e)))? {
-        if body.len() + chunk.len() > MAX_RESPONSE_BYTES {
-            return Err((Some(status.as_u16()), format!("The answer is larger than {} MB", MAX_RESPONSE_BYTES >> 20)));
+        if body.len() + chunk.len() > max_bytes {
+            return Err((Some(status.as_u16()), format!("The answer is larger than {} MB", max_bytes >> 20)));
         }
         body.extend_from_slice(&chunk);
     }

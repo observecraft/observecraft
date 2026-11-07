@@ -3,6 +3,11 @@
 // Brand names and logos are trademarks of their owners; shown only to identify the technology.
 type Logo = { body: string; width: number; height: number };
 const ICONS: Record<string, Logo> = {
+ "brand:netbird": {
+  "body": " <path d=\"M28.5735 0C23.7203 0.445248 21.3049 3.23918 20.3921 4.65284L6.21094 29.2194H23.3196L40.1945 0H28.5735Z\" fill=\"#F68330\"/> <path d=\"M23.331 29.2198L0 4.47517C0 4.47517 26.381 -2.6154 28.9523 19.5023L23.331 29.2198Z\" fill=\"#F68330\"/> <path d=\"M19.8683 5.56728L12.7109 17.9674L23.319 29.2211L28.9402 19.4813C28.0497 11.8787 24.343 7.72674 19.8683 5.55615\" fill=\"#F35E32\"/> ",
+  "width": 41,
+  "height": 30
+ },
  "cloud:azure/azure-devops": {
   "body": "<defs><linearGradient id=\"ba420277-700e-42cc-9de9-5388a5c16e54\" x1=\"9\" y1=\"16.97\" x2=\"9\" y2=\"1.03\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#0078d4\" /><stop offset=\"0.16\" stop-color=\"#1380da\" /><stop offset=\"0.53\" stop-color=\"#3c91e5\" /><stop offset=\"0.82\" stop-color=\"#559cec\" /><stop offset=\"1\" stop-color=\"#5ea0ef\" /></linearGradient></defs><path id=\"a91f0ca4-8fb7-4019-9c09-0a52e2c05754\" d=\"M17,4v9.74l-4,3.28-6.2-2.26V17L3.29,12.41l10.23.8V4.44Zm-3.41.49L7.85,1V3.29L2.58,4.84,1,6.87v4.61l2.26,1V6.57Z\" fill=\"url(#ba420277-700e-42cc-9de9-5388a5c16e54)\" />",
   "width": 18,
@@ -815,6 +820,7 @@ export const BRAND_LOGOS: Record<string, Logo> = {
   "mistral": ICONS["logos:mistral-ai-icon"],
   "mongodb": ICONS["logos:mongodb-icon"],
   "mysql": ICONS["logos:mysql-icon"],
+  "netbird": ICONS["brand:netbird"],
   "nextdotjs": ICONS["logos:nextjs-icon"],
   "nginx": ICONS["logos:nginx"],
   "nodedotjs": ICONS["logos:nodejs-icon"],

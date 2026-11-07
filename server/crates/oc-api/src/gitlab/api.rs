@@ -109,6 +109,12 @@ pub fn group_projects_path(group: &str, include_subgroups: bool, page: usize) ->
     format!("/groups/{}/projects?include_subgroups={include_subgroups}&archived=false&simple=true&order_by=id&sort=asc&per_page={PER_PAGE}&page={page}", enc(group))
 }
 
+/// Every project the token sees (an admin's or auditor's: the whole instance), not archived, active after
+/// `active_after_ms`, most recently active first.
+pub fn visible_projects_path(active_after_ms: i64, page: usize) -> String {
+    format!("/projects?archived=false&simple=true&last_activity_after={}&order_by=last_activity_at&sort=desc&per_page={PER_PAGE}&page={page}", iso(active_after_ms))
+}
+
 /// A project by path or numeric id.
 pub fn project_path(project: &str) -> String {
     format!("/projects/{}", enc(project))

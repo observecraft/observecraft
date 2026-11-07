@@ -12,6 +12,7 @@ import { derivedFormulas } from './derivedMetrics';
 import { derivedTags, expandDerived } from '../../lib/derivedMetrics';
 import { matchesTerms } from './match';
 import { CLOUD_METRICS, CLOUD_SETS } from './cloudMetrics';
+import { NETBIRD_METRICS, NETBIRD_SETS } from './netbirdMetrics';
 import { CORE_METRICS, CORE_SETS } from './coreMetrics';
 
 type Tags = Record<string, string>;
@@ -72,6 +73,7 @@ const synPhase = (share: number, https = true): Pick<MetricDef, 'set' | 'unit' |
 
 const SETS: Record<string, Tags[]> = {
   ...CLOUD_SETS,
+  ...NETBIRD_SETS,
   ...CORE_SETS,
   synthetics: SYN_RUNS,
   deployments: build(140, 11, (r, i) => {
@@ -157,6 +159,7 @@ const REPLICAS = (e: Tags, _r?: () => number) => (e.kube_deployment.startsWith('
 const METRICS: Record<string, MetricDef> = {
   ...(CORE_METRICS as Record<string, MetricDef>),
   ...CLOUD_METRICS,
+  ...NETBIRD_METRICS,
   'kubernetes_state.deployment.count': { set: 'deployments', description: 'Deployments', base: () => 1, noise: 0, integer: true },
   'kubernetes_state.deployment.replicas': { set: 'deployments', description: 'Replicas per deployment', base: REPLICAS, noise: 0.02, integer: true },
   'kubernetes_state.deployment.replicas_desired': { set: 'deployments', description: 'Desired replicas', base: REPLICAS, noise: 0.01, integer: true },

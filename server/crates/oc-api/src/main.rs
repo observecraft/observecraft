@@ -13,6 +13,7 @@ mod azure;
 mod cloud;
 mod gcp;
 mod authentik;
+mod netbird;
 mod gitlab;
 mod cache;
 mod config;
@@ -230,6 +231,11 @@ async fn main() -> anyhow::Result<()> {
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, authentik::crawler::LOGS_TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(authentik::crawler::AuthentikCrawler { api: Arc::new(authentik::api::Rest { allow_private: state.config.portal_allow_private }), sink: logs });
         tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, authentik::crawler::INTERVAL_SECS, concurrency)));
+        // The NetBird integration's poller: the accounts' audit events as logs, their peers as metrics.
+        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, netbird::crawler::LOGS_TOPIC));
+        let metrics: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));
+        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(netbird::crawler::NetbirdCrawler { api: Arc::new(netbird::api::Rest { allow_private: state.config.portal_allow_private }), logs, metrics });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, netbird::crawler::INTERVAL_SECS, concurrency)));
     }
     // Cloud Cost Management's provider bills (`cost_bill_configs`), for the same clouds; written to ClickHouse directly.
     if state.config.cloud_crawlers.iter().any(|c| c == "aws") {

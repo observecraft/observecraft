@@ -51,6 +51,13 @@ export const BRANDS = {
   },
   gigamon: { ...site('www.gigamon.com'), ids: ['gigamon'] },
   nats: { ...cncf('nats'), ids: ['gnatsd', 'gnatsd-streaming'] },
+  // The site's SVG icon (its <link rel="icon"> files are PNG and ICO only).
+  netbird: {
+    url: 'https://netbird.io/_next/static/media/netbird-icon.167cd80b.svg',
+    source: 'netbird.io (site icon)',
+    terms: 'Trademark and copyright of its owner; shown only to identify the integration',
+    ids: ['netbird'],
+  },
   gravitee: { ...site('www.gravitee.io'), ids: ['gravitee'] },
   invary: { ...site('www.invary.com'), ids: ['invary'] },
   kepler: { ...cncf('kepler'), ids: ['kepler'] },

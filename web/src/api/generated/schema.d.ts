@@ -4405,6 +4405,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/netbird": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The NetBird connection and its syncs' status (no token). */
+        get: operations["netbird_status"];
+        /**
+         * Saves the NetBird connection (admins). The token is sealed; leave it out to keep the saved one (only while the
+         *     URL stays the same).
+         */
+        put: operations["netbird_save"];
+        post?: never;
+        /** Removes the NetBird connection, its token and its polling (admins). Stored logs and metrics stay. */
+        delete: operations["netbird_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/netbird/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Polls NetBird now instead of within the minute (admins). */
+        post: operations["netbird_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/netbird/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests a connection before or after saving it (admins): the token's user and role, and whether it can read the
+         *     audit log and the peers.
+         */
+        post: operations["netbird_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/slack": {
         parameters: {
             query?: never;
@@ -15613,6 +15672,7 @@ export interface components {
         };
         /** @description The connection as saved; the token is never answered. */
         GitlabCiConnection: {
+            allProjects: boolean;
             baseUrl: string;
             groupPath: string;
             includeSubgroups: boolean;
@@ -15625,6 +15685,12 @@ export interface components {
         };
         /** @description What an admin enters. */
         GitlabCiInput: {
+            /**
+             * @description Every project the token sees, active in the last 30 days (with an admin's or auditor's token: the
+             *     whole instance).
+             * @default false
+             */
+            allProjects: boolean;
             /**
              * @description `https://gitlab.com` (empty) or the self-managed instance's URL.
              * @default
@@ -18367,6 +18433,76 @@ export interface components {
             /** Format: int64 */
             count: number;
             name: string;
+        };
+        /** @description The connection as saved; the token is never answered. */
+        NetbirdConnection: {
+            baseUrl: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+        };
+        /** @description What an admin enters. */
+        NetbirdInput: {
+            /**
+             * @description The management API's URL: `https://api.netbird.io` for NetBird Cloud, the server's for self-hosted NetBird.
+             * @default
+             */
+            baseUrl: string;
+            /**
+             * @description A personal access token of a service user allowed to read the audit log; leave it out to keep the saved one.
+             * @default null
+             */
+            token: string | null;
+        };
+        NetbirdStatus: {
+            connection?: components["schemas"]["NetbirdConnection"] | null;
+            error?: components["schemas"]["CrawlIssue"] | null;
+            /**
+             * Format: int32
+             * @description Events sent by the last poll.
+             */
+            eventsLastSync: number;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful poll of the audit events.
+             */
+            lastSyncAt?: number | null;
+            /**
+             * Format: int32
+             * @description Peers read by the last poll.
+             */
+            peers: number;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful poll of the peers.
+             */
+            peersSyncedAt?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms: events recorded up to here were read.
+             */
+            syncedUntil?: number | null;
+        };
+        /** @description A connection test's result. */
+        NetbirdTest: {
+            /**
+             * Format: int64
+             * @description Audit events the token can read.
+             */
+            events?: number | null;
+            message: string;
+            ok: boolean;
+            /**
+             * Format: int64
+             * @description Peers of the account.
+             */
+            peers?: number | null;
+            /** @description Its role (owner, admin, auditor, …). */
+            role?: string | null;
+            /** @description The token's user (name or email). */
+            user?: string | null;
         };
         NetworkFacet: {
             /** @description `client_service`, `server_port`, … */
@@ -33778,6 +33914,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GcpSetup"];
+                };
+            };
+        };
+    };
+    netbird_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetbirdStatus"];
+                };
+            };
+        };
+    };
+    netbird_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetbirdInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetbirdStatus"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    netbird_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    netbird_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    netbird_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetbirdInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetbirdTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
