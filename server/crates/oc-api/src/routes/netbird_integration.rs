@@ -114,31 +114,44 @@ fn count(v: &Value) -> Option<u64> {
     v.as_array().map(|a| a.len() as u64)
 }
 
-/// Tests a connection: the token's user and role, and whether it can read the audit log and the peers.
+/// Tests a connection: the token's user and role, and whether it can read the audit log and the peers. NetBird answers
+/// 403 to a service user's `/api/users/current`, so a token whose user can't be read is tested on the audit log alone.
 pub async fn check(api: &dyn NetbirdApi, conn: &Connection) -> NetbirdTest {
     let failed = |message: String, user: Option<String>, role: Option<String>| NetbirdTest { ok: false, message, user, role, events: None, peers: None };
     let (user, role) = match api.get(&conn.base_url, &conn.token, nb::CURRENT_USER).await {
         Ok(me) => {
             let name = ["name", "email", "id"].iter().find_map(|k| me[*k].as_str().filter(|s| !s.is_empty())).unwrap_or("the token's user").to_string();
-            (name, me["role"].as_str().filter(|s| !s.is_empty()).map(str::to_string))
+            (Some(name), me["role"].as_str().filter(|s| !s.is_empty()).map(str::to_string))
         }
         Err(e @ NetbirdError::NotFound(_)) => return failed(format!("No NetBird management API at this URL: {}", e.message()), None, None),
+        // A service user's token, or a refused one: the audit log tells.
+        Err(NetbirdError::Auth(_)) => (None, None),
         Err(e) => return failed(format!("NetBird refused the token: {}", e.message()), None, None),
     };
     let events = match api.get(&conn.base_url, &conn.token, nb::AUDIT_EVENTS).await {
         Ok(list) => count(&list),
-        Err(NetbirdError::Auth(_)) => return failed(format!("{user} can't read the audit log: give the service user the Admin or Auditor role"), Some(user), role),
-        Err(e) => return failed(format!("Reading the audit log failed: {}", e.message()), Some(user), role),
+        Err(NetbirdError::Auth(e)) => {
+            let message = match &user {
+                Some(u) => format!("{u} can't read the audit log: give the service user the Admin or Auditor role"),
+                None => format!("NetBird refused the token, or its service user lacks the Admin or Auditor role: {e}"),
+            };
+            return failed(message, user, role);
+        }
+        Err(e) => return failed(format!("Reading the audit log failed: {}", e.message()), user, role),
     };
     let peers = match api.get(&conn.base_url, &conn.token, nb::PEERS).await {
         Ok(list) => count(&list),
-        Err(e) => return failed(format!("Reading the peers failed: {}", e.message()), Some(user), role),
+        Err(e) => return failed(format!("Reading the peers failed: {}", e.message()), user, role),
     };
-    let as_role = role.as_deref().map(|r| format!(" ({r})")).unwrap_or_default();
+    let who = match (&user, role.as_deref()) {
+        (Some(u), Some(r)) => format!("as {u} ({r})"),
+        (Some(u), None) => format!("as {u}"),
+        (None, _) => "with a service user's token".to_string(),
+    };
     NetbirdTest {
         ok: true,
-        message: format!("Connected as {user}{as_role}: {} peers, {} audit events to read", peers.unwrap_or(0), events.unwrap_or(0)),
-        user: Some(user),
+        message: format!("Connected {who}: {} peers, {} audit events to read", peers.unwrap_or(0), events.unwrap_or(0)),
+        user,
         role,
         events,
         peers,
@@ -304,6 +317,21 @@ mod tests {
                 peers: Some(3),
             }
         );
+    }
+
+    #[tokio::test]
+    async fn a_service_users_token_connects_though_netbird_hides_its_user() {
+        // NetBird refuses /api/users/current to every service user (403); the audit log and the peers are what count.
+        let api = FakeNetbird { service_user: true, ..Default::default() };
+        api.answer(nb::AUDIT_EVENTS, json!([{"id": "1"}, {"id": "2"}]));
+        api.answer(nb::PEERS, json!([{"id": "p1"}]));
+        let t = check(&api, &conn()).await;
+        assert!(t.ok, "{t:?}");
+        assert_eq!(t.message, "Connected with a service user's token: 1 peers, 2 audit events to read");
+        assert_eq!((t.user, t.events, t.peers), (None, Some(2), Some(1)));
+        // A token that reads nothing at all is refused, naming both causes.
+        let t = check(&FakeNetbird { refuse: true, ..Default::default() }, &conn()).await;
+        assert!(!t.ok && t.message.contains("Admin or Auditor"), "{t:?}");
     }
 
     #[tokio::test]
