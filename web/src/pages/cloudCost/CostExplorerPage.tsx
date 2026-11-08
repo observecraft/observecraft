@@ -7,9 +7,10 @@ import { Chart } from '../../components/charts/Chart';
 import { Empty, ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Select } from '../../components/ui/Dropdown';
 import { token } from '../../theme/chartTheme';
+import { CostBreakdownDrawer } from './CostBreakdownDrawer';
 import { colorOf } from './CostBoardPage';
 import { RANGES, filterQuery, groupLabel, money, moneyAxis, pctChange, providerLabel, rangeLabel, rangeOf, shortDate, signedMoney, useCosts, useCostTags, type Filters } from './costModel';
-import { ChangePill, CostFilterBar, ProviderIcon, ShareBar } from './widgets';
+import { ChangePill, CostFilterBar, ProviderIcon, ShareBar, costAxisTooltip, costValueIcon } from './widgets';
 
 const SHOWN = 8;
 const ROLLUPS: { value: CostInterval; label: string }[] = [
@@ -29,7 +30,7 @@ function chart(res: CostQueryResult, interval: CostInterval): EChartsOption {
   const processing = res.buckets.findIndex((b) => b > through);
   return {
     grid: { left: 8, right: 8, top: 24, bottom: 4, containLabel: true },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true, valueFormatter: (v) => money(Number(v), { precise: true }) },
+    tooltip: costAxisTooltip((n) => series.find((s) => (groupLabel(s.tags) || 'All Cost') === n)?.tags),
     xAxis: { type: 'category', data: res.buckets.map(fmt), axisLabel: { color: muted }, axisTick: { show: false } },
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => moneyAxis(v), color: muted } },
     series: series.map((s, i) => {
@@ -89,7 +90,9 @@ export function CostExplorerPage() {
   const change = res ? res.total - res.previousTotal : 0;
   const maxTotal = Math.max(1, ...(res?.series ?? []).map((s) => Math.abs(s.total)));
   const maxDelta = Math.max(1, ...(res?.series ?? []).map((s) => Math.abs(s.total - s.previousTotal)));
-  const seeMore = (tagsOf: Record<string, string>) => {
+  /** The group whose breakdown is open (CostBreakdownDrawer). */
+  const [detail, setDetail] = useState<Record<string, string> | null>(null);
+  const narrowTo = (tagsOf: Record<string, string>) => {
     const extra = Object.entries(tagsOf)
       .filter(([k, v]) => k !== 'other' && v !== 'N/A')
       .map(([k, v]) => `${k}:${/\s/.test(v) ? `"${v}"` : v}`);
@@ -106,7 +109,10 @@ export function CostExplorerPage() {
         <Select
           label="Provider"
           value={provider}
-          options={[{ value: '', label: 'All' }, ...(tags.data?.find((t) => t.key === 'providername')?.values ?? []).map((v) => ({ value: v.value, label: providerLabel(v.value) }))]}
+          options={[
+            { value: '', label: 'All' },
+            ...(tags.data?.find((t) => t.key === 'providername')?.values ?? []).map((v) => ({ value: v.value, label: providerLabel(v.value), icon: costValueIcon('providername', v.value) })),
+          ]}
           onChange={(v) => set({ provider: v })}
           triggerClassName="dd-trigger ccm-filter"
         />
@@ -280,7 +286,7 @@ export function CostExplorerPage() {
                         </td>
                         <td>
                           {!s.tags.other && (
-                            <button className="link-btn" onClick={() => seeMore(s.tags)}>
+                            <button className="link-btn" onClick={() => setDetail(s.tags)}>
                               See More <ArrowRight size={14} />
                             </button>
                           )}
@@ -307,6 +313,9 @@ export function CostExplorerPage() {
             Costs are also cost metrics (all.cost, aws.cost.amortized, azure.cost.amortized, gcp.cost.amortized, custom.cost.basis): use them in dashboards, notebooks and monitors.
           </p>
         </>
+      )}
+      {detail && (
+        <CostBreakdownDrawer tags={detail} query={query} range={range} costType={costType} usageOnly={usageOnly} onFilter={() => (narrowTo(detail), setDetail(null))} onClose={() => setDetail(null)} />
       )}
     </div>
   );

@@ -10,6 +10,7 @@ import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Menu, Select } from '../../components/ui/Dropdown';
 import { token } from '../../theme/chartTheme';
 import { CLOUDS, DAY, filterQuery, money, moneyAxis, monthStart, providerLabel, tagValues, today, useCosts, useCostTags } from './costModel';
+import { costValueIcon } from './widgets';
 import './cloudCost.css';
 
 type Kind = 'basic' | 'hierarchical';
@@ -161,7 +162,7 @@ function AddRow({ by, options, onAdd }: { by: string[]; options: (key: string) =
         <Select
           key={k}
           value={picked[i] ?? ''}
-          options={[{ value: '', label: `Select ${capital(k)}…` }, ...options(k).map((v) => ({ value: v, label: v }))]}
+          options={[{ value: '', label: `Select ${capital(k)}…` }, ...options(k).map((v) => ({ value: v, label: v, icon: costValueIcon(k, v) }))]}
           onChange={(v) => v && pick(i, v)}
           triggerClassName="dd-trigger ccm-form-select ccm-add-select"
         />
@@ -405,7 +406,7 @@ function BudgetForm({ id, initial, created }: { id?: string; initial: Draft; cre
             <Select
               label="Provider"
               value={d.provider}
-              options={[{ value: '', label: 'All Providers' }, ...providers.map((p) => ({ value: p, label: providerLabel(p) }))]}
+              options={[{ value: '', label: 'All Providers' }, ...providers.map((p) => ({ value: p, label: providerLabel(p), icon: costValueIcon('providername', p) }))]}
               onChange={(p) => update({ provider: p, rows: [] })}
               triggerClassName="dd-trigger ccm-form-select"
             />
@@ -451,7 +452,7 @@ function BudgetForm({ id, initial, created }: { id?: string; initial: Draft; cre
             {filterKey && (
               <Select
                 value=""
-                options={[{ value: '', label: 'Value…' }, ...valuesOf(filterKey).map((v) => ({ value: v, label: v }))]}
+                options={[{ value: '', label: 'Value…' }, ...valuesOf(filterKey).map((v) => ({ value: v, label: v, icon: costValueIcon(filterKey, v) }))]}
                 onChange={(v) => {
                   if (!v) return;
                   update({ filters: [...d.filters.filter(([k]) => k !== filterKey), [filterKey, v]], rows: [] });

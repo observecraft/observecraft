@@ -1,6 +1,7 @@
 import { useDeferredValue, useState } from 'react';
-import { LayoutDashboard, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { DashboardSummary } from '../../api/dashboards/types';
+import { DashboardIcon } from '../../components/brand/DashboardIcon';
 import { Modal } from '../../components/ui/Modal';
 import { timeAgo } from '../../lib/format';
 import { useDashboardSearch } from './queries';
@@ -49,7 +50,7 @@ export function DashboardPickerModal({
           {rows.map((d) => (
             <button key={d.id} disabled={busy} onClick={() => onPick(d)}>
               <span>
-                <LayoutDashboard size={14} className="muted" /> {d.title}
+                <DashboardIcon logo={d.logo} title={d.title} size={14} /> {d.title}
               </span>
               <span className="muted-text">{timeAgo(d.modifiedAt)}</span>
             </button>

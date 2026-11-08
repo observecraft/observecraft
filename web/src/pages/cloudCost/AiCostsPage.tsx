@@ -9,7 +9,7 @@ import { Select } from '../../components/ui/Dropdown';
 import { token } from '../../theme/chartTheme';
 import { colorOf } from './CostBoardPage';
 import { DAY, RANGES, filterQuery, groupLabel, money, moneyAxis, pctChange, rangeLabel, rangeOf, shortDate, signedMoney, today, useCosts, useCostTags, type Filters } from './costModel';
-import { ChangePill, CostFilterBar, ProviderIcon, SectionTitle, ShareBar } from './widgets';
+import { ChangePill, CostFilterBar, ProviderIcon, SectionTitle, ShareBar, costAxisTooltip } from './widgets';
 
 /** AI costs: the costs the bills tag with their AI vendor. */
 const SCOPE = 'ai_vendor:*';
@@ -32,7 +32,7 @@ function bars(res: CostQueryResult, interval: CostInterval): EChartsOption {
   const fmt = (t: number) => (interval === 'month' ? new Date(t).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : shortDate(t));
   return {
     grid: { left: 8, right: 8, top: 24, bottom: 4, containLabel: true },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true, valueFormatter: (v) => money(Number(v), { precise: true }) },
+    tooltip: costAxisTooltip((n) => res.series.find((s) => groupLabel(s.tags) === n)?.tags),
     xAxis: { type: 'category', data: res.buckets.map(fmt), axisLabel: { color: muted }, axisTick: { show: false } },
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => moneyAxis(v), color: muted } },
     series: res.series.map((s, i) => ({

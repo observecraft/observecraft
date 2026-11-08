@@ -270,12 +270,15 @@ export function iconIndex(cloud, files) {
   return index;
 }
 
+/** Icons the app shows beyond the integrations' services (the CI and source providers on Software Delivery and the portal). */
+const EXTRAS = { aws: [], azure: [{ id: 'azure-devops', name: 'Azure DevOps' }], gcp: [] };
+
 /** Our services of one cloud: `{ id, name }`. */
 export function services(cloud) {
   const seed = (name) => JSON.parse(readFileSync(new URL(`../../server/seeds/${name}_integration.json`, import.meta.url), 'utf8'));
-  if (cloud === 'aws') return seed('aws').namespaces;
-  if (cloud === 'azure') return seed('azure').resource_types;
-  return seed('gcp').services;
+  if (cloud === 'aws') return [...seed('aws').namespaces, ...EXTRAS.aws];
+  if (cloud === 'azure') return [...seed('azure').resource_types, ...EXTRAS.azure];
+  return [...seed('gcp').services, ...EXTRAS.gcp];
 }
 
 /** The package icon of one service, by alias or by name. */

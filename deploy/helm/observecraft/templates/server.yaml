@@ -64,6 +64,12 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ $secret }}, key: secret-key } }
             - name: OC_INTERNAL_TOKEN
               valueFrom: { secretKeyRef: { name: {{ $secret }}, key: internal-token } }
+            {{- if .Values.scanner.enabled }}
+            # Cloud Security's account scans (templates/scanner.yaml).
+            - name: OC_SCANNER_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: scanner-token } }
+            - { name: OC_POSTURE_SCAN_INTERVAL_HOURS, value: {{ .Values.scanner.intervalHours | quote }} }
+            {{- end }}
             {{- if or .Values.smtp.url .Values.secrets.existingSecret }}
             - name: OC_SMTP_URL
               valueFrom: { secretKeyRef: { name: {{ $secret }}, key: smtp-url, optional: true } }

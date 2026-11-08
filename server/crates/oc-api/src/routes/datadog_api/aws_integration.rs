@@ -588,10 +588,20 @@ pub async fn iam_permissions_standard(DdAuth(_ctx): DdAuth) -> (StatusCode, Json
     permissions(&STANDARD_PERMISSIONS)
 }
 
-/// Resource collection isn't built: it needs no permissions.
+/// What Cloud Security's account scans need on top of the AWS managed `SecurityAudit` policy (docs/adr/0006): the
+/// read-only actions of the scan's session policy (`seeds/posture/aws-scan-session-policy.json`).
+pub fn resource_collection_permissions() -> Vec<String> {
+    let policy: Value = serde_json::from_str(crate::aws::api::SCAN_SESSION_POLICY).unwrap_or_default();
+    let mut actions: Vec<String> = policy["Statement"].as_array().into_iter().flatten().flat_map(|s| s["Action"].as_array().cloned().unwrap_or_default()).filter_map(|a| a.as_str().map(str::to_string)).collect();
+    actions.sort();
+    actions.dedup();
+    actions
+}
+
 #[utoipa::path(get, path = "/api/v2/integration/aws/iam_permissions/resource_collection", operation_id = "datadog_get_aws_iam_permissions_resource_collection", responses((status = 200, body = Object)), tag = "datadog-api")]
 pub async fn iam_permissions_resource_collection(DdAuth(_ctx): DdAuth) -> (StatusCode, Json<Value>) {
-    permissions(&[])
+    let actions = resource_collection_permissions();
+    permissions(&actions.iter().map(String::as_str).collect::<Vec<_>>())
 }
 
 #[cfg(test)]

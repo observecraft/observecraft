@@ -387,3 +387,13 @@ a:hover {
 :root[data-theme='dark'] .toast .link-btn {
   color: var(--link);
 }
+
+/* AWS's wordmark is its dark navy next to the orange smile: white on the dark theme, as AWS does on dark backgrounds.
+   Logos drawn only in black and greys (GitHub, CircleCI, Kafka) are inverted instead (build-logos.mjs marks them). */
+:root[data-theme='dark'] svg [fill='#252f3e'] {
+  fill: #fff;
+}
+
+:root[data-theme='dark'] .brand-logo-mono {
+  filter: invert(1);
+}

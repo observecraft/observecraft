@@ -7,6 +7,8 @@ export interface SearchEntry {
   /** Product area for pages, entity type or detail for entities. */
   category: string;
   path: string;
+  /** A dashboard's logo (its integration's), shown as its icon. */
+  logo?: string | null;
 }
 
 export type PageChip = 'actions' | 'settings';

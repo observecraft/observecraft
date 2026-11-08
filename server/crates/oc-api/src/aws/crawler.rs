@@ -99,17 +99,22 @@ pub struct Job {
     pub global_only: bool,
 }
 
-/// A job with its account's configuration and credentials (None when the account is gone).
-pub async fn load_job(st: &AppState, key: &JobKey) -> Result<Option<Job>, sqlx::Error> {
-    let Some(account) = accounts::get_row(st, &key.org_id, &key.account_id).await? else { return Ok(None) };
-    let auth = match &account.auth {
+/// How to reach an account: its role, or its access keys with the secret unsealed.
+pub async fn target_auth(st: &AppState, org_id: &str, account: &accounts::AccountRow) -> Result<TargetAuth, sqlx::Error> {
+    Ok(match &account.auth {
         accounts::Auth::Role { role_name, external_id } => TargetAuth::Role { role_name: role_name.clone(), external_id: external_id.clone().unwrap_or_default() },
         accounts::Auth::Keys { access_key_id, .. } => {
-            let sealed: Option<String> = sqlx::query_scalar("SELECT secret_access_key_enc FROM aws_accounts WHERE org_id = $1 AND id = $2::uuid").bind(&key.org_id).bind(&key.account_id).fetch_one(&st.postgres).await?;
+            let sealed: Option<String> = sqlx::query_scalar("SELECT secret_access_key_enc FROM aws_accounts WHERE org_id = $1 AND id = $2::uuid").bind(org_id).bind(&account.id).fetch_one(&st.postgres).await?;
             let secret_access_key = sealed.and_then(|s| st.secrets.decrypt(&s).ok()).unwrap_or_default();
             TargetAuth::Keys { access_key_id: access_key_id.clone(), secret_access_key }
         }
-    };
+    })
+}
+
+/// A job with its account's configuration and credentials (None when the account is gone).
+pub async fn load_job(st: &AppState, key: &JobKey) -> Result<Option<Job>, sqlx::Error> {
+    let Some(account) = accounts::get_row(st, &key.org_id, &key.account_id).await? else { return Ok(None) };
+    let auth = target_auth(st, &key.org_id, &account).await?;
     Ok(Some(Job {
         target: Target { partition: account.aws_partition.clone(), account_id: account.aws_account_id.clone(), region: key.scope.clone(), auth },
         account_tags: account.account_tags.as_array().map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default(),

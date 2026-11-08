@@ -15,6 +15,7 @@ import type {
   MisconfigRuleStatus,
   ResourceCategory,
 } from '../cloudSecurity/types';
+import { postureFindings, postureRules } from './cloudPosture';
 
 const DAY = 86_400_000;
 const now = Date.now();
@@ -525,7 +526,10 @@ export async function misconfigurations(status: FindingStatus): Promise<Misconfi
     evaluated: r.id.startsWith('ocs-host') ? HOSTS.length : r.id === 'ocs-k8s-008' || r.id === 'ocs-k8s-013' ? 14 : 22,
     failing: all.filter((f) => f.ruleId === r.id).length,
   }));
-  return delay({ findings: all.filter((f) => keep(f.status, status)), rules });
+  // The demo AWS account's scan (mock/cloudPosture.ts).
+  const scanned = postureFindings(triage);
+  const findings = [...all, ...scanned].sort((a, b) => RANK.indexOf(b.severity) - RANK.indexOf(a.severity) || a.ruleId.localeCompare(b.ruleId));
+  return delay({ findings: findings.filter((f) => keep(f.status, status)), rules: [...rules, ...postureRules()] });
 }
 
 export async function setTriage(key: string, status: 'open' | 'muted'): Promise<void> {

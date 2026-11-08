@@ -972,6 +972,21 @@ button.pm-org:hover {
   color: #ff6b6b;
 }
 
+/* A dashboard's logo in compact lists (components/brand/DashboardIcon.tsx). */
+.dash-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.dash-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .pm-theme {
   display: flex;
   align-items: center;
