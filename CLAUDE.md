@@ -228,6 +228,9 @@ or SDK features.
     sources in `src/assets/brand-icons/NOTICE.md`). They are served as files from `public/images/integrations/logos/`
     (manifest `integrationLogos.generated.ts`), so pages load only the logos they show. Datadog's logo only on Datadog's
     open-source products (see the licenses section); never Datadog's other images.
+  - Kubernetes kinds (Pod, Deployment, Service, …) show the Kubernetes project's own icons (kubernetes/community,
+    Apache-2.0, `web/scripts/fetch-kubernetes-icons.mjs` → `public/images/kubernetes/`) through `KubernetesIcon`; the
+    Kubernetes product itself is its logo (`KubernetesLogo`), never a generic ship.
   - `PINNED_REVISION` (`scripts/import-integration-dashboards.mjs`) is the last revision with every integration: from
     2026-10-30 Datadog moves integrations to a private repository, so a newer pin drops catalog entries. Every
     importer above takes the same revision; rerun them all after changing it.
