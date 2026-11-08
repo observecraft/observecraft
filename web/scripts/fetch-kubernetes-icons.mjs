@@ -44,12 +44,25 @@ const ICONS = {
   infrastructure_components: ['control-plane', 'etcd', 'node'],
 };
 
+/** `svg` without its `<!-- … -->` comments (an unterminated one drops the rest). */
+function withoutComments(svg) {
+  let out = '';
+  let i = 0;
+  for (;;) {
+    const start = svg.indexOf('<!--', i);
+    if (start < 0) return out + svg.slice(i);
+    out += svg.slice(i, start);
+    const end = svg.indexOf('-->', start + 4);
+    if (end < 0) return out;
+    i = end + 3;
+  }
+}
+
 /** The drawing alone: no XML prolog, comments, Inkscape/Sodipodi data, RDF metadata, ids or physical size. */
 export function cleanSvg(svg) {
   return (
-    svg
+    withoutComments(svg)
       .replace(/<\?xml[^>]*\?>/g, '')
-      .replace(/<!--[\s\S]*?-->/g, '')
       .replace(/<metadata[\s\S]*?<\/metadata>/g, '')
       .replace(/<sodipodi:namedview[\s\S]*?(?:\/>|<\/sodipodi:namedview>)/g, '')
       .replace(/<defs[^>]*\/>/g, '')
