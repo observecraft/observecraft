@@ -18,6 +18,7 @@ import { toYaml } from '../../lib/yaml';
 import { LogTable } from '../logs/LogTable';
 import { ContainerPanel } from './ContainerPanel';
 import { COLUMNS, KIND_INFO, StatusPill, UtilCell, age, formatCores, formatCoresAxis, formatMem, logQuery, metricQueries } from './columns';
+import { HighlightedCode } from '../../components/code/highlight';
 
 type Tab = 'yaml' | 'logs' | 'apm' | 'metrics' | 'processes' | 'network' | 'events' | 'monitors' | 'related' | 'taskdef';
 const LABELS: Record<Tab, string> = {
@@ -215,7 +216,9 @@ function Yaml({ manifest }: { manifest: unknown }) {
       >
         {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copied' : 'Copy'}
       </button>
-      <pre className="mono">{text}</pre>
+      <pre className="mono">
+        <HighlightedCode code={text} language="yaml" />
+      </pre>
     </div>
   );
 }

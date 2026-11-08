@@ -7,6 +7,7 @@ import type { ActionValues, PortalActionRun } from '../../../api/portalActions/c
 import { ActionForm, actionLogo, initialValues, RunStatus, ToolLogo } from './common';
 import { usePortalAction, usePortalActionRuns, useRunPortalAction } from './queries';
 import './actions.css';
+import { HighlightedCode } from '../../../components/code/highlight';
 
 /** Links to pages of this app stay in the tab; others open a new one. */
 function RunLink({ link }: { link: string }) {
@@ -110,7 +111,11 @@ export function ActionRunPage() {
                   Created: <RunLink link={shown.link} />
                 </div>
               )}
-              {shown.responseExcerpt && <pre className="psa-pre">{pretty(shown.responseExcerpt)}</pre>}
+              {shown.responseExcerpt && (
+                <pre className="psa-pre">
+                  <HighlightedCode code={pretty(shown.responseExcerpt)} language="json" />
+                </pre>
+              )}
             </>
           )}
         </section>

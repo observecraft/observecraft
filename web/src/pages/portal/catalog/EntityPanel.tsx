@@ -12,6 +12,7 @@ import { useScorecards } from '../queries';
 import { definitionYaml, KIND_LABEL, productLink } from './catalogModel';
 import { useDeleteDefinition, useEntityDefinition, useEntityDependencies, useEntityDeployments } from './queries';
 import { EntityIcon, fmtNumber, fmtPercent } from './visuals';
+import { HighlightedCode } from '../../../components/code/highlight';
 
 type Tab = 'overview' | 'dependencies' | 'scorecards' | 'definition';
 
@@ -404,7 +405,9 @@ function Definition({ id }: { id: string }) {
         >
           <Copy size={13} /> {copied ? 'Copied' : 'Copy'}
         </button>
-        <pre className="pc-code">{yaml}</pre>
+        <pre className="pc-code">
+          <HighlightedCode code={yaml} language="yaml" />
+        </pre>
       </div>
     </section>
   );

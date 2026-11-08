@@ -35,6 +35,7 @@ import { useMonitor, useSaveMonitor } from './queries';
 import { TEMPLATES, type MonitorTemplate } from './templates';
 import { messageRecipients, renderMessage } from './message';
 import './monitors.css';
+import { HighlightedCode } from '../../components/code/highlight';
 
 const DEFAULT_QUERY: Record<MonitorType, string> = {
   metric: 'avg:system.load.1{*}',
@@ -1042,7 +1043,9 @@ function ExportModal({ input, onClose }: { input: MonitorInput; onClose: () => v
             <X size={18} />
           </button>
         </div>
-        <pre className="mon-json">{json}</pre>
+        <pre className="mon-json">
+          <HighlightedCode code={json} language="json" />
+        </pre>
         <div className="small-modal-actions">
           <button
             className="btn"

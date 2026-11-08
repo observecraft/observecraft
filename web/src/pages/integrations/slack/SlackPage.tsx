@@ -13,6 +13,7 @@ import '../../settings/settings.css';
 import '../integrations.css';
 import '../aws/aws.css';
 import './slack.css';
+import { HighlightedCode } from '../../../components/code/highlight';
 
 const DESCRIPTION =
   'Slack is a messaging platform for teams. Connect a workspace to send monitor alerts, On-Call pages, workflow messages and reports to its channels, and to mute monitors from the alert.';
@@ -179,7 +180,9 @@ function AppSetup({ overview }: { overview: SlackOverview }) {
         <li>
           In Slack&apos;s app settings, choose <strong>Create New App → From a manifest</strong>, pick the workspace and paste this manifest:
           <div className="slack-manifest">
-            <pre className="mono">{overview.appManifest}</pre>
+            <pre className="mono">
+              <HighlightedCode code={overview.appManifest} language="yaml" />
+            </pre>
             <CopyButton text={overview.appManifest} label="Copy manifest" />
           </div>
         </li>
