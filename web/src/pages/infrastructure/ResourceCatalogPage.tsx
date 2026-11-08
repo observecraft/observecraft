@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, Boxes, ChevronDown, Columns3, Container, Download, Globe, Plus, Search, Server, Ship } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Boxes, ChevronDown, Columns3, Container, Download, Globe, Plus, Search, Server } from 'lucide-react';
+import { KubernetesLogo } from '../../components/brand/KubernetesIcon';
 import type { CatalogCategory, CatalogFacet, CatalogGroup, CatalogResource, CatalogType } from '../../api/catalog/client';
 import type { Cloud } from '../../api/infrastructure/types';
 import { QueryBar } from '../../components/query/QueryBar';
@@ -53,7 +54,8 @@ function groupCount(groupBy: string, n: number): string {
 }
 
 function CategoryIcon({ category }: { category: string }) {
-  const Icon = category === 'kubernetes' ? Ship : category === 'containers' ? Container : category === 'compute' ? Server : Boxes;
+  if (category === 'kubernetes') return <KubernetesLogo size={16} />;
+  const Icon = category === 'containers' ? Container : category === 'compute' ? Server : Boxes;
   return <Icon size={16} className="rc-type-icon" aria-hidden />;
 }
 

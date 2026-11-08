@@ -17,7 +17,6 @@ import {
   Pin,
   Search,
   Settings,
-  Ship,
   Table2,
 } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -31,6 +30,7 @@ import { addTerm, formatQuery, parseQuery, type Term } from '../../lib/searchQue
 import { SummaryGraphs } from './SummaryGraphs';
 import { COLUMNS, DEFAULT_HIDDEN, KIND_INFO, RESOURCE_TREE, TAG_LABELS, facetGroup, isEcs, logQuery, type CellContext, type ExplorerKind, type KubeColumn, type TreeNode } from './columns';
 import { KubePanel } from './KubePanel';
+import { KubernetesIcon } from '../../components/brand/KubernetesIcon';
 import { LiveClock, LiveProvider, OrchestrationHeader, ProductIcon, useLive } from './OrchestrationHeader';
 import { ResourceUtilization } from './ResourceUtilization';
 import '../infrastructure/infrastructure.css';
@@ -142,8 +142,10 @@ function TreeItem({ node, kind, depth, onSelect }: { node: TreeNode; kind: Explo
       <ProductIcon product="ecs" size={15} />
     ) : node.label === 'Kubernetes' ? (
       <ProductIcon product="kubernetes" size={15} />
+    ) : depth > 0 && node.kind && isEcs(node.kind) ? (
+      <ProductIcon product="ecs" size={14} />
     ) : depth > 0 ? (
-      <Ship size={14} />
+      <KubernetesIcon kind={node.kind} size={14} />
     ) : (
       <Table2 size={14} />
     );

@@ -1,9 +1,10 @@
 // How a finding's resource type reads in Cloud Security: a name (EC2 Security Group, DaemonSet, IAM User) and the icon
-// of its service (the AWS service icon, Kubernetes, the host). Types are the scanner's ASFF names (AwsEc2SecurityGroup),
+// of its service (the AWS service icon, the Kubernetes kind's icon, the host). Types are the scanner's ASFF names (AwsEc2SecurityGroup),
 // our rules' kube_* kinds and host / container.
 import { Box, Server } from 'lucide-react';
 import { INTEGRATION_LOGOS } from '../../../assets/integrationLogos.generated';
 import { BrandLogo, hasBrandLogo } from '../../../components/brand/BrandLogo';
+import { KubernetesIcon } from '../../../components/brand/KubernetesIcon';
 
 /** Kubernetes kinds as Kubernetes spells them. */
 const KUBE: Record<string, string> = {
@@ -92,11 +93,11 @@ function words(s: string): string {
     .trim();
 }
 
-type Kind = { name: string; logo: string | null; fallback?: 'host' | 'container' | 'aws' };
+type Kind = { name: string; logo: string | null; fallback?: 'host' | 'container' | 'aws'; kube?: string };
 
 export function resourceKind(type: string): Kind {
   const kube = /^kube_(.+)$/.exec(type);
-  if (kube) return { name: KUBE[kube[1]] ?? words(kube[1].charAt(0).toUpperCase() + kube[1].slice(1)), logo: 'kubernetes' };
+  if (kube) return { name: KUBE[kube[1]] ?? words(kube[1].charAt(0).toUpperCase() + kube[1].slice(1)), logo: 'kubernetes', kube: kube[1] };
   if (type === 'host') return { name: 'Host', logo: null, fallback: 'host' };
   if (type === 'container') return { name: 'Container', logo: 'docker' };
   if (type === 'ecs_service') return { name: 'ECS Service', logo: 'tile:aws-ecs' };
@@ -112,6 +113,8 @@ export function resourceKind(type: string): Kind {
 }
 
 function KindIcon({ kind, size }: { kind: Kind; size: number }) {
+  // Kubernetes kinds: the Kubernetes project's icon of the kind (Pod, DaemonSet), else its logo.
+  if (kind.kube) return <KubernetesIcon kind={kind.kube} size={size} title={kind.name} />;
   const key = kind.logo;
   if (key && hasBrandLogo(key)) return <BrandLogo name={key} size={size} title={kind.name} maxRatio={1.7} />;
   if (key && key in INTEGRATION_LOGOS) return <img className="logo-file" src={`/images/integrations/logos/${INTEGRATION_LOGOS[key]}`} alt="" loading="lazy" width={size} height={size} />;

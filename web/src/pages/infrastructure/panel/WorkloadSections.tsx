@@ -1,6 +1,7 @@
 import { useDeferredValue, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, ArrowUpNarrowWide, ArrowDownWideNarrow, Box, EllipsisVertical, Search, Ship } from 'lucide-react';
+import { Activity, ArrowUpNarrowWide, ArrowDownWideNarrow, Box, EllipsisVertical, Search } from 'lucide-react';
+import { KubernetesLogo } from '../../../components/brand/KubernetesIcon';
 import type { HostDetail } from '../../../api/infrastructure/types';
 import { Empty, ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { Select } from '../../../components/ui/Dropdown';
@@ -37,7 +38,7 @@ export function KubernetesSection({ host }: { host: HostDetail }) {
   const [offset, setOffset] = useState(0);
   const q = usePods({ host: host.name, query: '', offset, limit: PAGE });
   return (
-    <HpSection id="kubernetes" title="Kubernetes" icon={Ship}>
+    <HpSection id="kubernetes" title="Kubernetes" icon={KubernetesLogo}>
       {!host.kubernetes ? (
         <Empty>This host is not part of a Kubernetes cluster.</Empty>
       ) : q.isPending ? (

@@ -1,9 +1,12 @@
-import { useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, type LucideIcon } from 'lucide-react';
+import { useState, type ComponentType, type ReactNode } from 'react';
+import { ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import './section.css';
 
+/** A section's icon: a Lucide icon or a logo (KubernetesLogo). */
+export type SectionIcon = ComponentType<{ size?: number }>;
+
 /** Collapsible card for one panel section; `id` is the scroll-spy anchor. */
-export function CollapsibleSection({ id, title, icon: Icon, children, extra }: { id: string; title: string; icon: LucideIcon; children: ReactNode; extra?: ReactNode }) {
+export function CollapsibleSection({ id, title, icon: Icon, children, extra }: { id: string; title: string; icon: SectionIcon; children: ReactNode; extra?: ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
     <section className="hp-section" data-section={id} id={`hp-${id}`}>
@@ -23,7 +26,7 @@ export function CollapsibleSection({ id, title, icon: Icon, children, extra }: {
 export interface NavItem {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: SectionIcon;
 }
 
 /** Sticky left nav for a page of CollapsibleSections; highlights `active`, can collapse to icons. */

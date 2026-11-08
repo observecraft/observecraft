@@ -1076,6 +1076,7 @@
 }
 
 .ox-card-title svg {
+  flex: none;
   color: #326ce5;
 }
 
