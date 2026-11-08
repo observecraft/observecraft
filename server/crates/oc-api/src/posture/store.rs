@@ -270,6 +270,8 @@ pub async fn set_mute(pg: &PgPool, org: &str, ids: &[String], mute: Option<(&str
 /// The latest scan of each of the org's accounts.
 #[derive(Clone, Debug, sqlx::FromRow)]
 pub struct ScanRow {
+    /// The scan's id (only the tests use it, to store a scan's results).
+    #[cfg_attr(not(test), allow(dead_code))]
     pub id: String,
     pub account_ref: String,
     pub status: String,
