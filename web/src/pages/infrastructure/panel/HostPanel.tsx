@@ -1,31 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Activity,
-  BellOff,
-  Box,
-  Check,
-  ChevronDown,
-  Copy,
-  Flame,
-  Gauge,
-  GitCommitHorizontal,
-  Hexagon,
-  ListTree,
-  Network,
-  ScrollText,
-  Share2,
-  ShieldCheck,
-  Ship,
-  Waypoints,
-  Wrench,
-  X,
-} from 'lucide-react';
+import { Activity, BellOff, Box, Check, ChevronDown, Copy, Flame, Gauge, GitCommitHorizontal, Hexagon, ListTree, Network, ScrollText, Share2, ShieldCheck, Waypoints, Wrench, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { HostDetail } from '../../../api/infrastructure/types';
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { activeSection, SectionNav, type NavItem } from '../../../components/ui/CollapsibleSection';
 import { Menu } from '../../../components/ui/Dropdown';
 import { CLOUD_LABEL, CloudIcon, CollectorIcon } from '../hostIcons';
+import { KubernetesLogo } from '../../../components/brand/KubernetesIcon';
 import { useHost } from '../queries';
 import { MetricsSection } from './MetricsSection';
 import { AgentSection, CollectorSection, LogsSection } from './OtherSections';
@@ -36,7 +17,7 @@ import { ContainersSection, KubernetesSection, ProcessesSection } from './Worklo
 export const SECTIONS: NavItem[] = [
   { id: 'summary', label: 'Host Summary', icon: Hexagon },
   { id: 'metrics', label: 'Metrics', icon: Gauge },
-  { id: 'kubernetes', label: 'Kubernetes', icon: Ship },
+  { id: 'kubernetes', label: 'Kubernetes', icon: KubernetesLogo },
   { id: 'containers', label: 'Containers', icon: Box },
   { id: 'processes', label: 'Processes', icon: Activity },
   { id: 'relationships', label: 'Relationships', icon: Share2 },

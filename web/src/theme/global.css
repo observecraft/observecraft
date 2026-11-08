@@ -397,3 +397,9 @@ a:hover {
 :root[data-theme='dark'] .brand-logo-mono {
   filter: invert(1);
 }
+
+/* The Kubernetes project's kind icons (KubernetesIcon) keep their size in flex rows. */
+.kube-icon {
+  flex: none;
+  vertical-align: middle;
+}

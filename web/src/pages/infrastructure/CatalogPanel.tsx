@@ -1,12 +1,14 @@
 import { Fragment, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Boxes, Container, ExternalLink, FolderTree, Layers, Network, Server, Ship, X } from 'lucide-react';
+import { Box, Boxes, Container, ExternalLink, Network, Server, X } from 'lucide-react';
 import type { CatalogCategory, CatalogResource, CatalogType } from '../../api/catalog/client';
 import type { Cloud } from '../../api/infrastructure/types';
 import { formatLongDate, timeAgo } from '../../lib/format';
 import { StatusPill } from '../kubernetes/columns';
 import { CATEGORY_LABELS, catalogLink, TYPE_LABELS } from './catalogModel';
 import { CLOUD_LABEL } from './hostIcons';
+import { BrandLogo } from '../../components/brand/BrandLogo';
+import { KubernetesIcon } from '../../components/brand/KubernetesIcon';
 
 // The resource side panel of the catalog, also opened from Policies and Cloudcraft.
 
@@ -35,22 +37,10 @@ export const ATTRIBUTE_LABELS: Record<string, string> = {
 };
 
 export function TypeIcon({ type, size = 15 }: { type: CatalogType; size?: number }) {
-  const Icon =
-    type === 'host' || type === 'kube_node'
-      ? Server
-      : type === 'kube_cluster' || type === 'ecs_cluster'
-        ? Ship
-        : type === 'kube_namespace'
-          ? FolderTree
-          : type === 'kube_pod' || type === 'ecs_task'
-            ? Box
-            : type === 'container'
-              ? Container
-              : type === 'kube_service' || type === 'kube_ingress' || type === 'ecs_service'
-                ? Network
-                : type === 'kube_persistent_volume' || type === 'kube_persistent_volume_claim'
-                  ? Layers
-                  : Boxes;
+  // Kubernetes kinds have the Kubernetes project's icons (the logo for clusters).
+  if (type.startsWith('kube_')) return <KubernetesIcon kind={type} size={size} />;
+  if (type === 'ecs_cluster') return <BrandLogo name="amazonecs" size={size} title="ECS" />;
+  const Icon = type === 'host' ? Server : type === 'ecs_task' ? Box : type === 'container' ? Container : type === 'ecs_service' ? Network : Boxes;
   return <Icon size={size} className="rc-type-icon" aria-hidden />;
 }
 

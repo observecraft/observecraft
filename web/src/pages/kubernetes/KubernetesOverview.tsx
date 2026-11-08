@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Box, Boxes, ChevronDown, ChevronUp, Database, Filter, Layers, Network, Server, Ship, type LucideIcon } from 'lucide-react';
+import { Box, ChevronDown, ChevronUp, Filter, type LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { searchKubernetes, type KubeKind } from '../../api/kubernetes/client';
 import { BrandLogo } from '../../components/brand/BrandLogo';
+import { KubernetesIcon } from '../../components/brand/KubernetesIcon';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Select } from '../../components/ui/Dropdown';
 import { compact } from '../../lib/format';
@@ -11,26 +12,27 @@ import { LiveClock, LiveProvider, OrchestrationHeader, useLive } from './Orchest
 import '../infrastructure/infrastructure.css';
 import './kubernetes.css';
 
-const CARDS: { kind: KubeKind; label: string; icon: LucideIcon }[] = [
-  { kind: 'clusters', label: 'Clusters', icon: Ship },
-  { kind: 'namespaces', label: 'Namespaces', icon: Layers },
-  { kind: 'nodes', label: 'Nodes', icon: Server },
-  { kind: 'deployments', label: 'Deployments', icon: Boxes },
-  { kind: 'pods', label: 'Pods', icon: Box },
+// Kinds show the Kubernetes project's icons (KubernetesIcon); containers, which have none, a container.
+const CARDS: { kind: KubeKind; label: string; icon?: LucideIcon }[] = [
+  { kind: 'clusters', label: 'Clusters' },
+  { kind: 'namespaces', label: 'Namespaces' },
+  { kind: 'nodes', label: 'Nodes' },
+  { kind: 'deployments', label: 'Deployments' },
+  { kind: 'pods', label: 'Pods' },
   { kind: 'containers', label: 'Containers', icon: Box },
-  { kind: 'replicasets', label: 'Replica Sets', icon: Boxes },
-  { kind: 'services', label: 'Services', icon: Network },
+  { kind: 'replicasets', label: 'Replica Sets' },
+  { kind: 'services', label: 'Services' },
 ];
 
-const MORE: { kind: KubeKind; label: string; icon: LucideIcon }[] = [
-  { kind: 'daemonsets', label: 'Daemon Sets', icon: Boxes },
-  { kind: 'statefulsets', label: 'Stateful Sets', icon: Database },
-  { kind: 'jobs', label: 'Jobs', icon: Boxes },
-  { kind: 'cronjobs', label: 'Cron Jobs', icon: Boxes },
-  { kind: 'ingresses', label: 'Ingresses', icon: Network },
-  { kind: 'persistentvolumeclaims', label: 'Persistent Volume Claims', icon: Database },
-  { kind: 'persistentvolumes', label: 'Persistent Volumes', icon: Database },
-  { kind: 'horizontalpodautoscalers', label: 'Horizontal Pod Autoscalers', icon: Layers },
+const MORE: { kind: KubeKind; label: string; icon?: LucideIcon }[] = [
+  { kind: 'daemonsets', label: 'Daemon Sets' },
+  { kind: 'statefulsets', label: 'Stateful Sets' },
+  { kind: 'jobs', label: 'Jobs' },
+  { kind: 'cronjobs', label: 'Cron Jobs' },
+  { kind: 'ingresses', label: 'Ingresses' },
+  { kind: 'persistentvolumeclaims', label: 'Persistent Volume Claims' },
+  { kind: 'persistentvolumes', label: 'Persistent Volumes' },
+  { kind: 'horizontalpodautoscalers', label: 'Horizontal Pod Autoscalers' },
 ];
 
 /** Infrastructure → Kubernetes Overview. */
@@ -124,7 +126,7 @@ function OverviewBody() {
                   {[...CARDS, ...(more ? MORE : [])].map((c) => (
                     <button key={c.kind} className="ox-card" onClick={() => open(c.kind)}>
                       <span className="ox-card-title">
-                        <c.icon size={18} /> {c.label.toUpperCase()}
+                        {c.icon ? <c.icon size={18} /> : <KubernetesIcon kind={c.kind} size={18} />} {c.label.toUpperCase()}
                       </span>
                       <span className="ox-card-value">{compact(count.get(c.kind) ?? 0)}</span>
                     </button>

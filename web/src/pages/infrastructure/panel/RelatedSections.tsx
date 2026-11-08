@@ -2,7 +2,9 @@
 // network traffic, changes, security signals, and how it relates to its cloud account, cluster and services.
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Cloud, ExternalLink, Flame, GitCommitHorizontal, ListTree, Network, Server, Share2, ShieldCheck, Ship, Waypoints } from 'lucide-react';
+import { Cloud, ExternalLink, Flame, GitCommitHorizontal, ListTree, Network, Server, Share2, ShieldCheck, Waypoints } from 'lucide-react';
+import { KubernetesLogo } from '../../../components/brand/KubernetesIcon';
+import type { SectionIcon } from '../../../components/ui/CollapsibleSection';
 import { Link, useNavigate } from 'react-router-dom';
 import { searchSpans, spanFacets } from '../../../api/apm/client';
 import { searchChanges, type Change } from '../../../api/changes/client';
@@ -323,7 +325,7 @@ export function SecuritySection({ host }: { host: HostDetail }) {
   );
 }
 
-function RelNode({ icon: Icon, kind, name, to, detail }: { icon: typeof Server; kind: string; name: string; to?: string; detail?: string }) {
+function RelNode({ icon: Icon, kind, name, to, detail }: { icon: SectionIcon; kind: string; name: string; to?: string; detail?: string }) {
   return (
     <div className="hw-rel-node">
       <Icon size={15} />
@@ -349,7 +351,9 @@ export function RelationshipsSection({ host }: { host: HostDetail }) {
       <div className="hw-rel">
         {cloud && <RelNode icon={Cloud} kind="Cloud" name={cloud} detail={host.hostType} />}
         <RelNode icon={Server} kind="Host" name={host.name} />
-        {k8s && <RelNode icon={Ship} kind="Kubernetes" name={k8s.cluster} to="/kubernetes" detail={k8s.node ? `node ${k8s.node}${pods.data ? ` · ${pods.data.total} pods` : ''}` : undefined} />}
+        {k8s && (
+          <RelNode icon={KubernetesLogo} kind="Kubernetes" name={k8s.cluster} to="/kubernetes" detail={k8s.node ? `node ${k8s.node}${pods.data ? ` · ${pods.data.total} pods` : ''}` : undefined} />
+        )}
         {namespaces.length > 0 && (
           <div className="hw-rel-group">
             <span className="hw-rel-kind">Namespaces</span>
