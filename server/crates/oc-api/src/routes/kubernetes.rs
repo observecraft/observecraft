@@ -2213,9 +2213,40 @@ pub(crate) async fn replica_sets(st: &AppState, org: &str) -> Result<Vec<KubeRes
 
 /// The node named like a host and the pods running on it, for the host panel.
 pub async fn host_inventory(st: &AppState, org: &str, host: &str) -> Result<(Option<KubeResource>, Vec<KubeResource>), ApiError> {
+    let names = host_names(st, org, host).await?;
     let rows = inventory(st, org).await?;
-    let node = rows.iter().find(|r| r.kind == Some(KubeKind::Nodes) && r.name == host).cloned();
-    Ok((node, rows.iter().filter(|r| r.kind == Some(KubeKind::Pods) && r.node.as_deref() == Some(host)).cloned().collect()))
+    let node = rows.iter().find(|r| r.kind == Some(KubeKind::Nodes) && names.contains(&r.name)).cloned();
+    // Pods name their node; the node found settles which of the host's names it goes by.
+    let node_name = node.as_ref().map(|n| n.name.clone());
+    let on_host = |n: &str| node_name.as_deref().map_or_else(|| names.iter().any(|x| x == n), |nn| nn == n);
+    Ok((node, rows.iter().filter(|r| r.kind == Some(KubeKind::Pods) && r.node.as_deref().is_some_and(on_host)).cloned().collect()))
+}
+
+/// The names a host goes by: its own and, for a Datadog Agent host, its system host name, EC2 host name and host
+/// aliases. On EKS the Agent's host is the instance id (`i-…`) while Kubernetes names the node `ip-….ec2.internal`.
+async fn host_names(st: &AppState, org: &str, host: &str) -> Result<Vec<String>, ApiError> {
+    let meta = sqlx::query_scalar::<_, Option<serde_json::Value>>("SELECT payload->'meta' FROM datadog_hosts WHERE org_id = $1 AND host = $2")
+        .bind(org)
+        .bind(host)
+        .fetch_optional(&st.postgres)
+        .await?
+        .flatten();
+    Ok(agent_host_names(host, meta.as_ref()))
+}
+
+/// [`host_names`] from the Agent's host metadata (`meta`).
+fn agent_host_names(host: &str, meta: Option<&serde_json::Value>) -> Vec<String> {
+    let mut names = vec![host.to_string()];
+    if let Some(meta) = meta {
+        let single = ["hostname", "ec2-hostname", "socket-hostname", "socket-fqdn"].into_iter().filter_map(|k| meta.get(k).and_then(serde_json::Value::as_str));
+        let aliases = meta.get("host_aliases").and_then(serde_json::Value::as_array).into_iter().flatten().filter_map(serde_json::Value::as_str);
+        for n in single.chain(aliases).map(str::trim).filter(|n| !n.is_empty()) {
+            if !names.iter().any(|x| x == n) {
+                names.push(n.to_string());
+            }
+        }
+    }
+    names
 }
 
 #[cfg(test)]
@@ -2233,6 +2264,13 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn an_eks_hosts_instance_id_finds_its_node_by_the_agents_host_names() {
+        let meta = serde_json::json!({"hostname": "ip-10-0-1-23.ec2.internal", "ec2-hostname": "ip-10-0-1-23.ec2.internal", "instance-id": "i-0a1b2c3d4e5f60001", "host_aliases": ["ip-10-0-1-23.ec2.internal-example-cluster", ""]});
+        assert_eq!(agent_host_names("i-0a1b2c3d4e5f60001", Some(&meta)), ["i-0a1b2c3d4e5f60001", "ip-10-0-1-23.ec2.internal", "ip-10-0-1-23.ec2.internal-example-cluster"]);
+        assert_eq!(agent_host_names("web-1", None), ["web-1"]);
+    }
 
     #[test]
     fn agent_containers_enrich_pod_containers_and_add_the_others() {

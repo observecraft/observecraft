@@ -266,7 +266,13 @@ export function ProcessesSection({ host }: { host: HostDetail }) {
             <div className="hw-noproc">
               <Activity size={44} className="hw-noproc-icon" />
               <strong>No processes found</strong>
-              <span>{q.data.enabled ? 'No processes match this filter.' : 'To correlate processes with hosts, enable the processes scraper in this host’s collector configuration.'}</span>
+              <span>
+                {q.data.enabled
+                  ? 'No processes match this filter.'
+                  : host.collectors.includes('datadog')
+                    ? 'Enable live process collection in the Datadog Agent (Helm: datadog.processAgent.processCollection: true; datadog.yaml: process_config.process_collection.enabled: true).'
+                    : 'To correlate processes with hosts, enable the processes scraper in this host’s collector configuration.'}
+              </span>
             </div>
           )}
           <Pager offset={offset} limit={PAGE} total={q.data.total} onChange={setOffset} />
