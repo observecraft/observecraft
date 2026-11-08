@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.18.0](https://github.com/observecraft/observecraft/compare/v0.17.0...v0.18.0) (2026-11-08)
+
+
+### Features
+
+* **infrastructure:** the host panel's traces, profiles, network, changes, security and relationships ([e679962](https://github.com/observecraft/observecraft/commit/e679962c9b1bdbd308bac4cbcb2dd3f88ae1fd4c))
+* **integrations:** a source's first logs install its pipeline and log-only dashboards ([536701b](https://github.com/observecraft/observecraft/commit/536701b75a7ad93ce591b88c044d69902dd810c4))
+* **logs:** key-value (logfmt) pipeline in the library; no empty attributes panel ([#114](https://github.com/observecraft/observecraft/issues/114)) ([5726797](https://github.com/observecraft/observecraft/commit/5726797d2ddbc95f6bf253e037984da0f1748fc8))
+* **security:** Cloud SIEM content pack for Datadog Supply Chain Firewall ([ed16a89](https://github.com/observecraft/observecraft/commit/ed16a890e918036352a991d005dab763f2a73b95))
+* **security:** scan cloud accounts with Prowler; logos in Cloud Cost pickers and dashboard search ([#96](https://github.com/observecraft/observecraft/issues/96)) ([d467398](https://github.com/observecraft/observecraft/commit/d467398e21dd052e32d787d5017f2bcff64643c6))
+* **ui:** Kubernetes logo and the Kubernetes project's icons for its resource kinds ([f2aea76](https://github.com/observecraft/observecraft/commit/f2aea76839b84b155d11ba995c1017faf67cf7e3))
+
+
+### Bug fixes
+
+* **infrastructure:** an EKS host's pods and containers, found by the Agent's host names ([d1ee160](https://github.com/observecraft/observecraft/commit/d1ee1609fe7e38f0b2de7e41ad40f00b62a0c86d))
+* **infrastructure:** host memory charts read the Datadog Agent's system.mem metrics ([6d01138](https://github.com/observecraft/observecraft/commit/6d01138886c31fa60edb694d06890060cde76435))
+* **infrastructure:** no backslash-escaped quotes in the host panel's queries ([5d45886](https://github.com/observecraft/observecraft/commit/5d45886120b394e2794b852773892e2424203df6))
+* **integrations:** NetBird's connection test accepts a service user's token ([761756d](https://github.com/observecraft/observecraft/commit/761756d2cb22362c4598703edbedcc80f657774f))
+* **ui:** strip the Kubernetes icons' comments without a regex ([ae75f2a](https://github.com/observecraft/observecraft/commit/ae75f2a849ad8ce67ff4cf11eddb310e0f36ad71))
+* **ui:** syntax highlighting for the YAML and JSON pages show ([5f7991c](https://github.com/observecraft/observecraft/commit/5f7991c5a0b5d61d860f78444a5e791a368bef60))
+
+
+### Documentation
+
+* where the Kubernetes kind icons come from ([5cbccf0](https://github.com/observecraft/observecraft/commit/5cbccf0f48dad14ecc632f2bcff5be403b6392b8))
+
 ## [0.17.0](https://github.com/observecraft/observecraft/compare/v0.16.0...v0.17.0) (2026-11-07)
 
 
