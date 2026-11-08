@@ -52290,6 +52290,7 @@
         "type": "object",
         "required": [
           "cluster",
+          "node",
           "criName",
           "criVersion",
           "kubeletVersion"
@@ -52306,6 +52307,10 @@
           },
           "kubeletVersion": {
             "type": "string"
+          },
+          "node": {
+            "type": "string",
+            "description": "The host's Kubernetes node (on EKS `ip-….ec2.internal` for an `i-…` host); empty when no node reported."
           }
         }
       },

@@ -17267,6 +17267,8 @@ export interface components {
             criName: string;
             criVersion: string;
             kubeletVersion: string;
+            /** @description The host's Kubernetes node (on EKS `ip-….ec2.internal` for an `i-…` host); empty when no node reported. */
+            node: string;
         };
         /** @enum {string} */
         LambdaComponent: "runtime" | "datadog_lambda" | "extension";

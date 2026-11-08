@@ -87,7 +87,8 @@ export interface HostDetail extends HostSummary {
   products: ('apm' | 'infra' | 'logs' | 'processes')[];
   triggeredMonitors: TriggeredMonitor[];
   integrations: HostIntegration[];
-  kubernetes: { cluster: string; criName: string; criVersion: string; kubeletVersion: string } | null;
+  /** `node`: the host's Kubernetes node name (it can differ from the host's: `ip-….ec2.internal` for `i-…`). */
+  kubernetes: { cluster: string; node: string; criName: string; criVersion: string; kubeletVersion: string } | null;
   /** Collector config currently applied to this host. */
   collectorConfig: string;
   pipelines: { name: string; receivers: string[]; processors: string[]; exporters: string[] }[];

@@ -198,6 +198,8 @@ fn values_of(s: &SecuritySignal, key: &str) -> Vec<String> {
             if let Some(v) = s.group_values.get(key).or_else(|| s.group_values.get(&format!("@{k}"))).or_else(|| s.group_values.get(k)) {
                 out.push(v.clone());
             }
+            // The entities the signal's logs name (`host:i-…` finds the signals about a host).
+            out.extend(s.entities.get(k).and_then(|e| e.get("top")).and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).map(str::to_string));
             out
         }
     }
@@ -548,6 +550,15 @@ mod tests {
         for q in ["status:high", "source:okta", "-env:prod", "checkout"] {
             assert!(!matches(&s, &parse_query(q)), "{q}");
         }
+    }
+
+    #[test]
+    fn signals_are_found_by_the_hosts_their_logs_name() {
+        let mut s = signal();
+        s.entities = json!({"host": {"top": ["i-0a1b2c3d4e5f60001", "i-0a1b2c3d4e5f60002"], "count": 2}, "ip": {"top": ["10.0.0.5"], "count": 1}});
+        assert!(matches(&s, &parse_query("host:i-0a1b2c3d4e5f60002")));
+        assert!(matches(&s, &parse_query("ip:10.0.0.5")));
+        assert!(!matches(&s, &parse_query("host:i-0a1b2c3d4e5f60003")));
     }
 
     #[test]
