@@ -246,7 +246,9 @@ or SDK features.
     - `assets/monitors/*.json` as recommended monitors;
     - every integration's log pipelines in `assets/logs/`, converted by `scripts/import-integration-pipelines.mjs --source
       <checkout>` into `server/seeds/integrations/core/pipelines.json` (Logs → Configuration → Pipelines installs them
-      from its library; the mock carries a few in `web/src/api/pipelines/library.generated.json`);
+      from its library; the mock carries a few in `web/src/api/pipelines/library.generated.json`). The library also
+      offers ours for generic formats integrations-core has none for (`server/seeds/pipelines/observecraft.json`, MIT):
+      key-value (logfmt) lines, which, as in Datadog, aren't parsed without a pipeline (only JSON is);
   - Keep their copyright and LICENSE text with anything copied, and note the source path and version.
 - **Cloud overview dashboards** (AWS, Azure, Google Cloud): Datadog's aren't in integrations-core, so ours are generated
   by `scripts/cloud-dashboards.mjs` (Datadog widget format → the importer's `convertDashboard` →

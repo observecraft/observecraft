@@ -1,7 +1,9 @@
 //! Integration pipelines: the log pipelines of integrations-core (BSD-3-Clause; copyright and terms
 //! in each `server/seeds/integrations/<integration>/LICENSE`), converted by
 //! `scripts/import-integration-pipelines.mjs`. Organizations install them from Logs → Pipelines, or with their
-//! integration from Integrations (`routes::integration_installs`).
+//! integration from Integrations (`routes::integration_installs`). Ours (MIT,
+//! `server/seeds/pipelines/observecraft.json`) sit next to them: generic formats integrations-core has no pipeline
+//! for, such as key-value (logfmt) lines.
 
 use std::sync::OnceLock;
 
@@ -11,7 +13,7 @@ use serde_json::Value;
 #[derive(Deserialize, Clone)]
 pub struct IntegrationPipeline {
     pub id: String,
-    /// The catalog integration it belongs to (`supply-chain-firewall`), installed with it.
+    /// The catalog integration it belongs to (`supply-chain-firewall`), installed with it; empty for ours.
     pub integration: String,
     pub name: String,
     pub filter: String,
@@ -30,12 +32,15 @@ pub struct Upstream {
 
 /// Every integration's pipelines (scripts/import-integration-pipelines.mjs --all).
 const SEEDS: &str = include_str!("../../../../seeds/integrations/core/pipelines.json");
+/// Our own pipelines, for generic formats (MIT).
+const OWN: &str = include_str!("../../../../seeds/pipelines/observecraft.json");
 
 /// Every integration pipeline, by name.
 pub fn all() -> &'static [IntegrationPipeline] {
     static ALL: OnceLock<Vec<IntegrationPipeline>> = OnceLock::new();
     ALL.get_or_init(|| {
         let mut all: Vec<IntegrationPipeline> = serde_json::from_str(SEEDS).expect("integration pipelines seed");
+        all.extend(serde_json::from_str::<Vec<IntegrationPipeline>>(OWN).expect("own pipelines seed"));
         all.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         all
     })
@@ -59,6 +64,31 @@ mod tests {
                 Some("pipeline") => groks(p["processors"].as_array().map(Vec::as_slice).unwrap_or_default(), out),
                 _ => {}
             }
+        }
+    }
+
+    #[test]
+    fn logfmt_lines_become_attributes_status_date_and_message() {
+        let p = get("logfmt").unwrap();
+        let (_, errors) = Pipeline::compile(&p.name, &p.filter, &p.processors);
+        assert!(errors.is_empty(), "{errors:?}");
+        let log = run(
+            "logfmt",
+            "go",
+            r#"time=2026-11-08T10:15:42.120Z level=warn msg="finished call" grpc.component=server grpc.method=PlaceOrder grpc.time_ms=12.4 peer.address=10.0.0.5:51234"#,
+        );
+        assert_eq!(log.message, "finished call");
+        assert_eq!(log.status, "warn");
+        assert_eq!(log.timestamp_ms, Some(1_794_132_942_120));
+        assert_eq!(log.get("grpc.component"), Some(serde_json::json!("server")));
+        assert_eq!(log.get("grpc.method"), Some(serde_json::json!("PlaceOrder")));
+        assert_eq!(log.get("peer.address"), Some(serde_json::json!("10.0.0.5:51234")));
+        // Other lines are left as they are.
+        for line in ["GET /cart 200", "error: retry=3 failed", "connection refused"] {
+            let (pipeline, _) = Pipeline::compile(&p.name, &p.filter, &p.processors);
+            let mut log = super::super::Log::from_row(&serde_json::json!({"status": "info", "service": "storefront-api", "source": "go", "message": line, "attributes": "{}"}));
+            pipeline.apply(&mut log, 1_792_933_200_000);
+            assert_eq!((log.message.as_str(), log.status.as_str(), log.attrs.len()), (line, "info", 0), "{line}");
         }
     }
 

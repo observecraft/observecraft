@@ -1,0 +1,59 @@
+[
+  {
+    "id": "logfmt",
+    "integration": "",
+    "name": "Key-value (logfmt) logs",
+    "filter": "*",
+    "processors": [
+      {
+        "type": "grok-parser",
+        "name": "Parse key=value pairs into attributes",
+        "enabled": true,
+        "source": "message",
+        "samples": [
+          "time=2026-11-08T10:15:42.120Z level=info msg=\"finished call\" grpc.component=server grpc.service=checkout.CheckoutService grpc.method=PlaceOrder grpc.code=OK grpc.time_ms=12.4",
+          "ts=2026-11-08T10:15:42Z lvl=warn caller=cart.go:88 msg=\"cart is empty\" user=jane@example.com"
+        ],
+        "grok": {
+          "supportRules": "",
+          "matchRules": "logfmt %{regex(\"[\\w.@-]+=\\S.*\\s[\\w.@-]+=.*\")::keyvalue(\"=\", \":/+,*%#&!?|~$\")}"
+        }
+      },
+      {
+        "type": "date-remapper",
+        "name": "Define time, ts or timestamp as the official date of the log",
+        "enabled": true,
+        "sources": [
+          "time",
+          "ts",
+          "timestamp"
+        ]
+      },
+      {
+        "type": "status-remapper",
+        "name": "Define level, lvl or severity as the official status of the log",
+        "enabled": true,
+        "sources": [
+          "level",
+          "lvl",
+          "severity"
+        ]
+      },
+      {
+        "type": "message-remapper",
+        "name": "Define msg as the official message of the log",
+        "enabled": true,
+        "sources": [
+          "msg",
+          "message"
+        ]
+      }
+    ],
+    "source": {
+      "repository": "observecraft/observecraft",
+      "revision": "",
+      "path": "server/seeds/pipelines/observecraft.json",
+      "license": "MIT"
+    }
+  }
+]
