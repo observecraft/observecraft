@@ -427,7 +427,7 @@ function detail(h: StoredHost): HostDetail {
       : h.software.includes('docker')
         ? [{ name: 'docker', status: 'ok', metrics: ['container.cpu.utilization', 'container.memory.usage.total', 'container.network.io.usage.rx_bytes'] }]
         : [],
-    kubernetes: k8s ? { cluster: cluster!, criName: 'containerd', criVersion: '2.2.9+bottlerocket', kubeletVersion: 'v1.35.6-eks-bca9cf6' } : null,
+    kubernetes: k8s ? { cluster: cluster!, node: h.name, criName: 'containerd', criVersion: '2.2.9+bottlerocket', kubeletVersion: 'v1.35.6-eks-bca9cf6' } : null,
     collectorConfig: collectorConfig(h),
     pipelines: [
       {

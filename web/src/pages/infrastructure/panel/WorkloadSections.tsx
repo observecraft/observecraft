@@ -146,7 +146,7 @@ export function ContainersSection({ host }: { host: HostDetail }) {
           </div>
         </dl>
       )}
-      {host.software.length === 0 ? (
+      {host.software.length === 0 && !host.kubernetes ? (
         <Empty>No container runtime detected on this host.</Empty>
       ) : (
         <>

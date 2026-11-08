@@ -28,7 +28,8 @@ import { Menu } from '../../../components/ui/Dropdown';
 import { CLOUD_LABEL, CloudIcon, CollectorIcon } from '../hostIcons';
 import { useHost } from '../queries';
 import { MetricsSection } from './MetricsSection';
-import { AgentSection, CollectorSection, EmptySection, LogsSection } from './OtherSections';
+import { AgentSection, CollectorSection, LogsSection } from './OtherSections';
+import { ChangesSection, NetworkSection, ProfilesSection, RelationshipsSection, SecuritySection, TracesSection } from './RelatedSections';
 import { SummarySection, TagsCard } from './SummarySection';
 import { ContainersSection, KubernetesSection, ProcessesSection } from './WorkloadSections';
 
@@ -191,13 +192,13 @@ function Body({ host, onClose }: { host: HostDetail; onClose: () => void }) {
           <KubernetesSection host={host} />
           <ContainersSection host={host} />
           <ProcessesSection host={host} />
-          <EmptySection id="relationships" title="Relationships" icon={Share2} message="No context data available" />
+          <RelationshipsSection host={host} />
           <LogsSection host={host} />
-          <EmptySection id="traces" title="Traces" icon={ListTree} message={host.products.includes('apm') ? 'Traces from services on this host appear here once the APM views are built.' : 'No services on this host send traces. Instrument them with the OpenTelemetry SDK.'} />
-          <EmptySection id="profiles" title="Profiles" icon={Flame} message="Continuous profiling is not enabled on this host." />
-          <EmptySection id="network" title="Network" icon={Network} message="Network performance monitoring is not enabled on this host." />
-          <EmptySection id="changes" title="Changes" icon={GitCommitHorizontal} message="No deployments or config changes recorded for this host in the selected time range." />
-          <EmptySection id="security" title="Security" icon={ShieldCheck} message="No security signals for this host." />
+          <TracesSection host={host} />
+          <ProfilesSection host={host} />
+          <NetworkSection host={host} />
+          <ChangesSection host={host} />
+          <SecuritySection host={host} />
           <AgentSection host={host} />
           <CollectorSection host={host} />
         </div>

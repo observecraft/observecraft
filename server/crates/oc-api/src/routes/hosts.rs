@@ -557,6 +557,8 @@ pub struct HostIntegration {
 #[serde(rename_all = "camelCase")]
 pub struct KubernetesInfo {
     pub cluster: String,
+    /// The host's Kubernetes node (on EKS `ip-….ec2.internal` for an `i-…` host); empty when no node reported.
+    pub node: String,
     pub cri_name: String,
     pub cri_version: String,
     pub kubelet_version: String,
@@ -656,7 +658,13 @@ pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, access: LogAc
         // containerd://1.7.18 → (containerd, 1.7.18)
         let runtime = node.as_ref().and_then(|n| n.runtime.clone()).unwrap_or_default();
         let (cri_name, cri_version) = runtime.split_once("://").map(|(a, b)| (a.to_string(), b.to_string())).unwrap_or_else(|| ("—".into(), "—".into()));
-        KubernetesInfo { cluster, cri_name, cri_version, kubelet_version: node.as_ref().and_then(|n| n.version.clone()).unwrap_or_else(|| "—".into()) }
+        KubernetesInfo {
+            cluster,
+            node: node.as_ref().map(|n| n.name.clone()).unwrap_or_default(),
+            cri_name,
+            cri_version,
+            kubelet_version: node.as_ref().and_then(|n| n.version.clone()).unwrap_or_else(|| "—".into()),
+        }
     });
     let collector_config = "# This host's collector does not report its configuration.\n# Configurations pushed from ObserveCraft (Fleet Automation) will appear here.\n".to_string();
     Ok(Json(HostDetail {
