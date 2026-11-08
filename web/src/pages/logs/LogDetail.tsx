@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { Box, Check, Copy, Hexagon, ListTree, Search, X } from 'lucide-react';
 import type { LogEvent } from '../../api/types';
 import { formatLongDate, timeAgo } from '../../lib/format';
@@ -139,7 +140,14 @@ export function LogDetail({ log, onClose, onPrev, onNext, onFilter, onViewInCont
                 <Search size={15} />
               </button>
             </div>
-            <JsonTree data={log.attributes} filter={attrSearch ?? ''} onFilter={onFilter} />
+            {Object.keys(log.attributes).length ? (
+              <JsonTree data={log.attributes} filter={attrSearch ?? ''} onFilter={onFilter} />
+            ) : (
+              <div className="detail-empty">
+                This log has no attributes: its message is plain text. JSON logs are parsed into attributes; for key=value (logfmt) lines, install the{' '}
+                <Link to="/logs/pipelines">Key-value (logfmt) pipeline</Link> from the pipeline library.
+              </div>
+            )}
           </>
         ) : tab === 'Trace' && log.traceId && API_MODE === 'live' ? (
           <LinkedTrace traceId={log.traceId} spanId={log.spanId ?? null} />
