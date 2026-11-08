@@ -702,6 +702,35 @@ fn host_query(agg: SpaceAgg, metric: &str, host: &str, extra: &[(&str, &str, boo
     MetricQuery { agg, metric: metric.into(), filters, by: vec![], rollup: None }
 }
 
+/// A query's groups, `None` for a metric nobody sent (as Datadog shows no data rather than an error).
+fn known(result: Result<Vec<super::metrics::Group>, ApiError>) -> Result<Option<Vec<super::metrics::Group>>, ApiError> {
+    match result {
+        Ok(groups) => Ok(Some(groups)),
+        Err(ApiError::BadRequest(m)) if m.starts_with("Unknown metric:") => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// The unit `system.mem.total` was reported in (the Datadog Agent leaves it out: mebibytes).
+async fn mem_unit(st: &AppState, org: &str) -> Result<String, ApiError> {
+    Ok(st
+        .ch(org)
+        .query("SELECT any(MetricUnit) FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND MetricName = 'system.mem.total'")
+        .fetch_optional::<String>()
+        .await?
+        .unwrap_or_default())
+}
+
+/// Bytes in one unit of a memory metric; the Datadog Agent's system.mem.* are mebibytes.
+fn bytes_per_unit(unit: &str) -> f64 {
+    match unit.trim().to_ascii_lowercase().as_str() {
+        "by" | "byte" | "bytes" => 1.0,
+        "kiby" | "kibibyte" | "kib" => 1024.0,
+        "giby" | "gibibyte" | "gib" => GIB,
+        _ => 1024.0 * 1024.0,
+    }
+}
+
 #[utoipa::path(post, path = "/api/v1/hosts/{name}/metrics", params(("name" = String, Path)), request_body = HostRequest, responses((status = 200, body = HostMetrics)), tag = "infrastructure")]
 pub async fn metrics(State(st): State<AppState>, OrgId(org): OrgId, Path(name): Path<String>, Json(req): Json<HostRequest>) -> ApiResult<HostMetrics> {
     let series = |label: String, groups: Vec<super::metrics::Group>, scale: f64| MetricSeries {
@@ -713,18 +742,30 @@ pub async fn metrics(State(st): State<AppState>, OrgId(org): OrgId, Path(name): 
     let cpu_states = ["user", "system", "iowait", "idle"];
     let mut cpu = Vec::new();
     for s in cpu_states {
-        let g = evaluate_query(&st, &org, &host_query(SpaceAgg::Avg, &format!("system.cpu.{s}"), &name, &[]), req.range, 120).await?;
+        let g = known(evaluate_query(&st, &org, &host_query(SpaceAgg::Avg, &format!("system.cpu.{s}"), &name, &[]), req.range, 120).await)?.unwrap_or_default();
         cpu.push(series(format!("system.cpu.{s}{{host:{name}}}"), g, 1.0));
     }
     let mut load = Vec::new();
     for w in ["1", "5", "15"] {
-        let g = evaluate_query(&st, &org, &host_query(SpaceAgg::Avg, &format!("system.load.{w}"), &name, &[]), req.range, 120).await?;
+        let g = known(evaluate_query(&st, &org, &host_query(SpaceAgg::Avg, &format!("system.load.{w}"), &name, &[]), req.range, 120).await)?.unwrap_or_default();
         load.push(series(format!("system.load.{w}{{host:{name}}}"), g, 1.0));
     }
-    let usable = evaluate_query(&st, &org, &host_query(SpaceAgg::Sum, "system.memory.usage", &name, &[("state", "used", true)]), req.range, 120).await?;
-    let total = evaluate_query(&st, &org, &host_query(SpaceAgg::Sum, "system.memory.usage", &name, &[]), req.range, 120).await?;
-    let total_bytes = total.first().and_then(|g| g.points.last()).map(|p| p.1).unwrap_or(0.0);
-    let memory = vec![series(format!("sum:system.mem.usable{{host:{name}}}"), usable, 1.0 / GIB), series(format!("sum:system.mem.total{{host:{name}}}"), total, 1.0 / GIB)];
+    // The Datadog Agent's system.mem.usable / .total (in their reported unit, MiB from the Agent), else OpenTelemetry's
+    // system.memory.usage by state.
+    let datadog = (
+        known(evaluate_query(&st, &org, &host_query(SpaceAgg::Sum, "system.mem.usable", &name, &[]), req.range, 120).await)?,
+        known(evaluate_query(&st, &org, &host_query(SpaceAgg::Sum, "system.mem.total", &name, &[]), req.range, 120).await)?,
+    );
+    let (usable, total, bytes) = match datadog {
+        (Some(usable), Some(total)) => (usable, total, bytes_per_unit(&mem_unit(&st, &org).await?)),
+        _ => (
+            known(evaluate_query(&st, &org, &host_query(SpaceAgg::Sum, "system.memory.usage", &name, &[("state", "used", true)]), req.range, 120).await)?.unwrap_or_default(),
+            known(evaluate_query(&st, &org, &host_query(SpaceAgg::Sum, "system.memory.usage", &name, &[]), req.range, 120).await)?.unwrap_or_default(),
+            1.0,
+        ),
+    };
+    let total_bytes = total.first().and_then(|g| g.points.last()).map(|p| p.1 * bytes).unwrap_or(0.0);
+    let memory = vec![series(format!("sum:system.mem.usable{{host:{name}}}"), usable, bytes / GIB), series(format!("sum:system.mem.total{{host:{name}}}"), total, bytes / GIB)];
 
     #[derive(clickhouse::Row, Deserialize)]
     struct Proc {
@@ -970,6 +1011,21 @@ fn host_type_label(platform: Option<&str>) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn datadog_agent_memory_is_in_mebibytes_unless_its_unit_says_otherwise() {
+        assert_eq!(bytes_per_unit(""), 1024.0 * 1024.0);
+        assert_eq!(bytes_per_unit("mebibyte"), 1024.0 * 1024.0);
+        assert_eq!(bytes_per_unit("GiBy"), GIB);
+        assert_eq!(bytes_per_unit("By"), 1.0);
+    }
+
+    #[test]
+    fn metrics_nobody_sent_are_no_data_not_an_error() {
+        assert!(known(Err(ApiError::BadRequest("Unknown metric: system.memory.usage".into()))).unwrap().is_none());
+        assert!(known(Err(ApiError::BadRequest("at most 10 queries per request".into()))).is_err());
+        assert_eq!(known(Ok(vec![])).unwrap().map(|g| g.len()), Some(0));
+    }
 
     #[test]
     fn a_hosts_cloud_resource_id_names_its_platform_and_account() {
