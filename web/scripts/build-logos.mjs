@@ -145,6 +145,8 @@ const MAP = {
   jenkins: 'jenkins',
   circleci: 'circleci',
   buildkite: 'buildkite-icon',
+  // Datadog's open-source products (Supply Chain Firewall's Cloud SIEM pack): Datadog's logo, their product.
+  datadog: 'datadog-icon',
   sentry: 'sentry-icon',
   cypress: 'cypress-icon',
   selenium: 'selenium',
@@ -174,6 +176,7 @@ const MAP = {
   paloaltonetworks: 'si:paloaltonetworks',
   // Downloaded logos (fetch-brand-icons.mjs)
   netbird: 'brand:netbird',
+  fleetdm: 'brand:fleetdm',
 };
 
 /** App logo key → LobeHub icon file (MIT), for providers SVG Logos doesn't have. */

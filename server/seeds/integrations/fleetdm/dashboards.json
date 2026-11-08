@@ -1,0 +1,1901 @@
+[
+  {
+    "id": "fleetdm-overview",
+    "title": "FleetDM Overview",
+    "description": "Hosts of a Fleet server (status, platforms, OS versions, disk, failing policies, vulnerabilities, MDM), its global policies and its activity feed.",
+    "kind": "integration",
+    "logo": "fleetdm",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "fleetdm-2",
+        "definition": {
+          "type": "group",
+          "title": "FleetDM Overview",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "fleetdm-2-banner",
+              "definition": {
+                "type": "image",
+                "title": "FleetDM",
+                "logo": "fleetdm",
+                "background": "#ffffff"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
+            {
+              "id": "fleetdm-1",
+              "definition": {
+                "type": "note",
+                "content": "**Fleet** (FleetDM) manages and queries laptops, desktops and servers with osquery, and their MDM. This dashboard shows the hosts of the connected Fleet server (online or not, last seen, platforms and OS versions, disk space, failing policies, vulnerabilities, MDM enrollment and disk encryption), its global policies and its activity feed: logins, policies and queries changed, live queries, scripts run, software installed, hosts locked or wiped.\n\nConnect a Fleet server in [Integrations → FleetDM](/integrations/fleetdm): ObserveCraft reads its API every minute, for self-hosted Fleet and Fleet's cloud alike.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 10
+        }
+      },
+      {
+        "id": "fleetdm-9",
+        "definition": {
+          "type": "group",
+          "title": "Overview",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "fleetdm-3",
+              "definition": {
+                "type": "integration",
+                "title": "Hosts",
+                "original": {
+                  "type": "query_value",
+                  "title": "Hosts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.hosts.total{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-4",
+              "definition": {
+                "type": "integration",
+                "title": "Online",
+                "original": {
+                  "type": "query_value",
+                  "title": "Online",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.hosts.online{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-5",
+              "definition": {
+                "type": "integration",
+                "title": "Offline",
+                "original": {
+                  "type": "query_value",
+                  "title": "Offline",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.hosts.offline{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-6",
+              "definition": {
+                "type": "integration",
+                "title": "Missing",
+                "original": {
+                  "type": "query_value",
+                  "title": "Missing",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.hosts.mia{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-7",
+              "definition": {
+                "type": "integration",
+                "title": "Failing policy checks",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failing policy checks",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.failing_policies{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-8",
+              "definition": {
+                "type": "integration",
+                "title": "Activities",
+                "original": {
+                  "type": "query_value",
+                  "title": "Activities",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:fleetdm"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 10,
+          "w": 12,
+          "h": 7
+        }
+      },
+      {
+        "id": "fleetdm-21",
+        "definition": {
+          "type": "group",
+          "title": "Hosts",
+          "color": "green",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "fleetdm-10",
+              "definition": {
+                "type": "integration",
+                "title": "Hosts around the world",
+                "original": {
+                  "type": "geomap",
+                  "title": "Hosts around the world",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.count{*} by {country_code}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 250,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "hostmap_blues",
+                    "palette_flip": false
+                  },
+                  "view": {
+                    "focus": "WORLD"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 10
+              }
+            },
+            {
+              "id": "fleetdm-11",
+              "definition": {
+                "type": "integration",
+                "title": "Status",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Status",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.hosts.online{*}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:fleetdm.hosts.offline{*}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query3",
+                          "query": "sum:fleetdm.hosts.mia{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "online",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "offline",
+                          "formula": "query2"
+                        },
+                        {
+                          "alias": "missing",
+                          "formula": "query3"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 10
+              }
+            },
+            {
+              "id": "fleetdm-12",
+              "definition": {
+                "type": "integration",
+                "title": "Platforms",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Platforms",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.hosts.by_platform{*} by {platform}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 10,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-13",
+              "definition": {
+                "type": "integration",
+                "title": "Teams",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Teams",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.count{*} by {team}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 10,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-14",
+              "definition": {
+                "type": "integration",
+                "title": "osquery versions",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "osquery versions",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.count{*} by {osquery_version}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 10,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-15",
+              "definition": {
+                "type": "integration",
+                "title": "Hosts by status",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Hosts by status",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.hosts.online{*}",
+                          "aggregator": "avg"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:fleetdm.hosts.offline{*}",
+                          "aggregator": "avg"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query3",
+                          "query": "sum:fleetdm.hosts.mia{*}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "online",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "offline",
+                          "formula": "query2"
+                        },
+                        {
+                          "alias": "missing",
+                          "formula": "query3"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "area"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 18,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-16",
+              "definition": {
+                "type": "integration",
+                "title": "OS versions",
+                "original": {
+                  "type": "treemap",
+                  "title": "OS versions",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.count{*} by {os_version}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 18,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-17",
+              "definition": {
+                "type": "integration",
+                "title": "Online hosts by platform",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Online hosts by platform",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.online{*} by {platform}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "area"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 24,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-18",
+              "definition": {
+                "type": "integration",
+                "title": "Longest unseen hosts",
+                "original": {
+                  "type": "toplist",
+                  "title": "Longest unseen hosts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:fleetdm.host.seen_age{*} by {fleet_host}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 24,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-19",
+              "definition": {
+                "type": "integration",
+                "title": "Least free disk space",
+                "original": {
+                  "type": "toplist",
+                  "title": "Least free disk space",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "min:fleetdm.host.disk.available_percent{*} by {fleet_host}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "asc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 24,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-20",
+              "definition": {
+                "type": "integration",
+                "title": "Hosts",
+                "original": {
+                  "type": "query_table",
+                  "title": "Hosts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:fleetdm.host.failing_policies{*} by {fleet_host,platform,os_version}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "max:fleetdm.host.online{*} by {fleet_host,platform,os_version}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query3",
+                          "query": "max:fleetdm.host.seen_age{*} by {fleet_host,platform,os_version}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query4",
+                          "query": "max:fleetdm.host.critical_vulnerabilities{*} by {fleet_host,platform,os_version}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query5",
+                          "query": "min:fleetdm.host.disk.available_percent{*} by {fleet_host,platform,os_version}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query6",
+                          "query": "max:fleetdm.host.uptime{*} by {fleet_host,platform,os_version}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "failing policies",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "online",
+                          "formula": "query2"
+                        },
+                        {
+                          "alias": "seconds since seen",
+                          "formula": "query3"
+                        },
+                        {
+                          "alias": "critical vulnerabilities",
+                          "formula": "query4"
+                        },
+                        {
+                          "alias": "free disk %",
+                          "formula": "query5"
+                        },
+                        {
+                          "alias": "uptime",
+                          "formula": "query6"
+                        }
+                      ],
+                      "sort": {
+                        "count": 100,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 30,
+                "w": 12,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 17,
+          "w": 12,
+          "h": 41
+        }
+      },
+      {
+        "id": "fleetdm-31",
+        "definition": {
+          "type": "group",
+          "title": "Policies and security",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "fleetdm-22",
+              "definition": {
+                "type": "integration",
+                "title": "Hosts failing a policy",
+                "original": {
+                  "type": "query_value",
+                  "title": "Hosts failing a policy",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.failing_policies{*} by {fleet_host_id}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "count_nonzero(query1)"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-23",
+              "definition": {
+                "type": "integration",
+                "title": "Critical vulnerabilities",
+                "original": {
+                  "type": "query_value",
+                  "title": "Critical vulnerabilities",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.critical_vulnerabilities{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-24",
+              "definition": {
+                "type": "integration",
+                "title": "MDM enrolled",
+                "original": {
+                  "type": "query_value",
+                  "title": "MDM enrolled",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.mdm_enrolled{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-25",
+              "definition": {
+                "type": "integration",
+                "title": "Disks encrypted",
+                "original": {
+                  "type": "query_value",
+                  "title": "Disks encrypted",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.disk_encrypted{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-26",
+              "definition": {
+                "type": "integration",
+                "title": "Policy checks",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Policy checks",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.policy.passing_hosts{*}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:fleetdm.policy.failing_hosts{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "passing",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "failing",
+                          "formula": "query2"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-27",
+              "definition": {
+                "type": "integration",
+                "title": "Global policies",
+                "original": {
+                  "type": "query_table",
+                  "title": "Global policies",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.policy.failing_hosts{*} by {policy,critical}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:fleetdm.policy.passing_hosts{*} by {policy,critical}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "failing hosts",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "passing hosts",
+                          "formula": "query2"
+                        }
+                      ],
+                      "sort": {
+                        "count": 100,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 4,
+                "w": 8,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-28",
+              "definition": {
+                "type": "integration",
+                "title": "Most failing policies",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "Most failing policies",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.policy.failing_hosts{*} by {policy}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 12,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-29",
+              "definition": {
+                "type": "integration",
+                "title": "Hosts with the most failing policies",
+                "original": {
+                  "type": "toplist",
+                  "title": "Hosts with the most failing policies",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:fleetdm.host.failing_policies{*} by {fleet_host}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 12,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-30",
+              "definition": {
+                "type": "integration",
+                "title": "Most critical vulnerabilities",
+                "original": {
+                  "type": "toplist",
+                  "title": "Most critical vulnerabilities",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:fleetdm.host.critical_vulnerabilities{*} by {fleet_host}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 12,
+                "w": 4,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 58,
+          "w": 12,
+          "h": 21
+        }
+      },
+      {
+        "id": "fleetdm-41",
+        "definition": {
+          "type": "group",
+          "title": "Activity feed",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "fleetdm-32",
+              "definition": {
+                "type": "integration",
+                "title": "Activities over time",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Activities over time",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:fleetdm"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-33",
+              "definition": {
+                "type": "integration",
+                "title": "Failed logins",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failed logins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:fleetdm @evt.name:user_failed_login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-34",
+              "definition": {
+                "type": "integration",
+                "title": "Activities by type",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Activities by type",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:fleetdm"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-35",
+              "definition": {
+                "type": "integration",
+                "title": "Most active users",
+                "original": {
+                  "type": "toplist",
+                  "title": "Most active users",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:fleetdm @usr.email:*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.email",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "purple"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-36",
+              "definition": {
+                "type": "integration",
+                "title": "Hosts acted on most",
+                "original": {
+                  "type": "toplist",
+                  "title": "Hosts acted on most",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:fleetdm @fleetdm.host_display_name:*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@fleetdm.host_display_name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "cool"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-37",
+              "definition": {
+                "type": "log_stream",
+                "title": "Logins and failed logins",
+                "query": "source:fleetdm @evt.name:(user_logged_in OR user_failed_login OR user_added_by_sso)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 12,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-38",
+              "definition": {
+                "type": "log_stream",
+                "title": "Scripts, software and MDM actions on hosts",
+                "query": "source:fleetdm @evt.name:(ran_script OR installed_software OR uninstalled_software OR locked_host OR unlocked_host OR wiped_host OR read_host_disk_encryption_key OR mdm_enrolled OR mdm_unenrolled OR transferred_hosts)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 6,
+                "y": 12,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-39",
+              "definition": {
+                "type": "log_stream",
+                "title": "Policies, queries and configuration changed",
+                "query": "source:fleetdm @evt.name:(created_policy OR edited_policy OR deleted_policy OR applied_spec_policy OR created_saved_query OR edited_saved_query OR deleted_saved_query OR applied_spec_saved_query OR live_query OR edited_agent_options OR added_script OR deleted_script OR added_software OR deleted_software)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 20,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-40",
+              "definition": {
+                "type": "log_stream",
+                "title": "Warnings and errors",
+                "query": "source:fleetdm status:(warn OR error)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 6,
+                "y": 20,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 79,
+          "w": 12,
+          "h": 31
+        }
+      }
+    ],
+    "source": {
+      "repository": "observecraft",
+      "path": "scripts/fleetdm-dashboard.mjs",
+      "license": "MIT"
+    }
+  }
+]

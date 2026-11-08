@@ -49,13 +49,15 @@ pub fn peers() -> Vec<Value> {
 }
 
 /// NetBird answering from a table of paths; counts requests; `refuse` answers 401 to every request, `forbid` 403
-/// to the audit log only (a user whose role can't read it).
+/// to the audit log only (a user whose role can't read it), `service_user` 403 to the current user (as NetBird answers
+/// every service user's token).
 #[derive(Default)]
 pub struct FakeNetbird {
     pub answers: StdMutex<HashMap<String, Value>>,
     pub requests: StdMutex<Vec<String>>,
     pub refuse: bool,
     pub forbid_events: bool,
+    pub service_user: bool,
 }
 
 impl FakeNetbird {
@@ -75,6 +77,9 @@ impl NetbirdApi for FakeNetbird {
         self.requests.lock().unwrap().push(path.to_string());
         if self.refuse {
             return Err(NetbirdError::Auth("token invalid".into()));
+        }
+        if self.service_user && path == super::api::CURRENT_USER {
+            return Err(NetbirdError::Auth("permission denied".into()));
         }
         if self.forbid_events && path == super::api::AUDIT_EVENTS {
             return Err(NetbirdError::Auth("permission denied".into()));

@@ -43,6 +43,13 @@ export const BRANDS = {
   },
   fiddler: { ...site('www.fiddler.ai'), ids: ['fiddler'] },
   filemage: { ...site('www.filemage.io'), ids: ['filemage'] },
+  // Fleet's mark as its repository ships it (the site's icon is a 32 px favicon).
+  fleetdm: {
+    url: 'https://raw.githubusercontent.com/fleetdm/fleet/main/orbit/cmd/desktop/fleet-logo.svg',
+    source: 'fleetdm/fleet repository, orbit/cmd/desktop/fleet-logo.svg',
+    terms: 'Trademark and copyright of its owner; shown only to identify the integration',
+    ids: ['fleetdm'],
+  },
   opa: {
     url: 'https://raw.githubusercontent.com/cncf/artwork/main/projects/open-policy-agent/icon/color/opa-icon-color.svg',
     source: 'CNCF artwork, projects/open-policy-agent',

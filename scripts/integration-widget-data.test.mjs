@@ -1,7 +1,24 @@
 // Data of the geomap, distribution, hostmap and sunburst (pie) widgets (web/src/api/integrations/widgetData.ts).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { countryValues, distributionBuckets, hostmapColor, sunburstTree } from '../web/src/api/integrations/widgetData.ts';
+import { countryValues, distributionBuckets, groupLabel, hostmapColor, sunburstTree } from '../web/src/api/integrations/widgetData.ts';
+
+test('a group reads without its query and tag keys', () => {
+  assert.equal(groupLabel('query1 · country_code:RO'), 'RO');
+  assert.equal(groupLabel('os_version:macOS 15.1, team:Workstations'), 'macOS 15.1, Workstations');
+  assert.equal(groupLabel('policy:Screen lock: 15 minutes'), 'Screen lock: 15 minutes', 'only the first colon is the key');
+  assert.equal(groupLabel('US'), 'US');
+});
+
+test('a geomap reads metric groups by their country tag', () => {
+  assert.deepEqual(
+    countryValues([
+      { name: 'country_code:RO', value: 3 },
+      { name: 'query1 · country_code:ro', value: 1 },
+    ]),
+    [{ iso: 'RO', value: 4 }],
+  );
+});
 
 test('a geomap sums each country’s groups by ISO code and leaves the rest out', () => {
   assert.deepEqual(

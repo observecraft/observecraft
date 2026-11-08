@@ -791,6 +791,20 @@ const CURATED: Entry[] = [
     },
   },
   {
+    id: 'fleetdm',
+    name: 'FleetDM',
+    categories: ['Security', 'OS & System', 'Log Collection'],
+    about:
+      'Hosts managed by a Fleet server (online, last seen, OS versions, disk, failing policies, vulnerabilities, MDM enrollment) and its policies as metrics, and its activity feed (logins, policies and queries, scripts, software, hosts locked or wiped) as logs, read through its API, with a dashboard.',
+    collect: {
+      kind: 'notify',
+      settings: [
+        { key: 'base_url', label: 'Fleet URL', placeholder: 'https://fleet.example.com' },
+        { key: 'token', label: 'API token', placeholder: '••••', secret: true },
+      ],
+    },
+  },
+  {
     id: 'okta',
     name: 'Okta',
     categories: ['Security'],

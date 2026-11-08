@@ -515,14 +515,17 @@ function IntegrationToplist({ def, series }: { def: IntegrationWidgetDefinition;
     bar.parts.push({ name: tags.slice(stacked ? 1 : 0).join(', ') || name, value });
     bars.set(name, bar);
   }
-  const limit = (def.requests[0] as { sort?: { count?: number } } | undefined)?.sort?.count ?? 100;
+  const sort = (def.requests[0] as { sort?: { count?: number; order_by?: { order?: string }[] } } | undefined)?.sort;
+  const limit = sort?.count ?? 100;
+  // Datadog's `order: 'asc'` lists the smallest first (e.g. the least free disk space).
+  const asc = sort?.order_by?.[0]?.order === 'asc';
   // A bar in a conditional format's color, in its pale shade so the label stays readable.
   const barColor = (value: number) => {
     const format = matchFormat(value, def.requests[0]?.conditional_formats);
     const hue = format && /_on_(?:light_)?(red|yellow|green|gray)$/.exec(format.palette)?.[1];
     return hue ? `var(--cf-light-${hue})` : undefined;
   };
-  const rows = [...bars.values()].sort((a, b) => b.value - a.value).slice(0, limit);
+  const rows = [...bars.values()].sort((a, b) => (asc ? a.value - b.value : b.value - a.value)).slice(0, limit);
   const max = Math.max(0, ...rows.map((r) => r.value));
   return (
     <ol className="tl iw-tl">

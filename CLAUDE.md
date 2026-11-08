@@ -181,6 +181,12 @@ or SDK features.
   `netbird_connections`, sealed) on the cloud crawlers' jobs (provider `netbird`, scopes `events` and `peers`): audit
   events as logs (`source:netbird`) to `oc.logs.json`, peers as `netbird.peer.*` gauges to `oc.otlp-json.metrics`.
   Its dashboard is ours (`scripts/netbird-dashboard.mjs` → `seeds/integrations/netbird/`), listed once connected.
+- **FleetDM** (Integrations → FleetDM, `oc-api/src/fleetdm/`, `routes/fleetdm_integration.rs`; Datadog has no Fleet
+  integration): the server polls a Fleet server's REST API (`/api/v1/fleet`, an API-only observer's token in Postgres
+  `fleetdm_connections`, sealed) on the cloud crawlers' jobs (provider `fleetdm`, scopes `activities` and `hosts`):
+  activities as logs (`source:fleetdm`) to `oc.logs.json`; host counts, hosts and global policies as `fleetdm.*` gauges
+  to `oc.otlp-json.metrics` (hosts aren't `host`s). Its dashboard is ours (`scripts/fleetdm-dashboard.mjs` →
+  `seeds/integrations/fleetdm/`), listed once connected.
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **Slack** (`routes/slack.rs`, `datadog_api/slack_integration.rs`, page `web/src/pages/integrations/slack/`): workspaces
@@ -274,6 +280,11 @@ or SDK features.
   `logo`): AWS / Azure / GCP with an account, synthetics with a test, Kubernetes / hosts / APM with data in the last
   day; other logos always. Cached 30 s per server (`EnabledChange` drops it when an account is added or removed);
   clones (`custom`) aren't affected.
+- **Integrations → Install** (`routes/integration_installs.rs`, Postgres `integration_installs`), as Datadog's tiles:
+  installing an integration installs its library log pipelines (each names its catalog `integration` in
+  `pipelines.json`) and its integrations-core dashboards. Integrations that send only logs (Supply Chain Firewall) have
+  no metric prefix to detect, so this is how they get their dashboards. Uninstalling removes the pipelines; the
+  dashboards stay.
 - **Still missing:**
   - Cloud Network Monitoring's network paths;
   - Logs: forwarding to Microsoft Sentinel (needs Azure credentials), Azure Blob archives, archive readers (roles), the

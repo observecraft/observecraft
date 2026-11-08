@@ -1,6 +1,7 @@
 //! Integration pipelines: the log pipelines of integrations-core (BSD-3-Clause; copyright and terms
 //! in each `server/seeds/integrations/<integration>/LICENSE`), converted by
-//! `scripts/import-integration-pipelines.mjs`. Organizations install them from Logs → Pipelines.
+//! `scripts/import-integration-pipelines.mjs`. Organizations install them from Logs → Pipelines, or with their
+//! integration from Integrations (`routes::integration_installs`).
 
 use std::sync::OnceLock;
 
@@ -10,6 +11,8 @@ use serde_json::Value;
 #[derive(Deserialize, Clone)]
 pub struct IntegrationPipeline {
     pub id: String,
+    /// The catalog integration it belongs to (`supply-chain-firewall`), installed with it.
+    pub integration: String,
     pub name: String,
     pub filter: String,
     pub processors: Vec<Value>,

@@ -11134,6 +11134,142 @@
         }
       }
     },
+    "/api/v1/integrations/fleetdm": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The FleetDM connection and its syncs' status (no token).",
+        "operationId": "fleetdm_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FleetdmStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Saves the FleetDM connection (admins). The token is sealed; leave it out to keep the saved one (only while the\nURL stays the same).",
+        "operationId": "fleetdm_save",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FleetdmInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FleetdmStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Removes the FleetDM connection, its token and its polling (admins). Stored logs and metrics stay.",
+        "operationId": "fleetdm_delete",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/fleetdm/sync": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Polls Fleet now instead of within the minute (admins).",
+        "operationId": "fleetdm_sync",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/fleetdm/test": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Tests a connection before or after saving it (admins): the token's user and whether it can read the hosts and\nthe activities.",
+        "operationId": "fleetdm_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FleetdmInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FleetdmTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/integrations/gcp/accounts": {
       "get": {
         "tags": [
@@ -11290,6 +11426,29 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GcpSetup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/installed": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The integrations installed from Integrations (catalog ids).",
+        "operationId": "list_installed_integrations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -11687,6 +11846,82 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SlackOAuthStart"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/{id}/install": {
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Installs an integration: its log pipelines (those the org has are kept) and its dashboards.",
+        "operationId": "install_integration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationInstall"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Uninstalls an integration: its log pipelines are removed; its dashboards stay.",
+        "operationId": "uninstall_integration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationInstall"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -46305,6 +46540,147 @@
           }
         }
       },
+      "FleetdmConnection": {
+        "type": "object",
+        "description": "The connection as saved; the token is never answered.",
+        "required": [
+          "baseUrl",
+          "updatedAt"
+        ],
+        "properties": {
+          "baseUrl": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          }
+        }
+      },
+      "FleetdmInput": {
+        "type": "object",
+        "description": "What an admin enters.",
+        "properties": {
+          "baseUrl": {
+            "type": "string",
+            "description": "The Fleet server's URL (`https://fleet.example.com`).",
+            "default": ""
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The API token of an API-only user (the observer role is enough); leave it out to keep the saved one.",
+            "default": null
+          }
+        }
+      },
+      "FleetdmStatus": {
+        "type": "object",
+        "required": [
+          "activitiesLastSync",
+          "hosts"
+        ],
+        "properties": {
+          "activitiesLastSync": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Activities sent by the last poll."
+          },
+          "connection": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FleetdmConnection",
+                "description": "None until an admin connects Fleet."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CrawlIssue",
+                "description": "Why the last poll of the activities or the hosts failed (token refused, role missing, …), or its warning."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hosts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Hosts read by the last poll."
+          },
+          "hostsSyncedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last successful poll of the hosts and policies."
+          },
+          "lastSyncAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last successful poll of the activities."
+          },
+          "syncedUntil": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms: activities created up to here were read."
+          }
+        }
+      },
+      "FleetdmTest": {
+        "type": "object",
+        "description": "A connection test's result.",
+        "required": [
+          "ok",
+          "message"
+        ],
+        "properties": {
+          "hosts": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Hosts enrolled in Fleet.",
+            "minimum": 0
+          },
+          "message": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its global role (observer, maintainer, admin, …), when it has one."
+          },
+          "user": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The token's user (name or email)."
+          }
+        }
+      },
       "FlexSettings": {
         "type": "object",
         "required": [
@@ -49763,6 +50139,37 @@
               "null"
             ],
             "description": "active | suspended"
+          }
+        }
+      },
+      "IntegrationInstall": {
+        "type": "object",
+        "description": "An integration's installation state and what it brings.",
+        "required": [
+          "integration",
+          "installed",
+          "pipelines",
+          "dashboards"
+        ],
+        "properties": {
+          "dashboards": {
+            "type": "integer",
+            "description": "How many integration dashboards it brings.",
+            "minimum": 0
+          },
+          "installed": {
+            "type": "boolean"
+          },
+          "integration": {
+            "type": "string",
+            "description": "Catalog id (`supply-chain-firewall`)."
+          },
+          "pipelines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Names of its library log pipelines."
           }
         }
       },

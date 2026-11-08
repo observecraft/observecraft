@@ -4,6 +4,7 @@ import { parseQuery } from '../../lib/searchQuery';
 import type { Facet, FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, MetricSeries, QuerySuggestion, TimeRange } from '../types';
 import { generateLog, rng } from './generator';
 import { netbirdLogs } from './netbird';
+import { fleetdmLogs } from './fleetdm';
 import { logField, matchLog } from './match';
 import { standardPaths } from './standardAttributes';
 import type { LogAggregateRequest, LogAggregateResponse } from '../integrations/logs';
@@ -30,6 +31,8 @@ function logs(): LogEvent[] {
   }
   // The NetBird integration's audit events (its dashboard and Logs → source:netbird).
   out.push(...netbirdLogs(rng(7), now));
+  // The FleetDM integration's activities (its dashboard and Logs → source:fleetdm).
+  out.push(...fleetdmLogs(rng(11), now));
   out.sort((a, b) => b.timestamp - a.timestamp);
   store = out;
   return out;

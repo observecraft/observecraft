@@ -4339,6 +4339,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/fleetdm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The FleetDM connection and its syncs' status (no token). */
+        get: operations["fleetdm_status"];
+        /**
+         * Saves the FleetDM connection (admins). The token is sealed; leave it out to keep the saved one (only while the
+         *     URL stays the same).
+         */
+        put: operations["fleetdm_save"];
+        post?: never;
+        /** Removes the FleetDM connection, its token and its polling (admins). Stored logs and metrics stay. */
+        delete: operations["fleetdm_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/fleetdm/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Polls Fleet now instead of within the minute (admins). */
+        post: operations["fleetdm_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/fleetdm/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests a connection before or after saving it (admins): the token's user and whether it can read the hosts and
+         *     the activities.
+         */
+        post: operations["fleetdm_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/gcp/accounts": {
         parameters: {
             query?: never;
@@ -4397,6 +4456,23 @@ export interface paths {
             cookie?: never;
         };
         get: operations["gcp_setup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/installed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The integrations installed from Integrations (catalog ids). */
+        get: operations["list_installed_integrations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4592,6 +4668,24 @@ export interface paths {
         /** Starts "Add to Slack": the URL of Slack's consent page for this install's app. */
         post: operations["start_slack_oauth"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Installs an integration: its log pipelines (those the org has are kept) and its dashboards. */
+        put: operations["install_integration"];
+        post?: never;
+        /** Uninstalls an integration: its log pipelines are removed; its dashboards stay. */
+        delete: operations["uninstall_integration"];
         options?: never;
         head?: never;
         patch?: never;
@@ -15447,6 +15541,71 @@ export interface components {
             /** @description null for agents that don't report their version. */
             version?: string | null;
         };
+        /** @description The connection as saved; the token is never answered. */
+        FleetdmConnection: {
+            baseUrl: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+        };
+        /** @description What an admin enters. */
+        FleetdmInput: {
+            /**
+             * @description The Fleet server's URL (`https://fleet.example.com`).
+             * @default
+             */
+            baseUrl: string;
+            /**
+             * @description The API token of an API-only user (the observer role is enough); leave it out to keep the saved one.
+             * @default null
+             */
+            token: string | null;
+        };
+        FleetdmStatus: {
+            /**
+             * Format: int32
+             * @description Activities sent by the last poll.
+             */
+            activitiesLastSync: number;
+            connection?: components["schemas"]["FleetdmConnection"] | null;
+            error?: components["schemas"]["CrawlIssue"] | null;
+            /**
+             * Format: int32
+             * @description Hosts read by the last poll.
+             */
+            hosts: number;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful poll of the hosts and policies.
+             */
+            hostsSyncedAt?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful poll of the activities.
+             */
+            lastSyncAt?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms: activities created up to here were read.
+             */
+            syncedUntil?: number | null;
+        };
+        /** @description A connection test's result. */
+        FleetdmTest: {
+            /**
+             * Format: int64
+             * @description Hosts enrolled in Fleet.
+             */
+            hosts?: number | null;
+            message: string;
+            ok: boolean;
+            /** @description Its global role (observer, maintainer, admin, …), when it has one. */
+            role?: string | null;
+            /** @description The token's user (name or email). */
+            user?: string | null;
+        };
         FlexSettings: {
             /** @description `starter` or `scalable`. */
             compute: string;
@@ -16526,6 +16685,16 @@ export interface components {
             name?: string | null;
             /** @description active | suspended */
             status?: string | null;
+        };
+        /** @description An integration's installation state and what it brings. */
+        IntegrationInstall: {
+            /** @description How many integration dashboards it brings. */
+            dashboards: number;
+            installed: boolean;
+            /** @description Catalog id (`supply-chain-firewall`). */
+            integration: string;
+            /** @description Names of its library log pipelines. */
+            pipelines: string[];
         };
         InventoryLibrary: {
             direct?: boolean | null;
@@ -33756,6 +33925,137 @@ export interface operations {
             };
         };
     };
+    fleetdm_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetdmStatus"];
+                };
+            };
+        };
+    };
+    fleetdm_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetdmInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetdmStatus"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    fleetdm_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    fleetdm_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    fleetdm_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetdmInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetdmTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     gcp_list_accounts: {
         parameters: {
             query?: never;
@@ -33914,6 +34214,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GcpSetup"];
+                };
+            };
+        };
+    };
+    list_installed_integrations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
                 };
             };
         };
@@ -34240,6 +34559,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SlackOAuthStart"];
+                };
+            };
+        };
+    };
+    install_integration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationInstall"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    uninstall_integration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationInstall"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

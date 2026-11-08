@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.17.0](https://github.com/observecraft/observecraft/compare/v0.16.0...v0.17.0) (2026-11-07)
+
+
+### Features
+
+* **ci:** GitLab CI can follow every project the token sees ([b3458c2](https://github.com/observecraft/observecraft/commit/b3458c22a7de022c22d4f66effda10ce9687fcae))
+* **integrations:** FleetDM hosts, policies and activities ([c2ee55f](https://github.com/observecraft/observecraft/commit/c2ee55f5bffeebe5180481ea9d644336a0fd59cc))
+* **integrations:** NetBird peers and audit events ([590e46f](https://github.com/observecraft/observecraft/commit/590e46f5d25eaab9c01518c4a48844dd81d13759))
+
+
+### Bug fixes
+
+* **infrastructure:** Azure (and AKS) hosts are recognized from the Agent's cloud resource id ([b157c5e](https://github.com/observecraft/observecraft/commit/b157c5e350c733f1af771ffc8cc28db723a90d95))
+
+
+### Performance
+
+* **integrations:** load the catalog once and filter searches in the browser ([aad3583](https://github.com/observecraft/observecraft/commit/aad35832bcf7cca3a94046a3c4f16dac6d1a2007))
+
 ## [0.16.0](https://github.com/observecraft/observecraft/compare/v0.15.0...v0.16.0) (2026-11-06)
 
 

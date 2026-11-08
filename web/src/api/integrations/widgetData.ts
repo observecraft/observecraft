@@ -1,10 +1,20 @@
 // What the geomap, distribution and host map widgets draw from a panel's values.
 
+/** A group's values without its query or tag keys: `query1 · country_code:RO` → `RO`, `os:linux, team:ci` → `linux, ci`
+ * (metric groups carry `key:value`, log groups only values). */
+export function groupLabel(name: string): string {
+  return name
+    .replace(/^.* · /, '')
+    .split(', ')
+    .map((pair) => (/^[\w.@-]+:/.test(pair) ? pair.slice(pair.indexOf(':') + 1) : pair))
+    .join(', ');
+}
+
 /** A geomap's countries: the groups named by an ISO 3166-1 alpha-2 code, summed per country. */
 export function countryValues(values: { name: string; value: number }[]): { iso: string; value: number }[] {
   const out = new Map<string, number>();
   for (const { name, value } of values) {
-    const iso = name.trim().toUpperCase();
+    const iso = groupLabel(name).trim().toUpperCase();
     if (/^[A-Z]{2}$/.test(iso)) out.set(iso, (out.get(iso) ?? 0) + value);
   }
   return [...out].map(([iso, value]) => ({ iso, value }));
