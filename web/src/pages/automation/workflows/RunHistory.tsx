@@ -8,11 +8,16 @@ import { useCancelWorkflowRun, useWorkflowRun, useWorkflowRuns } from '../querie
 import { Canvas } from './Canvas';
 import { fmtDate, fmtDuration, RunStatusChip, StepTile, TRIGGER_ICON } from './common';
 import { fromWorkflow } from './draft';
+import { HighlightedCode } from '../../../components/code/highlight';
 
 function Json({ value }: { value: JsonValue }) {
   if (value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length) return <JsonTree data={value as Record<string, JsonValue>} expandDepth={2} />;
   if (value === null || (typeof value === 'object' && !Array.isArray(value))) return <span className="wf-muted">—</span>;
-  return <pre className="wfr-pre mono">{JSON.stringify(value, null, 2)}</pre>;
+  return (
+    <pre className="wfr-pre mono">
+      <HighlightedCode code={JSON.stringify(value, null, 2)} language="json" />
+    </pre>
+  );
 }
 
 function StepRow({ s, selected, onSelect }: { s: WorkflowRunStep; selected: boolean; onSelect: () => void }) {

@@ -70,3 +70,7 @@
 .cb-str {
   color: var(--status-ok);
 }
+
+.cb-lit {
+  color: var(--json-literal);
+}

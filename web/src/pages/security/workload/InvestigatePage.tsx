@@ -40,6 +40,7 @@ import { token } from '../../../theme/chartTheme';
 import { downloadCsv, ExplorerToolbar } from '../appsec/common';
 import { useWpEvents } from './exploreQueries';
 import './explore.css';
+import { HighlightedCode } from '../../../components/code/highlight';
 
 const MIN = 60_000;
 const BASE = '/security/workload-protection';
@@ -582,7 +583,9 @@ function EventPanel({ e, onClose, onFilter }: { e: WpEvent; onClose: () => void;
               <button className="btn btn-sm" onClick={() => navigator.clipboard?.writeText(json)}>
                 <Copy size={13} /> Copy
               </button>
-              <pre>{json}</pre>
+              <pre>
+                <HighlightedCode code={json} language="json" />
+              </pre>
             </div>
           )}
         </div>

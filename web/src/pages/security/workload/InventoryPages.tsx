@@ -9,6 +9,9 @@ import { timeAgo } from '../../../lib/format';
 import { INVENTORY_TABS, WpTabs } from './WorkloadLayout';
 import { useWpAgents } from './manageQueries';
 import './manage.css';
+import { HighlightedCode } from '../../../components/code/highlight';
+
+const CWS_OPERATOR = 'spec:\n  features:\n    cws:\n      enabled: true';
 
 // ---------------------------------------------------------------- facets (shared with the Policies pages)
 
@@ -343,14 +346,15 @@ function AddAgentsModal({ onClose, serverless }: { onClose: () => void; serverle
           Datadog Operator manifest are in <code>deploy/examples/datadog</code>.
         </p>
         <h4>{serverless ? 'ECS task definition' : 'Helm (values.yaml)'}</h4>
-        <pre className="wpm-code">{serverless ? fargate : helm}</pre>
+        <pre className="wpm-code">
+          <HighlightedCode code={serverless ? fargate : helm} language={serverless ? 'json' : 'yaml'} />
+        </pre>
         {!serverless && (
           <>
             <h4>Datadog Operator (DatadogAgent)</h4>
-            <pre className="wpm-code">{`spec:
-  features:
-    cws:
-      enabled: true`}</pre>
+            <pre className="wpm-code">
+              <HighlightedCode code={CWS_OPERATOR} language="yaml" />
+            </pre>
           </>
         )}
         <p className="muted">

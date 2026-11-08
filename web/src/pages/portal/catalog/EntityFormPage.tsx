@@ -9,6 +9,7 @@ import { ImportModal } from './ImportModal';
 import { useEntityDefinition, useOnCallTeams, useUpdateDefinition, useUpsertDefinition } from './queries';
 import { SECTION_ICON } from './visuals';
 import './catalog.css';
+import { HighlightedCode } from '../../../components/code/highlight';
 
 const LIFECYCLES = ['', 'production', 'experimental', 'deprecated'];
 const TIERS = ['', '1', '2', '3'];
@@ -245,7 +246,9 @@ function EntityFormBody({ id, base }: { id: string | null; base?: EntityDefiniti
         </form>
         <aside className="pc-preview" aria-label="Definition preview">
           <div className="pc-preview-head">entity.yaml</div>
-          <pre className="pc-code">{definitionYaml(def)}</pre>
+          <pre className="pc-code">
+            <HighlightedCode code={definitionYaml(def)} language="yaml" />
+          </pre>
         </aside>
       </div>
       {importing && <ImportModal onClose={() => setImporting(false)} />}
