@@ -202,9 +202,15 @@ function useHostServices(host: HostDetail) {
   });
 }
 
-/** Up to five values as `(a OR b)`, quoted where needed. */
+/**
+ * Up to five values as `(a OR b)`, quoted where needed. The search syntax has no escapes (a `"` always opens or
+ * closes a quoted value), so values holding one are left out: host and service names never do.
+ */
 function anyOf(values: string[]): string {
-  const quoted = values.slice(0, 5).map((v) => (/[\s:()"]/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : v));
+  const quoted = values
+    .filter((v) => !v.includes('"'))
+    .slice(0, 5)
+    .map((v) => (/[\s:()]/.test(v) ? `"${v}"` : v));
   return quoted.length === 1 ? quoted[0] : `(${quoted.join(' OR ')})`;
 }
 
@@ -212,7 +218,7 @@ export function ChangesSection({ host }: { host: HostDetail }) {
   const range = useHostRange();
   const services = useHostServices(host);
   const resources = [host.name, ...(host.kubernetes?.node && host.kubernetes.node !== host.name ? [host.kubernetes.node] : [])];
-  const serviceNames = (services.data ?? []).map((s) => s.name);
+  const serviceNames = (services.data ?? []).map((s) => s.name).filter((n) => !n.includes('"'));
   const q = useQuery({
     queryKey: ['host-panel', 'changes', host.name, resources, serviceNames, range],
     enabled: !services.isPending,
