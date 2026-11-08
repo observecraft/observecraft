@@ -63,11 +63,12 @@ export function LogsSection({ host }: { host: HostDetail }) {
 }
 
 export function AgentSection({ host }: { host: HostDetail }) {
+  const datadog = host.collectors.includes('datadog');
   const rows: [string, string][] = [
-    ['Collector', host.collectors.includes('observecraft') ? 'ObserveCraft Collector (OTel Collector + Vector)' : 'OpenTelemetry Collector'],
+    ['Collector', datadog ? 'Datadog Agent' : host.collectors.includes('observecraft') ? 'ObserveCraft Collector (OTel Collector + Vector)' : 'OpenTelemetry Collector'],
     ['Version', host.collectorVersion],
     ['Status', 'Running'],
-    ['Config source', host.collectors.includes('observecraft') ? 'Fleet-managed' : 'Local file'],
+    ['Config source', datadog ? 'Agent configuration (Helm values or datadog.yaml)' : host.collectors.includes('observecraft') ? 'Fleet-managed' : 'Local file'],
     ['Integrations', host.integrations.map((i) => `${i.name}${i.status === 'broken' ? ' (broken)' : ''}`).join(', ') || '—'],
   ];
   return (

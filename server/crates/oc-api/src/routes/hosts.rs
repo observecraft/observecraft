@@ -297,6 +297,7 @@ pub(crate) async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Re
                         res.entry(k.to_string()).or_insert(v);
                     }
                 };
+                fill("observecraft.collector", "datadog-agent".into());
                 fill("os.type", d.os.clone());
                 fill("os.description", d.platform.clone());
                 fill("os.version", d.kernel.clone());
@@ -649,10 +650,8 @@ pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, access: LogAc
         .filter(|(k, v)| !v.is_empty() && !HIDDEN_TAGS.contains(&k.as_str()))
         .map(|(k, v)| (short_tag(k).map(str::to_string).unwrap_or_else(|| k.clone()), v.clone()))
         .collect();
-    let node = match get("k8s.cluster.name") {
-        Some(_) => super::kubernetes::host_inventory(&st, &org, &name).await?.0,
-        None => None,
-    };
+    // Datadog Agent hosts carry no k8s.cluster.name: their node is found by the Agent's host names.
+    let node = super::kubernetes::host_inventory(&st, &org, &name).await?.0;
     let kubernetes = get("k8s.cluster.name").or(node.as_ref().map(|n| n.cluster.clone())).map(|cluster| {
         // containerd://1.7.18 → (containerd, 1.7.18)
         let runtime = node.as_ref().and_then(|n| n.runtime.clone()).unwrap_or_default();
