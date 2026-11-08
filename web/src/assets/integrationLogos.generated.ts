@@ -91,6 +91,7 @@ export const INTEGRATION_LOGOS: Record<string, string> = {
   "confluent-platform": "logos-kafka-icon.svg",
   "consul": "logos-consul.svg",
   "consul-connect": "logos-consul.svg",
+  "container": "logos-datadog-icon.svg",
   "containerd": "si-containerd.svg",
   "contentful": "logos-contentful.svg",
   "contrast-security-adr": "brand-contrastsecurity.png",

@@ -59,11 +59,11 @@ test('well-known integrations show their own brand', () => {
 });
 
 test('generic host checks never get a third-party brand', () => {
-  for (const id of ['disk', 'network', 'process', 'battery', 'directory', 'tls', 'ntp', 'dns', 'ssh', 'thermal', 'container']) assert.equal(logoOf(id), null, id);
+  for (const id of ['disk', 'network', 'process', 'battery', 'directory', 'tls', 'ntp', 'dns', 'ssh', 'thermal']) assert.equal(logoOf(id), null, id);
 });
 
 test('Datadog’s open-source products carry Datadog’s logo', () => {
-  for (const id of ['datadog-agent', 'datadog-cluster-agent', 'datadog-operator', 'guarddog', 'ide-shepherd', 'supply-chain-firewall']) assert.equal(logoOf(id), 'logos:datadog-icon', id);
+  for (const id of ['datadog-agent', 'container', 'datadog-cluster-agent', 'datadog-operator', 'guarddog', 'ide-shepherd', 'supply-chain-firewall']) assert.equal(logoOf(id), 'logos:datadog-icon', id);
 });
 
 test('every logo the resolver names exists in its icon set', () => {

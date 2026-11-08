@@ -230,6 +230,8 @@ const OVERRIDES = {
   'azure-powerbidedicated-capacities': 'logos:microsoft-power-bi',
   // Datadog's own open-source products (Apache-2.0) carry Datadog's logo: the product is theirs (CLAUDE.md, licenses).
   'datadog-agent': 'logos:datadog-icon',
+  // The Agent's container check (its Containers - Overview dashboard is Datadog's).
+  container: 'logos:datadog-icon',
   'datadog-cluster-agent': 'logos:datadog-icon',
   'datadog-operator': 'logos:datadog-icon',
   guarddog: 'logos:datadog-icon',
@@ -249,7 +251,6 @@ const GENERIC = new Set([
   'dns',
   'ssh',
   'thermal',
-  'container',
   'system-core',
   'system-swap',
   'tcp-check',
