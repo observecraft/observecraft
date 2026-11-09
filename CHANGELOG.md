@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.20.0](https://github.com/observecraft/observecraft/compare/v0.19.0...v0.20.0) (2026-11-09)
+
+
+### Features
+
+* **integrations:** show whether an installed integration receives data and its Agent check status ([0367495](https://github.com/observecraft/observecraft/commit/03674959d0f2ec786fc8413f065b57fdfb96645f))
+
+
+### Bug fixes
+
+* **dashboards:** monitor summary widgets show only the monitors their query matches ([4a644bf](https://github.com/observecraft/observecraft/commit/4a644bf7af858e957f90b0b61d37c9f59bdd418f))
+* **dashboards:** table widgets whose queries name the metric and filter render instead of crashing the dashboard ([9d59362](https://github.com/observecraft/observecraft/commit/9d5936265497fe7bd2614381e66fd7bcfacbca18))
+* **integrations:** integrations set up on their own page show as installed ([ffac62f](https://github.com/observecraft/observecraft/commit/ffac62f942328637862cee5cd039e0271419a497))
+* **metrics:** tag values match regardless of case, as in Datadog ([81ef176](https://github.com/observecraft/observecraft/commit/81ef17607ab343a3073483bdb68b09ead8adb586))
+
 ## [0.19.0](https://github.com/observecraft/observecraft/compare/v0.18.0...v0.19.0) (2026-11-09)
 
 
