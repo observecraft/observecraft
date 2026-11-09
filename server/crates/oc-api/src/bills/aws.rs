@@ -68,7 +68,7 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
 /// The report's line items, summed per day and kind (DuckDB over the downloaded files).
 pub fn load(files: &[PathBuf]) -> Result<Vec<BillLine>, String> {
     let source = reader(files)?;
-    let conn = duckdb::Connection::open_in_memory().map_err(|e| e.to_string())?;
+    let conn = super::connection()?;
     let cols = columns(&conn, &source)?;
     let col = |names: &[&str]| names.iter().find_map(|n| cols.get(*n)).map(|(name, _)| ident(name));
     let text = |names: &[&str]| col(names).map_or("''".to_string(), |c| format!("COALESCE(CAST({c} AS VARCHAR), '')"));

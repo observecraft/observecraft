@@ -69,6 +69,14 @@ pub fn reader(files: &[std::path::PathBuf]) -> Result<String, String> {
     }
 }
 
+/// A DuckDB connection for reading bills. Extensions come with the binary (`bundled`, `parquet`, `json`): installing
+/// one at run time needs a home directory and the internet, which the server's container has neither of.
+pub fn connection() -> Result<duckdb::Connection, String> {
+    let conn = duckdb::Connection::open_in_memory().map_err(|e| e.to_string())?;
+    conn.execute_batch("SET autoinstall_known_extensions = false").map_err(|e| e.to_string())?;
+    Ok(conn)
+}
+
 /// The source's columns: canonical name → (name, type).
 pub fn columns(conn: &duckdb::Connection, source: &str) -> Result<BTreeMap<String, (String, String)>, String> {
     let mut stmt = conn.prepare(&format!("DESCRIBE SELECT * FROM {source}")).map_err(|e| e.to_string())?;
@@ -93,4 +101,23 @@ pub fn tags_from_json(text: &str) -> BTreeMap<String, String> {
             (!v.is_empty() && !k.is_empty()).then(|| (k.to_ascii_lowercase(), v.to_string()))
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The JSON functions the imports use work without installing anything at run time.
+    #[test]
+    fn json_functions_need_no_extension_download() {
+        let conn = connection().unwrap();
+        // As in the server's container: no extensions on disk, none downloaded.
+        let empty = std::env::temp_dir().join(format!("oc-duckdb-ext-{}", std::process::id()));
+        std::fs::create_dir_all(&empty).unwrap();
+        conn.execute_batch(&format!("SET extension_directory = {}", quote(&empty.to_string_lossy()))).unwrap();
+        let tags: String = conn.query_row("SELECT CAST(to_json(map(['team'], ['checkout'])) AS VARCHAR)", [], |r| r.get(0)).unwrap();
+        assert_eq!(tags, r#"{"team":"checkout"}"#);
+        let pairs: String = conn.query_row("SELECT CAST(json_object('env', 'prod') AS VARCHAR)", [], |r| r.get(0)).unwrap();
+        assert_eq!(pairs, r#"{"env":"prod"}"#);
+    }
 }
