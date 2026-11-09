@@ -769,6 +769,8 @@ const INTEGRATION_BUNDLES: &[&str] = &[
     include_str!("../../../../seeds/integrations/netbird/dashboards.json"),
     // FleetDM: ObserveCraft's own (scripts/fleetdm-dashboard.mjs), over the integration's logs and metrics.
     include_str!("../../../../seeds/integrations/fleetdm/dashboards.json"),
+    // ObserveCraft itself (scripts/observecraft-dashboard.mjs), over self_monitoring.rs's gauges.
+    include_str!("../../../../seeds/integrations/observecraft/dashboards.json"),
 ];
 
 fn seed_documents() -> anyhow::Result<Vec<(String, Value)>> {
@@ -792,7 +794,7 @@ fn seed_documents() -> anyhow::Result<Vec<(String, Value)>> {
 
 /// Integration dashboards appear once their integration is enabled (by the dashboard's `logo`): a cloud
 /// account or connection, synthetic tests, or its data received in the last day. Others are always available.
-const GATED: [&str; 9] = ["aws", "azure", "gcp", "fleetdm", "kubernetes", "linux", "netbird", "opentelemetry", "tile:synthetics"];
+const GATED: [&str; 10] = ["aws", "azure", "gcp", "fleetdm", "kubernetes", "linux", "netbird", "observecraft", "opentelemetry", "tile:synthetics"];
 
 /// The gated integrations not enabled: their dashboards are left out of searches and recents.
 pub fn hidden_logos(enabled: &std::collections::BTreeSet<String>) -> Vec<String> {
@@ -856,7 +858,12 @@ pub async fn enabled_integrations(st: &AppState, org: &str) -> Result<std::sync:
                 .fetch_one::<Seen>()
                 .await?;
             let flags = [("aws", aws), ("azure", azure), ("gcp", gcp), ("tile:synthetics", synthetics), ("netbird", netbird), ("fleetdm", fleetdm), ("kubernetes", seen.kubernetes), ("linux", seen.hosts), ("opentelemetry", seen.traces)];
+            // ObserveCraft's own health: the operator's organization only (self_monitoring.rs).
+            let operator = crate::self_monitoring::operator_org(st).await.is_some_and(|o| o == org);
             let mut enabled: std::collections::BTreeSet<String> = flags.into_iter().filter(|(_, on)| *on).map(|(l, _)| l.to_string()).collect();
+            if operator {
+                enabled.insert("observecraft".to_string());
+            }
             // integrations-core integrations sending metrics (their name's first two segments): their dashboards are
             // installed for the org the first time.
             let prefixes: std::collections::BTreeSet<String> = st
@@ -925,6 +932,7 @@ mod tests {
         let enabled: BTreeSet<String> = ["aws".to_string(), "kubernetes".to_string()].into();
         let hidden = hidden_logos(&enabled);
         assert!(hidden.contains(&"azure".to_string()) && hidden.contains(&"gcp".to_string()) && hidden.contains(&"linux".to_string()));
+        assert!(hidden.contains(&"observecraft".to_string()), "ObserveCraft's own health: the operator's org only");
         assert!(!hidden.contains(&"aws".to_string()) && !hidden.contains(&"kubernetes".to_string()));
         assert_eq!(hidden_logos(&GATED.iter().map(|s| s.to_string()).collect()), Vec::<String>::new());
     }

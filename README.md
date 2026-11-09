@@ -239,6 +239,25 @@ migrations run on startup. Read the release notes first: before 1.0, a minor ver
 Images and charts are signed and come with an SBOM and build provenance; [SECURITY.md](SECURITY.md#verifying-releases)
 shows how to verify them. Every commit on `main` is also published as `:main` and `:sha-<commit>` images, for staging.
 
+
+### Monitoring ObserveCraft itself
+
+The instance admin's organization (or `selfMonitoring.org`) gets an **ObserveCraft Overview** dashboard and
+recommended monitors tagged `observecraft:self-monitoring`, over metrics the server measures every minute:
+
+- **ClickHouse**: disk use and growth, days until full, each table's size, parts per partition (inserts slow down at
+  1,000 and fail at 3,000), seconds since each signal was last written, failing mutations, replication delay;
+- **Kafka**: the log ingester's lag; **Postgres**: connections against `max_connections`, database size; overdue
+  cloud crawl jobs;
+- **cost**: the install's containers at the organization's Kubernetes prices (Kubernetes → Autoscaling → Settings;
+  needs the Datadog Agent on ObserveCraft's cluster, reporting to the operator's organization) plus disk, and the next
+  30 days at the current growth; **usage**: each organization's stored events per signal and their estimated bytes.
+
+Monitors alert before things break (disk at 75 %/85 %, full within 14/7 days, no data written for 5/15 minutes, log
+lag, Postgres connections, too many parts); set `selfMonitoring.notify` to the handles they notify. They can't
+report that ObserveCraft itself is down: set `selfMonitoring.heartbeatUrl` to a dead man's switch outside the
+install (a healthchecks.io check, Better Stack, Cronitor), which alerts when the calls stop.
+
 ## Architecture
 
 ```mermaid
@@ -335,6 +354,10 @@ starts `OC_LOG_INGEST_HANDOVER_MINUTES`, 30, before the newest log Vector stored
 | `OC_SCANNER_TOKEN` | — | Bearer token of Cloud Security's account scanners (16+ characters; the `scanner` service / `scanner.enabled`). Without it no account is scanned |
 | `OC_POSTURE_SCAN_INTERVAL_HOURS` | `24` | Hours between two Prowler scans of a cloud account |
 | `OC_KEV_URL` | CISA's catalog | Known Exploited Vulnerabilities JSON the Security research feed reads every six hours (`off` without internet access) |
+| `OC_SELF_MONITORING` | `true` | ObserveCraft monitoring itself: every minute one server writes `observecraft.*` metrics (ClickHouse disks, parts and freshness, the log ingester's Kafka lag, Postgres, jobs, cost, each organization's usage) into the operator's organization, with the *ObserveCraft Overview* dashboard and recommended monitors there; see [Monitoring ObserveCraft itself](#monitoring-observecraft-itself) |
+| `OC_SELF_MONITORING_ORG` / `OC_SELF_MONITORING_NOTIFY` | first instance admin's org / — | The operator's organization; the handles its recommended monitors notify (`@slack-ops @ops@example.com`) |
+| `OC_HEARTBEAT_URL` | — | Called every minute while Postgres and ClickHouse answer (e.g. a healthchecks.io check), so a service outside alerts when ObserveCraft is down |
+| `OC_SELF_MONITORING_NAMESPACE` / `OC_SELF_MONITORING_STORAGE_GB_MONTH` | `observecraft` / `0.08` | Kubernetes namespace of the install (its containers' cost, from the Datadog Agent's `container.*`); USD per GB-month of disk |
 | `OC_SEED_DEMO` | `true` | Fictional demo users, teams, monitors and incidents, a demo ingest key and archive. **Set `false` in production.** |
 
 The intake (`oc-intake`) has its own settings: `OC_INTAKE_ADDR` (HTTP, `:4318`), `OC_INTAKE_GRPC_ADDR` (OTLP/gRPC,

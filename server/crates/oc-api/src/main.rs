@@ -37,6 +37,7 @@ mod pipelines;
 mod posture;
 mod routes;
 mod s3;
+mod self_monitoring;
 mod spl;
 mod standard_attributes;
 mod state;
@@ -202,6 +203,8 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(org_limits::background(posture::run(state.clone())));
     tokio::spawn(org_limits::background(routes::workflows::run_executor(state.clone())));
     tokio::spawn(org_limits::background(metric_rollups::run(state.clone())));
+    // ObserveCraft measuring itself into the operator's org; recommended monitors; the heartbeat.
+    tokio::spawn(org_limits::background(self_monitoring::run(state.clone())));
     // The cloud integrations' crawlers publish to Kafka (docs/adr/0004), so they need it.
     if let Some(brokers) = state.config.kafka_brokers.clone() {
         let sink: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));

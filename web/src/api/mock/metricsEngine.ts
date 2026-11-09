@@ -14,6 +14,7 @@ import { matchesTerms } from './match';
 import { CLOUD_METRICS, CLOUD_SETS } from './cloudMetrics';
 import { NETBIRD_METRICS, NETBIRD_SETS } from './netbirdMetrics';
 import { FLEETDM_METRICS, FLEETDM_SETS } from './fleetdmMetrics';
+import { OBSERVECRAFT_METRICS, OBSERVECRAFT_PODS, OBSERVECRAFT_SETS } from './observecraftMetrics';
 import { CORE_METRICS, CORE_SETS } from './coreMetrics';
 
 type Tags = Record<string, string>;
@@ -76,6 +77,7 @@ const SETS: Record<string, Tags[]> = {
   ...CLOUD_SETS,
   ...NETBIRD_SETS,
   ...FLEETDM_SETS,
+  ...OBSERVECRAFT_SETS,
   ...CORE_SETS,
   synthetics: SYN_RUNS,
   deployments: build(140, 11, (r, i) => {
@@ -98,16 +100,20 @@ const SETS: Record<string, Tags[]> = {
     const image = pick(r, ['agent', 'kube-proxy', 'coredns', 'aws-node', 'ebs-csi-driver', 'storefront-api', 'order-service', 'catalog-service', 'nginx-ingress']);
     return { kube_cluster_name: cluster, kube_namespace: pick(r, NAMESPACES), short_image: image, image_tag: pick(r, ['7.58.0', '7.57.2', 'v1.29.3', 'v1.11.1', '1.4.2']) };
   }),
-  agent_containers: build(40, 16, (r, i) => {
-    const app = pick(r, ['api-gateway', 'storefront-api', 'order-service', 'billing', 'catalog-service', 'inventory-service', 'datadog-agent']);
-    return {
-      container_name: app,
-      host: `i-0a1b2c3d4e5f6000${i % 8}`,
-      short_image: app === 'datadog-agent' ? 'agent' : app,
-      kube_cluster_name: pick(r, CLUSTERS),
-      pod_name: `${app}-${i.toString(36)}`,
-    };
-  }),
+  // The demo's containers, then ObserveCraft's own pods (its self-monitoring dashboard charts them).
+  agent_containers: [
+    ...build(40, 16, (r, i) => {
+      const app = pick(r, ['api-gateway', 'storefront-api', 'order-service', 'billing', 'catalog-service', 'inventory-service', 'datadog-agent']);
+      return {
+        container_name: app,
+        host: `i-0a1b2c3d4e5f6000${i % 8}`,
+        short_image: app === 'datadog-agent' ? 'agent' : app,
+        kube_cluster_name: pick(r, CLUSTERS),
+        pod_name: `${app}-${i.toString(36)}`,
+      } as Tags;
+    }),
+    ...OBSERVECRAFT_PODS,
+  ],
   monitors: build(320, 13, (r, i) => {
     const service = r() < 0.3 ? 'undefined' : pick(r, SERVICES);
     const name = pick(r, [
@@ -163,6 +169,7 @@ const METRICS: Record<string, MetricDef> = {
   ...CLOUD_METRICS,
   ...NETBIRD_METRICS,
   ...FLEETDM_METRICS,
+  ...OBSERVECRAFT_METRICS,
   'kubernetes_state.deployment.count': { set: 'deployments', description: 'Deployments', base: () => 1, noise: 0, integer: true },
   'kubernetes_state.deployment.replicas': { set: 'deployments', description: 'Replicas per deployment', base: REPLICAS, noise: 0.02, integer: true },
   'kubernetes_state.deployment.replicas_desired': { set: 'deployments', description: 'Desired replicas', base: REPLICAS, noise: 0.01, integer: true },
@@ -217,6 +224,7 @@ const METRICS: Record<string, MetricDef> = {
   // catalog-service's slower product query (see the APM mock) keeps its p95 above 300 ms.
   'trace.latency.p95': { set: 'apm', description: 'p95 latency', unit: 'ms', base: (e, r) => (e.service === 'catalog-service' ? 410 : 60 + r() * 200), noise: 0.1 },
   'container.cpu.usage': { set: 'agent_containers', description: 'CPU used by the container', unit: 'core', base: (_e, r) => 0.01 + Math.pow(r(), 2) * 1.2, noise: 0.35 },
+  'container.memory.usage': { set: 'agent_containers', description: 'Memory used by the container', unit: 'byte', base: (_e, r) => (120 + r() * 1400) * 2 ** 20, noise: 0.05 },
   'container.memory.rss': { set: 'agent_containers', description: 'Resident memory of the container', unit: 'byte', base: (_e, r) => (60 + r() * 900) * 2 ** 20, noise: 0.05 },
   'container.net.sent': { set: 'agent_containers', description: 'Bytes sent per second', unit: 'byte/second', base: (_e, r) => 200 + r() * 40_000, noise: 0.5 },
   'container.net.rcvd': { set: 'agent_containers', description: 'Bytes received per second', unit: 'byte/second', base: (_e, r) => 500 + r() * 90_000, noise: 0.5 },

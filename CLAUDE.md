@@ -196,6 +196,12 @@ or SDK features.
   mention `@slack-<account>-<channel>` or `@slack-<channel>`, posted with `chat.postMessage` as a card; mute buttons
   (`/api/v1/public/slack/interactive`, signature-checked) create downtimes as the member with the Slack user's email.
   Other `@slack-<name>` handles are the older incoming-webhook channels (`notification_channels`).
+- **Self-monitoring** (`self_monitoring.rs`): one server (advisory lock) writes `observecraft.*` gauges every minute
+  straight into `otel.metrics_ingest_gauge` (not through Kafka) of the operator's org (`OC_SELF_MONITORING_ORG`, else
+  the first instance admin's): ClickHouse system tables, the log ingester's lag, Postgres, jobs, cost, hourly usage per
+  org. Only that org lists the "ObserveCraft Overview" dashboard (`scripts/observecraft-dashboard.mjs`, gated logo
+  `observecraft`) and gets the recommended monitors (`observecraft:self-monitoring`); `OC_HEARTBEAT_URL` is the dead
+  man's switch outside the install.
 - **New features start from the Terraform provider.** Before designing the API of a product area, check whether
   [`DataDog/terraform-provider-datadog`](https://github.com/DataDog/terraform-provider-datadog) (MPL-2.0: read it,
   don't copy it) has resources for it (`datadog_<area>_*`). If it does, the configuration lives under the Datadog

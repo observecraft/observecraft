@@ -1,0 +1,2485 @@
+[
+  {
+    "id": "observecraft-overview",
+    "title": "ObserveCraft Overview",
+    "description": "ObserveCraft's own health: ClickHouse, log ingestion, Postgres, background jobs, usage per organization and the estimated cost.",
+    "kind": "integration",
+    "logo": "observecraft",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "observecraft-3",
+        "definition": {
+          "type": "group",
+          "title": "",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "observecraft-1",
+              "definition": {
+                "type": "image",
+                "title": "ObserveCraft",
+                "logo": "observecraft",
+                "background": "#ffffff"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-2",
+              "definition": {
+                "type": "note",
+                "content": "**ObserveCraft watching itself.** Every minute the server measures what keeps this install healthy: ClickHouse (reachable, disk space and its growth, tables, parts, mutations, replication), how far log ingestion is behind Kafka, Postgres connections, the background jobs, what each organization stores and what the install costs. Its **[ObserveCraft] monitors** alert before something breaks; set `OC_HEARTBEAT_URL` to also hear when ObserveCraft itself is down.\n\nPods, CPU and memory come from the Datadog Agent when it runs in ObserveCraft's namespace. Costs are estimates: the Kubernetes prices in [Kubernetes → Autoscaling settings](/kubernetes/autoscaling) and `OC_SELF_MONITORING_STORAGE_GB_MONTH` (Helm `selfMonitoring.storageGbMonth`) per GB-month.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 2,
+                "y": 0,
+                "w": 10,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "id": "observecraft-16",
+        "definition": {
+          "type": "group",
+          "title": "Health at a glance",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "observecraft-4",
+              "definition": {
+                "type": "integration",
+                "title": "ClickHouse up",
+                "original": {
+                  "type": "query_value",
+                  "title": "ClickHouse up",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "min:observecraft.clickhouse.reachable{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": "<",
+                          "value": 1,
+                          "palette": "white_on_red"
+                        },
+                        {
+                          "comparator": ">=",
+                          "value": 1,
+                          "palette": "white_on_green"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-5",
+              "definition": {
+                "type": "integration",
+                "title": "Disk used",
+                "original": {
+                  "type": "query_value",
+                  "title": "Disk used",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.clickhouse.disk.used_pct{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 85,
+                          "palette": "white_on_red"
+                        },
+                        {
+                          "comparator": ">=",
+                          "value": 75,
+                          "palette": "white_on_yellow"
+                        },
+                        {
+                          "comparator": "<",
+                          "value": 75,
+                          "palette": "white_on_green"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-6",
+              "definition": {
+                "type": "integration",
+                "title": "Disk full in",
+                "original": {
+                  "type": "query_value",
+                  "title": "Disk full in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "min:observecraft.clickhouse.disk.days_until_full{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": "<",
+                          "value": 7,
+                          "palette": "white_on_red"
+                        },
+                        {
+                          "comparator": "<",
+                          "value": 14,
+                          "palette": "white_on_yellow"
+                        },
+                        {
+                          "comparator": ">=",
+                          "value": 14,
+                          "palette": "white_on_green"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-7",
+              "definition": {
+                "type": "integration",
+                "title": "Log lag",
+                "original": {
+                  "type": "query_value",
+                  "title": "Log lag",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.kafka.consumer_lag{consumer:log-ingest}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 1000000,
+                          "palette": "white_on_red"
+                        },
+                        {
+                          "comparator": ">=",
+                          "value": 200000,
+                          "palette": "white_on_yellow"
+                        },
+                        {
+                          "comparator": "<",
+                          "value": 200000,
+                          "palette": "white_on_green"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "area"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-8",
+              "definition": {
+                "type": "integration",
+                "title": "Postgres conns",
+                "original": {
+                  "type": "query_value",
+                  "title": "Postgres conns",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.postgres.connections.used_pct{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 85,
+                          "palette": "white_on_red"
+                        },
+                        {
+                          "comparator": ">=",
+                          "value": 70,
+                          "palette": "white_on_yellow"
+                        },
+                        {
+                          "comparator": "<",
+                          "value": 70,
+                          "palette": "white_on_green"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-9",
+              "definition": {
+                "type": "integration",
+                "title": "Failed mutations",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failed mutations",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.clickhouse.mutations.failed{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "white_on_red"
+                        },
+                        {
+                          "comparator": "<=",
+                          "value": 0,
+                          "palette": "white_on_green"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-10",
+              "definition": {
+                "type": "integration",
+                "title": "Overdue jobs",
+                "original": {
+                  "type": "query_value",
+                  "title": "Overdue jobs",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.jobs.overdue{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "white_on_yellow"
+                        },
+                        {
+                          "comparator": "<=",
+                          "value": 0,
+                          "palette": "white_on_green"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-11",
+              "definition": {
+                "type": "integration",
+                "title": "Failing jobs",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failing jobs",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.jobs.failing{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "white_on_yellow"
+                        },
+                        {
+                          "comparator": "<=",
+                          "value": 0,
+                          "palette": "white_on_green"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-12",
+              "definition": {
+                "type": "integration",
+                "title": "Oldest write",
+                "original": {
+                  "type": "query_value",
+                  "title": "Oldest write",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.clickhouse.table.last_write_age_seconds{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 900,
+                          "palette": "white_on_red"
+                        },
+                        {
+                          "comparator": ">=",
+                          "value": 300,
+                          "palette": "white_on_yellow"
+                        },
+                        {
+                          "comparator": "<",
+                          "value": 300,
+                          "palette": "white_on_green"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-13",
+              "definition": {
+                "type": "integration",
+                "title": "Max parts",
+                "original": {
+                  "type": "query_value",
+                  "title": "Max parts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.clickhouse.table.parts_max_per_partition{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 600,
+                          "palette": "white_on_red"
+                        },
+                        {
+                          "comparator": ">=",
+                          "value": 300,
+                          "palette": "white_on_yellow"
+                        },
+                        {
+                          "comparator": "<",
+                          "value": 300,
+                          "palette": "white_on_green"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-14",
+              "definition": {
+                "type": "integration",
+                "title": "Cost / month",
+                "original": {
+                  "type": "query_value",
+                  "title": "Cost / month",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.cost.estimated_monthly{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "observecraft-15",
+              "definition": {
+                "type": "integration",
+                "title": "Next 30 days",
+                "original": {
+                  "type": "query_value",
+                  "title": "Next 30 days",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.cost.projected_monthly{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 11
+        }
+      },
+      {
+        "id": "observecraft-21",
+        "definition": {
+          "type": "group",
+          "title": "Ingestion",
+          "color": "green",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "observecraft-17",
+              "definition": {
+                "type": "integration",
+                "title": "Seconds since each table was last written",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Seconds since each table was last written",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.clickhouse.table.last_write_age_seconds{*} by {table}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-18",
+              "definition": {
+                "type": "integration",
+                "title": "Log ingestion lag behind Kafka (records)",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Log ingestion lag behind Kafka (records)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.kafka.consumer_lag{*} by {topic}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "orange",
+                        "order_by": "values"
+                      },
+                      "display_type": "area"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-19",
+              "definition": {
+                "type": "integration",
+                "title": "Events stored per hour, by signal",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Events stored per hour, by signal",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.usage.events{*} by {signal}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-20",
+              "definition": {
+                "type": "integration",
+                "title": "Events by signal",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Events by signal",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.usage.events{*} by {signal}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 20,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 17,
+          "w": 12,
+          "h": 15
+        }
+      },
+      {
+        "id": "observecraft-32",
+        "definition": {
+          "type": "group",
+          "title": "ClickHouse",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "observecraft-22",
+              "definition": {
+                "type": "integration",
+                "title": "Disk used and total",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Disk used and total",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.clickhouse.disk.used_bytes{*}",
+                          "aggregator": "avg"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:observecraft.clickhouse.disk.total_bytes{*}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "used",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "total",
+                          "formula": "query2"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "area"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-23",
+              "definition": {
+                "type": "integration",
+                "title": "Disk used (%) by replica",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Disk used (%) by replica",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.clickhouse.disk.used_pct{*} by {replica,disk}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-24",
+              "definition": {
+                "type": "integration",
+                "title": "Disk growth per day",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Disk growth per day",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.clickhouse.disk.growth_bytes_per_day{*} by {replica}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-25",
+              "definition": {
+                "type": "integration",
+                "title": "Days until the disk is full",
+                "original": {
+                  "type": "toplist",
+                  "title": "Days until the disk is full",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "min:observecraft.clickhouse.disk.days_until_full{*} by {replica}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-26",
+              "definition": {
+                "type": "integration",
+                "title": "Table sizes",
+                "original": {
+                  "type": "treemap",
+                  "title": "Table sizes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.clickhouse.table.bytes{*} by {table}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 20,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 12,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "observecraft-27",
+              "definition": {
+                "type": "integration",
+                "title": "Tables",
+                "original": {
+                  "type": "query_table",
+                  "title": "Tables",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.clickhouse.table.bytes{*} by {table}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:observecraft.clickhouse.table.rows{*} by {table}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query3",
+                          "query": "max:observecraft.clickhouse.table.last_write_age_seconds{*} by {table}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query4",
+                          "query": "max:observecraft.clickhouse.table.parts_max_per_partition{*} by {table}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "bytes",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "rows",
+                          "formula": "query2"
+                        },
+                        {
+                          "alias": "seconds since last write",
+                          "formula": "query3"
+                        },
+                        {
+                          "alias": "most parts in a partition",
+                          "formula": "query4"
+                        }
+                      ],
+                      "sort": {
+                        "count": 100,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 12,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "observecraft-28",
+              "definition": {
+                "type": "integration",
+                "title": "Most parts in a partition",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Most parts in a partition",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.clickhouse.table.parts_max_per_partition{*} by {table}",
+                          "aggregator": "max"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "orange",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 20,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-29",
+              "definition": {
+                "type": "integration",
+                "title": "Mutations",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Mutations",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.clickhouse.mutations.pending{*}",
+                          "aggregator": "avg"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:observecraft.clickhouse.mutations.failed{*}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "pending",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "failed",
+                          "formula": "query2"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 20,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-30",
+              "definition": {
+                "type": "integration",
+                "title": "Replication (clusters)",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Replication (clusters)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.clickhouse.replication.max_delay_seconds{*}",
+                          "aggregator": "avg"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:observecraft.clickhouse.replication.queue_size{*}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "delay (s)",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "queue",
+                          "formula": "query2"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 20,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-31",
+              "definition": {
+                "type": "integration",
+                "title": "Query round trip (ms)",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Query round trip (ms)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.clickhouse.ping_ms{*}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1",
+                          "alias": "query round trip (ms)"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 26,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 32,
+          "w": 12,
+          "h": 33
+        }
+      },
+      {
+        "id": "observecraft-38",
+        "definition": {
+          "type": "group",
+          "title": "Postgres and background jobs",
+          "color": "gray",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "observecraft-33",
+              "definition": {
+                "type": "integration",
+                "title": "Postgres connections",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Postgres connections",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.postgres.connections.used{*}",
+                          "aggregator": "avg"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "max:observecraft.postgres.connections.max{*}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "used",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "limit",
+                          "formula": "query2"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-34",
+              "definition": {
+                "type": "integration",
+                "title": "Postgres database size",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Postgres database size",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.postgres.database.bytes{*}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1",
+                          "alias": "postgres database size"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "area"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-35",
+              "definition": {
+                "type": "integration",
+                "title": "Log-based metrics waiting to be written",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Log-based metrics waiting to be written",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:observecraft.log_metrics.outbox_backlog{*}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1",
+                          "alias": "log-based metrics waiting to be written"
+                        }
+                      ],
+                      "style": {
+                        "palette": "orange",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-36",
+              "definition": {
+                "type": "integration",
+                "title": "Overdue crawl jobs by provider",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Overdue crawl jobs by provider",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.jobs.overdue{*} by {provider}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-37",
+              "definition": {
+                "type": "integration",
+                "title": "Failing crawl jobs by provider",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Failing crawl jobs by provider",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.jobs.failing{*} by {provider}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 65,
+          "w": 12,
+          "h": 15
+        }
+      },
+      {
+        "id": "observecraft-44",
+        "definition": {
+          "type": "group",
+          "title": "Usage per organization",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "observecraft-39",
+              "definition": {
+                "type": "integration",
+                "title": "Events stored in the last hour, by organization",
+                "original": {
+                  "type": "toplist",
+                  "title": "Events stored in the last hour, by organization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.usage.events{*} by {org}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "observecraft-40",
+              "definition": {
+                "type": "integration",
+                "title": "Estimated storage, by organization",
+                "original": {
+                  "type": "toplist",
+                  "title": "Estimated storage, by organization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.usage.estimated_bytes{*} by {org}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "observecraft-41",
+              "definition": {
+                "type": "integration",
+                "title": "Events per hour, by organization",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Events per hour, by organization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.usage.events{*} by {org}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 8,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-42",
+              "definition": {
+                "type": "integration",
+                "title": "Storage by organization and signal",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Storage by organization and signal",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.usage.estimated_bytes{*} by {org,signal}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 20,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 8,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-43",
+              "definition": {
+                "type": "integration",
+                "title": "Organizations",
+                "original": {
+                  "type": "query_table",
+                  "title": "Organizations",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.usage.events{*} by {org,signal}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:observecraft.usage.estimated_bytes{*} by {org,signal}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "events (last hour)",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "estimated bytes",
+                          "formula": "query2"
+                        }
+                      ],
+                      "sort": {
+                        "count": 100,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 14,
+                "w": 12,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 80,
+          "w": 12,
+          "h": 25
+        }
+      },
+      {
+        "id": "observecraft-51",
+        "definition": {
+          "type": "group",
+          "title": "Cost and projection",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "observecraft-45",
+              "definition": {
+                "type": "integration",
+                "title": "Estimated (USD/month)",
+                "original": {
+                  "type": "query_value",
+                  "title": "Estimated (USD/month)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.cost.estimated_monthly{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "area"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-46",
+              "definition": {
+                "type": "integration",
+                "title": "Projected next 30 days (USD)",
+                "original": {
+                  "type": "query_value",
+                  "title": "Projected next 30 days (USD)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.cost.projected_monthly{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "area"
+                  }
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-47",
+              "definition": {
+                "type": "integration",
+                "title": "Storage (USD/month)",
+                "original": {
+                  "type": "query_value",
+                  "title": "Storage (USD/month)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.cost.estimated_monthly{resource:storage}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "area"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-48",
+              "definition": {
+                "type": "integration",
+                "title": "Disk growth per day",
+                "original": {
+                  "type": "query_value",
+                  "title": "Disk growth per day",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.clickhouse.disk.growth_bytes_per_day{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-49",
+              "definition": {
+                "type": "integration",
+                "title": "Estimated cost by component",
+                "original": {
+                  "type": "treemap",
+                  "title": "Estimated cost by component",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.cost.estimated_monthly{*} by {component}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 20,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "observecraft-50",
+              "definition": {
+                "type": "integration",
+                "title": "Estimated cost by resource",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Estimated cost by resource",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:observecraft.cost.estimated_monthly{*} by {resource}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "area"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 6,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 105,
+          "w": 12,
+          "h": 17
+        }
+      },
+      {
+        "id": "observecraft-55",
+        "definition": {
+          "type": "group",
+          "title": "Pods (from the Datadog Agent)",
+          "color": "purple",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "observecraft-52",
+              "definition": {
+                "type": "integration",
+                "title": "CPU by container",
+                "original": {
+                  "type": "timeseries",
+                  "title": "CPU by container",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:container.cpu.usage{kube_namespace:observecraft} by {kube_container_name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "area"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-53",
+              "definition": {
+                "type": "integration",
+                "title": "Memory by container",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Memory by container",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:container.memory.usage{kube_namespace:observecraft} by {kube_container_name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "area"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "observecraft-54",
+              "definition": {
+                "type": "integration",
+                "title": "Container restarts",
+                "original": {
+                  "type": "toplist",
+                  "title": "Container restarts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:kubernetes.containers.restarts{kube_namespace:observecraft} by {kube_container_name}",
+                          "aggregator": "max"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 12,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 122,
+          "w": 12,
+          "h": 15
+        }
+      }
+    ],
+    "source": {
+      "repository": "observecraft",
+      "path": "scripts/observecraft-dashboard.mjs",
+      "license": "MIT"
+    }
+  }
+]

@@ -2,7 +2,7 @@
 // then the integrations catalog's logo files (they include the cloud providers' service icons; the
 // browser loads only the visible ones), then a wordmark / coloured tile. Brands remain trademarks of
 // their owners and are shown only to identify the integration.
-import { BrandLogo, hasBrandLogo } from '../../components/brand/BrandLogo';
+import { BrandLogo, hasBrandLogo, OBSERVECRAFT_LOGO } from '../../components/brand/BrandLogo';
 import { INTEGRATION_LOGOS } from '../../assets/integrationLogos.generated';
 
 /** Fallbacks: "word" renders a coloured wordmark, "tile" a coloured square with short text. */
@@ -41,6 +41,8 @@ interface Props {
 }
 
 export function IntegrationLogo({ logo, name, size = 64 }: Props) {
+  // ObserveCraft's own dashboards (self-monitoring): the app's logo.
+  if (logo === OBSERVECRAFT_LOGO) return <img className="logo-file" src="/logo.svg" alt={name} style={{ width: size, height: size }} />;
   if (hasBrandLogo(logo)) return <BrandLogo name={logo} size={size} title={name} maxRatio={2.8} />;
   const file = INTEGRATION_LOGOS[logo];
   if (file) return <img className="logo-file" src={`/images/integrations/logos/${file}`} alt={name} loading="lazy" style={{ maxWidth: size * 2.8, height: size }} />;

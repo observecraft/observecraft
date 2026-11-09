@@ -1,6 +1,6 @@
 import { LayoutDashboard, Radar, Siren } from 'lucide-react';
 import { INTEGRATION_LOGOS } from '../../assets/integrationLogos.generated';
-import { BrandLogo, hasBrandLogo } from './BrandLogo';
+import { BrandLogo, hasBrandLogo, OBSERVECRAFT_LOGO } from './BrandLogo';
 
 /**
  * A dashboard's icon in compact lists (search, pickers): its integration's logo (`logo`, as the dashboards list shows
@@ -9,6 +9,13 @@ import { BrandLogo, hasBrandLogo } from './BrandLogo';
 export function DashboardIcon({ logo, title, size = 15, className }: { logo?: string | null; title: string; size?: number; className?: string }) {
   if (logo === 'tile:monitors') return <Siren size={size} color="var(--status-warn)" className={className} />;
   if (logo === 'tile:synthetics') return <Radar size={size} color="var(--primary)" className={className} />;
+  if (logo === OBSERVECRAFT_LOGO) {
+    return (
+      <span className={`dash-icon ${className ?? ''}`} style={{ width: size, height: size }}>
+        <img src="/logo.svg" alt="" width={size} height={size} />
+      </span>
+    );
+  }
   if (logo && hasBrandLogo(logo)) {
     return (
       <span className={`dash-icon ${className ?? ''}`} style={{ width: size, height: size }}>
