@@ -8,6 +8,16 @@ export interface IntegrationQuery {
   query: string;
   data_source: string;
   aggregator?: string;
+  /** Newer table requests name the metric and its filter instead of writing `query`. */
+  metric_name?: string;
+  filter?: string;
+}
+interface TableGroupBy {
+  group_keys?: { query: string; group_key: string }[];
+}
+interface TableColumn {
+  type?: string;
+  compute?: { query: string; aggregation?: string };
 }
 export interface IntegrationFormula {
   formula: string;
@@ -18,6 +28,9 @@ export interface IntegrationRequest {
   q?: string;
   queries?: IntegrationQuery[];
   formulas?: IntegrationFormula[];
+  /** Table requests (`request_type: table`): the rows' groups and the compute columns. */
+  rows?: { group_by?: TableGroupBy[] };
+  columns?: TableColumn[];
   aggregator?: string;
   display_type?: string;
   style?: { line_type?: string; palette?: string };
@@ -98,7 +111,14 @@ function splitQueries(q: string): string[] {
   return out.filter(Boolean);
 }
 
-export function normalizeRequest(request: Pick<IntegrationRequest, 'q' | 'queries' | 'formulas'>): { queries: IntegrationQuery[]; formulas?: IntegrationFormula[] } {
+/** `metric_name` + `filter` as a metric query, aggregated as its compute column and grouped by the table's rows. */
+function namedMetricQuery(q: IntegrationQuery, request: Pick<IntegrationRequest, 'rows' | 'columns'>): string {
+  const aggregation = request.columns?.find((c) => c.compute?.query === q.name)?.compute?.aggregation ?? 'avg';
+  const groups = (request.rows?.group_by ?? []).flatMap((g) => (g.group_keys ?? []).filter((k) => k.query === q.name).map((k) => k.group_key));
+  return `${aggregation}:${q.metric_name}{${q.filter || '*'}}${groups.length ? ` by {${groups.join(',')}}` : ''}`;
+}
+
+export function normalizeRequest(request: Pick<IntegrationRequest, 'q' | 'queries' | 'formulas' | 'rows' | 'columns'>): { queries: IntegrationQuery[]; formulas?: IntegrationFormula[] } {
   // Cost queries (`sum:aws.cost.amortized{*}`) are cost metrics: the metric engine reads them.
   // Legacy requests: `q` (metric queries, comma-separated), `log_query` and `security_query` (one query each).
   const old = request as { log_query?: LegacyQuery; security_query?: LegacyQuery };
@@ -114,8 +134,9 @@ export function normalizeRequest(request: Pick<IntegrationRequest, 'q' | 'querie
       : old.security_query
         ? [legacyQuery('security_signals', old.security_query)]
         : [];
-  const raw: IntegrationQuery[] = (request.queries ?? legacy)
+  const raw: IntegrationQuery[] = (request.queries ?? (legacy as IntegrationQuery[]))
     .map((q) => (q.data_source === 'cloud_cost' ? { ...q, data_source: 'metrics' } : q))
+    .map((q) => (q.data_source === 'metrics' && typeof q.query !== 'string' && q.metric_name ? { ...q, query: namedMetricQuery(q, request) } : q))
     .map((q) => (q.data_source === 'metrics' && typeof q.query === 'string' ? { ...q, query: canonicalMetricQuery(q.query) } : q));
   const wrappers = new Map<string, string>();
   const queries = raw.map((q) => {
