@@ -118,6 +118,24 @@ mod tests {
         assert!(!valid_id(&"a".repeat(101)));
     }
 
+    /// On the migrated schema (0001 made an older `integration_installs` that 0092 kept), installing and listing work.
+    #[tokio::test]
+    async fn installed_integrations_are_listed_on_the_migrated_schema() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let mut ctx = crate::test_support::admin_of_new_org(st, "integration-installs").await;
+        ctx.user_id = sqlx::query_scalar("INSERT INTO users (id, org_id, email, name) VALUES (gen_random_uuid(), $1, 'admin@example.com', 'Admin') RETURNING id::text")
+            .bind(&ctx.org_id)
+            .fetch_one(&st.postgres)
+            .await
+            .unwrap();
+        install(State(st.clone()), Writer(ctx.clone()), Path("supply-chain-firewall".into())).await.unwrap();
+        let Json(ids) = list(State(st.clone()), OrgId(ctx.org_id.clone())).await.unwrap();
+        assert_eq!(ids, ["supply-chain-firewall"]);
+        uninstall(State(st.clone()), Writer(ctx.clone()), Path("supply-chain-firewall".into())).await.unwrap();
+        assert!(list(State(st.clone()), OrgId(ctx.org_id)).await.unwrap().0.is_empty());
+    }
+
     #[test]
     fn supply_chain_firewall_installs_its_pipeline_and_dashboards() {
         let s = state("supply-chain-firewall", true);
