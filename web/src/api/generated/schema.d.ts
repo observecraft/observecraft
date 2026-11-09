@@ -4339,6 +4339,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/checks/{check}/hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The hosts whose Datadog Agent runs the check `check` (an integration's Hosts tab), from the checks each Agent
+         *     reported in the last day.
+         */
+        get: operations["list_integration_check_hosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/fleetdm": {
         parameters: {
             query?: never;
@@ -16685,6 +16705,17 @@ export interface components {
             name?: string | null;
             /** @description active | suspended */
             status?: string | null;
+        };
+        /** @description A host whose Agent runs an integration's check, and how that check does there. */
+        IntegrationCheckHost: {
+            agentVersion?: string | null;
+            check: components["schemas"]["FleetCheck"];
+            host: string;
+            /**
+             * Format: int64
+             * @description When the Agent last reported its checks (epoch ms).
+             */
+            lastReported: number;
         };
         /** @description An integration's installation state and what it brings. */
         IntegrationInstall: {
@@ -33924,6 +33955,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_integration_check_hosts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                check: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationCheckHost"][];
+                };
             };
         };
     };

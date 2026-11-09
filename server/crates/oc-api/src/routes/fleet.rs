@@ -956,10 +956,87 @@ pub async fn configurations(State(st): State<AppState>, OrgId(org): OrgId, Json(
     Ok(Json(group_profiles(&pairs)))
 }
 
+// ================================================================ an integration's hosts
+
+/// A host whose Agent runs an integration's check, and how that check does there.
+#[derive(Serialize, ToSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IntegrationCheckHost {
+    pub host: String,
+    pub check: FleetCheck,
+    pub agent_version: Option<String>,
+    /// When the Agent last reported its checks (epoch ms).
+    pub last_reported: i64,
+}
+
+/// The check `name` on a host, over its instances; `None` when the host doesn't run it.
+fn check_on_host(runs: &[StoredRun], name: &str) -> Option<FleetCheck> {
+    let own: Vec<StoredRun> = runs.iter().filter(|r| r.name == name).cloned().collect();
+    summarize_checks(&own).into_iter().next()
+}
+
+/// The hosts whose Datadog Agent runs the check `check` (an integration's Hosts tab), from the checks each Agent
+/// reported in the last day.
+#[utoipa::path(get, path = "/api/v1/integrations/checks/{check}/hosts", operation_id = "list_integration_check_hosts", params(("check" = String, Path)),
+    responses((status = 200, body = Vec<IntegrationCheckHost>)), tag = "integrations")]
+pub async fn integration_hosts(State(st): State<AppState>, OrgId(org): OrgId, axum::extract::Path(check): axum::extract::Path<String>) -> ApiResult<Vec<IntegrationCheckHost>> {
+    let rows: Vec<(String, String, sqlx::types::Json<Vec<StoredRun>>, i64)> = sqlx::query_as(
+        "SELECT host, agent_version, agent_check_runs, (EXTRACT(EPOCH FROM COALESCE(checks_at, updated_at)) * 1000)::BIGINT \
+         FROM datadog_hosts WHERE org_id = $1 AND COALESCE(checks_at, updated_at) > now() - interval '1 day' ORDER BY host LIMIT 1000",
+    )
+    .bind(&org)
+    .fetch_all(&st.postgres)
+    .await?;
+    Ok(Json(
+        rows.into_iter()
+            .filter_map(|(host, version, runs, at)| check_on_host(&runs.0, &check).map(|c| IntegrationCheckHost { host, check: c, agent_version: version_label(&version), last_reported: at }))
+            .collect(),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    fn run(name: &str, instance: &str, status: &str, message: &str) -> StoredRun {
+        StoredRun { name: name.into(), instance: instance.into(), status: status.into(), message: message.into() }
+    }
+
+    #[test]
+    fn a_check_reports_its_worst_instance_on_each_host_running_it() {
+        let runs = vec![run("vault", "vault:1", "OK", ""), run("vault", "vault:2", "ERROR", "connection refused"), run("cpu", "cpu:1", "OK", "")];
+        let c = check_on_host(&runs, "vault").unwrap();
+        assert_eq!((c.status, c.message.as_deref(), c.instances), (FleetCheckStatus::Error, Some("connection refused"), 2));
+        assert!(check_on_host(&runs, "gatekeeper").is_none(), "a host not running the check isn't listed");
+        assert!(check_on_host(&[run("vault", "initialization", "ERROR", "bad config")], "vault").unwrap().load_error);
+    }
+
+    /// The hosts whose Agent runs a check, from the org's host metadata only.
+    #[tokio::test]
+    async fn integration_hosts_list_the_orgs_agents_running_the_check() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "integration-check-hosts").await;
+        let other = crate::test_support::new_org(st, "integration-check-hosts-other").await;
+        let runs = json!([{"name": "vault", "instance": "vault:1", "status": "WARNING", "message": "sealed"}, {"name": "cpu", "instance": "cpu:1", "status": "OK", "message": ""}]);
+        for (o, host) in [(&org, "i-0a1b2c3d4e5f60001"), (&other, "i-0a1b2c3d4e5f60002")] {
+            sqlx::query("INSERT INTO datadog_hosts (org_id, host, agent_version, payload, agent_check_runs, checks_at) VALUES ($1, $2, '7.84.6', '{}', $3, now())")
+                .bind(o)
+                .bind(host)
+                .bind(&runs)
+                .execute(&st.postgres)
+                .await
+                .unwrap();
+        }
+        sqlx::query("INSERT INTO datadog_hosts (org_id, host, payload, agent_check_runs) VALUES ($1, 'i-0a1b2c3d4e5f60003', '{}', '[]')").bind(&org).execute(&st.postgres).await.unwrap();
+        let Json(hosts) = integration_hosts(State(st.clone()), OrgId(org.clone()), axum::extract::Path("vault".into())).await.unwrap();
+        assert_eq!(hosts.len(), 1);
+        let h = &hosts[0];
+        assert_eq!((h.host.as_str(), h.check.status, h.check.message.as_deref(), h.agent_version.as_deref()), ("i-0a1b2c3d4e5f60001", FleetCheckStatus::Warning, Some("sealed"), Some("7.84.6")));
+        assert!(h.last_reported > 0);
+        assert!(integration_hosts(State(st.clone()), OrgId(org), axum::extract::Path("gatekeeper".into())).await.unwrap().0.is_empty());
+    }
 
     #[test]
     fn versions_compare_numerically_and_releases_beat_their_candidates() {

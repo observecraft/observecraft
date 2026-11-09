@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { API_MODE } from '../../api/http';
 import { Link } from 'react-router-dom';
-import { BookOpen, Check, ChevronDown, ExternalLink, GitBranch, LayoutDashboard, Newspaper, Plus, Search, Siren, TriangleAlert, X } from 'lucide-react';
+import { BookOpen, Check, ChevronDown, Clock, ExternalLink, GitBranch, LayoutDashboard, Newspaper, Plus, Search, Siren, TriangleAlert, X } from 'lucide-react';
 import type { IntegrationDocs } from '../../api/integrations/catalog';
 import type { IntegrationDetail, IntegrationStatus } from '../../api/integrations/types';
 import { CodeBlock } from '../../components/code/CodeBlock';
@@ -53,6 +53,7 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
   const toggle = useInstallToggle(d.id);
   const docs = useIntegrationDocs(d.coreId).data ?? null;
   const installed = d.status === 'installed' || d.status === 'warning';
+  const waiting = d.status === 'installed' && !!d.waitingForData;
 
   return (
     <>
@@ -64,6 +65,7 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
           <div>
             <h2>{d.name}</h2>
             <span className={`im-badge badge-${d.status}`}>{STATUS_BADGE[d.status]}</span>
+            {waiting && <span className="im-badge badge-waiting">WAITING FOR DATA</span>}
           </div>
           <p>
             {/[.!?]$/.test(d.description) ? d.description : `${d.description}.`} Provided by <a href="#">{d.publisher}</a>.
@@ -97,6 +99,18 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
       {d.status === 'warning' && d.warning && (
         <div className="im-warning">
           <TriangleAlert size={15} /> {d.warning}
+        </div>
+      )}
+      {waiting && (
+        <div className="im-waiting">
+          <Clock size={15} />
+          <span>
+            Installed, but no {d.name} data has arrived yet. Its dashboards fill once the Datadog Agent runs the {d.agent ? <code>{d.agent.check}</code> : 'integration'} check
+            {d.hosts.length > 0 ? '; the Hosts tab shows how it does on each host.' : '.'}
+          </span>
+          <button className="link-btn" onClick={() => setTab(d.hosts.length > 0 ? 'Hosts' : 'Configure')}>
+            {d.hosts.length > 0 ? 'See hosts' : 'Configure the Agent'}
+          </button>
         </div>
       )}
       {toggle.isError && (
@@ -461,11 +475,13 @@ function Hosts({ d }: { d: IntegrationDetail }) {
   if (d.hosts.length === 0)
     return (
       <p className="im-text muted-text">
-        {API_MODE === 'live'
-          ? 'No verified host inventory is available for this integration.'
-          : d.status === 'available'
-            ? 'No hosts are running this integration.'
-            : 'This integration is not host-based (it runs through the provider API).'}
+        {d.agent
+          ? `No Datadog Agent reported running the ${d.agent.check} check in the last day. Configure it on the Agents (Configure tab); hosts appear here with the check's status once it runs.`
+          : API_MODE === 'live'
+            ? 'No verified host inventory is available for this integration.'
+            : d.status === 'available'
+              ? 'No hosts are running this integration.'
+              : 'This integration is not host-based (it runs through the provider API).'}
       </p>
     );
   return (

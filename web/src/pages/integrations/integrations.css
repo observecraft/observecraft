@@ -269,6 +269,13 @@
   border-top-color: var(--status-ok);
 }
 
+/* Installed, no data yet: the installed colour, dashed until its first metrics arrive. */
+.edge-waiting,
+.edge-waiting:hover,
+.edge-waiting:focus-visible {
+  border-top-style: dashed;
+}
+
 .edge-warning {
   border-top-color: var(--status-warn);
 }
@@ -419,6 +426,12 @@
   color: var(--badge-warn-fg);
 }
 
+.badge-waiting {
+  margin-left: 6px;
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
 .im-actions {
   display: flex;
   align-items: center;
@@ -440,6 +453,22 @@
   background: var(--badge-warn-bg);
   color: var(--badge-warn-fg);
   font-size: var(--fs-md);
+}
+
+.im-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 24px 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+}
+
+.im-waiting > span {
+  flex: 1;
 }
 
 .im-tabs {

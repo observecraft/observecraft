@@ -541,6 +541,7 @@ use crate::state::AppState;
         fleet::agents,
         fleet::agent,
         fleet::configurations,
+        fleet::integration_hosts,
         hosts::search,
         hosts::detail,
         hosts::metrics,
@@ -1670,6 +1671,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/integrations/fleetdm/test", axum::routing::post(fleetdm_integration::test_fleetdm))
         .route("/api/v1/integrations/fleetdm/sync", axum::routing::post(fleetdm_integration::sync_fleetdm))
         .route("/api/v1/integrations/installed", get(integration_installs::list))
+        .route("/api/v1/integrations/checks/{check}/hosts", get(fleet::integration_hosts))
         .route("/api/v1/integrations/{id}/install", axum::routing::put(integration_installs::install).delete(integration_installs::uninstall))
         .route("/api/v1/integrations/aws/setup", get(aws_integration::setup))
         .route("/api/v1/integrations/aws/external-id", axum::routing::post(aws_integration::external_id))
