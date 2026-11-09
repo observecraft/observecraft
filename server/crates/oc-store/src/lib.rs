@@ -138,6 +138,10 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
         "0022_pathways",
         include_str!("../../../migrations/clickhouse/0022_pathways.sql"),
     ),
+    (
+        "0023_synthetics_artifacts",
+        include_str!("../../../migrations/clickhouse/0023_synthetics_artifacts.sql"),
+    ),
 ];
 
 /// Migrations of the schema before 0001_schema (no org-first sort keys, no cluster support).

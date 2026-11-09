@@ -192,3 +192,30 @@ test('kafka.jmx.allowFrom restricts who reaches the JMX port', { skip: !hasHelm 
   assert.ok(r.ok, r.err);
   assert.match(doc(r.out, 'NetworkPolicy', 'oc-observecraft-kafka'), /- ports: \[\{ port: 9999 \}\]\n {6}from:\n {8}- namespaceSelector:\n {12}matchLabels:\n {14}name: datadog/);
 });
+
+test('browser: oc-browser runs beside the server, which reaches it with the generated browser-token', { skip: !hasHelm }, () => {
+  const { ok, out, err } = render(['browser.enabled=true']);
+  assert.ok(ok, err);
+  const browser = doc(out, 'Deployment', 'oc-observecraft-browser');
+  assert.match(browser, /name: OC_BROWSER_TOKEN\n\s+valueFrom: \{ secretKeyRef: \{ name: oc-observecraft-secrets, key: browser-token \} \}/);
+  assert.match(browser, /mountPath: \/dev\/shm/);
+  assert.match(server(out), /name: OC_BROWSER_URL, value: "http:\/\/oc-observecraft-browser:8095"/);
+  assert.match(server(out), /key: browser-token/);
+  assert.match(doc(out, 'Secret', 'oc-observecraft-secrets'), /^  browser-token: \S+$/m);
+  const off = render(['browser.enabled=false']);
+  assert.ok(off.ok, off.err);
+  assert.doesNotMatch(off.out, /oc-observecraft-browser/);
+  assert.doesNotMatch(server(off.out), /OC_BROWSER_URL/);
+});
+
+test('browser network policy: only the server calls it, and pages reach no internal address', { skip: !hasHelm }, () => {
+  const { ok, out, err } = render(['browser.enabled=true', 'networkPolicy.enabled=true']);
+  assert.ok(ok, err);
+  const ingress = doc(out, 'NetworkPolicy', 'oc-observecraft-browser');
+  assert.match(ingress, /port: 8095/);
+  assert.match(ingress, /app.kubernetes.io\/component: server/);
+  const egress = doc(out, 'NetworkPolicy', 'oc-observecraft-browser-egress');
+  for (const range of ['10.0.0.0/8', '169.254.0.0/16', '172.16.0.0/12', '192.168.0.0/16', '127.0.0.0/8']) assert.ok(egress.includes(range), range);
+  const open = render(['browser.enabled=true', 'networkPolicy.enabled=true', 'synthetics.allowPrivateTargets=true']);
+  assert.doesNotMatch(open.out, /oc-observecraft-browser-egress/);
+});

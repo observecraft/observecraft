@@ -15,6 +15,7 @@ import {
   Gauge,
   LineChart,
   LoaderCircle,
+  MousePointerClick,
   ScrollText,
   ShieldCheck,
   Siren,
@@ -35,6 +36,7 @@ const ICON: Record<StepKind, LucideIcon> = {
   kubernetes: Boxes,
   security: ShieldCheck,
   code: Code2,
+  browser: MousePointerClick,
   conclude: Flag,
   other: Wrench,
 };
@@ -49,6 +51,7 @@ const KIND_LABEL: Record<StepKind, [string, string]> = {
   kubernetes: ['Kubernetes check', 'Kubernetes checks'],
   security: ['security check', 'security checks'],
   code: ['code read', 'code reads'],
+  browser: ['browser action', 'browser actions'],
   conclude: ['conclusion', 'conclusions'],
   other: ['other step', 'other steps'],
 };

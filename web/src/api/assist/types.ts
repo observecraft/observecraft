@@ -42,6 +42,6 @@ export type CodeSettings = S['CodeSettings'];
 export type CodeUsage = S['CodeUsage'];
 export type CodeConnections = S['CodeConnections'];
 export type PullRequest = S['PullRequest'];
-export type RunKind = 'investigation' | 'security' | 'agent' | 'code';
+export type RunKind = 'investigation' | 'security' | 'agent' | 'code' | 'testing';
 export type RunCount = S['RunCount'];
 export type AssistSurface = 'chat' | 'panel';

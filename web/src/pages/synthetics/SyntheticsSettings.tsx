@@ -127,7 +127,12 @@ function DefaultSettingsForm({ settings }: { settings: Required<SyntheticSetting
             </>,
             `${d.locations.length} location`,
           )}
-          {section('browsers', 'Default Browsers & Devices', <p className="muted">Browser tests aren't available yet, so there are no browsers or devices to choose.</p>, 'not available yet')}
+          {section(
+            'browsers',
+            'Default Browsers & Devices',
+            <p className="muted">Browser tests run in Chromium (oc-browser); each test picks its device: Laptop Large, Tablet or Mobile Small.</p>,
+            'Chromium',
+          )}
           {section(
             'tags',
             'Default Tags',

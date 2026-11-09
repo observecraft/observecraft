@@ -37,8 +37,11 @@ use super::logs::TimeRange;
 use super::metrics::TimeAggregator;
 use super::monitor_engine::{recipients, render_message, scope_covers, Comparator, Detection, MessageContext, MonitorOptions, MonitorStatus, Thresholds};
 use super::synthetics_exec::{self as exec, SyntheticAssertion, SyntheticAssertionType, SyntheticOperator, SyntheticRequest, SyntheticRunDetail, SyntheticTestType};
+use super::synthetics_browser::{self, Artifact};
 use super::synthetics_settings as vars;
+use crate::browser::client::VideoMode;
 use crate::auth::{AuthContext, Writer};
+use crate::browser::steps::{self as browser_steps, Step};
 use crate::error::{ApiError, ApiResult};
 use crate::log_metrics::{Histogram, Point, PointValue, Retention};
 use crate::state::AppState;
@@ -63,6 +66,10 @@ const RESULT_RETENTION_DAYS: i32 = 30;
 const MAX_RESULTS: i64 = 5000;
 /// Runs in flight per server.
 const CONCURRENT_RUNS: usize = 16;
+/// Datadog's default devices; the first is the default.
+pub const BROWSER_DEVICES: [&str; 3] = ["chrome.laptop_large", "chrome.tablet", "chrome.mobile_small"];
+/// Browser tests run every 5 minutes at most.
+const MIN_BROWSER_FREQUENCY: i32 = 300;
 const METHODS: [&str; 7] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
 // ================================================================ API types
@@ -74,6 +81,8 @@ pub struct SyntheticLocation {
     pub name: String,
     /// The operator allows tests of loopback, private and link-local addresses (`OC_SYNTHETICS_ALLOW_PRIVATE`).
     pub private_targets: bool,
+    /// Browser tests can run here (oc-browser is deployed, `OC_BROWSER_URL`).
+    pub browser: bool,
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug, PartialEq)]
@@ -134,6 +143,9 @@ pub struct SyntheticTestInput {
     pub priority: Option<i16>,
     #[serde(default)]
     pub paused: bool,
+    /// Browser tests: the steps after the start URL (`request.url`).
+    #[serde(default)]
+    pub steps: Vec<Step>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -146,6 +158,7 @@ pub struct SyntheticTest {
     pub domain: String,
     pub request: SyntheticRequest,
     pub assertions: Vec<SyntheticAssertion>,
+    pub steps: Vec<Step>,
     pub locations: Vec<String>,
     pub frequency_seconds: i32,
     pub retry: SyntheticRetry,
@@ -253,6 +266,9 @@ pub struct SyntheticTryRequest {
     pub request: SyntheticRequest,
     #[serde(default)]
     pub assertions: Vec<SyntheticAssertion>,
+    /// Browser tests.
+    #[serde(default)]
+    pub steps: Vec<Step>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -262,6 +278,10 @@ pub struct SyntheticTryResult {
     pub result: SyntheticRunDetail,
     /// Assertions matching this response, to start the test from.
     pub suggested_assertions: Vec<SyntheticAssertion>,
+    /// Browser runs: each step's screenshot (JPEG, base64), in the order of `result.browser.steps`.
+    pub screenshots: Vec<Option<String>>,
+    /// Browser runs: the video (WebM, base64).
+    pub video: Option<String>,
 }
 
 // ================================================================ validation
@@ -301,6 +321,20 @@ fn check_request(t: SyntheticTestType, r: &mut SyntheticRequest) -> Result<(), S
         return Err(format!("The timeout is 1–{} seconds", exec::MAX_TIMEOUT_SECONDS));
     }
     match t {
+        SyntheticTestType::Browser => {
+            r.url = r.url.trim().to_string();
+            if r.url.chars().count() > MAX_URL_CHARS {
+                return Err(format!("The URL is at most {MAX_URL_CHARS} characters"));
+            }
+            browser_steps::check_url(&r.url).map_err(|_| "Browser tests start from an http or https URL, such as https://shop.example.com".to_string())?;
+            r.device_id = r.device_id.trim().to_string();
+            if r.device_id.is_empty() {
+                r.device_id = BROWSER_DEVICES[0].to_string();
+            }
+            if !BROWSER_DEVICES.contains(&r.device_id.as_str()) {
+                return Err(format!("The device is one of {}", BROWSER_DEVICES.join(", ")));
+            }
+        }
         SyntheticTestType::Http => {
             r.method = r.method.trim().to_ascii_uppercase();
             if !METHODS.contains(&r.method.as_str()) {
@@ -388,6 +422,14 @@ fn check_input(input: &mut SyntheticTestInput) -> Result<(), String> {
     }
     check_request(input.r#type, &mut input.request)?;
     check_assertions(input.r#type, &mut input.assertions)?;
+    if input.r#type == SyntheticTestType::Browser {
+        browser_steps::check_steps(&mut input.steps)?;
+        if input.frequency_seconds < MIN_BROWSER_FREQUENCY {
+            return Err("Browser tests run every 5 minutes or less often".into());
+        }
+    } else if !input.steps.is_empty() {
+        return Err("Only browser tests have steps".into());
+    }
     if input.locations.is_empty() {
         input.locations = vec![LOCATION_ID.to_string()];
     }
@@ -444,7 +486,7 @@ pub fn prepare_run(t: SyntheticTestType, request: &SyntheticRequest, assertions:
 /// The host a test reaches.
 fn domain(t: SyntheticTestType, r: &SyntheticRequest) -> String {
     match t {
-        SyntheticTestType::Http => url::Url::parse(&r.url).ok().and_then(|u| u.host_str().map(str::to_string)).unwrap_or_else(|| raw_host(&r.url)),
+        SyntheticTestType::Http | SyntheticTestType::Browser => url::Url::parse(&r.url).ok().and_then(|u| u.host_str().map(str::to_string)).unwrap_or_else(|| raw_host(&r.url)),
         _ => r.host.clone(),
     }
 }
@@ -617,9 +659,13 @@ fn metric_points(org: &str, test: &TestRow, run: &SyntheticRunDetail, at: i64, r
         ("test_id".into(), test.id.clone()),
         ("location".into(), location.to_string()),
         ("result".into(), if run.passed { "passed" } else { "failed" }.to_string()),
-        ("test_type".into(), "api".into()),
-        ("subtype".into(), t.as_str().to_string()),
     ];
+    if t == SyntheticTestType::Browser {
+        tags.push(("test_type".into(), "browser".into()));
+    } else {
+        tags.push(("test_type".into(), "api".into()));
+        tags.push(("subtype".into(), t.as_str().to_string()));
+    }
     if !test.env.is_empty() {
         tags.push(("env".into(), test.env.clone()));
     }
@@ -642,9 +688,10 @@ fn metric_points(org: &str, test: &TestRow, run: &SyntheticRunDetail, at: i64, r
     };
     let mut out = vec![point("synthetics.test_runs", "Synthetic test runs", tags.clone(), PointValue::Count(1))];
     // Timings only for runs that got an answer.
-    let answered = run.error.is_none() || run.status_code.is_some();
+    let answered = run.error.is_none() || run.status_code.is_some() || run.browser.is_some();
     if answered {
         let metric = match t {
+            SyntheticTestType::Browser => "synthetics.browser.test_duration",
             SyntheticTestType::Http => "synthetics.http.response.time",
             SyntheticTestType::Ssl => "synthetics.ssl.handshake.time",
             SyntheticTestType::Dns => "synthetics.dns.response.time",
@@ -686,6 +733,7 @@ struct TestRow {
     kind: String,
     request: Value,
     assertions: Value,
+    steps: Value,
     locations: Vec<String>,
     frequency_s: i32,
     retry_count: i32,
@@ -717,6 +765,9 @@ impl TestRow {
     fn assertions(&self) -> Vec<SyntheticAssertion> {
         serde_json::from_value(self.assertions.clone()).unwrap_or_default()
     }
+    fn steps(&self) -> Vec<Step> {
+        serde_json::from_value(self.steps.clone()).unwrap_or_default()
+    }
     fn status(&self) -> MonitorStatus {
         self.monitor_status.as_deref().map(MonitorStatus::parse).unwrap_or(MonitorStatus::NoData)
     }
@@ -729,7 +780,7 @@ fn ms(column: &str) -> String {
 
 fn test_select() -> String {
     format!(
-        "SELECT t.id::text AS id, t.org_id, t.name, t.type AS kind, t.request, t.assertions, t.locations, t.frequency_s, t.retry_count, t.retry_interval_ms, \
+        "SELECT t.id::text AS id, t.org_id, t.name, t.type AS kind, t.request, t.assertions, t.steps, t.locations, t.frequency_s, t.retry_count, t.retry_interval_ms, \
          t.min_failure_duration_s, t.min_location_failed, t.env, t.team, t.tags, t.message, t.priority, t.paused, t.monitor_id, m.status AS monitor_status, \
          m.tags AS monitor_tags, {} AS next_run_at, {} AS failing_since, {} AS last_run_at, c.name AS created_by, u.name AS updated_by, {} AS created_at, {} AS updated_at \
          FROM synthetic_tests t LEFT JOIN monitors m ON m.id = t.monitor_id AND m.org_id = t.org_id \
@@ -776,6 +827,7 @@ fn to_api(row: TestRow, uptime: Option<f64>, muted: bool) -> SyntheticTest {
     SyntheticTest {
         domain: domain(kind, &request),
         assertions: row.assertions(),
+        steps: row.steps(),
         status: row.status(),
         request,
         r#type: kind,
@@ -808,7 +860,7 @@ fn to_api(row: TestRow, uptime: Option<f64>, muted: bool) -> SyntheticTest {
 /// The location tests run from, named after the install's address.
 fn location(st: &AppState) -> SyntheticLocation {
     let host = url::Url::parse(&st.config.public_url).ok().and_then(|u| u.host_str().map(str::to_string)).unwrap_or_else(|| "local".into());
-    SyntheticLocation { id: LOCATION_ID.into(), name: format!("ObserveCraft server ({host})"), private_targets: st.config.synthetics_allow_private }
+    SyntheticLocation { id: LOCATION_ID.into(), name: format!("ObserveCraft server ({host})"), private_targets: st.config.synthetics_allow_private, browser: st.config.browser.is_some() }
 }
 
 type Transitions = HashMap<i64, Vec<(i64, MonitorStatus, MonitorStatus)>>;
@@ -892,11 +944,16 @@ fn json<T: Serialize>(v: &T) -> Value {
     serde_json::to_value(v).unwrap_or_default()
 }
 
-/// Stores a run; passing scheduled runs keep no body.
-async fn record(st: &AppState, t: &TestRow, started_at: i64, run: &SyntheticRunDetail, attempts: i32, trigger: &str) -> Result<i64, ApiError> {
+/// Stores a run; passing scheduled runs keep no body, screenshots or video.
+async fn record(st: &AppState, t: &TestRow, started_at: i64, run: &SyntheticRunDetail, attempts: i32, trigger: &str, artifacts: &[Artifact]) -> Result<i64, ApiError> {
     let mut kept = run.clone();
-    if trigger == "scheduled" && run.passed {
+    let lean = trigger == "scheduled" && run.passed;
+    if lean {
         kept.body = None;
+        if let Some(b) = &mut kept.browser {
+            b.has_video = false;
+            b.steps.iter_mut().for_each(|s| s.has_screenshot = false);
+        }
     }
     let (id,): (i64,) = sqlx::query_as(
         "INSERT INTO synthetic_results (org_id, test_id, location, started_at, duration_ms, passed, status_code, error, attempts, trigger, details) \
@@ -915,30 +972,40 @@ async fn record(st: &AppState, t: &TestRow, started_at: i64, run: &SyntheticRunD
     .bind(json(&kept))
     .fetch_one(&st.postgres)
     .await?;
+    if !lean {
+        synthetics_browser::store(st, &t.org_id, &t.id, id, artifacts).await;
+    }
     Ok(id)
 }
 
-/// Runs a test, retrying a failed run as configured.
-async fn run_with_retries(st: &AppState, t: &TestRow, retries: i32) -> (SyntheticRunDetail, i32) {
+/// Runs a test, retrying a failed run as configured; browser runs come with their screenshots and video.
+async fn run_with_retries(st: &AppState, t: &TestRow, retries: i32, video: VideoMode) -> (SyntheticRunDetail, i32, Vec<Artifact>) {
     let kind = SyntheticTestType::parse(&t.kind);
     let (values, secrets) = match vars::load_variables(st, &t.org_id).await {
         Ok(v) => v,
-        Err(e) => return (failed_run(format!("The global variables could not be loaded: {e}")), 1),
+        Err(e) => return (failed_run(format!("The global variables could not be loaded: {e}")), 1, Vec::new()),
     };
     let (request, assertions) = match prepare_run(kind, &t.request(), &t.assertions(), &values) {
         Ok(p) => p,
-        Err(e) => return (failed_run(e), 1),
+        Err(e) => return (failed_run(e), 1, Vec::new()),
     };
-    let allow = st.config.synthetics_allow_private;
+    let steps = t.steps();
+    let once = || async {
+        if kind == SyntheticTestType::Browser {
+            synthetics_browser::run(st, &request, &steps, &values, &secrets, video).await
+        } else {
+            (exec::run(kind, &request, &assertions, st.config.synthetics_allow_private).await, Vec::new())
+        }
+    };
     let mut attempts = 1;
-    let mut run = exec::run(kind, &request, &assertions, allow).await;
+    let (mut run, mut artifacts) = once().await;
     while !run.passed && attempts <= retries {
         tokio::time::sleep(Duration::from_millis(t.retry_interval_ms.max(0) as u64)).await;
-        run = exec::run(kind, &request, &assertions, allow).await;
+        (run, artifacts) = once().await;
         attempts += 1;
     }
     vars::mask(&mut run, &secrets);
-    (run, attempts)
+    (run, attempts, artifacts)
 }
 
 /// A run that failed before sending anything.
@@ -1046,8 +1113,8 @@ async fn write_metrics(st: &AppState, t: &TestRow, run: &SyntheticRunDetail, at:
 
 async fn run_scheduled(st: &AppState, t: TestRow) {
     let at = now_ms();
-    let (run, attempts) = run_with_retries(st, &t, t.retry_count).await;
-    match record(st, &t, at, &run, attempts, "scheduled").await {
+    let (run, attempts, artifacts) = run_with_retries(st, &t, t.retry_count, VideoMode::OnFailure).await;
+    match record(st, &t, at, &run, attempts, "scheduled", &artifacts).await {
         Ok(_) => {
             if let Err(e) = update_state(st, &t, &run, at).await {
                 tracing::warn!(test = %t.id, error = %e, "synthetic test state update failed");
@@ -1079,7 +1146,8 @@ async fn claim(st: &AppState, limit: i64) -> Result<Vec<TestRow>, ApiError> {
     let now = now_ms();
     for t in &rows {
         let next = next_due(t.next_run_at, now, i64::from(t.frequency_s) * 1000);
-        let timeout = t.request().timeout_seconds.clamp(1, exec::MAX_TIMEOUT_SECONDS) as i32;
+        // A browser run lasts up to oc-browser's limit, plus the wait for a free browser.
+        let timeout = if t.kind == "browser" { 1260 } else { t.request().timeout_seconds.clamp(1, exec::MAX_TIMEOUT_SECONDS) as i32 };
         let hold = (timeout + 5) * (t.retry_count + 1) + t.retry_interval_ms / 1000 * t.retry_count + 30;
         sqlx::query("UPDATE synthetic_tests SET next_run_at = to_timestamp($3), claimed_until = now() + make_interval(secs => $4) WHERE org_id = $1 AND id = $2::uuid")
             .bind(&t.org_id)
@@ -1219,6 +1287,9 @@ async fn load(st: &AppState, org: &str, id: &str) -> Result<SyntheticTest, ApiEr
     responses((status = 200, body = SyntheticTest), (status = 400, body = crate::error::ErrorBody)), tag = "synthetics")]
 pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut input): Json<SyntheticTestInput>) -> ApiResult<SyntheticTest> {
     check_input(&mut input).map_err(ApiError::BadRequest)?;
+    if input.r#type == SyntheticTestType::Browser {
+        require_browser(&st)?;
+    }
     if let Some(problem) = vars::enforcement_problem(&vars::load_settings(&st, &ctx.org_id).await?, &input.tags, &input.env) {
         return Err(ApiError::BadRequest(problem));
     }
@@ -1229,8 +1300,8 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut in
     }
     let (id,): (String,) = sqlx::query_as(
         "INSERT INTO synthetic_tests (org_id, name, type, request, assertions, locations, frequency_s, retry_count, retry_interval_ms, min_failure_duration_s, \
-         min_location_failed, env, team, tags, message, priority, paused, created_by, updated_by) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::uuid, $18::uuid) RETURNING id::text",
+         min_location_failed, env, team, tags, message, priority, paused, created_by, updated_by, steps) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::uuid, $18::uuid, $19) RETURNING id::text",
     )
     .bind(&ctx.org_id)
     .bind(&input.name)
@@ -1250,6 +1321,7 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut in
     .bind(input.priority)
     .bind(input.paused)
     .bind(&ctx.user_id)
+    .bind(json(&input.steps))
     .fetch_one(&mut *tx)
     .await?;
     sync_monitor(&mut tx, &ctx, &id, None, &input).await?;
@@ -1258,37 +1330,40 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut in
     Ok(Json(load(&st, &ctx.org_id, &id).await?))
 }
 
-/// What an update compares with: monitor, type, request, assertions, paused, frequency, tags, env.
-type StoredTest = (Option<i64>, String, Value, Value, bool, i32, Vec<String>, String);
+/// What an update compares with: monitor, type, request, assertions, paused, frequency, tags, env, steps.
+type StoredTest = (Option<i64>, String, Value, Value, bool, i32, Vec<String>, String, Value);
 
 /// Replaces a test's definition (and updates its monitor). A changed request or assertions run soon.
 #[utoipa::path(put, path = "/api/v1/synthetics/tests/{id}", operation_id = "update_synthetic_test", params(("id" = String, Path)), request_body = SyntheticTestInput,
     responses((status = 200, body = SyntheticTest), (status = 400, body = crate::error::ErrorBody), (status = 404, body = crate::error::ErrorBody)), tag = "synthetics")]
 pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<String>, Json(mut input): Json<SyntheticTestInput>) -> ApiResult<SyntheticTest> {
     check_input(&mut input).map_err(ApiError::BadRequest)?;
+    if input.r#type == SyntheticTestType::Browser {
+        require_browser(&st)?;
+    }
     if !is_uuid(&id) {
         return Err(not_found());
     }
     let mut tx = st.postgres.begin().await?;
     let before: Option<StoredTest> =
-        sqlx::query_as("SELECT monitor_id, type, request, assertions, paused, frequency_s, tags, env FROM synthetic_tests WHERE org_id = $1 AND id = $2::uuid FOR UPDATE")
+        sqlx::query_as("SELECT monitor_id, type, request, assertions, paused, frequency_s, tags, env, steps FROM synthetic_tests WHERE org_id = $1 AND id = $2::uuid FOR UPDATE")
             .bind(&ctx.org_id)
             .bind(&id)
             .fetch_optional(&mut *tx)
             .await?;
-    let Some((monitor, kind, request, assertions, paused, frequency, old_tags, old_env)) = before else { return Err(not_found()) };
+    let Some((monitor, kind, request, assertions, paused, frequency, old_tags, old_env, steps)) = before else { return Err(not_found()) };
     // Enforced tag rules apply when tags or env change (pausing an older test still works).
     if old_tags != input.tags || old_env != input.env {
         if let Some(problem) = vars::enforcement_problem(&vars::load_settings(&st, &ctx.org_id).await?, &input.tags, &input.env) {
             return Err(ApiError::BadRequest(problem));
         }
     }
-    let changed = kind != input.r#type.as_str() || request != json(&input.request) || assertions != json(&input.assertions);
+    let changed = kind != input.r#type.as_str() || request != json(&input.request) || assertions != json(&input.assertions) || steps != json(&input.steps);
     let run_soon = changed || (paused && !input.paused) || frequency != input.frequency_seconds;
     sqlx::query(
         "UPDATE synthetic_tests SET name = $3, type = $4, request = $5, assertions = $6, locations = $7, frequency_s = $8, retry_count = $9, retry_interval_ms = $10, \
          min_failure_duration_s = $11, min_location_failed = $12, env = $13, team = $14, tags = $15, message = $16, priority = $17, paused = $18, updated_by = $19::uuid, \
-         updated_at = now(), next_run_at = CASE WHEN $20 THEN now() ELSE next_run_at END, failing_since = CASE WHEN $21 THEN NULL ELSE failing_since END \
+         updated_at = now(), next_run_at = CASE WHEN $20 THEN now() ELSE next_run_at END, failing_since = CASE WHEN $21 THEN NULL ELSE failing_since END, steps = $22 \
          WHERE org_id = $1 AND id = $2::uuid",
     )
     .bind(&ctx.org_id)
@@ -1312,6 +1387,7 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
     .bind(&ctx.user_id)
     .bind(run_soon)
     .bind(changed)
+    .bind(json(&input.steps))
     .execute(&mut *tx)
     .await?;
     sync_monitor(&mut tx, &ctx, &id, monitor, &input).await?;
@@ -1350,8 +1426,8 @@ pub async fn delete(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
 pub async fn run_now(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<String>) -> ApiResult<SyntheticResult> {
     let t = test_row(&st, &ctx.org_id, &id).await?;
     let at = now_ms();
-    let (run, attempts) = run_with_retries(&st, &t, 0).await;
-    let result_id = record(&st, &t, at, &run, attempts, "manual").await?;
+    let (run, attempts, artifacts) = run_with_retries(&st, &t, 0, VideoMode::Always).await;
+    let result_id = record(&st, &t, at, &run, attempts, "manual", &artifacts).await?;
     ctx.audit(&st, "synthetics.test_run", &id, &format!("{} ({})", t.name, if run.passed { "passed" } else { "failed" })).await;
     Ok(Json(SyntheticResult { id: result_id, test_id: t.id, location: LOCATION_ID.into(), started_at: at, attempts, trigger: "manual".into(), detail: run }))
 }
@@ -1361,6 +1437,9 @@ pub async fn run_now(State(st): State<AppState>, Writer(ctx): Writer, Path(id): 
     responses((status = 200, body = SyntheticTryResult), (status = 400, body = crate::error::ErrorBody)), tag = "synthetics")]
 pub async fn try_request(State(st): State<AppState>, Writer(ctx): Writer, Json(mut req): Json<SyntheticTryRequest>) -> ApiResult<SyntheticTryResult> {
     check_request(req.r#type, &mut req.request).map_err(ApiError::BadRequest)?;
+    if req.r#type == SyntheticTestType::Browser {
+        return try_browser(&st, &ctx, req).await;
+    }
     check_assertions(req.r#type, &mut req.assertions).map_err(ApiError::BadRequest)?;
     let target = domain(req.r#type, &req.request);
     let (values, secrets) = vars::load_variables(&st, &ctx.org_id).await?;
@@ -1369,7 +1448,31 @@ pub async fn try_request(State(st): State<AppState>, Writer(ctx): Writer, Json(m
     vars::mask(&mut result, &secrets);
     ctx.audit(&st, "synthetics.request_sent", &target, &format!("{} {}", req.r#type.as_str(), if result.passed { "passed" } else { "failed" })).await;
     let suggested_assertions = if result.error.is_none() { exec::suggest(req.r#type, &result) } else { Vec::new() };
-    Ok(Json(SyntheticTryResult { location: location(&st), result, suggested_assertions }))
+    Ok(Json(SyntheticTryResult { location: location(&st), result, suggested_assertions, screenshots: Vec::new(), video: None }))
+}
+
+/// A browser test run once from the editor: nothing is stored, the screenshots and video come back inline.
+async fn try_browser(st: &AppState, ctx: &AuthContext, mut req: SyntheticTryRequest) -> ApiResult<SyntheticTryResult> {
+    require_browser(st)?;
+    browser_steps::check_steps(&mut req.steps).map_err(ApiError::BadRequest)?;
+    let (values, secrets) = vars::load_variables(st, &ctx.org_id).await?;
+    let (request, _) = prepare_run(req.r#type, &req.request, &[], &values).map_err(ApiError::BadRequest)?;
+    let (mut result, artifacts) = synthetics_browser::run(st, &request, &req.steps, &values, &secrets, VideoMode::Always).await;
+    vars::mask(&mut result, &secrets);
+    let target = domain(req.r#type, &req.request);
+    ctx.audit(st, "synthetics.request_sent", &target, &format!("browser {}", if result.passed { "passed" } else { "failed" })).await;
+    let count = result.browser.as_ref().map_or(0, |b| b.steps.len());
+    let screenshots = (0..count).map(|i| artifacts.iter().find(|a| a.name == format!("step-{i}.jpg")).map(|a| a.data.clone())).collect();
+    let video = artifacts.iter().find(|a| a.name == "video.webm").map(|a| a.data.clone());
+    Ok(Json(SyntheticTryResult { location: location(st), result, suggested_assertions: Vec::new(), screenshots, video }))
+}
+
+/// Browser tests need oc-browser.
+fn require_browser(st: &AppState) -> Result<(), ApiError> {
+    if st.config.browser.is_none() {
+        return Err(ApiError::BadRequest("Browser tests need oc-browser, which this server doesn't use (set OC_BROWSER_URL and OC_BROWSER_TOKEN)".into()));
+    }
+    Ok(())
 }
 
 /// A test's runs, alert state and uptime over a range.
@@ -1454,6 +1557,7 @@ mod tests {
             message: "".into(),
             priority: None,
             paused: false,
+            steps: vec![],
         }
     }
 
@@ -1519,6 +1623,38 @@ mod tests {
         let mut wrong = input(SyntheticTestType::Tcp, host("db.example.com", Some(5432)));
         wrong.assertions = vec![assertion(SyntheticAssertionType::StatusCode, SyntheticOperator::Is, "", "200")];
         assert!(check(wrong).contains("don't apply to TCP tests"));
+    }
+
+    fn browser_step(v: Value) -> crate::browser::steps::Step {
+        serde_json::from_value(v).unwrap()
+    }
+
+    #[test]
+    fn browser_tests_have_a_start_url_and_steps() {
+        let mut b = input(SyntheticTestType::Browser, http(" https://shop.example.com/ "));
+        b.steps = vec![browser_step(serde_json::json!({"type": "click", "params": {"element": {"userLocator": {"values": [{"type": "css", "value": "#checkout"}]}}}}))];
+        assert_eq!(check_input(&mut b), Result::Ok(()));
+        assert_eq!(b.request.url, "https://shop.example.com/");
+        assert_eq!(b.request.device_id, "chrome.laptop_large");
+        assert_eq!(b.steps[0].name, "Click on #checkout");
+        assert_eq!(domain(SyntheticTestType::Browser, &b.request), "shop.example.com");
+        let mut tablet = input(SyntheticTestType::Browser, SyntheticRequest { device_id: "chrome.tablet".into(), ..http("https://shop.example.com") });
+        assert_eq!(check_input(&mut tablet), Result::Ok(()));
+        let check = |mut i: SyntheticTestInput| check_input(&mut i).unwrap_err();
+        let mut api_with_steps = input(SyntheticTestType::Http, http("https://shop.example.com"));
+        api_with_steps.steps = b.steps.clone();
+        assert!(check(api_with_steps).contains("Only browser tests have steps"));
+        let mut asserted = input(SyntheticTestType::Browser, http("https://shop.example.com"));
+        asserted.assertions = vec![assertion(SyntheticAssertionType::StatusCode, SyntheticOperator::Is, "", "200")];
+        assert!(check(asserted).contains("don't apply to BROWSER tests"));
+        let mut often = input(SyntheticTestType::Browser, http("https://shop.example.com"));
+        often.frequency_seconds = 60;
+        assert!(check(often).contains("every 5 minutes"));
+        let mut bad_step = input(SyntheticTestType::Browser, http("https://shop.example.com"));
+        bad_step.steps = vec![browser_step(serde_json::json!({"type": "click"}))];
+        assert!(check(bad_step).starts_with("Step 1:"));
+        assert!(check(input(SyntheticTestType::Browser, SyntheticRequest { device_id: "nokia.3310".into(), ..http("https://shop.example.com") })).contains("device"));
+        assert!(check(input(SyntheticTestType::Browser, http("ftp://shop.example.com"))).contains("http or https"));
     }
 
     #[test]
@@ -1628,6 +1764,7 @@ mod tests {
             kind: kind.into(),
             request: json(&http("https://shop.example.com")),
             assertions: Value::Array(vec![]),
+            steps: Value::Array(vec![]),
             locations: vec![LOCATION_ID.into()],
             frequency_s: 60,
             retry_count: 0,
@@ -1678,6 +1815,20 @@ mod tests {
         assert_eq!(points.iter().map(|p| p.metric.as_str()).collect::<Vec<_>>(), vec!["synthetics.test_runs"]);
         let dns = SyntheticRunDetail { passed: true, duration_ms: 9.0, ..Default::default() };
         assert_eq!(metric_points("default", &row("dns", "", &[]), &dns, 1_000, Retention::default(), LOCATION_ID)[1].metric, "synthetics.dns.response.time");
+    }
+
+    #[test]
+    fn browser_runs_are_browser_metrics() {
+        let browser: crate::browser::client::BrowserRunResult = serde_json::from_value(serde_json::json!({
+            "passed": false, "durationMs": 5400, "startUrl": "https://shop.example.com", "device": {"id": "chrome.laptop_large", "width": 1440, "height": 1100}, "steps": []
+        }))
+        .unwrap();
+        let run = SyntheticRunDetail { passed: false, error: Some("Cannot locate element #pay".into()), duration_ms: 5400.0, browser: Some(browser), ..Default::default() };
+        let points = metric_points("default", &row("browser", "", &[]), &run, 1_000, Retention::default(), LOCATION_ID);
+        let tag = |p: &Point, k: &str| p.tags.iter().find(|(key, _)| key == k).map(|(_, v)| v.clone());
+        assert_eq!(tag(&points[0], "test_type").as_deref(), Some("browser"));
+        assert_eq!(tag(&points[0], "subtype"), None);
+        assert_eq!(points[1].metric, "synthetics.browser.test_duration", "a failed browser run still has a duration");
     }
 
     #[test]

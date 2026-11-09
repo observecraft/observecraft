@@ -1,0 +1,98 @@
+{{- if .Values.browser.enabled }}
+{{- $fullname := include "oc.fullname" . -}}
+# oc-browser: browser tests and AI Testing in Playwright's Chromium, called by the server only (Bearer
+# browser-token). Every request a page makes goes through oc-browser's own proxy, which refuses internal
+# addresses unless synthetics.allowPrivateTargets is set; with networkPolicy.enabled the pods can't reach them
+# either. Stateless.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-browser
+  labels:
+    {{- include "oc.componentLabels" (list . "browser") | nindent 4 }}
+spec:
+  replicas: {{ .Values.browser.replicas }}
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "browser") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "oc.selector" (list . "browser") | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "oc.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- include "oc.pullSecrets" . | nindent 6 }}
+      {{- include "oc.podSecurity" . | nindent 6 }}
+      {{- include "oc.scheduling" (list . .Values.browser "browser") | nindent 6 }}
+      containers:
+        - name: browser
+          image: {{ include "oc.registry" . }}{{ .Values.browser.image.repository }}:{{ .Values.browser.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "oc.containerSecurity" . | nindent 10 }}
+          ports:
+            - { name: http, containerPort: 8095 }
+          env:
+            - name: OC_BROWSER_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ include "oc.secretName" . }}, key: browser-token } }
+            - { name: OC_BROWSER_CONCURRENCY, value: {{ .Values.browser.concurrency | quote }} }
+            - { name: OC_SYNTHETICS_ALLOW_PRIVATE, value: {{ .Values.synthetics.allowPrivateTargets | quote }} }
+            # Chromium's profile and videos (the root filesystem is read-only).
+            - { name: HOME, value: /tmp }
+            - { name: TMPDIR, value: /tmp }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.browser.resources | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: shm, mountPath: /dev/shm }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 2Gi }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 1Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-browser
+  labels:
+    {{- include "oc.componentLabels" (list . "browser") | nindent 4 }}
+spec:
+  selector:
+    {{- include "oc.selector" (list . "browser") | nindent 4 }}
+  ports:
+    - { name: http, port: 8095, targetPort: http }
+{{- if and .Values.networkPolicy.enabled (not .Values.synthetics.allowPrivateTargets) }}
+---
+# Pages reach the public internet only (DNS anywhere); the proxy refuses the same ranges.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}-browser-egress
+  labels:
+    {{- include "oc.componentLabels" (list . "browser") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "oc.selector" (list . "browser") | nindent 6 }}
+  policyTypes: [Egress]
+  egress:
+    - ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16, 198.18.0.0/15, 224.0.0.0/3]
+        - ipBlock:
+            cidr: ::/0
+            except: ["::1/128", "fc00::/7", "fe80::/10", "ff00::/8"]
+{{- end }}
+{{- end }}

@@ -49,6 +49,27 @@ services:
       timeout: 3s
       retries: 30
 
+  # Browser tests and AI Testing: Playwright's Chromium (browser/), driven by the server over HTTP with
+  # OC_BROWSER_TOKEN. Every request the browser makes goes through its own proxy, which refuses internal
+  # addresses unless OC_SYNTHETICS_ALLOW_PRIVATE=true (as the server does for API tests).
+  oc-browser:
+    image: ghcr.io/observecraft/oc-browser:${OC_VERSION:-latest}
+    build:
+      context: ../browser
+    init: true
+    shm_size: 1gb
+    environment:
+      OC_BROWSER_TOKEN: ${OC_BROWSER_TOKEN:-oc_browser_local_dev_only_token}
+      OC_BROWSER_CONCURRENCY: ${OC_BROWSER_CONCURRENCY:-2}
+      OC_SYNTHETICS_ALLOW_PRIVATE: ${OC_SYNTHETICS_ALLOW_PRIVATE:-false}
+    ports:
+      - "127.0.0.1:8095:8095"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8095/healthz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
   # Durable ingestion buffer between the intake and processing (Apache Kafka, KRaft: no ZooKeeper).
   # Containers use kafka:9092; an intake or server running on the host (make intake / make server)
   # uses localhost:19092. One broker here; Helm's values-ha.yaml runs three with replication 3.
@@ -211,6 +232,8 @@ services:
       OC_DATA_DIR: /var/lib/observecraft
       OC_SECRET_KEY: ${OC_SECRET_KEY:-}
       OC_COOKIE_SECURE: ${OC_COOKIE_SECURE:-false}
+      OC_BROWSER_URL: http://oc-browser:8095
+      OC_BROWSER_TOKEN: ${OC_BROWSER_TOKEN:-oc_browser_local_dev_only_token}
     ports:
       - "8080:8080"
     depends_on:

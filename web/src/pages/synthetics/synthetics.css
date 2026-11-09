@@ -1409,3 +1409,278 @@
 .syn-activity-main.nodata {
   background: none;
 }
+
+/* ---------------------------------------------------------------- browser tests */
+
+.syn-br-steps {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.syn-br-step {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.syn-br-step-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--mon-ok);
+}
+
+.syn-br-step.failed .syn-br-step-icon {
+  background: var(--mon-alert);
+}
+
+.syn-br-step.failed.allowed .syn-br-step-icon {
+  background: var(--mon-warn);
+}
+
+.syn-br-step.skipped .syn-br-step-icon {
+  background: var(--mon-nodata);
+}
+
+.syn-br-step.skipped .syn-br-step-main {
+  color: var(--text-faint);
+}
+
+.syn-br-step-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.syn-br-step-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.syn-br-step-n {
+  min-width: 18px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.syn-br-step-meta {
+  display: flex;
+  gap: 12px;
+  font-size: var(--fs-sm);
+}
+
+.syn-br-step-error {
+  margin: 2px 0 0;
+  color: var(--mon-alert);
+}
+
+.syn-br-step-value {
+  margin: 2px 0 0;
+  font-size: var(--fs-sm);
+}
+
+.syn-br-errors-toggle {
+  align-self: flex-start;
+  font-size: var(--fs-sm);
+}
+
+.syn-br-errors {
+  margin: 2px 0 0;
+  padding-left: 16px;
+  font-size: var(--fs-sm);
+}
+
+.syn-br-thumb {
+  display: grid;
+  place-items: center;
+  width: 128px;
+  height: 80px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle, var(--pill-bg));
+  cursor: zoom-in;
+}
+
+.syn-br-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.syn-br-thumb.empty {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.syn-br-video video {
+  width: 100%;
+  max-height: 420px;
+  border-radius: var(--radius-sm);
+  background: #000;
+}
+
+.syn-br-video h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.syn-br-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 14, 20, 0.86);
+  color: #fff;
+}
+
+.syn-br-lightbox-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.syn-br-lightbox-head .muted {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.syn-br-lightbox .icon-plain {
+  color: #fff;
+}
+
+.syn-br-lightbox-body {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 0;
+  padding: 0 12px 16px;
+}
+
+.syn-br-lightbox-body img {
+  max-width: calc(100% - 100px);
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.syn-br-devices {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.syn-br-edit-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 900px;
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.syn-br-edit-step {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface, transparent);
+}
+
+.syn-br-edit-step.invalid {
+  border-left-color: var(--mon-warn);
+}
+
+.syn-br-edit-step.ran-passed {
+  border-left-color: var(--mon-ok);
+}
+
+.syn-br-edit-step.ran-failed {
+  border-left-color: var(--mon-alert);
+}
+
+.syn-br-edit-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+}
+
+.syn-br-edit-title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.syn-br-edit-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.syn-br-warn {
+  flex: none;
+  color: var(--mon-warn);
+}
+
+.syn-br-edit-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.syn-br-edit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 12px 12px 36px;
+}
+
+.syn-br-element {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.syn-br-locator .syn-input,
+.syn-br-check .syn-input {
+  flex: 1;
+}
+
+.syn-br-step-options {
+  gap: 16px;
+  font-size: var(--fs-sm);
+}
+
+.syn-br-props-steps {
+  margin: 0;
+  padding-left: 18px;
+}

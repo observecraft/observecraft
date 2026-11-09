@@ -9,12 +9,12 @@ import './syntheticsProduct.css';
 const TEST_KINDS = [
   { id: 'api', icon: HeartPulse, title: 'API Test', description: 'Check services, websites and APIs over HTTP, SSL, DNS or TCP on a schedule, and alert when they fail or slow down.' },
   { id: 'multistep', icon: Network, title: 'Multistep API Test', description: 'Chain API requests, passing values from one response to the next request.' },
-  { id: 'browser', icon: MousePointerClick, title: 'Browser Test', description: 'Replay recorded steps of a business flow in a browser.' },
+  { id: 'browser', icon: MousePointerClick, title: 'Browser Test', description: 'Replay the steps of a business flow in a real browser, with a screenshot of every step.' },
   { id: 'mobile', icon: Smartphone, title: 'Mobile Application Test', description: 'Run recorded flows of your iOS and Android applications.' },
   { id: 'network', icon: Radar, title: 'Network Path Test', description: 'Trace the network path to an endpoint, hop by hop, with latency and loss.' },
 ] as const;
 
-/** New Synthetics Test: the kinds of test; API tests are available, the others are shown as coming. */
+/** New Synthetics Test: the kinds of test; API and browser tests are available, the others are shown as coming. */
 export function NewTestModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const [aside, setAside] = useState(true);
@@ -31,7 +31,7 @@ export function NewTestModal({ onClose }: { onClose: () => void }) {
           </h2>
           <div className="syn-new-grid">
             {TEST_KINDS.map((k) => {
-              const ready = k.id === 'api';
+              const ready = k.id === 'api' || k.id === 'browser';
               return (
                 <button
                   key={k.id}
@@ -39,7 +39,7 @@ export function NewTestModal({ onClose }: { onClose: () => void }) {
                   disabled={!ready}
                   onClick={() => {
                     onClose();
-                    navigate('/synthetics/templates');
+                    navigate(k.id === 'browser' ? '/synthetics/browser/new' : '/synthetics/templates');
                   }}
                 >
                   <k.icon size={40} strokeWidth={1.4} />

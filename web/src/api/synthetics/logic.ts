@@ -2,6 +2,7 @@
 // and the in-browser mock. Checks and uptime follow the server (routes/synthetics*.rs).
 import type { components } from '../generated/schema';
 import type {
+  BrowserStep,
   SyntheticAssertion,
   SyntheticAssertionResult,
   SyntheticAssertionType,
@@ -21,7 +22,8 @@ type MonitorStatus = components['schemas']['MonitorStatus'];
 
 export const LOCATION_ID = 'observecraft-server';
 
-export const TYPE_LABEL: Record<SyntheticTestType, string> = { http: 'HTTP', ssl: 'SSL', dns: 'DNS', tcp: 'TCP' };
+export const TYPE_LABEL: Record<SyntheticTestType, string> = { http: 'HTTP', ssl: 'SSL', dns: 'DNS', tcp: 'TCP', browser: 'Browser' };
+/** API test types (the API test editor's request types). */
 export const TEST_TYPES: SyntheticTestType[] = ['http', 'ssl', 'dns', 'tcp'];
 /** Request types shown in the editor that can't be chosen yet. */
 export const SOON_TYPES = ['gRPC', 'WebSocket', 'UDP', 'ICMP'];
@@ -50,6 +52,7 @@ export const ASSERTION_TYPES: Record<SyntheticTestType, SyntheticAssertionType[]
   ssl: ['certificate', 'responseTime'],
   dns: ['recordEvery', 'recordSome', 'responseTime'],
   tcp: ['responseTime'],
+  browser: [],
 };
 
 const TEXT_OPS: SyntheticOperator[] = ['is', 'isNot', 'contains', 'doesNotContain', 'matches', 'doesNotMatch'];
@@ -125,7 +128,7 @@ export function newAssertion(kind: SyntheticAssertionType): SyntheticAssertion {
 export function defaultRequest(type: SyntheticTestType): SyntheticRequest {
   return {
     method: 'GET',
-    url: type === 'http' ? 'https://' : '',
+    url: type === 'http' || type === 'browser' ? 'https://' : '',
     host: '',
     port: type === 'ssl' ? 443 : null,
     headers: [],
@@ -137,11 +140,12 @@ export function defaultRequest(type: SyntheticTestType): SyntheticRequest {
     acceptSelfSigned: false,
     dnsServer: '',
     dnsServerPort: null,
+    deviceId: type === 'browser' ? 'chrome.laptop_large' : '',
   };
 }
 
 export function testDomain(type: SyntheticTestType, r: SyntheticRequest): string {
-  if (type !== 'http') return r.host;
+  if (type !== 'http' && type !== 'browser') return r.host;
   // A URL with variables (`https://{{ SHOP_HOST }}/health`): its host part as written.
   if (/\{\{/.test(r.url)) return /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(r.url)?.[1] ?? '';
   try {
@@ -385,6 +389,8 @@ export interface TestDraft {
   message: string;
   priority: number | null;
   paused: boolean;
+  /** Browser tests: the steps after the start URL. */
+  steps: BrowserStep[];
 }
 
 export const DEFAULT_MESSAGE = '{{#is_alert}}The test is failing.{{/is_alert}}\n{{#is_recovery}}The test passes again.{{/is_recovery}}';
@@ -416,6 +422,7 @@ export function newDraft(type: SyntheticTestType = 'http', defaults?: DraftDefau
     message: DEFAULT_MESSAGE,
     priority: null,
     paused: false,
+    steps: [],
   };
 }
 
@@ -436,6 +443,7 @@ export function draftOf(t: SyntheticTest): TestDraft {
     message: t.message,
     priority: t.priority ?? null,
     paused: t.paused,
+    steps: t.steps.map((st) => structuredClone(st)),
   };
 }
 
@@ -655,7 +663,7 @@ export const TEST_TEMPLATES: TestTemplate[] = [
 /** The request part the editor can send: what's missing before Send / Save. */
 export function requestProblem(type: SyntheticTestType, r: SyntheticRequest): string | null {
   // Global variables (`{{ NAME }}`) are checked once filled in, when the request is sent.
-  if (type === 'http') {
+  if (type === 'http' || type === 'browser') {
     try {
       const u = new URL(neutralized(r.url));
       if (!/^https?:$/.test(u.protocol) || !u.hostname) return 'Enter an http or https URL';

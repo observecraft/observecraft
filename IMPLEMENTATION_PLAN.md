@@ -1,51 +1,64 @@
-# Implementation plan: logs from Kafka to ClickHouse in one Rust process
+# Implementation plan: browser tests and AI Testing (AI test generation)
 
-On VictoriaMetrics' logs-benchmark ingest workload, ObserveCraft stores ~13-16k lines/s where ClickStack (also on
-ClickHouse) stores ~92k and VictoriaLogs ~99k on the same machine (docs/benchmarks/2026-11-05-logs-benchmark.md).
-Kafka accepts every line; the ceiling is the chain after it (Collector → Vector → raw ClickHouse + HTTP indexer →
-indexed ClickHouse), each stage waiting for the next. Datadog keeps Vector at the edge (Observability Pipelines)
-and its backend after Kafka its own; ObserveCraft does the same: the server's log indexer reads Kafka itself and
-writes ClickHouse, Vector and the Collector stay for agents, metrics and traces.
+Synthetic Monitoring has API tests (HTTP, SSL, DNS, TCP) only. Datadog's Bits Testing explores a site from a starting
+URL, maps its user journeys and generates browser tests (plus API and network tests) grouped into suites to review.
+Browser tests come first; the agent then explores with the same browser and proposes tests in that model. Ours is
+called AI Testing: Bits is Datadog's brand, which ObserveCraft doesn't use.
 
-## Stage 1: Normalization in Rust
-Goal: `log_normalize` turns an OTLP log record or a JSON log (with its Kafka org header and ingest identity) into
-the indexed row exactly as `deploy/vector/normalize.vrl` does: reserved attributes, levels (klog, logfmt, dashed,
-leading words, the Datadog Agent's stream status), timestamps, trace ids, Datadog tags from resources, unified
-service tagging, FireLens, ddtags, the flattened `attr` and the `attributes` JSON.
-Success Criteria: every case of `deploy/vector/tests.yaml` as a Rust test; golden rows produced by Vector itself
-from the same inputs (`scripts/log-normalize-golden.mjs`, committed fixtures) match the Rust rows field by field,
-for the test cases, edge cases and a sample of the benchmark generator's lines.
-Status: Complete (110 cases match Vector 0.42.0's rows)
+Decisions:
+- `oc-browser` (TypeScript + Playwright, Apache-2.0) is its own container: it runs steps (screenshot, URL, error
+  and duration per step, a Playwright trace on failure) and serves agent sessions (accessibility snapshot with
+  refs, actions on refs that come back with a stable locator, network log, saved `storageState`). Stateless: no
+  database, no tenancy; the server calls it over internal HTTP with a shared token (`OC_BROWSER_URL`,
+  `OC_BROWSER_TOKEN`).
+- The Rust server keeps the platform: the step model and its validation (`browser/steps.rs`, the API contract),
+  scheduling, monitors, results, screenshots, metrics, credentials, TOTP, and the agent (Assist's loop).
+- SSRF: every request the browser makes is resolved and refused when internal (same rules as `synthetics_net`,
+  `OC_SYNTHETICS_ALLOW_PRIVATE`), before and after DNS; the container has no other egress.
+- Steps follow Datadog's browser step model (step types, `params.element.userLocator`, `allowFailure`,
+  `isCritical`, `timeout`).
+- Login and SSO are a real browser following redirects; the agent signs in with an agent profile's credentials
+  (secure variables, TOTP); sessions are reused with `storageState`. No SSO-specific code.
+- Later (not in this plan): pentesting on the same `oc-browser` API (snapshot, act, network log, replay), with
+  Strix (Apache-2.0) or Nuclei (MIT) plus our agent; never ZAP; domain ownership verified first.
 
-## Stage 2: The ingester reads Kafka
-Goal: the server consumes `oc.otlp.logs` (OTLP protobuf) and `oc.logs.json` with a consumer group (rdkafka),
-normalizes, runs the existing indexer (pipelines, standard attributes, index routing, exclusion filters, quotas,
-generated metrics, forwarding, live tail) and commits offsets only after storage; `OC_LOG_INGEST=kafka|vector`
-chooses the path, `vector` keeping today's.
-Success Criteria: the indexer's existing tests; restart and rebalance tests with a real Kafka (no loss, no
-duplicates beyond the ReplacingMergeTree's); the benchmark.
-Status: Complete (Postgres leases and offsets, no consumer groups: rskafka has none and the workspace avoids
-librdkafka; 1 MiB fetches, batches of up to 24 MiB / 1 s, at most OC_LOG_INGEST_CONCURRENCY stored at once)
+## Stage 1: oc-browser runs steps
+Goal: the server validates steps (`browser/steps.rs`); `oc-browser` (`browser/` at the repo root) runs them in a
+fresh context (go to URL, click, type, select, hover, press key, scroll, refresh, wait, assertions on
+page/element/URL/JavaScript, extract variable), retrying assertions until their timeout, refusing internal
+addresses, with a screenshot, URL, duration, error and failure code per step.
+Success Criteria: Rust validation tests; oc-browser tests against local pages in a real Chromium (each step type,
+allowFailure/isCritical, variables, timeouts, blocked private addresses, the token).
+Status: Complete (Rust: 4 validation tests; oc-browser: 25 tests, 8 in a real Chromium; per-run proxy per
+context; the Playwright trace on failure moved to Stage 2 with result storage)
 
-## Stage 3: Binary inserts
-Goal: rows go to ClickHouse as RowBinary in large batches instead of JSONEachRow.
-Success Criteria: the indexer's storage tests; the benchmark (stored lines/s, CPU).
-Status: Dropped: ClickHouse spends ~2 s of CPU parsing a run's JSON inserts, against ~85 s merging; the server's
-indexed path instead runs pipelines on typed attributes (prepare_normalized) and sends larger batches
+## Stage 2: Browser tests in Synthetic Monitoring
+Goal: `browser` test type with steps, scheduled and run like API tests (retries, monitor state, metrics
+`synthetics.browser.*`, results with step details; screenshots kept 30 days); Chromium in Compose and Helm;
+New Test → Browser Test editor, test page and result detail with step screenshots; mocks.
+Success Criteria: route tests (create, validate, run, record); `make test`; the editor and a run seen in the
+browser, live and mock.
+Status: Complete (video of failed and manual runs; screenshots and videos in ClickHouse; the Helm chart's
+`browser.enabled` stays off until the release workflow publishes the oc-browser image; no Playwright trace yet)
 
-## Stage 4: Storage schema
-Goal: one table per indexed log (the 72-hour raw copy optional), attributes stored once, rows ordered by stream
-(org, service, host, time).
-Success Criteria: Logs Explorer, facets, histogram, live tail and archives on the new table (their tests); the
-benchmark's disk per million lines.
-Status: Complete: attributes stored once (`attr`), maps in key order, the 72-hour copy holds only unindexed logs
-(archives read indexed + unindexed), live tail on demand; 123 MiB per million lines. Stream ordering was not needed
-(ORDER BY org, service, time already groups similar rows).
+## Stage 3: AI Testing agent
+Goal: a `testing` run explores from a starting URL (optionally restricted to its domain, optionally as an agent
+profile with saved credentials) with browser tools (open, read the page's interactive elements, click, type, back),
+compares journeys with existing tests and proposes suites (browser tests, plus HTTP/SSL tests of the hosts it
+met); also "generate tests from a description". Proposals are stored for review; accepting creates the tests and
+the suite.
+Success Criteria: tools and proposal validation tested with a scripted model and browser; accept/reject routes
+tested; tenancy on every query.
+Status: Complete (oc-browser sessions with refs and computed locators; `testing` runs, 80 turns; proposals made of
+recorded actions and sample-run before they are stored; accept → tests every 15 minutes + a suite per journey; agent
+profiles name global variables. Not yet: approvals before actions ("ask about every action"), API and network test
+proposals, proposals shown while the job runs (they are saved when it ends), a run with a real model)
 
-## Stage 5: Switch over
-Goal: Compose and the Helm chart run the Kafka ingester by default, Vector off the log path, with the documented
-way back; docs and CLAUDE.md updated.
-Success Criteria: the full benchmark ramp, a run on the dev cluster.
-Status: Complete in Compose and Helm (OC_LOG_INGEST / server.logIngest, default kafka; other signals on
-oc.otlp.signals for the Collector; loadgen writes to Kafka; docs/adr/0005-kafka-log-ingester.md). A run on the dev
-cluster remains.
+## Stage 4: AI Testing UI
+Goal: Synthetics → AI Testing tab: prompt with suggestions, conversation with the job card (starting URL,
+restrict to domain, location, agent profile), the run's live timeline, Suites to review (edit, accept, reject),
+all jobs; agent profiles in Synthetics settings; mocks.
+Success Criteria: typecheck, mock and live run seen in the browser; docs and CLAUDE.md updated.
+Status: Complete (Synthetics → AI Testing: prompt and job card, the job's live timeline (Assist's RunView) and its
+proposed suites, Suites to review, All jobs, Agent profiles; mocks; seen in mock mode, routes checked live. Not yet: a
+job with a real model)

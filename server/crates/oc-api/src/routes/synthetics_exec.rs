@@ -30,6 +30,8 @@ pub enum SyntheticTestType {
     Ssl,
     Dns,
     Tcp,
+    /// Steps replayed in a browser by oc-browser.
+    Browser,
 }
 
 impl SyntheticTestType {
@@ -39,6 +41,7 @@ impl SyntheticTestType {
             SyntheticTestType::Ssl => "ssl",
             SyntheticTestType::Dns => "dns",
             SyntheticTestType::Tcp => "tcp",
+            SyntheticTestType::Browser => "browser",
         }
     }
     pub fn parse(s: &str) -> Self {
@@ -46,6 +49,7 @@ impl SyntheticTestType {
             "ssl" => SyntheticTestType::Ssl,
             "dns" => SyntheticTestType::Dns,
             "tcp" => SyntheticTestType::Tcp,
+            "browser" => SyntheticTestType::Browser,
             _ => SyntheticTestType::Http,
         }
     }
@@ -91,6 +95,8 @@ pub struct SyntheticRequest {
     pub dns_server: String,
     /// DNS server port (default 53).
     pub dns_server_port: Option<u16>,
+    /// Browser: the device emulated (chrome.laptop_large, chrome.tablet, chrome.mobile_small).
+    pub device_id: String,
 }
 
 impl Default for SyntheticRequest {
@@ -109,6 +115,7 @@ impl Default for SyntheticRequest {
             accept_self_signed: false,
             dns_server: String::new(),
             dns_server_port: None,
+            device_id: String::new(),
         }
     }
 }
@@ -222,6 +229,8 @@ pub struct SyntheticRunDetail {
     pub timings: Option<SyntheticTimings>,
     /// HTTP: the response's protocol version (`1.1`).
     pub http_version: Option<String>,
+    /// Browser tests: the steps as they ran (screenshots and video are stored apart).
+    pub browser: Option<crate::browser::client::BrowserRunResult>,
 }
 
 /// An HTTP run's phases in milliseconds, named as Datadog's results name them.
@@ -264,6 +273,7 @@ pub fn assertion_types(t: SyntheticTestType) -> &'static [SyntheticAssertionType
         SyntheticTestType::Ssl => &[Certificate, ResponseTime],
         SyntheticTestType::Dns => &[RecordEvery, RecordSome, ResponseTime],
         SyntheticTestType::Tcp => &[ResponseTime],
+        SyntheticTestType::Browser => &[],
     }
 }
 
@@ -515,6 +525,7 @@ pub fn suggest(t: SyntheticTestType, run: &SyntheticRunDetail) -> Vec<SyntheticA
             }
         }
         SyntheticTestType::Tcp => out.push(time),
+        SyntheticTestType::Browser => {}
     }
     out
 }
@@ -533,6 +544,7 @@ pub async fn run(t: SyntheticTestType, req: &SyntheticRequest, assertions: &[Syn
             SyntheticTestType::Ssl => run_ssl(req, allow_private, &mut out).await,
             SyntheticTestType::Dns => run_dns(req, allow_private, timeout, &mut out).await,
             SyntheticTestType::Tcp => run_tcp(req, allow_private, &mut out).await,
+            SyntheticTestType::Browser => Err("Browser tests run in oc-browser".to_string()),
         }
     })
     .await

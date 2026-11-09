@@ -117,7 +117,8 @@ export function SyntheticTestsPage() {
   const setPaused = (rows: SyntheticTest[], paused: boolean) => update.mutate(rows.map((t) => ({ id: t.id, input: { ...draftOf(t), paused } })));
   const anyRunning = chosen.some((t) => !t.paused);
 
-  const typeCounts = (pred: (t: SyntheticTest) => boolean) => TEST_TYPES.map((type) => [type, all.filter((t) => t.type === type && pred(t)).length] as [SyntheticTestType, number]);
+  const typeCounts = (pred: (t: SyntheticTest) => boolean) =>
+    [...TEST_TYPES, 'browser' as const].map((type) => [type, all.filter((t) => t.type === type && pred(t)).length] as [SyntheticTestType, number]);
   const isAlert = (t: SyntheticTest) => !t.paused && t.status === 'alert';
   const isOk = (t: SyntheticTest) => !t.paused && t.status === 'ok';
   const alerting = all.filter(isAlert).length;

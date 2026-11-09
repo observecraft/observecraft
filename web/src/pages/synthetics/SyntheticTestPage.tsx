@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { EChartsOption } from 'echarts';
 import { BellRing, CalendarDays, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, Copy, ExternalLink, List, MapPin, Pause, Play, Radar, Search, Timer, VolumeX, X, Zap } from 'lucide-react';
-import type { SyntheticResultSummary, SyntheticTest, SyntheticUptimeSegment } from '../../api/synthetics/client';
+import { syntheticArtifactUrl, type SyntheticResultSummary, type SyntheticTest, type SyntheticUptimeSegment } from '../../api/synthetics/client';
+import { DEVICES, STEP_LABEL, stepName } from '../../api/synthetics/browserSteps';
 import { TYPE_LABEL, assertionText, draftOf, fmtFrequency, fmtUptime } from '../../api/synthetics/logic';
 import { Chart } from '../../components/charts/Chart';
 import { TimePicker } from '../../components/shell/PageHeader';
@@ -14,6 +15,7 @@ import { timeAgo } from '../../lib/format';
 import { token } from '../../theme/chartTheme';
 import { TagChips, fmtDateTime, fmtDuration } from '../monitors/common';
 import { messageRecipients } from '../monitors/message';
+import { BrowserRunView } from './BrowserRun';
 import { RunView, SEGMENT_COLOR, TestStatus, UptimeBar, fmtMs, fmtShortMs } from './common';
 import { useDeleteSyntheticTest, useRunSyntheticTest, useSaveSyntheticTest, useSyntheticResult, useSyntheticResults, useSyntheticTest } from './queries';
 import '../monitors/monitors.css';
@@ -49,7 +51,7 @@ function TestInner() {
 
 /** The request a test sends, as one line. */
 function target(t: SyntheticTest): string {
-  if (t.type === 'http') return t.request.url;
+  if (t.type === 'http' || t.type === 'browser') return t.request.url;
   if (t.type === 'dns') return `${t.request.host}${t.request.dnsServer ? ` @ ${t.request.dnsServer}` : ''}`;
   return `${t.request.host}:${t.request.port ?? (t.type === 'ssl' ? 443 : '')}`;
 }
@@ -109,7 +111,7 @@ function TestView({ test: t }: { test: SyntheticTest }) {
             }
             items={[
               { label: 'Edit test', onClick: () => navigate(`/synthetics/tests/${t.id}/edit`) },
-              { label: 'Clone', onClick: () => navigate(`/synthetics/create?clone=${t.id}`) },
+              { label: 'Clone', onClick: () => navigate(t.type === 'browser' ? `/synthetics/browser/new?clone=${t.id}` : `/synthetics/create?clone=${t.id}`) },
               ...(t.monitorId ? [{ label: 'View monitor', onClick: () => navigate(`/monitors/${t.monitorId}`) }] : []),
               { label: 'View runs in Results Explorer', onClick: () => navigate(`/synthetics/explorer?q=${encodeURIComponent(`@test.id:${t.id}`)}`) },
               {
@@ -585,12 +587,30 @@ function Properties({ test: t }: { test: SyntheticTest }) {
       ? ([['Headers', t.request.headers.map((h, i) => <div key={i} className="mono">{`${h.name}: ${h.value}`}</div>)]] as [string, React.ReactNode][])
       : []),
     ...(t.type === 'http' && t.request.body ? ([['Body', <pre className="syn-body">{t.request.body}</pre>]] as [string, React.ReactNode][]) : []),
-    ['Assertions', t.assertions.length ? t.assertions.map((a, i) => <div key={i}>{assertionText(a)}</div>) : 'None (the request must succeed)'],
+    ...(t.type === 'browser'
+      ? ([
+          ['Device', DEVICES.find((d) => d.id === t.request.deviceId)?.label ?? t.request.deviceId],
+          [
+            'Steps',
+            t.steps.length ? (
+              <ol className="syn-br-props-steps">
+                {t.steps.map((st, i) => (
+                  <li key={i}>
+                    {stepName(st)} <span className="muted">· {STEP_LABEL[st.type]}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              'None (the starting URL must load)'
+            ),
+          ],
+        ] as [string, React.ReactNode][])
+      : ([['Assertions', t.assertions.length ? t.assertions.map((a, i) => <div key={i}>{assertionText(a)}</div>) : 'None (the request must succeed)']] as [string, React.ReactNode][])),
     ['Locations', t.locations.map(locationName).join(', ')],
     ['Frequency', fmtFrequency(t.frequencySeconds)],
     ['Retries', t.retry.count ? `${t.retry.count} after ${t.retry.intervalMs ?? 0} ms` : 'None'],
     ['Alert condition', `Failing for ${t.minFailureDurationMinutes} min from ${t.minLocationFailed} of ${t.locations.length} location${t.locations.length === 1 ? '' : 's'}`],
-    ['Timeout', `${t.request.timeoutSeconds} s`],
+    ...(t.type === 'browser' ? [] : ([['Timeout', `${t.request.timeoutSeconds} s`]] as [string, React.ReactNode][])),
     ['Notifications', recipients.length ? recipients.map((h) => `@${h}`).join(', ') : 'None'],
     ['Priority', t.priority ? `P${t.priority}` : '—'],
     ['Environment', t.env || '—'],
@@ -708,7 +728,19 @@ export function ResultDrawer({
           </div>
         </div>
         <div className="syn-drawer-body">
-          {q.isPending ? <Loading label="Loading result…" /> : q.isError ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : <RunView run={q.data.detail} type={test.type} />}
+          {q.isPending ? (
+            <Loading label="Loading result…" />
+          ) : q.isError ? (
+            <ErrorState error={q.error} onRetry={() => q.refetch()} />
+          ) : test.type === 'browser' ? (
+            <BrowserRunView
+              run={q.data.detail}
+              shot={(i) => syntheticArtifactUrl(test.id, q.data.id, `step-${i}.jpg`)}
+              video={q.data.detail.browser?.hasVideo ? syntheticArtifactUrl(test.id, q.data.id, 'video.webm') : null}
+            />
+          ) : (
+            <RunView run={q.data.detail} type={test.type} />
+          )}
         </div>
       </aside>
     </div>,

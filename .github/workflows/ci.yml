@@ -29,6 +29,7 @@ jobs:
     outputs:
       server: ${{ steps.f.outputs.server }}
       web: ${{ steps.f.outputs.web }}
+      browser: ${{ steps.f.outputs.browser }}
       licenses: ${{ steps.f.outputs.licenses }}
       configs: ${{ steps.f.outputs.configs }}
       charts: ${{ steps.f.outputs.charts }}
@@ -53,8 +54,13 @@ jobs:
               - scripts/**
               - server/seeds/**
               - CHANGELOG.md
+            browser:
+              - *ci
+              - browser/**
             licenses:
               - *ci
+              - browser/package.json
+              - browser/package-lock.json
               - server/Cargo.toml
               - server/Cargo.lock
               - server/crates/*/Cargo.toml
@@ -231,6 +237,12 @@ jobs:
           npm ci --ignore-scripts
           npx --yes license-checker-rseidelsohn@4.4.2 --production --excludePrivatePackages --summary \
             --onlyAllow 'MIT;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;OFL-1.1;MPL-2.0;Zlib'
+      - name: oc-browser dependencies
+        working-directory: browser
+        run: |
+          npm ci --ignore-scripts
+          npx --yes license-checker-rseidelsohn@4.4.2 --production --excludePrivatePackages --summary \
+            --onlyAllow 'MIT;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;OFL-1.1;MPL-2.0;Zlib'
 
   web:
     needs: changes
@@ -243,6 +255,21 @@ jobs:
         with: { node-version: 24, cache: npm, cache-dependency-path: web/package-lock.json }
       - run: npm ci && npm test && npm run build
         working-directory: web
+
+  # oc-browser (browser tests, AI Testing): its tests run steps in Playwright's Chromium.
+  browser:
+    needs: changes
+    if: needs.changes.outputs.browser == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 24, cache: npm, cache-dependency-path: browser/package-lock.json }
+      - run: npm ci && npx playwright-core install --with-deps chromium && npm run typecheck && npm test
+        working-directory: browser
+      - name: Image
+        run: docker build -t oc-browser:ci browser
 
   pipeline-configs:
     needs: changes
@@ -323,7 +350,7 @@ jobs:
 
   ci-ok:
     if: always()
-    needs: [changes, server, tf-compat, licenses, web, pipeline-configs, charts, workflows]
+    needs: [changes, server, tf-compat, licenses, web, browser, pipeline-configs, charts, workflows]
     runs-on: ubuntu-24.04
     steps:
       - name: Every job that ran passed

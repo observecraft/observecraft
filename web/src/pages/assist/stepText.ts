@@ -1,7 +1,7 @@
 // What a run's step did, in words: the kind of data it looked at, a short title, the query or object, and
 // the time window. Used by the run timeline (RunView).
 
-export type StepKind = 'logs' | 'metrics' | 'apm' | 'monitors' | 'incidents' | 'errors' | 'kubernetes' | 'security' | 'code' | 'conclude' | 'other';
+export type StepKind = 'logs' | 'metrics' | 'apm' | 'monitors' | 'incidents' | 'errors' | 'kubernetes' | 'security' | 'code' | 'browser' | 'conclude' | 'other';
 
 export interface StepText {
   kind: StepKind;
@@ -43,6 +43,16 @@ const KIND_BY_TOOL: Record<string, StepKind> = {
   search_repo_code: 'code',
   read_repo_file: 'code',
   propose_change: 'code',
+  browser_snapshot: 'browser',
+  browser_goto: 'browser',
+  browser_click: 'browser',
+  browser_type: 'browser',
+  browser_select: 'browser',
+  browser_press: 'browser',
+  browser_back: 'browser',
+  browser_scroll: 'browser',
+  browser_check: 'browser',
+  propose_test: 'browser',
   conclude: 'conclude',
 };
 
@@ -88,6 +98,26 @@ export function describeStep(name: string, input: Input = {}): StepText {
       return { kind, title: 'Read a file', what: str(input.path) };
     case 'propose_change':
       return { kind, title: 'Proposed a change', what: str(input.title) };
+    case 'browser_snapshot':
+      return { kind, title: 'Read the page' };
+    case 'browser_goto':
+      return { kind, title: 'Opened a page', what: str(input.url) };
+    case 'browser_click':
+      return { kind, title: 'Clicked', what: str(input.ref) };
+    case 'browser_type':
+      return { kind, title: 'Typed', what: str(input.text) };
+    case 'browser_select':
+      return { kind, title: 'Chose an option', what: str(input.value) };
+    case 'browser_press':
+      return { kind, title: 'Pressed a key', what: str(input.key) };
+    case 'browser_back':
+      return { kind, title: 'Went back' };
+    case 'browser_scroll':
+      return { kind, title: 'Scrolled', what: str(input.direction) };
+    case 'browser_check':
+      return { kind, title: 'Checked the page', what: [str(input.check)?.replace(/_/g, ' '), str(input.text)].filter(Boolean).join(': ') };
+    case 'propose_test':
+      return { kind, title: 'Proposed a test', what: [str(input.suite), str(input.name)].filter(Boolean).join(' → ') };
     case 'conclude':
       return { kind, title: 'Concluded' };
     default:

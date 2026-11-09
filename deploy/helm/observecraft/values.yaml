@@ -41,8 +41,8 @@ secrets:
   # secret-key (encrypts stored secrets: TOTP seeds, SSO and archive credentials; never change it
   # once set), internal-token, clickhouse-password, clickhouse-ingest-password, postgres-password
   # (bundled Postgres), postgres-url (external), cache-url (external cache), smtp-url, scanner-token
-  # (with scanner.enabled). The bundled Valkey's password is configured in cache.auth (rendering fails
-  # until it is).
+  # (with scanner.enabled), browser-token. The bundled Valkey's password is
+  # configured in cache.auth (rendering fails until it is).
   existingSecret: ""
   secretKey: ""
   internalToken: ""
@@ -106,6 +106,21 @@ scanner:
     limits: { memory: 2Gi }
   nodeSelector: {}
   tolerations: []
+
+# Browser tests and AI Testing (Synthetic Monitoring): Playwright's Chromium in its own pods (oc-browser).
+browser:
+  # -- Off until the release workflow publishes the oc-browser image; build it from browser/ meanwhile.
+  enabled: false
+  image:
+    repository: ghcr.io/observecraft/oc-browser
+    # -- Defaults to the chart's appVersion.
+    tag: ""
+  replicas: 1
+  # -- Runs at once per replica (each a Chromium context, ~300 MiB); more wait their turn.
+  concurrency: 2
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { memory: 3Gi }
 
 # -- Install demo users, dashboards and monitors into the default org. Development only.
 seedDemo: false

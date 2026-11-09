@@ -123,6 +123,8 @@ pub mod synthetics_exec;
 pub mod synthetics_net;
 pub mod synthetics_settings;
 pub mod synthetics_suites;
+pub mod synthetics_browser;
+pub mod ai_testing;
 pub mod rum;
 pub mod rum_analytics;
 pub mod rum_replay;
@@ -978,6 +980,15 @@ use crate::state::AppState;
         cloud_security::resources,
         cloud_security::packages,
         cloud_security::cves,
+        synthetics_browser::artifact,
+        ai_testing::start_job,
+        ai_testing::search_proposals,
+        ai_testing::accept,
+        ai_testing::reject,
+        ai_testing::list_profiles,
+        ai_testing::create_profile,
+        ai_testing::update_profile,
+        ai_testing::delete_profile,
         synthetics_suites::search_suites,
         synthetics_suites::get_suite,
         synthetics_suites::create_suite,
@@ -1768,6 +1779,13 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/cloud-security/resources", get(cloud_security::resources))
         .route("/api/v1/cloud-security/packages", get(cloud_security::packages))
         .route("/api/v1/cloud-security/cves", get(cloud_security::cves))
+        .route("/api/v1/synthetics/tests/{id}/results/{result_id}/artifacts/{name}", get(synthetics_browser::artifact))
+        .route("/api/v1/synthetics/ai-testing/jobs", post(ai_testing::start_job))
+        .route("/api/v1/synthetics/ai-testing/proposals/search", post(ai_testing::search_proposals))
+        .route("/api/v1/synthetics/ai-testing/proposals/accept", post(ai_testing::accept))
+        .route("/api/v1/synthetics/ai-testing/proposals/reject", post(ai_testing::reject))
+        .route("/api/v1/synthetics/ai-testing/profiles", get(ai_testing::list_profiles).post(ai_testing::create_profile))
+        .route("/api/v1/synthetics/ai-testing/profiles/{id}", delete(ai_testing::delete_profile).put(ai_testing::update_profile))
         .route("/api/v1/synthetics/suites", post(synthetics_suites::create_suite))
         .route("/api/v1/synthetics/suites/search", post(synthetics_suites::search_suites))
         .route(
@@ -2273,6 +2291,8 @@ mod tests {
             ("synthetics_exec.rs", include_str!("synthetics_exec.rs")),
             ("synthetics_net.rs", include_str!("synthetics_net.rs")),
             ("synthetics_suites.rs", include_str!("synthetics_suites.rs")),
+            ("synthetics_browser.rs", include_str!("synthetics_browser.rs")),
+            ("ai_testing.rs", include_str!("ai_testing.rs")),
             ("rum_analytics.rs", include_str!("rum_analytics.rs")),
             ("rum_replay.rs", include_str!("rum_replay.rs")),
             ("cloud_security.rs", include_str!("cloud_security.rs")),
@@ -2575,6 +2595,9 @@ mod tests {
             ("../assist/code.rs", include_str!("../assist/code.rs")),
             ("../assist/runs.rs", include_str!("../assist/runs.rs")),
             ("../assist/mod.rs", include_str!("../assist/mod.rs")),
+            ("../browser/mod.rs", include_str!("../browser/mod.rs")),
+            ("../browser/client.rs", include_str!("../browser/client.rs")),
+            ("../browser/steps.rs", include_str!("../browser/steps.rs")),
             ("../assist/agent.rs", include_str!("../assist/agent.rs")),
             ("../assist/http.rs", include_str!("../assist/http.rs")),
             ("../assist/llm.rs", include_str!("../assist/llm.rs")),
@@ -2641,6 +2664,8 @@ mod tests {
             ("datadog_api/appsec.rs", include_str!("datadog_api/appsec.rs")),
             ("rum.rs", include_str!("rum.rs")),
             ("synthetics_suites.rs", include_str!("synthetics_suites.rs")),
+            ("synthetics_browser.rs", include_str!("synthetics_browser.rs")),
+            ("ai_testing.rs", include_str!("ai_testing.rs")),
             ("synthetics_explorer.rs", include_str!("synthetics_explorer.rs")),
             ("synthetics_settings.rs", include_str!("synthetics_settings.rs")),
             ("spans.rs", include_str!("spans.rs")),

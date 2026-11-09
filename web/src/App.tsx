@@ -155,7 +155,7 @@ import { RecordingsPage } from './pages/rum/replay/RecordingsPage';
 import { ReplayPlayerPage } from './pages/rum/replay/ReplayPlayerPage';
 import { PlaylistPage, PlaylistsPage } from './pages/rum/replay/PlaylistsPage';
 import { HeatmapsPage } from './pages/rum/replay/HeatmapsPage';
-import { SyntheticTestEditor } from './pages/synthetics/SyntheticTestEditor';
+import { BrowserTestCreatePage, SyntheticTestEditor } from './pages/synthetics/SyntheticTestEditor';
 import { ApiTemplatesPage } from './pages/synthetics/NewTest';
 import { SyntheticTestPage } from './pages/synthetics/SyntheticTestPage';
 import { SyntheticTestsPage } from './pages/synthetics/SyntheticTestsPage';
@@ -165,6 +165,9 @@ import { TestSuitesPage } from './pages/synthetics/TestSuitesPage';
 import { SuiteEditorPage } from './pages/synthetics/SuiteEditorPage';
 import { ResultsExplorerPage } from './pages/synthetics/ResultsExplorerPage';
 import { TestCoveragePage } from './pages/synthetics/TestCoveragePage';
+import { AiTestingLayout } from './pages/synthetics/aiTesting/AiTestingLayout';
+import { AiTestingHome } from './pages/synthetics/aiTesting/AiTestingHome';
+import { AiTestingJobPage, AiTestingJobsPage, AiTestingProfilesPage, AiTestingReviewPage } from './pages/synthetics/aiTesting/AiTestingPages';
 import {
   ContinuousTestingSettings,
   DefaultSettingsPage,
@@ -579,14 +582,13 @@ function Shell() {
               <Route path="suites/:id" element={<SuiteEditorPage />} />
               <Route path="explorer" element={<ResultsExplorerPage />} />
               <Route path="test-coverage" element={<TestCoveragePage />} />
-              <Route
-                path="ai-testing"
-                element={
-                  <SyntheticsNotAvailable title="AI Testing isn't available yet">
-                    Generating and maintaining tests with an AI assistant isn't available yet. Create API tests with New Test.
-                  </SyntheticsNotAvailable>
-                }
-              />
+              <Route path="ai-testing" element={<AiTestingLayout />}>
+                <Route index element={<AiTestingHome />} />
+                <Route path="review" element={<AiTestingReviewPage />} />
+                <Route path="jobs" element={<AiTestingJobsPage />} />
+                <Route path="jobs/:id" element={<AiTestingJobPage />} />
+                <Route path="profiles" element={<AiTestingProfilesPage />} />
+              </Route>
               <Route
                 path="continuous-testing"
                 element={
@@ -689,6 +691,7 @@ function Shell() {
             <Route path="/rum/applications" element={<RumApplicationsPage />} />
             <Route path="/rum/applications/:id" element={<RumApplicationPage />} />
             <Route path="/synthetics/create" element={<SyntheticTestEditor />} />
+            <Route path="/synthetics/browser/new" element={<BrowserTestCreatePage />} />
             <Route path="/synthetics/templates" element={<ApiTemplatesPage />} />
             <Route path="/synthetics/tests/:id" element={<SyntheticTestPage />} />
             <Route path="/synthetics/tests/:id/edit" element={<SyntheticTestEditor />} />

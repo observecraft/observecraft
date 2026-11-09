@@ -8,10 +8,11 @@ import '../monitors/monitors.css';
 import './synthetics.css';
 import './syntheticsProduct.css';
 
-const TABS = [
+const TABS: { to: string; label: string; end?: boolean; badge?: string }[] = [
   { to: '/synthetics', label: 'Overview', end: true },
   { to: '/synthetics/suites', label: 'Test Suites' },
   { to: '/synthetics/tests', label: 'Tests' },
+  { to: '/synthetics/ai-testing', label: 'AI Testing', badge: 'NEW' },
   { to: '/synthetics/explorer', label: 'Results Explorer' },
   { to: '/synthetics/test-coverage', label: 'Test Coverage' },
 ];
@@ -44,6 +45,7 @@ export function SyntheticsLayout() {
           {TABS.map((t) => (
             <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `product-tab${isActive ? ' active' : ''}`}>
               {t.label}
+              {t.badge && <sup className="syn-tab-badge">{t.badge}</sup>}
             </NavLink>
           ))}
           <Menu
@@ -72,6 +74,7 @@ export function SyntheticsLayout() {
               trigger={<ChevronDown size={15} aria-label="More create options" />}
               items={[
                 { label: 'New API Test', onClick: () => navigate('/synthetics/templates') },
+                { label: 'New Browser Test', onClick: () => navigate('/synthetics/browser/new') },
                 { label: 'New Suite', onClick: () => navigate('/synthetics/suites/new') },
               ]}
             />

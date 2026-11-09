@@ -155,6 +155,16 @@
         }
       }
     },
+    "browser": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "type": "object", "properties": { "repository": { "type": "string" }, "tag": { "type": "string" } } },
+        "replicas": { "type": "integer", "minimum": 0 },
+        "concurrency": { "type": "integer", "minimum": 1 },
+        "resources": { "type": "object", "properties": { "requests": { "type": "object" }, "limits": { "type": "object" } } }
+      }
+    },
     "synthetics": {
       "type": "object",
       "properties": {

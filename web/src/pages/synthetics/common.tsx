@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Cable, Check, ChevronDown, ChevronRight, Globe, HeartPulse, ShieldCheck, Timer, X } from 'lucide-react';
+import { Cable, Check, ChevronDown, ChevronRight, Globe, HeartPulse, MousePointerClick, ShieldCheck, Timer, X } from 'lucide-react';
 import type { MonitorStatus } from '../../api/monitors/client';
 import type { SyntheticRunDetail, SyntheticTestType, SyntheticTimings, SyntheticUptimeSegment } from '../../api/synthetics/client';
 import { TYPE_LABEL, assertionText, failureSummary } from '../../api/synthetics/logic';
@@ -16,7 +16,7 @@ export function TypeBadge({ type }: { type: SyntheticTestType }) {
   return <span className={`syn-type syn-type-${type}`}>{TYPE_LABEL[type]}</span>;
 }
 
-const TYPE_ICON = { http: HeartPulse, ssl: ShieldCheck, dns: Globe, tcp: Cable };
+const TYPE_ICON = { http: HeartPulse, ssl: ShieldCheck, dns: Globe, tcp: Cable, browser: MousePointerClick };
 
 /** The test type's icon (API tests share a pulse, as subtypes get their own). */
 export function TypeIcon({ type, size = 15 }: { type: SyntheticTestType; size?: number }) {
