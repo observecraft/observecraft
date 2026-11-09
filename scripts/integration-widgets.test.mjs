@@ -74,6 +74,38 @@ test('a widget becomes a monitor query: plain arithmetic between its queries, el
   assert.equal(monitorQuery(widgetQueries({ type: 'toplist', request: { query: 'avg:system.load.1{*} by {host}' }, aggregator: 'avg', limit: 10 }), resolve), 'avg:system.load.1{*} by {host}');
 });
 
+// Newer table requests name the metric and its filter instead of writing a query; their rows say how it is grouped and
+// their compute columns how it is aggregated (integrations-extras external_secrets, "ExternalSecrets With Errors").
+test('a table query written as metric_name and filter becomes a metric query grouped by its rows', () => {
+  const table = {
+    type: 'integration',
+    original: {
+      type: 'query_table',
+      requests: [
+        {
+          request_type: 'table',
+          queries: [{ name: 'query1', data_source: 'metrics', metric_name: 'external_secrets.externalsecret.status_condition', filter: 'condition:ready,status:false,$cluster,name:*' }],
+          rows: {
+            group_by: [
+              { name: 'groupBy0', group_keys: [{ query: 'query1', group_key: 'kube_cluster_name' }] },
+              { name: 'groupBy1', group_keys: [{ query: 'query1', group_key: 'name' }] },
+            ],
+          },
+          columns: [{ name: 'column1', type: 'compute', compute: { query: 'query1', aggregation: 'max', filter: '' } }],
+        },
+      ],
+    },
+  };
+  const resolve = (q) => q.replace('$cluster', 'kube_cluster_name:shop-prod');
+  assert.deepEqual(widgetQueries(table).queries, [
+    { name: 'query1', query: 'max:external_secrets.externalsecret.status_condition{condition:ready,status:false,$cluster,name:*} by {kube_cluster_name,name}' },
+  ]);
+  assert.equal(
+    monitorQuery(widgetQueries(table), resolve),
+    'max:external_secrets.externalsecret.status_condition{condition:ready,status:false,kube_cluster_name:shop-prod,name:*} by {kube_cluster_name,name}',
+  );
+});
+
 const catalogModule = require('esbuild').buildSync({
   entryPoints: [fileURLToPath(new URL('../web/src/pages/metrics/catalog.ts', import.meta.url))],
   bundle: true,
