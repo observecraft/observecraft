@@ -1,6 +1,9 @@
 import { memo, useId, useMemo } from 'react';
 import { BRAND_LOGOS, BRAND_LOGOS_DARK } from '../../assets/brandLogos.generated';
 
+/** Logo key of ObserveCraft's own dashboards (its self-monitoring): drawn with the app's logo, `/logo.svg`. */
+export const OBSERVECRAFT_LOGO = 'observecraft';
+
 export function hasBrandLogo(key: string): boolean {
   return key in BRAND_LOGOS;
 }

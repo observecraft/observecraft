@@ -9,6 +9,8 @@ import gcp from '../../../../server/seeds/integrations/gcp/dashboards.json';
 import netbird from '../../../../server/seeds/integrations/netbird/dashboards.json';
 // ObserveCraft's own FleetDM dashboard (scripts/fleetdm-dashboard.mjs).
 import fleetdm from '../../../../server/seeds/integrations/fleetdm/dashboards.json';
+// ObserveCraft's own health (scripts/observecraft-dashboard.mjs), over the server's self-monitoring metrics.
+import observecraft from '../../../../server/seeds/integrations/observecraft/dashboards.json';
 // ObserveCraft's own dashboard over the synthetics.* metrics of synthetic API tests.
 import synthetics from '../../../../server/seeds/dashboards/synthetics-api-tests.json';
 // The integrations-core dashboards of the integrations the mock shows installed (the server installs every
@@ -18,7 +20,7 @@ import core from './coreDashboards.generated.json';
 import cloudServices from './cloudServiceDashboards.generated.json';
 import type { Widget, TemplateVariable, LayoutType } from '../dashboards/types';
 
-export const integrationDashboards = [...kubernetes, ...aws, ...azure, ...gcp, ...netbird, ...fleetdm, synthetics, ...core.dashboards, ...cloudServices.dashboards].map((d) => ({
+export const integrationDashboards = [...kubernetes, ...aws, ...azure, ...gcp, ...netbird, ...fleetdm, ...observecraft, synthetics, ...core.dashboards, ...cloudServices.dashboards].map((d) => ({
   ...d,
   kind: 'integration' as const,
   layoutType: d.layoutType as LayoutType,

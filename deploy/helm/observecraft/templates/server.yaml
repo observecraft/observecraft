@@ -94,6 +94,18 @@ spec:
             - { name: OC_RETENTION_CI_DAYS, value: {{ .Values.retention.ciDays | quote }} }
             - { name: OC_RAW_LOGS_HOURS, value: {{ .Values.retention.rawLogsHours | quote }} }
             - { name: OC_DATA_DIR, value: /var/lib/observecraft }
+            - { name: OC_SELF_MONITORING, value: {{ .Values.selfMonitoring.enabled | quote }} }
+            - { name: OC_SELF_MONITORING_NAMESPACE, value: {{ .Release.Namespace | quote }} }
+            - { name: OC_SELF_MONITORING_STORAGE_GB_MONTH, value: {{ .Values.selfMonitoring.storageGbMonth | quote }} }
+            {{- with .Values.selfMonitoring.org }}
+            - { name: OC_SELF_MONITORING_ORG, value: {{ . | quote }} }
+            {{- end }}
+            {{- with .Values.selfMonitoring.notify }}
+            - { name: OC_SELF_MONITORING_NOTIFY, value: {{ . | quote }} }
+            {{- end }}
+            {{- with .Values.selfMonitoring.heartbeatUrl }}
+            - { name: OC_HEARTBEAT_URL, value: {{ . | quote }} }
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

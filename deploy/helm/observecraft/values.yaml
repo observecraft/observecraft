@@ -139,6 +139,22 @@ server:
   affinity: {}
   topologySpreadConstraints: []
 
+# ObserveCraft monitoring itself (server/crates/oc-api/src/self_monitoring.rs): every minute one server writes
+# `observecraft.*` gauges (ClickHouse disks, parts and freshness, the log ingester's Kafka lag, Postgres, jobs, cost
+# and each organization's usage) into the operator's organization, which alone sees the "ObserveCraft Overview"
+# dashboard and the recommended monitors created there.
+selfMonitoring:
+  enabled: true
+  # -- The operator's organization; empty: the first instance admin's.
+  org: ""
+  # -- Handles the recommended monitors notify, e.g. "@slack-ops @ops@example.com".
+  notify: ""
+  # -- Called every minute while Postgres and ClickHouse answer (e.g. a healthchecks.io check), so a service
+  # outside alerts when ObserveCraft itself is down.
+  heartbeatUrl: ""
+  # -- USD per GB-month of disk, for the storage part of the cost estimate.
+  storageGbMonth: 0.08
+
 intake:
   replicas: 2
   # Per-organization limits (requests/s, MiB/s); over them a sender gets 429 and retries. 0 = unlimited;

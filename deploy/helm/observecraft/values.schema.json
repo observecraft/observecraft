@@ -268,6 +268,17 @@
         }
       }
     },
+    "selfMonitoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "org": { "type": "string", "description": "The operator's organization; empty: the first instance admin's" },
+        "notify": { "type": "string", "description": "Handles the recommended monitors notify" },
+        "heartbeatUrl": { "type": "string", "pattern": "^(https?://.+)?$", "description": "Called every minute while ObserveCraft is healthy" },
+        "storageGbMonth": { "type": "number", "minimum": 0 }
+      }
+    },
     "intake": {
       "type": "object",
       "properties": {
