@@ -40,3 +40,15 @@ test('AWS services are detected by the Datadog prefix of their CloudWatch namesp
   assert.equal(hasReportedMetrics('aws-ec2', [], reported(['aws.ec2.cpuutilization']), [awsMetricPrefix('AWS/EC2')]), true);
   assert.equal(hasReportedMetrics('aws-ec2', [], reported(['aws.ecs.cpuutilization']), [awsMetricPrefix('AWS/EC2')]), false);
 });
+
+test('an installed integration that should send metrics but sent none is waiting for data', async () => {
+  const { waitingForData } = await import('../web/src/api/integrations/detection.ts');
+  const none = reported(['system.cpu.user']);
+  assert.equal(waitingForData('vault', true, [], none, ['vault.']), true);
+  assert.equal(waitingForData('vault', true, [], reported(['vault.core.active']), ['vault.']), false, 'its metrics arrived');
+  assert.equal(waitingForData('vault', false, [], none, ['vault.']), false, 'not installed');
+  // Integrations with no metrics of their own (logs only, generic names) can't be judged by metrics.
+  assert.equal(waitingForData('supply-chain-firewall', true, [], none, []), false);
+  assert.equal(waitingForData('custom', true, [{ name: 'http.server.duration' }], none, []), false);
+  assert.equal(waitingForData('custom', true, [{ name: 'custom.requests' }], none, []), true);
+});

@@ -11134,6 +11134,39 @@
         }
       }
     },
+    "/api/v1/integrations/checks/{check}/hosts": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The hosts whose Datadog Agent runs the check `check` (an integration's Hosts tab), from the checks each Agent\nreported in the last day.",
+        "operationId": "list_integration_check_hosts",
+        "parameters": [
+          {
+            "name": "check",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntegrationCheckHost"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/integrations/fleetdm": {
       "get": {
         "tags": [
@@ -50139,6 +50172,34 @@
               "null"
             ],
             "description": "active | suspended"
+          }
+        }
+      },
+      "IntegrationCheckHost": {
+        "type": "object",
+        "description": "A host whose Agent runs an integration's check, and how that check does there.",
+        "required": [
+          "host",
+          "check",
+          "lastReported"
+        ],
+        "properties": {
+          "agentVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "check": {
+            "$ref": "#/components/schemas/FleetCheck"
+          },
+          "host": {
+            "type": "string"
+          },
+          "lastReported": {
+            "type": "integer",
+            "format": "int64",
+            "description": "When the Agent last reported its checks (epoch ms)."
           }
         }
       },

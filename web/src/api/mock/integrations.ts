@@ -983,6 +983,11 @@ function statusOf(e: Entry): IntegrationStatus {
   return statusOverride.get(e.id) ?? e.status ?? 'available';
 }
 
+/** Installed in this session while nothing sent its data yet, as after Install before its Agent check is configured. */
+function waitingForData(e: Entry): boolean {
+  return statusOverride.get(e.id) === 'installed' && !e.status && e.collect.kind !== 'notify' && e.collect.kind !== 'cloud';
+}
+
 function summary(e: Entry): IntegrationSummary {
   const status = statusOf(e);
   return {
@@ -995,6 +1000,7 @@ function summary(e: Entry): IntegrationSummary {
     description: e.core?.description || `Monitor the health and performance of ${e.name}.`,
     warning: status === 'warning' ? e.warning : undefined,
     repository: e.core?.repository,
+    waitingForData: waitingForData(e) || undefined,
   };
 }
 
@@ -1102,7 +1108,7 @@ function metricsFor(e: Entry): CollectedMetric[] {
 }
 
 function hostsFor(e: Entry, status: IntegrationStatus): IntegrationHost[] {
-  if (status === 'available' || e.collect.kind === 'notify' || e.collect.kind === 'cloud') return [];
+  if (status === 'available' || waitingForData(e) || e.collect.kind === 'notify' || e.collect.kind === 'cloud') return [];
   const r = rng(e.id.length * 131 + e.id.charCodeAt(0));
   const n = 1 + Math.floor(r() * 4);
   const now = Date.now();
@@ -1243,7 +1249,7 @@ export function uninstallIntegration(id: string): Promise<IntegrationDetail> {
 
 /** Static catalog metadata, without the demo installation state or generated hosts. */
 export function catalogMetadata(): IntegrationSummary[] {
-  return CATALOG.map((e) => ({ ...summary(e), status: 'available', warning: undefined }));
+  return CATALOG.map((e) => ({ ...summary(e), status: 'available', warning: undefined, waitingForData: undefined }));
 }
 
 /** The metrics an integration declares (OTel and Prometheus templates), without building its whole detail. */
@@ -1257,6 +1263,7 @@ export function integrationMetadata(id: string): IntegrationDetail {
     ...detail(e),
     status: 'available',
     warning: undefined,
+    waitingForData: undefined,
     hosts: [],
     resources: [],
     releaseNotes: [],

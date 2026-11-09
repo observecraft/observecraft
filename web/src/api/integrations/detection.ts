@@ -41,6 +41,15 @@ export function hasReportedMetrics(id: string, declared: { name: string }[], rep
   return declared.some((m) => !GENERIC.test(m.name) && (reported.names.has(m.name) || reported.prefixes.has(m.name + '.')));
 }
 
+/**
+ * Installed, but none of the metrics it should send arrived (the Agent check isn't configured or fails). Only for
+ * integrations with metrics of their own: logs-only ones, or ones known only by generic names, can't be judged.
+ */
+export function waitingForData(id: string, installed: boolean, declared: { name: string }[], reported: ReportedMetrics, catalogPrefixes: string[] = []): boolean {
+  const expectsMetrics = (PREFIXES[id]?.length ?? 0) > 0 || catalogPrefixes.length > 0 || declared.some((m) => !GENERIC.test(m.name));
+  return installed && expectsMetrics && !hasReportedMetrics(id, declared, reported, catalogPrefixes);
+}
+
 /** Namespaces Datadog doesn't name `aws.<namespace>.` (server aws/naming.rs PREFIXES). */
 const AWS_PREFIXES: Record<string, string> = { 'AWS/RDS/Proxy': 'aws.rds.proxy.', 'ECS/ContainerInsights': 'ecs.containerinsights.' };
 

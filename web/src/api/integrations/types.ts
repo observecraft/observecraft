@@ -18,6 +18,8 @@ export interface IntegrationSummary {
   warning?: string;
   /** The integrations repository it is imported from; absent for our own entries (OpenTelemetry, clouds). */
   repository?: Repository;
+  /** Installed, but none of its metrics arrived: its Agent check isn't configured yet, or fails (see Hosts). */
+  waitingForData?: boolean;
 }
 
 export interface CatalogRequest {

@@ -1,18 +1,24 @@
 import { memo } from 'react';
-import { Check, Plus, Settings, TriangleAlert } from 'lucide-react';
+import { Check, Clock, Plus, Settings, TriangleAlert } from 'lucide-react';
 import type { IntegrationSummary } from '../../api/integrations/types';
 import { IntegrationLogo } from './IntegrationLogo';
 import { cardHover } from './cardHover';
 
 /**
- * Catalog tile. The top edge encodes status: purple DETECTED, green installed, orange needs attention.
+ * Catalog tile. The top edge encodes status: purple DETECTED, green installed, orange needs attention; an installed
+ * integration still waiting for its data keeps a dashed edge and says so.
  * Hovered (or focused), the logo gives way to the description and an Install / Configure button, and the
  * coloured edge grows into a band naming the status.
  */
 export const IntegrationCard = memo(function IntegrationCard({ item, onOpen }: { item: IntegrationSummary; onOpen: (id: string) => void }) {
-  const hover = cardHover(item.status);
+  const waiting = item.status === 'installed' && !!item.waitingForData;
+  const hover = cardHover(item.status, waiting);
   return (
-    <button className={`int-card edge-${item.status}`} onClick={() => onOpen(item.id)} title={item.warning}>
+    <button
+      className={`int-card edge-${item.status}${waiting ? ' edge-waiting' : ''}`}
+      onClick={() => onOpen(item.id)}
+      title={waiting ? 'Installed, but no data has arrived yet: configure its Agent check' : item.warning}
+    >
       {item.status === 'detected' && <span className="edge-label">DETECTED</span>}
       {item.status === 'warning' && (
         <span className="edge-label edge-warn">
@@ -31,7 +37,7 @@ export const IntegrationCard = memo(function IntegrationCard({ item, onOpen }: {
       <span className="int-card-back" aria-hidden="true">
         {hover.band && (
           <span className="int-card-band">
-            {item.status === 'installed' && <Check size={14} strokeWidth={3} />}
+            {item.status === 'installed' && (waiting ? <Clock size={14} strokeWidth={2.5} /> : <Check size={14} strokeWidth={3} />)}
             {item.status === 'warning' && <TriangleAlert size={14} fill="currentColor" stroke={`var(--status-warn)`} />}
             {hover.band}
           </span>
