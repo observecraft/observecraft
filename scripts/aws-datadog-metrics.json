@@ -224,6 +224,8 @@
   } },
   "AWS/ApplicationELB": { "metrics": {
    "ELBAuthLatency": { "statistic": "Average" },
+   "HealthyHostCount": { "statistic": "Average", "dimensions": ["LoadBalancer", "TargetGroup"] },
+   "UnHealthyHostCount": { "statistic": "Average", "dimensions": ["LoadBalancer", "TargetGroup"] },
    "TargetResponseTime": { "percentiles": ["p50", "p90", "p95", "p99"] }
   } },
   "AWS/EBS": { "metrics": {

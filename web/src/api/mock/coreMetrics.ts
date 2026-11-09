@@ -38,7 +38,18 @@ const VALUES: Record<string, string[]> = {
   dbinstanceidentifier: ['orders-db', 'catalog-db', 'billing-db', 'inventory-db'],
   dbclusteridentifier: ['orders-aurora', 'orders-aurora', 'catalog-aurora', 'catalog-aurora'],
   proxyname: ['orders-proxy', 'catalog-proxy', 'billing-proxy', 'orders-proxy'],
-  functionname: ['storefront-headers', 'cart-redirects', 'storefront-headers', 'image-rewrite'],
+  functionname: ['order-confirmation-email', 'image-resize', 'inventory-sync', 'payment-webhook'],
+  queuename: ['order-events', 'email-notifications', 'inventory-updates', 'order-events-dlq'],
+  instanceid: ['i-0a1b2c3d4e5f60000', 'i-0a1b2c3d4e5f60001', 'i-0a1b2c3d4e5f60002', 'i-0a1b2c3d4e5f60003'],
+  bucketname: ['example-storefront-assets', 'example-order-exports', 'example-logs-archive', 'example-catalog-images'],
+  filterid: ['EntireBucket', 'EntireBucket', 'EntireBucket', 'EntireBucket'],
+  storagetype: ['StandardStorage', 'StandardIAStorage', 'StandardStorage', 'GlacierStorage'],
+  loadbalancer: ['app/storefront-alb/50dc6c495c0c9188', 'app/api-gateway-alb/8a2b1c9d7e6f5a40', 'app/billing-alb/1f2e3d4c5b6a7980', 'app/storefront-alb/50dc6c495c0c9188'],
+  targetgroup: ['targetgroup/storefront-web/6d0ecf831eec9f09', 'targetgroup/api-gateway/943f017f100becff', 'targetgroup/billing/0a1b2c3d4e5f6a7b', 'targetgroup/storefront-api/1b2c3d4e5f6a7b8c'],
+};
+/** Values of a tag that differ for one integration: CloudFront's functions aren't Lambda's. */
+const LOGO_VALUES: Record<string, Record<string, string[]>> = {
+  'tile:aws-cloudfront': { functionname: ['storefront-headers', 'cart-redirects', 'storefront-headers', 'image-rewrite'] },
 };
 
 /** Sized by unit: fractions and percentages in range, bytes in megabytes to gigabytes, times in milliseconds. */
@@ -69,7 +80,8 @@ for (const d of dashboards) {
   for (const [, filters] of text.matchAll(/:[a-z][a-z0-9_.]*\{([^}]*)\}/g)) for (const f of filters.split(',')) if (/^!?[a-z][a-z0-9_]*:/.test(f)) tags.add(f.replace(/^!/, '').split(':')[0]);
   tagsOf.set(d.logo, tags);
 }
-for (const [logo, tags] of tagsOf) CORE_SETS[`core_${logo}`] = HOSTS.map((host, i) => Object.fromEntries([...tags].map((t) => [t, t === 'host' ? host : (VALUES[t]?.[i] ?? `${t}-${i + 1}`)])));
+for (const [logo, tags] of tagsOf)
+  CORE_SETS[`core_${logo}`] = HOSTS.map((host, i) => Object.fromEntries([...tags].map((t) => [t, t === 'host' ? host : ((LOGO_VALUES[logo]?.[t] ?? VALUES[t])?.[i] ?? `${t}-${i + 1}`)])));
 
 for (const d of dashboards)
   for (const [, metric] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{/g)) {

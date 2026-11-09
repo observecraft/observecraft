@@ -288,6 +288,11 @@ or SDK features.
   collects the global services (CloudFront, CloudFront web ACLs) from us-east-1 even when the account's regions leave it
   out (`aws/naming.rs`). In every namespace the bare name carries the metric's statistic (counts are sums), with
   `.sum` / `.maximum` / `.minimum` and the `percentiles` and daily `period`s that file's `overrides` set.
+  The most used AWS services (~37: EC2, S3, RDS, the load balancers, Lambda, SQS, …) have a layout designed per service
+  in `scripts/aws-service-layouts.mjs` (Datadog's widget format: an Overview group with logo, note, monitor summary
+  `tag:(integration:amazon_<svc>) OR aws.<svc>.` and key numbers, then themed groups and the service's logs; our own
+  titles and notes); the generator fails on a name the crawler doesn't publish. The other services get the generated
+  layout: key numbers, then their metrics grouped as errors / latency / saturation / throughput / capacity.
 - **Integration dashboards are listed once their integration is enabled** (`routes/dashboards.rs`, by the dashboard's
   `logo`): AWS / Azure / GCP with an account, synthetics with a test, Kubernetes / hosts / APM with data in the last
   day; other logos always. Cached 30 s per server (`EnabledChange` drops it when an account is added or removed);

@@ -1,11 +1,14 @@
 // A dashboard per AWS service, Azure resource type and Google Cloud service, as Datadog has one for each service of its cloud
-// integrations: the service's icon and what it shows, its key numbers, then every metric the service publishes
-// (scripts/import-cloud-metrics.mjs) over time by the service's resource. Our own dashboards: Datadog's aren't open.
+// integrations: the service's icon, what it shows, its monitors and key numbers, then groups of charts. The most used AWS
+// services have a layout designed for them (scripts/aws-service-layouts.mjs); the others chart every metric the service
+// publishes (scripts/import-cloud-metrics.mjs) by the service's resource, grouped by what it measures. Our own
+// dashboards: Datadog's aren't open.
 // They join the integration dashboards an org gets once the service's metrics arrive (routes/integration_dashboards.rs).
 // node scripts/cloud-service-dashboards.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import { AWS_LAYOUTS, queriesOver } from './aws-service-layouts.mjs';
 import { convertDashboard } from './import-integration-dashboards.mjs';
 
 const seeds = new URL('../server/seeds/', import.meta.url);
@@ -74,12 +77,83 @@ const MAX_CHARTS = 48;
 
 const AGGREGATION = { sum: ' (sum)', max: ' (max)', avg: '' };
 
+/** What a metric measures, from its name: the groups of a generated dashboard, in this order (first match wins). */
+export const CATEGORIES = [
+  ['Errors', /error|fail|fault|throttl|reject|drop|denied|timed ?out|timeout|5xx|4xx|unhealthy|dead ?letter|exceeded|abort|invalid/i],
+  ['Latency', /latency|duration|response ?time|\btime\b|[a-z](?<!up)time$|\bage\b|[a-z]age$(?<!percentage|usage|storage)|\blag\b|delay|wait/i],
+  ['Saturation', /utili[sz]ation|usage|percent|pressure|balance|credit|concurren|queue|load|memory|cpu|swap|quota|capacity used/i],
+  ['Throughput', /request|invocation|execution|bytes|packets|records|messages|connection|ops\b|iops|throughput|sent|received|transfer|calls|\bin\b|\bout\b|reads?\b|writes?\b|hits|miss/i],
+  ['Capacity', /size|storage|count|capacity|objects|items|space|instances|nodes|shards|documents|available/i],
+];
+const categoryOf = (title) => CATEGORIES.find(([, r]) => r.test(title))?.[0] ?? 'Other metrics';
+
+// ---------------------------------------------------------------- layout
+
+/** Widgets placed in a group's columns, each where it rises least (left first), so smaller ones stack beside a tall one. */
+function pack(items, cols, next) {
+  const sky = Array(cols).fill(0);
+  return items.map((item) => {
+    const w = Math.min(item.width, cols);
+    let at = { x: 0, y: Infinity };
+    for (let x = 0; x + w <= cols; x++) {
+      const y = Math.max(...sky.slice(x, x + w));
+      if (y < at.y) at = { x, y };
+    }
+    for (let x = at.x; x < at.x + w; x++) sky[x] = at.y + item.height;
+    return { id: next(), definition: item.definition, layout: { x: at.x, y: at.y, width: w, height: item.height } };
+  });
+}
+
 /**
- * A service's dashboard (Datadog's widget format, then converted): its icon and what it shows, an overview of its
- * key numbers, then each metric over time by the service's resource.
+ * A service's dashboard in Datadog's widget format, converted to ours: an About group (its icon, what it shows, its
+ * monitors and key numbers), then its themed groups ({ group, title, widgets: sized widgets, color, width }) and its
+ * logs. Our icon of the service in place of the image; our dashboard, not integrations-core's.
+ */
+function serviceDoc({ cloud, service, note, variables, monitors, kpis, groups, logs = [], color, description, source }) {
+  let id = 0;
+  const next = () => ++id;
+  const about = [
+    { definition: { type: 'image', url: '' }, width: 3, height: 2 },
+    { definition: { type: 'note', content: `## ${service.name}\n\n${note}`, background_color: 'white', font_size: '14', text_align: 'left' }, width: 5, height: 2 },
+    { definition: { type: 'manage_status', title: 'Monitors', query: monitors, summary_type: 'monitors', display_format: 'countsAndList', sort: 'status,asc' }, width: 4, height: 2 },
+    // Wide enough for their titles: up to four in a row, else rows of three.
+    ...kpis.slice(0, 6).map((k) => ({ ...k, width: kpis.length <= 4 ? 12 / Math.max(kpis.length, 1) : 4 })),
+  ];
+  const withLogs = logs.length
+    ? [
+        ...groups,
+        { group: true, title: 'Logs', color: 'gray', width: 12, widgets: logs.map(([title, query]) => ({ definition: { type: 'log_stream', title, query }, width: 12 / logs.length, height: 4 })) },
+      ]
+    : groups;
+  const all = [{ group: true, title: 'Overview', color, width: 12, widgets: about }, ...withLogs];
+  let x = 0;
+  const widgets = all.map((g) => {
+    const children = pack(g.widgets, g.width, next);
+    const height = Math.max(...children.map((c) => c.layout.y + c.layout.height));
+    if (x + g.width > 12) x = 0;
+    const w = { id: next(), definition: { type: 'group', title: g.title, background_color: g.color, layout_type: 'ordered', widgets: children }, layout: { x, y: 0, width: g.width, height } };
+    x += g.width;
+    return w;
+  });
+  const doc = { title: service.name, layout_type: 'ordered', template_variables: variables.map((v) => ({ name: v.name, prefix: v.prefix, default: '*' })), widgets };
+  const d = convertDashboard(doc, cloud, `services/${service.id}.json`, 'observecraft');
+  const icon = (ws) =>
+    ws.map((w) =>
+      w.definition.type === 'image'
+        ? { ...w, definition: { type: 'image', title: service.name, logo: `tile:${service.id}`, background: '#ffffff' } }
+        : w.definition.type === 'group'
+          ? { ...w, definition: { ...w.definition, widgets: icon(w.definition.widgets) } }
+          : w,
+    );
+  return { ...d, id: `${service.id}-overview`, description, logo: `tile:${service.id}`, widgets: icon(d.widgets), source };
+}
+
+/**
+ * A service's generated dashboard, for the services without a designed one: its key numbers, then each metric over
+ * time by the service's resource, grouped by what it measures (errors, latency, throughput, saturation, capacity).
  * charts: [{ title, metric, agg: 'sum' | 'avg' | 'max', grouped, key: a key metric (true, or its rank) or not }]
  */
-function serviceDashboard({ cloud, service, note, variables, tag, charts, color, metricsSource }) {
+function serviceDashboard({ cloud, service, note, variables, tag, charts, color, metricsSource, prefix }) {
   const vars = variables.map((v) => `$${v.name}`);
   // A chart may split by its own tag and keep tags of its own (filters: `rule:ALL`, `dbinstanceidentifier:*`).
   const query = (c, grouped = true) => `${c.agg}:${c.metric}{${[...vars, ...(c.filters ?? [])].join(',')}}${grouped && c.grouped ? ` by {${c.tag ?? tag}}` : ''}`;
@@ -93,86 +167,104 @@ function serviceDashboard({ cloud, service, note, variables, tag, charts, color,
   // One number per kind of key metric first (CPU, requests, errors, latency…), then the next ones.
   const firstOfRank = ranked.filter((c, i) => c.key !== undefined && c.key !== false && (c.key === true || ranked.findIndex((o) => o.key === c.key) === i));
   const keys = [...new Set([...firstOfRank, ...ranked])].filter((c) => kept.has(c)).slice(0, 4);
-  let id = 0;
-  const widget = (definition, width, height) => ({ id: ++id, definition, layout: { x: 0, y: 0, width, height } });
-  const timeseries = charts.map((c) =>
-    widget(
-      {
-        type: 'timeseries',
-        title: `${c.title}${AGGREGATION[c.agg]}${c.grouped ? ` by ${c.tag ?? tag}` : ''}`,
-        requests: [
-          { response_format: 'timeseries', queries: [{ data_source: 'metrics', name: 'query1', query: query(c) }], formulas: [{ formula: 'query1' }], display_type: c.agg === 'sum' ? 'bars' : 'line' },
-        ],
-        show_legend: false,
-      },
-      6,
-      3,
-    ),
-  );
-  // Ordered layout: widgets flow in rows in this order (x is each one's place in its row).
-  const flow = (ws) => {
-    let x = 0;
-    return ws.map((w) => {
-      if (x + w.layout.width > 12) x = 0;
-      w.layout.x = x;
-      x += w.layout.width;
-      return w;
-    });
-  };
-  const doc = {
-    title: service.name,
-    layout_type: 'ordered',
-    template_variables: variables.map((v) => ({ name: v.name, prefix: v.prefix, default: '*' })),
-    widgets: flow([
-      widget({ type: 'image', url: '' }, 3, 3),
-      widget({ type: 'note', content: `## ${service.name}\n\n${note}`, background_color: 'white', font_size: '14', text_align: 'left' }, 9, 3),
-      widget(
+  const kpis = keys.map((c) => ({
+    definition: {
+      type: 'query_value',
+      title: `${c.title}${AGGREGATION[c.agg]}`,
+      requests: [
         {
-          type: 'group',
-          title: 'Overview',
-          background_color: color,
-          layout_type: 'ordered',
-          widgets: flow(
-            keys.map((c) =>
-              widget(
-                {
-                  type: 'query_value',
-                  title: `${c.title}${AGGREGATION[c.agg]}`,
-                  requests: [
-                    {
-                      response_format: 'scalar',
-                      queries: [{ data_source: 'metrics', name: 'query1', query: query(c, false), aggregator: c.time ?? (c.agg === 'sum' ? 'sum' : 'avg') }],
-                      formulas: [{ formula: 'query1' }],
-                    },
-                  ],
-                  precision: 2,
-                },
-                3,
-                2,
-              ),
-            ),
-          ),
+          response_format: 'scalar',
+          queries: [{ data_source: 'metrics', name: 'query1', query: query(c, false), aggregator: c.time ?? (c.agg === 'sum' ? 'sum' : 'avg') }],
+          formulas: [{ formula: 'query1' }],
         },
-        12,
-        3,
-      ),
-      widget({ type: 'group', title: 'Metrics', background_color: color, layout_type: 'ordered', widgets: flow(timeseries) }, 12, 3 * Math.ceil(timeseries.length / 2)),
-    ]),
-  };
-  const d = convertDashboard(doc, cloud, `services/${service.id}.json`, 'observecraft');
-  // Our icon of the service in place of the image; our dashboard, not integrations-core's.
-  const icon = (ws) => ws.map((w) => (w.definition.type === 'image' ? { ...w, definition: { type: 'image', title: service.name, logo: `tile:${service.id}`, background: '#ffffff' } } : w));
-  return {
-    ...d,
-    id: `${service.id}-overview`,
+      ],
+      precision: 2,
+    },
+    width: 3,
+    height: 2,
+  }));
+  const chart = (c, width) => ({
+    definition: {
+      type: 'timeseries',
+      title: `${c.title}${AGGREGATION[c.agg]}${c.grouped ? ` by ${c.tag ?? tag}` : ''}`,
+      requests: [
+        { response_format: 'timeseries', queries: [{ data_source: 'metrics', name: 'query1', query: query(c) }], formulas: [{ formula: 'query1' }], display_type: c.agg === 'sum' ? 'bars' : 'line' },
+      ],
+      show_legend: false,
+    },
+    width,
+    height: 2,
+  });
+  const byCategory = new Map([...CATEGORIES.map(([name]) => [name, []]), ['Other metrics', []]]);
+  for (const c of charts) byCategory.get(categoryOf(c.title)).push(c);
+  const groups = [...byCategory]
+    .filter(([, cs]) => cs.length)
+    .map(([title, cs]) => ({ group: true, title, color: color.replace(/^vivid_/, ''), width: 12, widgets: cs.map((c) => chart(c, cs.length === 1 ? 12 : cs.length === 2 ? 6 : 4)) }));
+  return serviceDoc({
+    cloud,
+    service,
+    note,
+    variables,
+    monitors: prefix,
+    kpis,
+    groups,
+    color,
     description: `${service.name}: the metrics ${{ aws: 'CloudWatch', azure: 'Azure Monitor', gcp: 'Cloud Monitoring' }[cloud]} publishes for it.`,
-    logo: `tile:${service.id}`,
-    widgets: icon(d.widgets),
     source: { repository: 'observecraft', path: 'scripts/cloud-service-dashboards.mjs', metrics: metricsSource },
-  };
+  });
+}
+
+/** Every name the AWS crawler publishes for a metric of the catalog (aws/naming.rs series_names): its bare name (and
+ *  the Datadog variant of its dimension set) with no suffix (its own statistic), `.sum`, `.maximum`, `.minimum` and
+ *  its percentiles. */
+export function namesOf(namespace, m) {
+  const prefix = awsPrefix(namespace);
+  const leaf = m.datadog_name ?? snake(m.name);
+  const has = (d) => m.dimensions.includes(d);
+  const bases =
+    namespace === 'AWS/ECS' && has('ServiceName')
+      ? [`${prefix}.${leaf}`, `${prefix}.service.${leaf}`]
+      : namespace === 'AWS/ECS' && m.dimensions.length === 1 && has('ClusterName')
+        ? [`${prefix}.${leaf}`, `${prefix}.cluster.${leaf}`]
+        : namespace === 'ECS/ContainerInsights' && has('TaskDefinitionFamily')
+          ? [`${prefix}.family.${leaf}`]
+          : [`${prefix}.${leaf}`];
+  const own = m.statistic ?? 'Average';
+  const suffixes = ['', '.sum', '.maximum', '.minimum', ...(['Average', 'Sum', 'Maximum', 'Minimum'].includes(own) ? [] : [`.${own.toLowerCase()}`]), ...(m.percentiles ?? []).map((p) => `.${p}`)];
+  return bases.flatMap((b) => suffixes.map((s) => `${b}${s}`));
+}
+
+/** Every metric name the AWS crawler publishes for a namespace of the catalog. */
+export const publishedNames = (namespace) => new Set((json('integrations/cloud/aws-metrics.json').namespaces[namespace]?.metrics ?? []).flatMap((m) => namesOf(namespace, m)));
+
+/** A designed AWS service dashboard (scripts/aws-service-layouts.mjs); every metric it charts must be published. */
+function designedDashboard(service, layout, source) {
+  const extra = layout.vars;
+  const variables = [{ name: 'account', prefix: 'aws_account' }, { name: 'region', prefix: 'region' }, ...extra.map((v) => ({ name: v, prefix: v }))];
+  const f = variables.map((v) => `$${v.name}`).join(',');
+  const { kpis, groups } = layout.build({ ...queriesOver(f), f });
+  const prefix = awsPrefix(service.namespace);
+  const d = serviceDoc({
+    cloud: 'aws',
+    service,
+    note: `${layout.note} Collected by the [AWS integration](/integrations/aws).`,
+    variables,
+    monitors: `tag:(integration:${layout.monitor}) OR ${prefix}.`,
+    kpis,
+    groups,
+    logs: layout.logs,
+    color: 'vivid_orange',
+    description: `${service.name}: ${layout.note.split(':')[0].toLowerCase()} and their health, from CloudWatch.`,
+    source: { repository: 'observecraft', path: 'scripts/aws-service-layouts.mjs', metrics: source },
+  });
+  const published = publishedNames(service.namespace);
+  for (const [, name] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{/g))
+    if (!published.has(name)) throw new Error(`${service.namespace}: ${name} isn't a name the AWS crawler publishes (aws-metrics.json)`);
+  return d;
 }
 
 function awsDashboard(service, spec, source) {
+  if (AWS_LAYOUTS[service.namespace]) return designedDashboard(service, AWS_LAYOUTS[service.namespace], source);
   const dim = spec.dimension;
   const tag = dim ? underscored(dim) : null;
   const agg = (m) => m.space ?? (m.statistic === 'Sum' ? 'sum' : m.statistic === 'Maximum' ? 'max' : 'avg');
@@ -202,6 +294,7 @@ function awsDashboard(service, spec, source) {
       };
     }),
     metricsSource: source,
+    prefix: `${awsPrefix(service.namespace)}.`,
   });
 }
 
@@ -228,6 +321,7 @@ function azureDashboard(type, spec, source) {
       key: keyRank(m.display),
     })),
     metricsSource: source,
+    prefix: `${type.prefix}.`,
   });
 }
 
@@ -247,6 +341,7 @@ function gcpDashboard(service, spec, source) {
     tag,
     charts: spec.metrics.map((m) => ({ title: m.display || words(m.type.split('/').at(-1)), metric: gcpMetricOf(service.short, m.type), agg: agg(m), grouped: !!tag, key: keyRank(m.display) })),
     metricsSource: source,
+    prefix: `gcp.${service.short}.`,
   });
 }
 
@@ -282,6 +377,14 @@ export function serviceUnits() {
             for (const suffix of ['', '.sum', '.maximum', '.minimum']) units.set(`${name}${suffix}`, m.unit);
           }
         }
+  // AWS: the units the designed dashboards give their metrics (scripts/aws-service-layouts.mjs), on every name.
+  const awsMetrics = json('integrations/cloud/aws-metrics.json').namespaces;
+  for (const [ns, layout] of Object.entries(AWS_LAYOUTS))
+    for (const [metric, unit] of Object.entries(layout.units ?? {})) {
+      const specs = awsMetrics[ns].metrics.filter((m) => m.name === metric);
+      if (!specs.length) throw new Error(`${ns}: no metric ${metric} for its unit`);
+      for (const m of specs) for (const name of namesOf(ns, m)) units.set(name, unit);
+    }
   for (const [type, spec] of Object.entries(json('integrations/cloud/azure-metrics.json').resource_types)) {
     const prefix = json('azure_integration.json').resource_types.find((t) => t.type === type).prefix;
     for (const m of spec.metrics) if (m.unit) for (const suffix of ['', '.total', '.maximum']) units.set(`${prefix}.${snake(m.name)}${suffix}`, m.unit);
@@ -305,6 +408,7 @@ export const MOCK_SERVICES = [
   'tile:aws-lambda',
   'tile:aws-rds',
   'tile:aws-s3',
+  'tile:aws-sqs',
   'tile:aws-wafv2',
   'tile:azure-compute-virtualmachines',
   'tile:azure-storage-storageaccounts',

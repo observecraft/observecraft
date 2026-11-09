@@ -1197,6 +1197,22 @@
       "p95",
       "p99"
      ]
+    },
+    {
+     "name": "HealthyHostCount",
+     "statistic": "Average",
+     "dimensions": [
+      "LoadBalancer",
+      "TargetGroup"
+     ]
+    },
+    {
+     "name": "UnHealthyHostCount",
+     "statistic": "Average",
+     "dimensions": [
+      "LoadBalancer",
+      "TargetGroup"
+     ]
     }
    ]
   },

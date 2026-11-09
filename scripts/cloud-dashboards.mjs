@@ -14,9 +14,9 @@ export const CLOUDS = ['aws', 'azure', 'gcp'];
 
 // ---------------------------------------------------------------- widget builders (Datadog format)
 
-const metric = (query, aggregator = 'avg', name = 'query1') => ({ data_source: 'metrics', name, query, aggregator });
+export const metric = (query, aggregator = 'avg', name = 'query1') => ({ data_source: 'metrics', name, query, aggregator });
 
-function queryValue(title, queries, { formula = 'query1', precision = 0, unit, formats = [] } = {}) {
+export function queryValue(title, queries, { formula = 'query1', precision = 0, unit, formats = [] } = {}) {
   return {
     type: 'query_value',
     title,
@@ -29,7 +29,7 @@ function queryValue(title, queries, { formula = 'query1', precision = 0, unit, f
   };
 }
 
-function timeseries(title, queries, { formulas, display = 'line', palette = 'dog_classic' } = {}) {
+export function timeseries(title, queries, { formulas, display = 'line', palette = 'dog_classic' } = {}) {
   return {
     type: 'timeseries',
     title,
@@ -61,7 +61,7 @@ function toplist(title, query, { aggregator = 'avg', count = 10, formula = 'quer
 }
 
 /** Columns: [alias, query, aggregator]; rows: the first query's groups. */
-function table(title, columns, count = 50) {
+export function table(title, columns, count = 50) {
   const queries = columns.map(([, query, aggregator], i) => metric(query, aggregator ?? 'avg', `query${i + 1}`));
   return {
     type: 'query_table',
@@ -74,9 +74,13 @@ function table(title, columns, count = 50) {
   };
 }
 
-const treemap = (title, query, aggregator = 'avg') => ({ type: 'treemap', title, requests: [{ response_format: 'scalar', queries: [metric(query, aggregator)], formulas: [{ formula: 'query1' }] }] });
+export const treemap = (title, query, aggregator = 'avg') => ({
+  type: 'treemap',
+  title,
+  requests: [{ response_format: 'scalar', queries: [metric(query, aggregator)], formulas: [{ formula: 'query1' }] }],
+});
 
-const note = (content, background_color, { align = 'center', size = '14', tick = false } = {}) => ({
+export const note = (content, background_color, { align = 'center', size = '14', tick = false } = {}) => ({
   type: 'note',
   content,
   background_color,

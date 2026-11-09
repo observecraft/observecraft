@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
-import { MOCK_SERVICES, buildServiceDashboards, metricOf } from './cloud-service-dashboards.mjs';
+import { MOCK_SERVICES, buildServiceDashboards, metricOf, publishedNames } from './cloud-service-dashboards.mjs';
+import { AWS_LAYOUTS } from './aws-service-layouts.mjs';
 import { gcpPage, withDatadogNamespaces } from './import-cloud-metrics.mjs';
 
 const seed = (path) => JSON.parse(readFileSync(new URL(`../server/seeds/${path}`, import.meta.url), 'utf8'));
@@ -145,7 +146,7 @@ test('one dashboard per AWS service with metrics, installed once the service’s
     ['account', 'region', 'functionname'],
   );
   const text = JSON.stringify(d.widgets);
-  assert.match(text, /sum:aws\.lambda\.invocations\.sum\{\$account,\$region,\$functionname\} by \{functionname\}/);
+  assert.match(text, /sum:aws\.lambda\.invocations\{\$account,\$region,\$functionname\} by \{functionname\}/);
   assert.ok(lines.filter((l) => l.logo.startsWith('tile:aws-')).length >= 110, 'every AWS service of the catalog with documented metrics');
   assert.deepEqual(
     buildServiceDashboards().map((l) => l.logo),
@@ -208,6 +209,7 @@ test('service dashboards fit the grid without overlapping', () => {
 test('mock mode shows the dashboards of the services its demo account collects', async () => {
   const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/cloudServiceDashboards.generated.json', import.meta.url), 'utf8'));
   assert.deepEqual(mock.dashboards.map((d) => d.logo).sort(), [...MOCK_SERVICES].sort());
+  assert.ok(MOCK_SERVICES.includes('tile:aws-sqs'));
   assert.equal(mock.units['azure.vm.percentage_cpu'], 'percent');
 });
 
@@ -216,4 +218,166 @@ test('Cloud Monitoring’s escaped text is decoded once (&amp;lt; stays the text
     '<tr class="met_type" id="compute/a/b"><td><code>a/b</code><br/>Bytes &amp;lt; limit &amp; more</td></tr><tr class="met_desc"><td><code>GAUGE</code><code>INT64</code><code>By</code><br/></td></tr>',
   );
   assert.equal(m.display, 'Bytes &lt; limit & more');
+});
+
+// ---------------------------------------------------------------- hand-designed AWS dashboards (scripts/aws-service-layouts.mjs)
+
+const widgetsOf = (d) => {
+  const out = [];
+  const walk = (ws, group) => {
+    for (const w of ws) {
+      if (w.definition.type === 'group') walk(w.definition.widgets, w.definition.title);
+      else out.push({ ...w.definition, group });
+    }
+  };
+  walk(d.widgets);
+  return out;
+};
+const kind = (w) => (w.type === 'integration' ? w.original.type : w.type);
+const awsLine = (namespace) => {
+  const id = seed('aws_integration.json').namespaces.find((n) => n.namespace === namespace).id;
+  return bundle().find((l) => l.logo === `tile:${id}`);
+};
+
+test('the most used AWS services have a dashboard designed for them', () => {
+  for (const ns of [
+    'AWS/EC2',
+    'AWS/EBS',
+    'AWS/S3',
+    'AWS/RDS',
+    'AWS/ApplicationELB',
+    'AWS/NetworkELB',
+    'AWS/ELB',
+    'AWS/Lambda',
+    'AWS/DynamoDB',
+    'AWS/ElastiCache',
+    'AWS/SQS',
+    'AWS/SNS',
+    'AWS/ApiGateway',
+    'AWS/CloudFront',
+    'AWS/ECS',
+    'ECS/ContainerInsights',
+    'AWS/NATGateway',
+    'AWS/Route53',
+    'AWS/WAFV2',
+    'AWS/Kinesis',
+    'AWS/Firehose',
+    'AWS/States',
+    'AWS/EFS',
+    'AWS/ES',
+    'AWS/Redshift',
+    'AWS/Kafka',
+    'AWS/KMS',
+    'AWS/Bedrock',
+    'AWS/AppRunner',
+    'AWS/Backup',
+    'AWS/CertificateManager',
+    'AWS/PrivateLinkEndpoints',
+    'AWS/PrivateLinkServices',
+    'AWS/VPN',
+    'AWS/Events',
+    'AWS/Logs',
+    'AWS/Billing',
+  ])
+    assert.ok(AWS_LAYOUTS[ns], `${ns} has a layout`);
+  for (const ns of Object.keys(AWS_LAYOUTS)) {
+    const [d] = awsLine(ns).dashboards;
+    const [about, ...groups] = d.widgets;
+    assert.equal(about.definition.type, 'group', `${ns}: starts with its About group`);
+    const inAbout = about.definition.widgets.map((w) => w.definition);
+    assert.ok(
+      inAbout.some((w) => w.type === 'image' && w.logo === d.logo),
+      `${ns}: its logo`,
+    );
+    assert.ok(
+      inAbout.some((w) => w.type === 'note' && w.content.length > 40),
+      `${ns}: what it shows`,
+    );
+    assert.ok(inAbout.filter((w) => kind(w) === 'query_value').length >= 3, `${ns}: a row of key numbers`);
+    const summary = inAbout.find((w) => w.type === 'monitor_summary');
+    assert.match(summary?.query ?? '', /tag:\(integration:amazon_[a-z0-9_]+\) OR aws\.|ecs\./, `${ns}: its monitors`);
+    assert.ok(groups.filter((g) => g.definition.type === 'group').length >= 2, `${ns}: themed groups`);
+    assert.ok(new Set(widgetsOf(d).map(kind)).size >= 3, `${ns}: more than one kind of widget`);
+  }
+});
+
+test('designed dashboards follow their service’s model, not one template', () => {
+  const titles = (ns) =>
+    awsLine(ns)
+      .dashboards[0].widgets.slice(1)
+      .map((g) => g.definition.title);
+  const all = ['AWS/EC2', 'AWS/S3', 'AWS/ApplicationELB', 'AWS/Lambda', 'AWS/SQS'].map((ns) => titles(ns).join('|'));
+  assert.equal(new Set(all).size, all.length);
+  const text = (ns) => JSON.stringify(awsLine(ns).dashboards[0]);
+  const vars = (ns) => awsLine(ns).dashboards[0].templateVariables.map((v) => v.prefix);
+  // S3: daily storage metrics over a week; requests, errors and latency percentiles per bucket.
+  const s3 = widgetsOf(awsLine('AWS/S3').dashboards[0]);
+  assert.ok(
+    s3.some((w) => /bucket_size_bytes/.test(JSON.stringify(w)) && w.original?.time?.live_span),
+    'S3 storage reads a longer span',
+  );
+  assert.match(text('AWS/S3'), /aws\.s3\.first_byte_latency\.p99/);
+  assert.deepEqual(vars('AWS/S3'), ['aws_account', 'region', 'bucketname', 'filterid']);
+  // ALB: healthy and unhealthy targets, p95/p99 response time, responses by source.
+  assert.match(text('AWS/ApplicationELB'), /aws\.applicationelb\.un_healthy_host_count/);
+  assert.match(text('AWS/ApplicationELB'), /aws\.applicationelb\.target_response_time\.p95/);
+  assert.match(text('AWS/ApplicationELB'), /aws\.applicationelb\.httpcode_elb_5xx_count\{/);
+  assert.deepEqual(vars('AWS/ApplicationELB'), ['aws_account', 'region', 'loadbalancer', 'targetgroup']);
+  // Lambda: duration percentiles and maximum, errors, throttles, concurrency, its logs.
+  assert.match(text('AWS/Lambda'), /aws\.lambda\.duration\.p95/);
+  assert.match(text('AWS/Lambda'), /aws\.lambda\.duration\.maximum/);
+  assert.match(text('AWS/Lambda'), /aws\.lambda\.concurrent_executions/);
+  assert.ok(widgetsOf(awsLine('AWS/Lambda').dashboards[0]).some((w) => w.type === 'log_stream' && /source:lambda/.test(w.query)));
+  // SQS: message states, throughput, age of the oldest message.
+  assert.match(text('AWS/SQS'), /aws\.sqs\.approximate_age_of_oldest_message/);
+  assert.match(text('AWS/SQS'), /aws\.sqs\.approximate_number_of_messages_not_visible/);
+  assert.deepEqual(vars('AWS/SQS'), ['aws_account', 'region', 'queuename']);
+  // EC2: status checks and CPU per instance.
+  assert.match(text('AWS/EC2'), /aws\.ec2\.status_check_failed_system/);
+  assert.deepEqual(vars('AWS/EC2'), ['aws_account', 'region', 'instanceid']);
+});
+
+test('every AWS service dashboard charts only names the crawler publishes (bare name, .sum/.maximum/.minimum, percentiles)', () => {
+  assert.ok(publishedNames('AWS/Lambda').has('aws.lambda.duration.p99.9'));
+  assert.ok(publishedNames('AWS/Lambda').has('aws.lambda.invocations'));
+  assert.ok(publishedNames('AWS/Lambda').has('aws.lambda.invocations.minimum'));
+  assert.ok(!publishedNames('AWS/Lambda').has('aws.lambda.duration.p95.sum'));
+  assert.ok(publishedNames('AWS/ECS').has('aws.ecs.service.cpuutilization'));
+  assert.ok(publishedNames('ECS/ContainerInsights').has('ecs.containerinsights.family.cpu_utilized'));
+  assert.ok(!publishedNames('ECS/ContainerInsights').has('ecs.containerinsights.cpu_utilized.family'));
+  const catalog = seed('aws_integration.json').namespaces;
+  for (const l of bundle().filter((x) => x.logo.startsWith('tile:aws-'))) {
+    const ns = catalog.find((n) => `tile:${n.id}` === l.logo).namespace;
+    const names = publishedNames(ns);
+    for (const [, name] of JSON.stringify(l.dashboards[0].widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{/g)) assert.ok(names.has(name), `${ns}: ${name}`);
+  }
+});
+
+test('services without a design get their key numbers and their metrics grouped by what they measure', () => {
+  const [d] = awsLine('Glue').dashboards;
+  const titles = d.widgets.map((w) => w.definition.title);
+  assert.ok(!titles.includes('Metrics'), 'not one flat grid');
+  assert.ok(
+    titles.some((t) => /^(Errors|Latency|Throughput|Saturation|Capacity)$/.test(t)),
+    titles.join(', '),
+  );
+  const [about] = d.widgets;
+  assert.ok(about.definition.widgets.some((w) => w.definition.type === 'monitor_summary'));
+  assert.ok(about.definition.widgets.filter((w) => kind(w.definition) === 'query_value').length >= 2);
+  const vm = bundle().find((l) => l.logo === 'tile:azure-compute-virtualmachines').dashboards[0];
+  assert.ok(vm.widgets.filter((w) => w.definition.type === 'group').length >= 3);
+});
+
+test('designed dashboards’ metrics carry their units', () => {
+  const units = new Map(
+    readFileSync(new URL('../server/seeds/integrations/cloud/service-units.csv', import.meta.url), 'utf8')
+      .split('\n')
+      .filter((l) => l && !l.startsWith('#'))
+      .map((l) => l.split(',')),
+  );
+  assert.equal(units.get('aws.sqs.approximate_age_of_oldest_message'), 'second');
+  assert.equal(units.get('aws.lambda.duration.p95'), 'millisecond');
+  assert.equal(units.get('aws.s3.bucket_size_bytes'), 'byte');
+  assert.equal(units.get('aws.applicationelb.target_response_time.p99'), 'second');
+  assert.equal(units.get('aws.ec2.cpuutilization.maximum'), 'percent');
 });
