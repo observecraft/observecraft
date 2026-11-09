@@ -706,13 +706,7 @@ pub async fn monitor_summary(
     OrgId(org): OrgId,
     Json(req): Json<MonitorSummaryRequest>,
 ) -> ApiResult<MonitorSummary> {
-    let text = req
-        .query
-        .split_whitespace()
-        .filter(|t| !t.contains(':'))
-        .collect::<Vec<_>>()
-        .join(" ");
-    let rows = super::monitors::summary(&st, &org, &text).await?;
+    let rows = super::monitors::summary(&st, &org, &req.query).await?;
     let mut counts = MonitorCounts::default();
     let monitors = rows
         .into_iter()
