@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.19.0](https://github.com/observecraft/observecraft/compare/v0.18.0...v0.19.0) (2026-11-09)
+
+
+### Features
+
+* **self-monitoring:** ObserveCraft Overview dashboard, recommended monitors and heartbeat ([0f249b2](https://github.com/observecraft/observecraft/commit/0f249b2459d820ed88e5f289398d777ddb29fab9))
+
+
+### Bug fixes
+
+* **cloud-cost:** read bills with DuckDB's JSON functions built in ([088447f](https://github.com/observecraft/observecraft/commit/088447fa8f44e812d81cb634d9f98af250463fff))
+* **integrations:** give integration_installs the columns the server reads ([b924827](https://github.com/observecraft/observecraft/commit/b9248272f698e16c2260da19d29ea4576460fa41))
+
 ## [0.18.0](https://github.com/observecraft/observecraft/compare/v0.17.0...v0.18.0) (2026-11-08)
 
 
