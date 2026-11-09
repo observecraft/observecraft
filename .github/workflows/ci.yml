@@ -120,6 +120,10 @@ jobs:
         with: { components: clippy }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with: { workspaces: server }
+      # libduckdb-sys unpacks its sources once into target/duckdb-sources/<hash> and marks them .complete. A cached copy
+      # without the marker makes its build script fail ("Directory not empty") whenever it reruns (a new feature).
+      - name: Drop incomplete DuckDB sources restored from the cache
+        run: shopt -s nullglob; for d in server/target/duckdb-sources/*/; do [ -f "$d.complete" ] || rm -rf "$d"; done
       - run: cargo test --locked --workspace
         working-directory: server
       - run: cargo clippy --locked --workspace --all-targets
@@ -172,6 +176,10 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         # Preserve expensive compiled dependencies even when a compatibility assertion fails.
         with: { workspaces: server, cache-on-failure: true }
+      # libduckdb-sys unpacks its sources once into target/duckdb-sources/<hash> and marks them .complete. A cached copy
+      # without the marker makes its build script fail ("Directory not empty") whenever it reruns (a new feature).
+      - name: Drop incomplete DuckDB sources restored from the cache
+        run: shopt -s nullglob; for d in server/target/duckdb-sources/*/; do [ -f "$d.complete" ] || rm -rf "$d"; done
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/observecraft/tf-compat
