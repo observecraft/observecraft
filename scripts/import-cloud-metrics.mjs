@@ -149,16 +149,37 @@ export function withDatadogNamespaces(result, curated = curatedFile().namespaces
 /** Azure Monitor units → Datadog's (counts have none). */
 const AZURE_UNITS = { Bytes: 'byte', BytesPerSecond: 'byte/second', BitsPerSecond: 'bit/second', Percent: 'percent', Milliseconds: 'millisecond', MilliSeconds: 'millisecond', Seconds: 'second' };
 
-/** One supported-metrics page: `[{name, display, aggregation, unit}]` from its tables. */
+/** One supported-metrics page: `[{name, display, aggregation, aggregations, unit, dimensions, grain}]` from its tables:
+ *  the default aggregation and the others listed, the dimensions (the crawler splits the most used ones,
+ *  server/crates/oc-api/src/azure/naming.rs `splits`) and the finest time grain when it isn't a minute (the crawler
+ *  reads each metric at its finest grain). */
 export function azurePage(md) {
   const metrics = [];
   // |**Percentage CPU**<br><br>… |`Percentage CPU` | No | Percent |Average |\<none\>|PT1M |Yes|
   for (const row of md.split('\n').filter((l) => l.startsWith('|**'))) {
-    const [, metric, rest, , unit, aggregations] = row.split('|').map((c) => c.trim());
+    const [, metric, rest, , unit, listed, dims, grains] = row.split('|').map((c) => c.trim());
     const [display, name] = [metric.match(/^\*\*(.+?)\*\*/)?.[1], rest.match(/^`([^`]+)`$/)?.[1]];
-    // The default aggregation: the first listed (`Total (Sum), Average, …`).
-    const aggregation = aggregations?.split(',')[0].replace(/\s*\(.*\)$/, '');
-    if (display && name && aggregation && !metrics.some((m) => m.name === name)) metrics.push({ name, display, aggregation, ...(AZURE_UNITS[unit] ? { unit: AZURE_UNITS[unit] } : {}) });
+    // The default aggregation is the first listed (`Total (Sum), Average, …`).
+    const aggregations = (listed ?? '')
+      .split(',')
+      .map((a) => a.trim().replace(/\s*\(.*\)$/, ''))
+      .filter(Boolean);
+    const aggregation = aggregations[0];
+    const dimensions = [...(dims ?? '').matchAll(/`([^`]+)`/g)].map((d) => d[1]);
+    const grain = (grains ?? '')
+      .split(',')
+      .map((g) => g.trim())
+      .filter(Boolean)[0];
+    if (display && name && aggregation && !metrics.some((m) => m.name === name))
+      metrics.push({
+        name,
+        display,
+        aggregation,
+        aggregations,
+        ...(AZURE_UNITS[unit] ? { unit: AZURE_UNITS[unit] } : {}),
+        ...(dimensions.length ? { dimensions } : {}),
+        ...(grain && grain !== 'PT1M' ? { grain } : {}),
+      });
   }
   return metrics;
 }

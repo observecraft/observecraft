@@ -75,7 +75,7 @@ const keyRank = (display) => {
 /** At most this many charts per dashboard: the services with hundreds of metrics show their key ones, then their first. */
 const MAX_CHARTS = 48;
 
-const AGGREGATION = { sum: ' (sum)', max: ' (max)', avg: '' };
+const AGGREGATION = { sum: ' (sum)', max: ' (max)', min: ' (min)', avg: '' };
 
 /** What a metric measures, from its name: the groups of a generated dashboard, in this order (first match wins). */
 export const CATEGORIES = [
@@ -298,12 +298,13 @@ function awsDashboard(service, spec, source) {
   });
 }
 
-/** Azure Monitor's default aggregations and what our crawler publishes for them (azure/naming.rs AGGREGATIONS):
- *  totals and counts as `.total`, maxima as `.maximum`, the rest averaged. */
-const AZURE_AGGREGATIONS = { Total: ['sum', '.total'], Count: ['sum', '.total'], Maximum: ['max', '.maximum'] };
+/** How a metric's series combine, by its primary aggregation: our crawler publishes that aggregation under the bare
+ *  name, as Datadog does (azure/naming.rs `aggregations`), so totals and counts add up, maxima and minima stay
+ *  extremes and the rest is averaged. */
+const AZURE_AGGREGATIONS = { Total: 'sum', Count: 'sum', Maximum: 'max', Minimum: 'min' };
 
-/** `Percentage CPU` of a VM → `azure.vm.percentage_cpu` (azure/naming.rs metric_name). */
-export const azureMetricOf = (prefix, metric, aggregation) => `${prefix}.${snake(metric)}${(AZURE_AGGREGATIONS[aggregation] ?? ['avg', ''])[1]}`;
+/** `Percentage CPU` of a VM → `azure.vm.percentage_cpu` (azure/naming.rs metric_name; the primary aggregation). */
+export const azureMetricOf = (prefix, metric) => `${prefix}.${snake(metric)}`;
 
 function azureDashboard(type, spec, source) {
   return serviceDashboard({
@@ -315,8 +316,8 @@ function azureDashboard(type, spec, source) {
     tag: 'name',
     charts: spec.metrics.map((m) => ({
       title: m.display,
-      metric: azureMetricOf(type.prefix, m.name, m.aggregation),
-      agg: (AZURE_AGGREGATIONS[m.aggregation] ?? ['avg'])[0],
+      metric: azureMetricOf(type.prefix, m.name),
+      agg: AZURE_AGGREGATIONS[m.aggregation] ?? 'avg',
       grouped: true,
       key: keyRank(m.display),
     })),
@@ -387,7 +388,7 @@ export function serviceUnits() {
     }
   for (const [type, spec] of Object.entries(json('integrations/cloud/azure-metrics.json').resource_types)) {
     const prefix = json('azure_integration.json').resource_types.find((t) => t.type === type).prefix;
-    for (const m of spec.metrics) if (m.unit) for (const suffix of ['', '.total', '.maximum']) units.set(`${prefix}.${snake(m.name)}${suffix}`, m.unit);
+    for (const m of spec.metrics) if (m.unit) for (const suffix of ['', '.max']) units.set(`${azureMetricOf(prefix, m.name)}${suffix}`, m.unit);
   }
   const short = new Map(json('gcp_integration.json').services.map((s) => [s.prefix, s.short]));
   for (const [prefix, spec] of Object.entries(json('integrations/cloud/gcp-metrics.json').services))

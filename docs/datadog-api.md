@@ -184,7 +184,14 @@ identity), PUT replaces one and renames it with `new_tenant_name` / `new_client_
 succeeds, as in Datadog's recordings). Fields get the Terraform provider's defaults; the client secret is sealed and
 never answered, and the provider's `SECRETLESS_AUTH` placeholder keeps the stored one. Secretless (federated)
 authentication isn't supported: such a registration is reported as an issue until it has a secret. Metrics are
-crawled from Azure Monitor every 10 minutes (`azure.<type>.<metric>`, `.total`, `.maximum`; VMs are `azure.vm.*`).
+crawled from Azure Monitor every 10 minutes, named as Datadog names them: `azure.<type>.<metric>` carries the metric's
+primary aggregation (counts summed, gauges averaged), `.max` its maximum (VMs are `azure.vm.*`); each metric at its
+finest time grain (hourly storage capacity is published once per hour), global resources (DNS zones, Front Door,
+Traffic Manager) through Resource Manager's per-resource API, the most used dimensions split into lowercase tags
+(`instance`, `apiname`, `responsetype`, `shardid`, `entityname`, …), and `azure.<type>.count` for every collected
+resource with its Resource Health `status`. Reads Azure throttles are retried on the next runs. `automute`,
+`custom_metrics_enabled`, `usage_metrics_enabled`, `resource_collection_enabled` and `cspm_enabled` are stored and
+answered but not applied yet.
 
 ## GCP integration
 

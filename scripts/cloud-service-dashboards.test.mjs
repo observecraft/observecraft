@@ -64,14 +64,20 @@ test('overrides patch a namespace’s metrics, add the ones it lacks and set nam
   assert.throws(() => withDatadogNamespaces(result, {}, { 'AWS/SQS': { metrics: { Unknown: { percentiles: ['p99'] } } } }), /Unknown.*statistic and dimensions/);
 });
 
-test('Azure metrics come from Azure Monitor’s supported metrics reference with their aggregation and unit', () => {
+test('Azure metrics come from Azure Monitor’s supported metrics reference with their aggregations, unit, dimensions and grain', () => {
   assert.match(azure.source, /MicrosoftDocs\/azure-monitor-docs@[0-9a-f]{40} \(CC BY 4\.0\)/);
   const vm = azure.resource_types['Microsoft.Compute/virtualMachines'];
   assert.deepEqual(
     vm.metrics.find((m) => m.name === 'Percentage CPU'),
-    { name: 'Percentage CPU', display: 'Percentage CPU', aggregation: 'Average', unit: 'percent' },
+    { name: 'Percentage CPU', display: 'Percentage CPU', aggregation: 'Average', aggregations: ['Average'], unit: 'percent' },
   );
   assert.equal(vm.metrics.find((m) => m.name === 'Network In Total').aggregation, 'Total');
+  assert.deepEqual(azure.resource_types['Microsoft.Web/sites'].metrics.find((m) => m.name === 'AppConnections').aggregations, ['Average', 'Count', 'Maximum', 'Minimum']);
+  assert.deepEqual(vm.metrics.find((m) => m.name === 'Data Disk Latency').dimensions, ['LUN']);
+  // Storage capacity is hourly.
+  const storage = azure.resource_types['Microsoft.Storage/storageAccounts'];
+  assert.equal(storage.metrics.find((m) => m.name === 'UsedCapacity').grain, 'PT1H');
+  assert.deepEqual(storage.metrics.find((m) => m.name === 'Transactions').dimensions.slice(0, 2), ['ResponseType', 'GeoType']);
   assert.ok(Object.keys(azure.resource_types).length >= 50);
 });
 
@@ -165,7 +171,9 @@ test('one dashboard per Azure resource type and Google Cloud service, named as t
     ['subscription_id', 'resource_group', 'region', 'name'],
   );
   assert.match(JSON.stringify(vm.dashboards[0].widgets), /avg:azure\.vm\.percentage_cpu\{\$subscription_id,\$resource_group,\$region,\$name\} by \{name\}/);
-  assert.match(JSON.stringify(vm.dashboards[0].widgets), /sum:azure\.vm\.network_in_total\.total\{/);
+  // The bare name is the primary aggregation (a total, summed); maxima are `.max`.
+  assert.match(JSON.stringify(vm.dashboards[0].widgets), /sum:azure\.vm\.network_in_total\{/);
+  assert.doesNotMatch(JSON.stringify(lines.filter((l) => l.logo.startsWith('tile:azure-'))), /azure\.[a-z0-9_.]+\.(total|maximum)\{/);
   const gce = lines.find((l) => l.logo === 'tile:gcp-gce');
   assert.equal(gce.prefix, 'gcp.gce.');
   assert.match(JSON.stringify(gce.dashboards[0].widgets), /avg:gcp\.gce\.instance\.cpu\.utilization\{\$project_id,\$instance_id\} by \{instance_id\}/);
@@ -181,7 +189,8 @@ test('service metrics carry their units for the server', () => {
       .map((l) => l.split(',')),
   );
   assert.equal(units.get('azure.vm.percentage_cpu'), 'percent');
-  assert.equal(units.get('azure.vm.network_in_total.total'), 'byte');
+  assert.equal(units.get('azure.vm.network_in_total'), 'byte');
+  assert.equal(units.get('azure.vm.percentage_cpu.max'), 'percent');
   assert.equal(units.get('gcp.gce.instance.cpu.utilization'), 'fraction');
   assert.equal(units.get('aws.cloudfront.bytes_downloaded'), 'byte');
   assert.equal(units.get('aws.rds.read_latency'), 'second');

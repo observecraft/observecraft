@@ -795,7 +795,7 @@ mod tests {
         assert_eq!(metric_unit("gcp.gce.instance.cpu.utilization", "").as_deref(), Some("fraction"));
         assert_eq!(metric_unit("kubernetes.memory.usage", "").as_deref(), Some("byte"));
         assert_eq!(metric_unit("aws.ec2.network_in.sum", "bit").as_deref(), Some("bit"), "a reported unit wins");
-        assert_eq!(metric_unit("azure.vm.available_memory_bytes.maximum", "").as_deref(), Some("byte"), "the service dashboards' units");
+        assert_eq!(metric_unit("azure.vm.available_memory_bytes.max", "").as_deref(), Some("byte"), "the service dashboards' units");
         assert_eq!(metric_unit("gcp.cloudsql.database.disk.bytes_used_by_data_type", "").as_deref(), Some("byte"));
     }
 

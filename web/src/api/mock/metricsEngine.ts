@@ -400,8 +400,10 @@ function matches(e: Tags, q: ParsedMetricQuery): boolean {
             .split('*')
             .map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
             .join('.*')}$`,
+          'i',
         ).test(v)
-      : v === f.value;
+      : // Tag values match regardless of case, as on the server.
+        v?.toLowerCase() === f.value.toLowerCase();
     return hit !== f.negate;
   });
 }

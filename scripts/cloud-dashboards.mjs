@@ -382,14 +382,14 @@ function azure() {
       'vivid_blue',
       [
         b.place(section('Virtual machines: CPU, memory, disks and network.'), 0, 0, 12, 1),
-        b.place(queryValue('Running VMs', [metric(`avg:azure.vm.percentage_cpu{${f}} by {name}`)], { formula: 'count_nonzero(query1)', formats: OK }), 0, 1, 2, 1),
-        b.place(queryValue('Total network in', [metric(`sum:azure.vm.network_in_total.total{${f}}`, 'sum')]), 2, 1, 2, 1),
-        b.place(queryValue('Total network out', [metric(`sum:azure.vm.network_out_total.total{${f}}`, 'sum')]), 4, 1, 2, 1),
+        b.place(queryValue('Running VMs', [metric(`sum:azure.vm.count{${f},status:running}`)], { formats: OK }), 0, 1, 2, 1),
+        b.place(queryValue('Total network in', [metric(`sum:azure.vm.network_in_total{${f}}`, 'sum')]), 2, 1, 2, 1),
+        b.place(queryValue('Total network out', [metric(`sum:azure.vm.network_out_total{${f}}`, 'sum')]), 4, 1, 2, 1),
         b.place(queryValue('Avg CPU utilization', [metric(`avg:azure.vm.percentage_cpu{${f}}`)], { precision: 1 }), 6, 1, 2, 1),
-        b.place(queryValue('Max CPU utilization', [metric(`max:azure.vm.percentage_cpu.maximum{${f}}`, 'max')], { precision: 1 }), 8, 1, 2, 1),
+        b.place(queryValue('Max CPU utilization', [metric(`max:azure.vm.percentage_cpu.max{${f}}`, 'max')], { precision: 1 }), 8, 1, 2, 1),
         b.place(tip('High CPU can be normal; CPU pinned at its maximum slows the VM.'), 10, 1, 2, 1),
         b.place(
-          timeseries('Network traffic', [metric(`sum:azure.vm.network_in_total.total{${f}}`, 'sum', 'query1'), metric(`sum:azure.vm.network_out_total.total{${f}}`, 'sum', 'query2')], {
+          timeseries('Network traffic', [metric(`sum:azure.vm.network_in_total{${f}}`, 'sum', 'query1'), metric(`sum:azure.vm.network_out_total{${f}}`, 'sum', 'query2')], {
             formulas: [
               { formula: 'query1', alias: 'in' },
               { formula: '0 - query2', alias: 'out' },
@@ -406,7 +406,7 @@ function azure() {
         b.place(
           table('CPU utilization (top 50)', [
             ['CPU %', `avg:azure.vm.percentage_cpu{${f}} by {name,resource_group}`],
-            ['Max CPU %', `max:azure.vm.percentage_cpu.maximum{${f}} by {name,resource_group}`, 'max'],
+            ['Max CPU %', `max:azure.vm.percentage_cpu.max{${f}} by {name,resource_group}`, 'max'],
           ]),
           8,
           2,
@@ -414,7 +414,7 @@ function azure() {
           3,
         ),
         b.place(
-          timeseries('Disk throughput', [metric(`sum:azure.vm.disk_read_bytes.total{${f}}`, 'sum', 'query1'), metric(`sum:azure.vm.disk_write_bytes.total{${f}}`, 'sum', 'query2')], {
+          timeseries('Disk throughput', [metric(`sum:azure.vm.disk_read_bytes{${f}}`, 'sum', 'query1'), metric(`sum:azure.vm.disk_write_bytes{${f}}`, 'sum', 'query2')], {
             formulas: [
               { formula: 'query1', alias: 'read' },
               { formula: 'query2', alias: 'written' },
@@ -435,10 +435,10 @@ function azure() {
       'vivid_blue',
       [
         b.place(section('SQL databases: connections, CPU, DTU and storage.'), 0, 0, 12, 1),
-        b.place(queryValue('Failed connections', [metric(`sum:azure.sql_servers_databases.connection_failed.total{${f}}`, 'sum')], { formats: BAD }), 0, 1, 2, 1),
-        b.place(queryValue('Successful connections', [metric(`sum:azure.sql_servers_databases.connection_successful.total{${f}}`, 'sum')], { formats: OK }), 2, 1, 2, 1),
+        b.place(queryValue('Failed connections', [metric(`sum:azure.sql_servers_databases.connection_failed{${f}}`, 'sum')], { formats: BAD }), 0, 1, 2, 1),
+        b.place(queryValue('Successful connections', [metric(`sum:azure.sql_servers_databases.connection_successful{${f}}`, 'sum')], { formats: OK }), 2, 1, 2, 1),
         b.place(queryValue('Avg CPU', [metric(`avg:azure.sql_servers_databases.cpu_percent{${f}}`)], { precision: 1 }), 4, 1, 2, 1),
-        b.place(queryValue('Deadlocks', [metric(`sum:azure.sql_servers_databases.deadlock.total{${f}}`, 'sum')], { formats: BAD }), 6, 1, 2, 1),
+        b.place(queryValue('Deadlocks', [metric(`sum:azure.sql_servers_databases.deadlock{${f}}`, 'sum')], { formats: BAD }), 6, 1, 2, 1),
         b.place(tip('DTU consumption near 100% means the database needs a larger tier or lighter queries.'), 8, 1, 4, 1),
         b.place(treemap('Storage used by database', `avg:azure.sql_servers_databases.storage_percent{${f}} by {name}`), 0, 2, 8, 3),
         b.place(timeseries('DTU consumption by database', [metric(`avg:azure.sql_servers_databases.dtu_consumption_percent{${f}} by {name}`)], { palette: 'cool' }), 8, 2, 4, 3),
@@ -451,13 +451,13 @@ function azure() {
       'vivid_blue',
       [
         b.place(section('Web apps and function apps: requests, errors, response time and executions.'), 0, 0, 12, 1),
-        b.place(queryValue('Requests', [metric(`sum:azure.app_services.requests.total{${f}}`, 'sum')]), 0, 1, 2, 1),
-        b.place(queryValue('5xx errors', [metric(`sum:azure.app_services.http5xx.total{${f}}`, 'sum')], { formats: BAD }), 0, 2, 2, 1),
-        b.place(queryValue('Function executions', [metric(`sum:azure.app_services.function_execution_count.total{${f}}`, 'sum')]), 0, 3, 2, 1),
+        b.place(queryValue('Requests', [metric(`sum:azure.app_services.requests{${f}}`, 'sum')]), 0, 1, 2, 1),
+        b.place(queryValue('5xx errors', [metric(`sum:azure.app_services.http5xx{${f}}`, 'sum')], { formats: BAD }), 0, 2, 2, 1),
+        b.place(queryValue('Function executions', [metric(`sum:azure.app_services.function_execution_count{${f}}`, 'sum')]), 0, 3, 2, 1),
         b.place(
           table('Apps', [
-            ['Requests', `sum:azure.app_services.requests.total{${f}} by {name}`, 'sum'],
-            ['5xx', `sum:azure.app_services.http5xx.total{${f}} by {name}`, 'sum'],
+            ['Requests', `sum:azure.app_services.requests{${f}} by {name}`, 'sum'],
+            ['5xx', `sum:azure.app_services.http5xx{${f}} by {name}`, 'sum'],
             ['Response time (s)', `avg:azure.app_services.http_response_time{${f}} by {name}`],
           ]),
           2,
@@ -477,7 +477,7 @@ function azure() {
         b.place(queryValue('Data path availability', [metric(`avg:azure.network_loadbalancers.vip_availability{${f}}`)], { precision: 1 }), 0, 1, 2, 1),
         b.place(queryValue('Health probe status', [metric(`avg:azure.network_loadbalancers.dip_availability{${f}}`)], { precision: 1 }), 2, 1, 2, 1),
         b.place(tip('Data path availability below 100% means the frontend IP isn’t reachable; health probe status, that backends fail their probes.'), 4, 1, 8, 1),
-        b.place(timeseries('Bytes by load balancer', [metric(`sum:azure.network_loadbalancers.byte_count.total{${f}} by {name}`, 'sum')], { display: 'bars', palette: 'cool' }), 0, 2, 4, 3),
+        b.place(timeseries('Bytes by load balancer', [metric(`sum:azure.network_loadbalancers.byte_count{${f}} by {name}`, 'sum')], { display: 'bars', palette: 'cool' }), 0, 2, 4, 3),
         b.place(timeseries('Health probe status', [metric(`avg:azure.network_loadbalancers.dip_availability{${f}} by {name}`)], { palette: 'cool' }), 4, 2, 4, 3),
         b.place(timeseries('Data path availability', [metric(`avg:azure.network_loadbalancers.vip_availability{${f}} by {name}`)], { palette: 'cool' }), 8, 2, 4, 3),
       ],
@@ -491,7 +491,7 @@ function azure() {
         b.place(section('Storage accounts: availability, capacity, transactions and latency.'), 0, 0, 12, 1),
         b.place(queryValue('Availability', [metric(`avg:azure.storage.availability{${f}}`)], { precision: 2 }), 0, 1, 2, 1),
         b.place(queryValue('Used capacity', [metric(`sum:azure.storage.used_capacity{${f}}`)]), 2, 1, 2, 1),
-        b.place(queryValue('Transactions', [metric(`sum:azure.storage.transactions.total{${f}}`, 'sum')]), 4, 1, 2, 1),
+        b.place(queryValue('Transactions', [metric(`sum:azure.storage.transactions{${f}}`, 'sum')]), 4, 1, 2, 1),
         b.place(timeseries('Used capacity by account', [metric(`avg:azure.storage.used_capacity{${f}} by {name}`)], { palette: 'cool' }), 6, 1, 6, 3),
         b.place(timeseries('Server latency', [metric(`avg:azure.storage.success_server_latency{${f}} by {name}`)], { palette: 'cool' }), 0, 2, 6, 2),
       ],
@@ -665,19 +665,19 @@ export const CLOUD_UNITS = {
   'aws.ebs.volume_read_bytes.sum': 'byte',
   'aws.ebs.volume_write_bytes.sum': 'byte',
   'azure.vm.percentage_cpu': 'percent',
-  'azure.vm.percentage_cpu.maximum': 'percent',
-  'azure.vm.network_in_total.total': 'byte',
-  'azure.vm.network_out_total.total': 'byte',
+  'azure.vm.percentage_cpu.max': 'percent',
+  'azure.vm.network_in_total': 'byte',
+  'azure.vm.network_out_total': 'byte',
   'azure.vm.available_memory_bytes': 'byte',
-  'azure.vm.disk_read_bytes.total': 'byte',
-  'azure.vm.disk_write_bytes.total': 'byte',
+  'azure.vm.disk_read_bytes': 'byte',
+  'azure.vm.disk_write_bytes': 'byte',
   'azure.sql_servers_databases.cpu_percent': 'percent',
   'azure.sql_servers_databases.storage_percent': 'percent',
   'azure.sql_servers_databases.dtu_consumption_percent': 'percent',
   'azure.app_services.http_response_time': 'second',
   'azure.network_loadbalancers.vip_availability': 'percent',
   'azure.network_loadbalancers.dip_availability': 'percent',
-  'azure.network_loadbalancers.byte_count.total': 'byte',
+  'azure.network_loadbalancers.byte_count': 'byte',
   'azure.storage.availability': 'percent',
   'azure.storage.used_capacity': 'byte',
   'azure.storage.success_server_latency': 'millisecond',

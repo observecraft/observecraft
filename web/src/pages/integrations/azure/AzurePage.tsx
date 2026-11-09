@@ -301,8 +301,18 @@ function Metrics({ config, pending, onSave }: { config: AzureConfig; pending: bo
         value={draft.metrics_enabled_default}
         onChange={(v) => set('metrics_enabled_default', v)}
       />
-      <Toggle label="Mute monitors for expected VM shutdowns" value={draft.automute} onChange={(v) => set('automute', v)} />
-      <Toggle label="Collect custom metrics" value={draft.custom_metrics_enabled} onChange={(v) => set('custom_metrics_enabled', v)} />
+      <Toggle
+        label="Mute monitors for expected VM shutdowns"
+        hint="Not applied yet: stored for Terraform and API clients; monitors aren't muted when a VM is stopped."
+        value={draft.automute}
+        onChange={(v) => set('automute', v)}
+      />
+      <Toggle
+        label="Collect custom metrics"
+        hint="Not collected yet: stored for Terraform and API clients. Only Azure Monitor's platform metrics are collected, not custom namespaces (Application Insights, guest OS)."
+        value={draft.custom_metrics_enabled}
+        onChange={(v) => set('custom_metrics_enabled', v)}
+      />
       <h4 className="aws-subhead">Resource providers</h4>
       <ul className="aws-source-list aws-namespaces">
         {PROVIDERS.map((ns) => (

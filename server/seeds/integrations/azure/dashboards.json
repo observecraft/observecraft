@@ -227,13 +227,13 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "avg:azure.vm.percentage_cpu{$subscription,$resource_group,$region} by {name}",
+                          "query": "sum:azure.vm.count{$subscription,$resource_group,$region,status:running}",
                           "aggregator": "avg"
                         }
                       ],
                       "formulas": [
                         {
-                          "formula": "count_nonzero(query1)"
+                          "formula": "query1"
                         }
                       ],
                       "conditional_formats": [
@@ -273,7 +273,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.vm.network_in_total.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.vm.network_in_total{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],
@@ -313,7 +313,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.vm.network_out_total.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.vm.network_out_total{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],
@@ -393,7 +393,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "max:azure.vm.percentage_cpu.maximum{$subscription,$resource_group,$region}",
+                          "query": "max:azure.vm.percentage_cpu.max{$subscription,$resource_group,$region}",
                           "aggregator": "max"
                         }
                       ],
@@ -451,13 +451,13 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.vm.network_in_total.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.vm.network_in_total{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         },
                         {
                           "data_source": "metrics",
                           "name": "query2",
-                          "query": "sum:azure.vm.network_out_total.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.vm.network_out_total{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],
@@ -560,7 +560,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query2",
-                          "query": "max:azure.vm.percentage_cpu.maximum{$subscription,$resource_group,$region} by {name,resource_group}",
+                          "query": "max:azure.vm.percentage_cpu.max{$subscription,$resource_group,$region} by {name,resource_group}",
                           "aggregator": "max"
                         }
                       ],
@@ -614,13 +614,13 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.vm.disk_read_bytes.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.vm.disk_read_bytes{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         },
                         {
                           "data_source": "metrics",
                           "name": "query2",
-                          "query": "sum:azure.vm.disk_write_bytes.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.vm.disk_write_bytes{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],
@@ -703,7 +703,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.sql_servers_databases.connection_failed.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.sql_servers_databases.connection_failed{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],
@@ -749,7 +749,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.sql_servers_databases.connection_successful.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.sql_servers_databases.connection_successful{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],
@@ -835,7 +835,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.sql_servers_databases.deadlock.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.sql_servers_databases.deadlock{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],
@@ -1012,7 +1012,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.app_services.requests.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.app_services.requests{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],
@@ -1052,7 +1052,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.app_services.http5xx.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.app_services.http5xx{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],
@@ -1098,7 +1098,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.app_services.function_execution_count.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.app_services.function_execution_count{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],
@@ -1138,13 +1138,13 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.app_services.requests.total{$subscription,$resource_group,$region} by {name}",
+                          "query": "sum:azure.app_services.requests{$subscription,$resource_group,$region} by {name}",
                           "aggregator": "sum"
                         },
                         {
                           "data_source": "metrics",
                           "name": "query2",
-                          "query": "sum:azure.app_services.http5xx.total{$subscription,$resource_group,$region} by {name}",
+                          "query": "sum:azure.app_services.http5xx{$subscription,$resource_group,$region} by {name}",
                           "aggregator": "sum"
                         },
                         {
@@ -1337,7 +1337,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.network_loadbalancers.byte_count.total{$subscription,$resource_group,$region} by {name}",
+                          "query": "sum:azure.network_loadbalancers.byte_count{$subscription,$resource_group,$region} by {name}",
                           "aggregator": "sum"
                         }
                       ],
@@ -1589,7 +1589,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.storage.transactions.total{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.storage.transactions{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],

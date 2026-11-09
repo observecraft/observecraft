@@ -120,7 +120,10 @@ or SDK features.
   `azure_accounts`, sealed client secrets) and `datadog_integration_gcp_sts` (`/api/v2/integration/gcp/accounts`,
   Postgres `gcp_accounts`, impersonated by `OC_GCP_PRINCIPAL_EMAIL`). Their crawlers (`oc-api/src/azure/`,
   `oc-api/src/gcp/`) share the AWS one's jobs and Kafka sink (`oc-api/src/cloud/`): a discovery job per account lists
-  its subscriptions or projects, each becoming a job; `OC_CLOUD_CRAWLERS` picks the clouds.
+  its subscriptions or projects, each becoming a job; `OC_CLOUD_CRAWLERS` picks the clouds. Azure metrics follow
+  Datadog's names: the bare name is the metric's primary aggregation, `.max` its maximum, `azure.<type>.count` the
+  resources (Resource Health `status`); coarse grains (hourly capacity) are published once per series and failed
+  reads retried through Postgres `azure_metric_state`; dimensions split per type in `azure/naming.rs` `splits`.
 - **Cloud Cost → Recommendations** (`routes/cloud_cost_recommendations.rs`, `GET /api/v1/cloud-cost/recommendations`):
   our own rules over 14 days of the AWS / Azure crawlers' metrics (idle EC2 instances and Azure VMs, downsizing, RDS
   without connections, idle EBS volumes and managed disks, unused NAT gateways, idle load balancers, unused public IPs);
