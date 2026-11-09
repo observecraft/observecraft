@@ -285,7 +285,8 @@ pub struct IndexFilter {
     pub params: Vec<Param>,
 }
 
-/// [`metric_filter`]'s filters on the tag index: equal, like (`*` wildcards) or present (`*`).
+/// [`metric_filter`]'s filters on the tag index: equal, like (`*` wildcards) or present (`*`). Values match
+/// regardless of case, as in Datadog, which lowercases tags at intake (we keep them as sent).
 pub fn metric_index_filter(filters: &[TagFilter]) -> Vec<IndexFilter> {
     filters
         .iter()
@@ -296,7 +297,7 @@ pub fn metric_index_filter(filters: &[TagFilter]) -> Vec<IndexFilter> {
             } else if f.value.contains('*') {
                 ("Value ILIKE ?".to_string(), vec![Param::Str(like_pattern(&f.value))])
             } else {
-                ("Value = ?".to_string(), vec![Param::Str(f.value.clone())])
+                ("lowerUTF8(Value) = ?".to_string(), vec![Param::Str(f.value.to_lowercase())])
             };
             IndexFilter { key, scope, negate: f.negate, cmp, params }
         })
@@ -315,7 +316,7 @@ pub fn span_field(key: &str) -> (String, Vec<Param>) {
     }
 }
 
-/// ANDed filter clause for `filters`, using `field` to map keys onto columns.
+/// ANDed filter clause for `filters`, using `field` to map keys onto columns; values match regardless of case.
 pub fn metric_filter(filters: &[TagFilter], field: fn(&str) -> (String, Vec<Param>)) -> SqlFilter {
     let mut parts = Vec::new();
     let mut params = Vec::new();
@@ -328,8 +329,8 @@ pub fn metric_filter(filters: &[TagFilter], field: fn(&str) -> (String, Vec<Para
             params.push(Param::Str(like_pattern(&f.value)));
             format!("{expr} ILIKE ?")
         } else {
-            params.push(Param::Str(f.value.clone()));
-            format!("{expr} = ?")
+            params.push(Param::Str(f.value.to_lowercase()));
+            format!("lowerUTF8({expr}) = ?")
         };
         parts.push(if f.negate { format!("NOT ({cmp})") } else { format!("({cmp})") });
     }
@@ -406,7 +407,7 @@ mod tests {
         let f = metric_filter(&q.filters, metric_field);
         assert_eq!(
             f.clause,
-            "(ResourceAttributes[?] = ?) AND (if(mapContains(Attributes, ?), Attributes[?], ResourceAttributes[?]) = ?) AND NOT (ResourceAttributes[?] ILIKE ?)"
+            "(lowerUTF8(ResourceAttributes[?]) = ?) AND (lowerUTF8(if(mapContains(Attributes, ?), Attributes[?], ResourceAttributes[?])) = ?) AND NOT (ResourceAttributes[?] ILIKE ?)"
         );
         assert_eq!(f.params.len(), 8);
         assert_eq!(f.params[7], Param::Str("qa%".into()));
@@ -437,11 +438,24 @@ mod tests {
         let q = parse_metric_query("avg:m{kube_namespace:shop,!state:idle,pod_phase:run*,team:*}").unwrap();
         let f = metric_index_filter(&q.filters);
         assert_eq!(f.len(), 4);
-        assert_eq!((f[0].key.as_str(), f[0].scope, f[0].negate, f[0].cmp.as_str()), ("k8s.namespace.name", TAG_RESOURCE, false, "Value = ?"));
+        assert_eq!((f[0].key.as_str(), f[0].scope, f[0].negate, f[0].cmp.as_str()), ("k8s.namespace.name", TAG_RESOURCE, false, "lowerUTF8(Value) = ?"));
         assert_eq!(f[0].params, vec![Param::Str("shop".into())]);
         assert!(f[1].negate);
         assert_eq!((f[2].cmp.as_str(), &f[2].params), ("Value ILIKE ?", &vec![Param::Str("run%".into())]));
         assert_eq!((f[3].cmp.as_str(), f[3].params.len()), ("Value != ''", 0));
+    }
+
+    #[test]
+    fn exact_tag_values_match_regardless_of_case() {
+        // Datadog lowercases tags at intake, so its dashboards filter on lowercase values
+        // (`grpc_service:application.applicationservice`) of tags we keep as sent (`application.ApplicationService`).
+        let q = parse_metric_query("sum:m{grpc_service:application.applicationservice,!Env:QA}").unwrap();
+        let f = metric_index_filter(&q.filters);
+        assert_eq!((f[0].cmp.as_str(), &f[0].params), ("lowerUTF8(Value) = ?", &vec![Param::Str("application.applicationservice".into())]));
+        assert_eq!(f[1].params, vec![Param::Str("qa".into())]);
+        let f = metric_filter(&q.filters, metric_field);
+        assert_eq!(f.clause, "(lowerUTF8(if(mapContains(Attributes, ?), Attributes[?], ResourceAttributes[?])) = ?) AND NOT (lowerUTF8(if(mapContains(Attributes, ?), Attributes[?], ResourceAttributes[?])) = ?)");
+        assert_eq!((&f.params[3], &f.params[7]), (&Param::Str("application.applicationservice".into()), &Param::Str("qa".into())));
     }
 
     #[test]
