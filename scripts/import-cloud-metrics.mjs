@@ -116,10 +116,25 @@ export function awsMetrics(packageDir, docs = []) {
   });
 }
 
+const curatedFile = () => JSON.parse(readFileSync(new URL('./aws-datadog-metrics.json', import.meta.url), 'utf8'));
+
 /** The namespaces whose metrics follow Datadog's AWS integration (scripts/aws-datadog-metrics.json: statistics, units,
- *  names and dimension sets as Datadog publishes them; `datadog: true`), in place of aws-cdk-lib's or the docs'. */
-export function withDatadogNamespaces(result, curated = JSON.parse(readFileSync(new URL('./aws-datadog-metrics.json', import.meta.url), 'utf8')).namespaces) {
+ *  names and dimension sets as Datadog publishes them; `datadog: true`), in place of aws-cdk-lib's or the docs', and its
+ *  `overrides` of the other namespaces: a metric's fields where Datadog differs (a count's bare name is its Sum, a
+ *  latency's `percentiles`, a daily `period`), metrics the sources lack (with their statistic and dimensions) and
+ *  namespace fields (`period`). */
+export function withDatadogNamespaces(result, curated = curatedFile().namespaces, overrides = curatedFile().overrides ?? {}) {
   const namespaces = { ...result.namespaces, ...curated };
+  for (const [ns, { metrics = {}, ...fields }] of Object.entries(overrides)) {
+    const spec = { ...namespaces[ns], ...fields, metrics: [...(namespaces[ns]?.metrics ?? [])] };
+    for (const [name, patch] of Object.entries(metrics)) {
+      const i = spec.metrics.findIndex((m) => m.name === name);
+      if (i >= 0) spec.metrics[i] = { ...spec.metrics[i], ...patch };
+      else if (patch.statistic && patch.dimensions) spec.metrics.push({ name, ...patch });
+      else throw new Error(`${ns} ${name}: a metric the sources lack needs its statistic and dimensions`);
+    }
+    namespaces[ns] = spec;
+  }
   const note = '; CloudFront, ECS, ECS Container Insights, RDS, RDS Proxy and WAF as Datadog publishes them (scripts/aws-datadog-metrics.json)';
   return {
     source: result.source.replace(note, '') + note,

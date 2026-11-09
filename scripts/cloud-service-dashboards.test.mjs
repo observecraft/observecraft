@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
 import { MOCK_SERVICES, buildServiceDashboards, metricOf } from './cloud-service-dashboards.mjs';
-import { gcpPage } from './import-cloud-metrics.mjs';
+import { gcpPage, withDatadogNamespaces } from './import-cloud-metrics.mjs';
 
 const seed = (path) => JSON.parse(readFileSync(new URL(`../server/seeds/${path}`, import.meta.url), 'utf8'));
 const aws = seed('integrations/cloud/aws-metrics.json');
@@ -25,6 +25,42 @@ test('AWS metrics come from aws-cdk-lib with their statistic and dimensions', ()
   const glue = aws.namespaces.Glue;
   assert.equal(glue.dimension, 'JobName');
   assert.match(glue.doc, /^https:\/\/docs\.aws\.amazon\.com\//);
+});
+
+test('Datadog’s statistics, percentiles and daily periods override aws-cdk-lib’s (scripts/aws-datadog-metrics.json overrides)', () => {
+  const metric = (ns, name) => aws.namespaces[ns].metrics.find((m) => m.name === name);
+  // Counts are sums under their bare name, as Datadog publishes them; gauges averages.
+  assert.equal(metric('AWS/SQS', 'NumberOfMessagesSent').statistic, 'Sum');
+  assert.equal(metric('AWS/SQS', 'ApproximateNumberOfMessagesVisible').statistic, 'Average');
+  assert.equal(metric('AWS/Lambda', 'ConcurrentExecutions').statistic, 'Average');
+  assert.equal(metric('AWS/EBS', 'VolumeReadBytes').statistic, 'Average');
+  // Latencies with CloudWatch's extended statistics.
+  assert.deepEqual(metric('AWS/ApplicationELB', 'TargetResponseTime').percentiles, ['p50', 'p90', 'p95', 'p99']);
+  assert.deepEqual(metric('AWS/ApiGateway', 'Latency').percentiles, ['p50', 'p75', 'p90', 'p95', 'p99']);
+  assert.deepEqual(metric('AWS/Lambda', 'Duration').percentiles, ['p50', 'p80', 'p95', 'p99', 'p99.9']);
+  // S3: daily storage metrics, and the request metrics of a bucket's filters.
+  assert.equal(metric('AWS/S3', 'BucketSizeBytes').period, 86400);
+  assert.deepEqual(metric('AWS/S3', 'AllRequests'), { name: 'AllRequests', statistic: 'Sum', dimensions: ['BucketName', 'FilterId'] });
+  assert.equal(metric('AWS/S3', 'FirstByteLatency').percentiles.at(-1), 'p99.99');
+  assert.equal(aws.namespaces['AWS/S3/Storage-Lens'].period, 86400);
+});
+
+test('overrides patch a namespace’s metrics, add the ones it lacks and set namespace fields', () => {
+  const result = {
+    source: 'aws-cdk-lib@2.0.0 (Apache-2.0)',
+    namespaces: { 'AWS/SQS': { dimension: 'QueueName', metrics: [{ name: 'NumberOfMessagesSent', statistic: 'Average', dimensions: ['QueueName'] }] } },
+  };
+  const overrides = { 'AWS/SQS': { period: 60, metrics: { NumberOfMessagesSent: { statistic: 'Sum' }, NumberOfEmptyReceives: { statistic: 'Sum', dimensions: ['QueueName'] } } } };
+  const out = withDatadogNamespaces(result, {}, overrides);
+  assert.deepEqual(out.namespaces['AWS/SQS'], {
+    dimension: 'QueueName',
+    period: 60,
+    metrics: [
+      { name: 'NumberOfMessagesSent', statistic: 'Sum', dimensions: ['QueueName'] },
+      { name: 'NumberOfEmptyReceives', statistic: 'Sum', dimensions: ['QueueName'] },
+    ],
+  });
+  assert.throws(() => withDatadogNamespaces(result, {}, { 'AWS/SQS': { metrics: { Unknown: { percentiles: ['p99'] } } } }), /Unknown.*statistic and dimensions/);
 });
 
 test('Azure metrics come from Azure Monitor’s supported metrics reference with their aggregation and unit', () => {
@@ -54,7 +90,7 @@ test('a metric is named as our AWS crawler publishes it', () => {
   assert.equal(metricOf('AWS/Lambda', 'Invocations', 'Sum'), 'aws.lambda.invocations.sum');
   assert.equal(metricOf('AWS/EC2', 'CPUUtilization', 'Average'), 'aws.ec2.cpuutilization');
   assert.equal(metricOf('AWS/ApplicationELB', 'HTTPCode_Target_5XX_Count', 'Sum'), 'aws.applicationelb.httpcode_target_5xx_count.sum');
-  assert.equal(metricOf('AWS/RDS', 'FreeStorageSpace', 'Minimum'), 'aws.rds.free_storage_space', 'statistics we don’t crawl read the average');
+  assert.equal(metricOf('AWS/RDS', 'FreeStorageSpace', 'Minimum'), 'aws.rds.free_storage_space', 'other statistics chart the bare name, which carries the metric’s own');
   // Namespaces that follow Datadog: the bare name carries the metric's statistic, with Datadog's names and prefixes.
   assert.equal(metricOf('AWS/CloudFront', 'Requests', 'Sum', { datadog: true }), 'aws.cloudfront.requests');
   assert.equal(metricOf('AWS/CloudFront', '401ErrorRate', 'Average', { datadog: true, datadog_name: '401_error_rate' }), 'aws.cloudfront.401_error_rate');

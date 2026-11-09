@@ -19,7 +19,8 @@ const underscored = (s) =>
     .replace(/^_+|_+$/g, '');
 const snake = (m) => underscored(m.replace(/([a-z])([A-Z])/g, '$1_$2'));
 
-/** The statistics the AWS crawler reads and their name suffixes (aws/naming.rs STATS); others read the average. */
+/** The suffixes of the statistics the AWS crawler reads (aws/naming.rs STATS). The metric's own statistic is also its
+ *  bare name (the Average's only), so a chart of a Sum or Maximum metric reads its suffixed name and the others the bare. */
 const AWS_STATS = { Average: '', Sum: '.sum', Maximum: '.maximum' };
 
 /** Namespaces Datadog doesn't name `aws.<namespace>.` (aws/naming.rs PREFIXES). */
@@ -278,7 +279,7 @@ export function serviceUnits() {
         if (m.unit) {
           for (const variant of [m.variant, undefined]) {
             const name = metricOf(ns, m.name, m.statistic, { datadog: true, datadog_name: m.datadog_name, variant });
-            for (const suffix of ['', '.sum', '.maximum']) units.set(`${name}${suffix}`, m.unit);
+            for (const suffix of ['', '.sum', '.maximum', '.minimum']) units.set(`${name}${suffix}`, m.unit);
           }
         }
   for (const [type, spec] of Object.entries(json('integrations/cloud/azure-metrics.json').resource_types)) {

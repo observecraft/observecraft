@@ -168,9 +168,11 @@ collection on). An update keeps the fields it doesn't send; `aws_regions` and ea
   `tag:GetResources`); `/resource_collection` lists the read-only actions Cloud Security's account scans need on top of
   the AWS managed `SecurityAudit` policy ([security findings](#security-findings)).
 - One AWS account per organization (`409` for a second one with the same `aws_account_id`); writes need an admin.
-- Metrics are collected by ObserveCraft's crawler (`server/crates/oc-api/src/aws/`) every 10 minutes: Average as
-  `aws.<namespace>.<metric>`, Sum and Maximum as `.sum` / `.maximum`, tagged with the dimensions (lowercased), the
-  region, `aws_account`, the account's tags and the resource's AWS tags.
+- Metrics are collected by ObserveCraft's crawler (`server/crates/oc-api/src/aws/`) every 10 minutes: the metric's
+  Datadog statistic as `aws.<namespace>.<metric>` (counts' Sum, gauges' Average), Sum, Maximum and Minimum as `.sum` /
+  `.maximum` / `.minimum`, latencies' percentiles as `.p95` etc., tagged with the dimensions (lowercased), the region,
+  `aws_account`, the account's tags and the resource's AWS tags. EC2 is per instance only (as Datadog); daily metrics
+  (S3's storage metrics, Storage Lens) are read once an hour for their last 3 days, each day published once.
 - Not yet: Cloud Cost Management's data exports (CCM config),
   EventBridge sources and the metric name filter preview.
 - The provider reads an account back with its id in quotes; they are dropped.

@@ -651,6 +651,11 @@
      "statistic": "Average",
      "dimensions": [
       "ApiId"
+     ],
+     "percentiles": [
+      "p90",
+      "p95",
+      "p99"
      ]
     },
     {
@@ -658,6 +663,13 @@
      "statistic": "Average",
      "dimensions": [
       "ApiId"
+     ],
+     "percentiles": [
+      "p50",
+      "p75",
+      "p90",
+      "p95",
+      "p99"
      ]
     },
     {
@@ -947,7 +959,7 @@
     },
     {
      "name": "ELBAuthLatency",
-     "statistic": "Sum",
+     "statistic": "Average",
      "dimensions": [
       "LoadBalancer"
      ]
@@ -1178,6 +1190,12 @@
      "statistic": "Average",
      "dimensions": [
       "LoadBalancer"
+     ],
+     "percentiles": [
+      "p50",
+      "p90",
+      "p95",
+      "p99"
      ]
     }
    ]
@@ -3641,7 +3659,7 @@
     },
     {
      "name": "VolumeReadBytes",
-     "statistic": "Sum",
+     "statistic": "Average",
      "dimensions": [
       "VolumeId"
      ]
@@ -3669,7 +3687,7 @@
     },
     {
      "name": "VolumeWriteBytes",
-     "statistic": "Sum",
+     "statistic": "Average",
      "dimensions": [
       "VolumeId"
      ]
@@ -4502,6 +4520,11 @@
      "statistic": "Average",
      "dimensions": [
       "LoadBalancerName"
+     ],
+     "percentiles": [
+      "p50",
+      "p95",
+      "p99"
      ]
     },
     {
@@ -7403,7 +7426,7 @@
    "metrics": [
     {
      "name": "ConcurrentExecutions",
-     "statistic": "Maximum",
+     "statistic": "Average",
      "dimensions": [
       "FunctionName"
      ]
@@ -7427,6 +7450,13 @@
      "statistic": "Average",
      "dimensions": [
       "FunctionName"
+     ],
+     "percentiles": [
+      "p50",
+      "p80",
+      "p95",
+      "p99",
+      "p99.9"
      ]
     },
     {
@@ -7455,6 +7485,10 @@
      "statistic": "Average",
      "dimensions": [
       "FunctionName"
+     ],
+     "percentiles": [
+      "p50",
+      "p99"
      ]
     },
     {
@@ -7473,7 +7507,7 @@
     },
     {
      "name": "ProvisionedConcurrencyUtilization",
-     "statistic": "Maximum",
+     "statistic": "Average",
      "dimensions": [
       "FunctionName",
       "Resource"
@@ -7481,7 +7515,7 @@
     },
     {
      "name": "ProvisionedConcurrentExecutions",
-     "statistic": "Maximum",
+     "statistic": "Average",
      "dimensions": [
       "FunctionName"
      ]
@@ -7495,7 +7529,7 @@
     },
     {
      "name": "UnreservedConcurrentExecutions",
-     "statistic": "Maximum",
+     "statistic": "Average",
      "dimensions": []
     }
    ]
@@ -11174,7 +11208,8 @@
      "dimensions": [
       "BucketName",
       "StorageType"
-     ]
+     ],
+     "period": 86400
     },
     {
      "name": "NumberOfObjects",
@@ -11182,6 +11217,125 @@
      "dimensions": [
       "BucketName",
       "StorageType"
+     ],
+     "period": 86400
+    },
+    {
+     "name": "AllRequests",
+     "statistic": "Sum",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ]
+    },
+    {
+     "name": "GetRequests",
+     "statistic": "Sum",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ]
+    },
+    {
+     "name": "PutRequests",
+     "statistic": "Sum",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ]
+    },
+    {
+     "name": "DeleteRequests",
+     "statistic": "Sum",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ]
+    },
+    {
+     "name": "HeadRequests",
+     "statistic": "Sum",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ]
+    },
+    {
+     "name": "PostRequests",
+     "statistic": "Sum",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ]
+    },
+    {
+     "name": "ListRequests",
+     "statistic": "Sum",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ]
+    },
+    {
+     "name": "BytesDownloaded",
+     "statistic": "Sum",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ]
+    },
+    {
+     "name": "BytesUploaded",
+     "statistic": "Sum",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ]
+    },
+    {
+     "name": "4xxErrors",
+     "statistic": "Sum",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ]
+    },
+    {
+     "name": "5xxErrors",
+     "statistic": "Sum",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ]
+    },
+    {
+     "name": "FirstByteLatency",
+     "statistic": "Average",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ],
+     "percentiles": [
+      "p50",
+      "p90",
+      "p95",
+      "p99",
+      "p99.99"
+     ]
+    },
+    {
+     "name": "TotalRequestLatency",
+     "statistic": "Average",
+     "dimensions": [
+      "BucketName",
+      "FilterId"
+     ],
+     "percentiles": [
+      "p50",
+      "p90",
+      "p95",
+      "p99",
+      "p99.99"
      ]
     }
    ]
@@ -11610,7 +11764,8 @@
       "configuration_id"
      ]
     }
-   ]
+   ],
+   "period": 86400
   },
   "AWS/SES": {
    "dimension": null,
@@ -11753,28 +11908,28 @@
     },
     {
      "name": "NumberOfEmptyReceives",
-     "statistic": "Average",
+     "statistic": "Sum",
      "dimensions": [
       "QueueName"
      ]
     },
     {
      "name": "NumberOfMessagesDeleted",
-     "statistic": "Average",
+     "statistic": "Sum",
      "dimensions": [
       "QueueName"
      ]
     },
     {
      "name": "NumberOfMessagesReceived",
-     "statistic": "Average",
+     "statistic": "Sum",
      "dimensions": [
       "QueueName"
      ]
     },
     {
      "name": "NumberOfMessagesSent",
-     "statistic": "Average",
+     "statistic": "Sum",
      "dimensions": [
       "QueueName"
      ]

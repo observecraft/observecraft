@@ -1,5 +1,5 @@
 {
- "_comment": "Namespaces whose metrics follow Datadog's AWS integration (scripts/import-cloud-metrics.mjs merges them into server/seeds/integrations/cloud/aws-metrics.json): `statistic` is the one Datadog publishes under the metric's bare name (the crawler names the others .sum / .maximum), `unit` Datadog's unit, `datadog_name` where Datadog's name isn't the snake-cased CloudWatch name, `variant` the name segment Datadog adds for a dimension set (aws.ecs.cluster.*, aws.ecs.service.*, ecs.containerinsights.family.*), `group` the dimension a chart splits by and `filter` a tag every query keeps (WAF publishes each web ACL's totals as rule:ALL). Names, statistics, dimensions and units are facts from the AWS documentation pages in `doc`.",
+ "_comment": "Namespaces whose metrics follow Datadog's AWS integration (scripts/import-cloud-metrics.mjs merges them into server/seeds/integrations/cloud/aws-metrics.json): `statistic` is the one Datadog publishes under the metric's bare name (the crawler names the others .sum / .maximum), `unit` Datadog's unit, `datadog_name` where Datadog's name isn't the snake-cased CloudWatch name, `variant` the name segment Datadog adds for a dimension set (aws.ecs.cluster.*, aws.ecs.service.*, ecs.containerinsights.family.*), `group` the dimension a chart splits by and `filter` a tag every query keeps (WAF publishes each web ACL's totals as rule:ALL). Names, statistics, dimensions and units are facts from the AWS documentation pages in `doc`. `overrides` patch the other namespaces' metrics where Datadog's AWS integration differs from aws-cdk-lib (its metric lists on docs.datadoghq.com: counts published as their Sum, gauges as their Average), list a latency's `percentiles` (CloudWatch's extended statistics, published as .p95 etc.), daily metrics' `period` (86400: S3's storage metrics and Storage Lens, read once a day for the previous day) and metrics the sources lack (S3's request metrics, per bucket filter).",
  "namespaces": {
   "AWS/CloudFront": {
    "dimension": "DistributionId",
@@ -216,5 +216,54 @@
     { "name": "BlockedRequests", "statistic": "Sum", "dimensions": ["WebACL", "Rule"], "unit": "request", "group": "Rule", "filter": "!rule:ALL" }
    ]
   }
+ },
+ "overrides": {
+  "AWS/ApiGateway": { "metrics": {
+   "Latency": { "percentiles": ["p50", "p75", "p90", "p95", "p99"] },
+   "IntegrationLatency": { "percentiles": ["p90", "p95", "p99"] }
+  } },
+  "AWS/ApplicationELB": { "metrics": {
+   "ELBAuthLatency": { "statistic": "Average" },
+   "TargetResponseTime": { "percentiles": ["p50", "p90", "p95", "p99"] }
+  } },
+  "AWS/EBS": { "metrics": {
+   "VolumeReadBytes": { "statistic": "Average" },
+   "VolumeWriteBytes": { "statistic": "Average" }
+  } },
+  "AWS/ELB": { "metrics": {
+   "Latency": { "percentiles": ["p50", "p95", "p99"] }
+  } },
+  "AWS/Lambda": { "metrics": {
+   "ConcurrentExecutions": { "statistic": "Average" },
+   "Duration": { "percentiles": ["p50", "p80", "p95", "p99", "p99.9"] },
+   "PostRuntimeExtensionsDuration": { "percentiles": ["p50", "p99"] },
+   "ProvisionedConcurrencyUtilization": { "statistic": "Average" },
+   "ProvisionedConcurrentExecutions": { "statistic": "Average" },
+   "UnreservedConcurrentExecutions": { "statistic": "Average" }
+  } },
+  "AWS/S3": { "metrics": {
+   "BucketSizeBytes": { "period": 86400 },
+   "NumberOfObjects": { "period": 86400 },
+   "AllRequests": { "statistic": "Sum", "dimensions": ["BucketName", "FilterId"] },
+   "GetRequests": { "statistic": "Sum", "dimensions": ["BucketName", "FilterId"] },
+   "PutRequests": { "statistic": "Sum", "dimensions": ["BucketName", "FilterId"] },
+   "DeleteRequests": { "statistic": "Sum", "dimensions": ["BucketName", "FilterId"] },
+   "HeadRequests": { "statistic": "Sum", "dimensions": ["BucketName", "FilterId"] },
+   "PostRequests": { "statistic": "Sum", "dimensions": ["BucketName", "FilterId"] },
+   "ListRequests": { "statistic": "Sum", "dimensions": ["BucketName", "FilterId"] },
+   "BytesDownloaded": { "statistic": "Sum", "dimensions": ["BucketName", "FilterId"] },
+   "BytesUploaded": { "statistic": "Sum", "dimensions": ["BucketName", "FilterId"] },
+   "4xxErrors": { "statistic": "Sum", "dimensions": ["BucketName", "FilterId"] },
+   "5xxErrors": { "statistic": "Sum", "dimensions": ["BucketName", "FilterId"] },
+   "FirstByteLatency": { "statistic": "Average", "dimensions": ["BucketName", "FilterId"], "percentiles": ["p50", "p90", "p95", "p99", "p99.99"] },
+   "TotalRequestLatency": { "statistic": "Average", "dimensions": ["BucketName", "FilterId"], "percentiles": ["p50", "p90", "p95", "p99", "p99.99"] }
+  } },
+  "AWS/S3/Storage-Lens": { "period": 86400 },
+  "AWS/SQS": { "metrics": {
+   "NumberOfEmptyReceives": { "statistic": "Sum" },
+   "NumberOfMessagesDeleted": { "statistic": "Sum" },
+   "NumberOfMessagesReceived": { "statistic": "Sum" },
+   "NumberOfMessagesSent": { "statistic": "Sum" }
+  } }
  }
 }

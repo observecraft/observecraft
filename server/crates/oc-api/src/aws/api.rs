@@ -40,7 +40,7 @@ pub struct MetricId {
 /// The values of one metric and statistic.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Series {
-    /// Index into the metrics asked for.
+    /// Index into the queries asked for.
     pub metric: usize,
     pub points: Vec<(i64, f64)>,
 }
@@ -91,8 +91,11 @@ pub fn classify(code: Option<&str>, message: &str) -> AwsError {
 pub trait AwsApi: Send + Sync {
     /// Metrics with data in the last 3 hours.
     async fn list_metrics(&self, target: &Target) -> Result<Vec<MetricId>, AwsError>;
-    /// One statistic of `metrics` (at most 500) over `[start_ms, end_ms)`, `period` seconds apart.
-    async fn get_metric_data(&self, target: &Target, metrics: &[MetricId], stat: &str, start_ms: i64, end_ms: i64, period: i32) -> Result<Vec<Series>, AwsError>;
+    /// Every metric of a namespace, recently active or not (daily metrics may have no point in the last 3 hours).
+    async fn list_namespace_metrics(&self, target: &Target, namespace: &str) -> Result<Vec<MetricId>, AwsError>;
+    /// Each query's metric and statistic (`Average`, `Sum`, …, or an extended statistic such as `p95`; at most 500
+    /// queries) over `[start_ms, end_ms)`, `period` seconds apart. [`Series::metric`] indexes the queries.
+    async fn get_metric_data(&self, target: &Target, queries: &[(MetricId, String)], start_ms: i64, end_ms: i64, period: i32) -> Result<Vec<Series>, AwsError>;
     /// Every tagged resource of the region: ARN → `key:value` tags.
     async fn resource_tags(&self, target: &Target) -> Result<HashMap<String, Vec<String>>, AwsError>;
 }
@@ -179,29 +182,39 @@ fn dimensions(m: &MetricId) -> Vec<Dimension> {
     m.dimensions.iter().map(|(k, v)| Dimension::builder().name(k).value(v).build()).collect()
 }
 
+/// Every page of a ListMetrics call.
+async fn listed(request: aws_sdk_cloudwatch::operation::list_metrics::builders::ListMetricsFluentBuilder) -> Result<Vec<MetricId>, AwsError> {
+    let mut pages = request.into_paginator().send();
+    let mut out = vec![];
+    while let Some(page) = pages.next().await {
+        for m in page.map_err(sdk_error)?.metrics() {
+            let (Some(namespace), Some(name)) = (m.namespace(), m.metric_name()) else { continue };
+            let mut dimensions: Vec<(String, String)> = m.dimensions().iter().filter_map(|d| Some((d.name()?.to_string(), d.value()?.to_string()))).collect();
+            dimensions.sort();
+            out.push(MetricId { namespace: namespace.to_string(), name: name.to_string(), dimensions });
+        }
+    }
+    Ok(out)
+}
+
 #[async_trait::async_trait]
 impl AwsApi for Sdk {
     async fn list_metrics(&self, target: &Target) -> Result<Vec<MetricId>, AwsError> {
         let client = self.clients(target).await.cloudwatch;
-        let mut pages = client.list_metrics().recently_active(RecentlyActive::Pt3H).into_paginator().send();
-        let mut out = vec![];
-        while let Some(page) = pages.next().await {
-            for m in page.map_err(sdk_error)?.metrics() {
-                let (Some(namespace), Some(name)) = (m.namespace(), m.metric_name()) else { continue };
-                let mut dimensions: Vec<(String, String)> = m.dimensions().iter().filter_map(|d| Some((d.name()?.to_string(), d.value()?.to_string()))).collect();
-                dimensions.sort();
-                out.push(MetricId { namespace: namespace.to_string(), name: name.to_string(), dimensions });
-            }
-        }
-        Ok(out)
+        listed(client.list_metrics().recently_active(RecentlyActive::Pt3H)).await
     }
 
-    async fn get_metric_data(&self, target: &Target, metrics: &[MetricId], stat: &str, start_ms: i64, end_ms: i64, period: i32) -> Result<Vec<Series>, AwsError> {
+    async fn list_namespace_metrics(&self, target: &Target, namespace: &str) -> Result<Vec<MetricId>, AwsError> {
         let client = self.clients(target).await.cloudwatch;
-        let queries: Vec<MetricDataQuery> = metrics
+        listed(client.list_metrics().namespace(namespace)).await
+    }
+
+    async fn get_metric_data(&self, target: &Target, queries: &[(MetricId, String)], start_ms: i64, end_ms: i64, period: i32) -> Result<Vec<Series>, AwsError> {
+        let client = self.clients(target).await.cloudwatch;
+        let queries: Vec<MetricDataQuery> = queries
             .iter()
             .enumerate()
-            .map(|(i, m)| {
+            .map(|(i, (m, stat))| {
                 let metric = Metric::builder().namespace(&m.namespace).metric_name(&m.name).set_dimensions(Some(dimensions(m))).build();
                 MetricDataQuery::builder().id(format!("m{i}")).metric_stat(MetricStat::builder().metric(metric).period(period).stat(stat).build()).return_data(true).build()
             })
@@ -375,7 +388,9 @@ mod tests {
             let mine: Vec<MetricId> = metrics.into_iter().filter(|m| m.dimensions == [("InstanceId".to_string(), instance.clone())]).collect();
             assert_eq!(mine.len(), 1, "{target:?}");
             assert_eq!((mine[0].namespace.as_str(), mine[0].name.as_str()), ("AWS/EC2", "CPUUtilization"));
-            let series = sdk.get_metric_data(&target, &mine, "Average", now - 10 * 60_000, now + 60_000, 60).await.unwrap();
+            let queries: Vec<(MetricId, String)> = mine.iter().map(|m| (m.clone(), "Average".to_string())).collect();
+            let series = sdk.get_metric_data(&target, &queries, now - 10 * 60_000, now + 60_000, 60).await.unwrap();
+            assert!(sdk.list_namespace_metrics(&target, "AWS/EC2").await.unwrap().iter().any(|m| m.dimensions == [("InstanceId".to_string(), instance.clone())]));
             let mut points = series[0].points.clone();
             points.sort_by_key(|p| p.0);
             assert_eq!(points, [(now - 120_000, 41.0), (now - 60_000, 43.0)]);
