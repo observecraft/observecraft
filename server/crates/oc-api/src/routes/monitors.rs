@@ -1378,12 +1378,70 @@ pub(crate) async fn backfill(st: &AppState, id: i64) -> Result<(), ApiError> {
     Ok(())
 }
 
-/// Monitor summary widget: counts and the monitors themselves, worst first.
-pub(crate) async fn summary(st: &AppState, org: &str, text: &str) -> Result<Vec<(i64, String, MonitorStatus, bool)>, ApiError> {
+/// A monitor summary widget's query, in Datadog's monitor search syntax: `tag:x` (also `tag:(a OR b)`, `tag:"k:v"`,
+/// a bare key matching its tags), `type:log`, `status:alert`, `muted:true` and free text on the name or query, all
+/// required unless joined by `OR`. Other `key:value` terms (a group scope such as `host:x`) don't narrow the list.
+pub(crate) struct SummaryQuery(Vec<Vec<String>>);
+
+impl SummaryQuery {
+    pub(crate) fn parse(query: &str) -> Self {
+        let (mut words, mut word, mut depth, mut quoted) = (Vec::new(), String::new(), 0, false);
+        for c in query.chars() {
+            match c {
+                '"' => quoted = !quoted,
+                '(' if !quoted => depth += 1,
+                ')' if !quoted => depth -= 1,
+                c if c.is_whitespace() && !quoted && depth <= 0 => {
+                    words.push(std::mem::take(&mut word));
+                    continue;
+                }
+                _ => {}
+            }
+            word.push(c);
+        }
+        words.push(word);
+        let mut clauses: Vec<Vec<String>> = Vec::new();
+        let mut or = false;
+        for w in words.into_iter().filter(|w| !w.is_empty()) {
+            match w.as_str() {
+                "AND" => {}
+                "OR" => or = true,
+                _ if or && !clauses.is_empty() => {
+                    clauses.last_mut().unwrap().push(w);
+                    or = false;
+                }
+                _ => clauses.push(vec![w]),
+            }
+        }
+        SummaryQuery(clauses)
+    }
+
+    pub(crate) fn matches(&self, name: &str, query: &str, kind: &str, tags: &[String], status: MonitorStatus, muted: bool) -> bool {
+        let unwrap = |v: &str| v.trim_start_matches('(').trim_end_matches(')').replace('"', "");
+        let term = |t: &String| match t.split_once(':') {
+            Some(("tag", v)) => unwrap(v).split(" OR ").map(str::trim).any(|v| tags.iter().any(|t| t.eq_ignore_ascii_case(v) || t.split(':').next().is_some_and(|k| k.eq_ignore_ascii_case(v)))),
+            Some(("type", v)) => kind.starts_with(&v.to_lowercase()),
+            Some(("status", v)) => unwrap(v).to_lowercase().replace(' ', "") == status.as_str(),
+            Some(("muted", v)) => muted == (v == "true"),
+            Some(_) => true,
+            None => {
+                let w = t.replace('"', "").to_lowercase();
+                name.to_lowercase().contains(&w) || query.to_lowercase().contains(&w)
+            }
+        };
+        self.0.iter().all(|alternatives| alternatives.iter().any(term))
+    }
+}
+
+/// Monitor summary widget: counts and the monitors matching `query`, worst first.
+pub(crate) async fn summary(st: &AppState, org: &str, query: &str) -> Result<Vec<(i64, String, MonitorStatus, bool)>, ApiError> {
     let (loaded, _) = load_all(st, org).await?;
-    let text = text.to_lowercase();
-    let mut out: Vec<(i64, String, MonitorStatus, bool)> =
-        loaded.into_iter().filter(|m| text.is_empty() || m.row.name.to_lowercase().contains(&text)).map(|m| (m.row.id, m.row.name.clone(), m.status, m.muted.is_some())).collect();
+    let q = SummaryQuery::parse(query);
+    let mut out: Vec<(i64, String, MonitorStatus, bool)> = loaded
+        .into_iter()
+        .filter(|m| q.matches(&m.row.name, &m.row.query, &m.row.kind, &m.row.tags, m.status, m.muted.is_some()))
+        .map(|m| (m.row.id, m.row.name.clone(), m.status, m.muted.is_some()))
+        .collect();
     out.sort_by(|a, b| b.2.severity().cmp(&a.2.severity()).then_with(|| a.1.cmp(&b.1)));
     out.truncate(500);
     Ok(out)
@@ -1400,6 +1458,30 @@ mod tests {
                         "thresholds": {"critical": 2.0, "warning": null, "criticalRecovery": null, "warningRecovery": null}}
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn summary_widgets_show_only_the_monitors_their_query_matches() {
+        let tags = |t: &[&str]| t.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let vault = ("Vault is sealed", "max:vault.is_sealed{*}", "metric", tags(&["integration:vault", "team:platform"]), MonitorStatus::Alert, false);
+        let node = ("Kubernetes: node not Ready", "kubernetes_state.node.status", "metric", tags(&["team:platform"]), MonitorStatus::Warn, true);
+        let logins = ("Portal: burst of failed logins", "source:authentik", "log", tags(&["source:authentik"]), MonitorStatus::Ok, false);
+        let shown = |query: &str| {
+            let q = SummaryQuery::parse(query);
+            [&vault, &node, &logins].into_iter().filter(|m| q.matches(m.0, m.1, m.2, &m.3, m.4, m.5)).map(|m| m.0).collect::<Vec<_>>()
+        };
+        assert_eq!(shown("tag:(integration:vault)"), ["Vault is sealed"]);
+        assert_eq!(shown("tag:integration:vault"), ["Vault is sealed"]);
+        assert_eq!(shown("tag:\"integration:vault\""), ["Vault is sealed"]);
+        assert_eq!(shown("tag:integration:vault OR tag:source:authentik"), ["Vault is sealed", "Portal: burst of failed logins"]);
+        assert_eq!(shown("tag:(integration:vault OR source:authentik)"), ["Vault is sealed", "Portal: burst of failed logins"]);
+        assert_eq!(shown("tag:team"), ["Vault is sealed", "Kubernetes: node not Ready"], "a bare key matches its tags");
+        assert_eq!(shown("type:log  AND portal"), ["Portal: burst of failed logins"]);
+        assert_eq!(shown("status:warn"), ["Kubernetes: node not Ready"]);
+        assert_eq!(shown("muted:true"), ["Kubernetes: node not Ready"]);
+        assert_eq!(shown("kubernetes node"), ["Kubernetes: node not Ready"], "free text, every word, on the name or query");
+        assert_eq!(shown("vault host:i-0a1b2c3d4e5f60001"), ["Vault is sealed"], "a group scope doesn't narrow the list");
+        assert_eq!(shown(""), ["Vault is sealed", "Kubernetes: node not Ready", "Portal: burst of failed logins"]);
     }
 
     #[test]
