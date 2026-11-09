@@ -11438,7 +11438,7 @@
         "tags": [
           "integrations"
         ],
-        "summary": "The integrations installed from Integrations (catalog ids).",
+        "summary": "The installed integrations (catalog ids): from Integrations → Install, or set up on their own page.",
         "operationId": "list_installed_integrations",
         "responses": {
           "200": {

@@ -57,12 +57,25 @@ fn checked(id: String) -> Result<String, ApiError> {
     }
 }
 
-/// The org's installed integrations (catalog ids).
+/// Integrations set up on their own page rather than from their tile: the table holding their connection or
+/// accounts, by catalog id. Having one counts as installed.
+const CONNECTIONS: [(&str, &str); 6] = [
+    ("authentik", "authentik_connections"),
+    ("aws", "aws_accounts"),
+    ("azure", "azure_accounts"),
+    ("fleetdm", "fleetdm_connections"),
+    ("google-cloud", "gcp_accounts"),
+    ("netbird", "netbird_connections"),
+];
+
+/// The org's installed integrations (catalog ids): installed from their tile, or with a saved connection.
 pub async fn installed(st: &AppState, org: &str) -> Result<Vec<String>, ApiError> {
-    Ok(sqlx::query_scalar("SELECT integration FROM integration_installs WHERE org_id = $1 ORDER BY integration").bind(org).fetch_all(&st.postgres).await?)
+    let connected: Vec<String> = CONNECTIONS.iter().map(|(id, table)| format!("SELECT '{id}' WHERE EXISTS (SELECT 1 FROM {table} WHERE org_id = $1)")).collect();
+    let sql = format!("SELECT integration FROM integration_installs WHERE org_id = $1 UNION {} ORDER BY 1", connected.join(" UNION "));
+    Ok(sqlx::query_scalar(sqlx::AssertSqlSafe(sql)).bind(org).fetch_all(&st.postgres).await?)
 }
 
-/// The integrations installed from Integrations (catalog ids).
+/// The installed integrations (catalog ids): from Integrations → Install, or set up on their own page.
 #[utoipa::path(get, path = "/api/v1/integrations/installed", operation_id = "list_installed_integrations", responses((status = 200, body = Vec<String>)), tag = "integrations")]
 pub async fn list(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<Vec<String>> {
     Ok(Json(installed(&st, &org).await?))
@@ -134,6 +147,26 @@ mod tests {
         assert_eq!(ids, ["supply-chain-firewall"]);
         uninstall(State(st.clone()), Writer(ctx.clone()), Path("supply-chain-firewall".into())).await.unwrap();
         assert!(list(State(st.clone()), OrgId(ctx.org_id)).await.unwrap().0.is_empty());
+    }
+
+    /// Integrations set up on their own page (a saved connection or cloud account) count as installed.
+    #[tokio::test]
+    async fn configured_connections_count_as_installed() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "integration-connections").await;
+        for table in ["authentik_connections", "fleetdm_connections"] {
+            sqlx::query(sqlx::AssertSqlSafe(format!("INSERT INTO {table} (org_id, base_url, token_enc) VALUES ($1, 'https://tool.example.com', 'sealed')")))
+                .bind(&org)
+                .execute(&st.postgres)
+                .await
+                .unwrap();
+        }
+        sqlx::query("INSERT INTO aws_accounts (org_id, aws_account_id) VALUES ($1, '123456789012')").bind(&org).execute(&st.postgres).await.unwrap();
+        let Json(ids) = list(State(st.clone()), OrgId(org.clone())).await.unwrap();
+        assert_eq!(ids, ["authentik", "aws", "fleetdm"]);
+        let other = crate::test_support::new_org(st, "integration-connections-other").await;
+        assert!(list(State(st.clone()), OrgId(other)).await.unwrap().0.is_empty(), "another org's connections don't count");
     }
 
     #[test]

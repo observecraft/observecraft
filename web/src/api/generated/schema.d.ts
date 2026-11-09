@@ -4471,7 +4471,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The integrations installed from Integrations (catalog ids). */
+        /** The installed integrations (catalog ids): from Integrations → Install, or set up on their own page. */
         get: operations["list_installed_integrations"];
         put?: never;
         post?: never;
