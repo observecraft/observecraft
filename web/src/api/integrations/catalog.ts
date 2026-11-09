@@ -3,6 +3,7 @@
 // resolved configuration spec of each Agent check, loaded when its integration is opened.
 import generated from './catalog.generated.json';
 import type { SpecFile } from './agentConfig';
+import type { Collection } from './collection';
 
 export interface CoreIntegration {
   /** The manifest's app_id (the check name where several checks share one). */
@@ -27,6 +28,10 @@ export interface CoreIntegration {
   detectionPrefix: string | null;
   /** Where it comes from: Datadog's integrations-core, or integrations-extras (community and partners). */
   repository: Repository;
+  /** How Datadog collects it (see collection.ts). */
+  collection: Collection;
+  /** A push-site sender that also takes any URL. */
+  customEndpoint?: boolean;
 }
 
 export type Repository = 'integrations-core' | 'integrations-extras';

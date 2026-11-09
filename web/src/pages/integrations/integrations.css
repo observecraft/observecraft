@@ -211,6 +211,27 @@
   background: var(--status-warn);
 }
 
+/* Not available in ObserveCraft (Datadog collects it with its own service): a muted edge, band and button. */
+.edge-unavailable,
+.edge-unavailable:hover,
+.edge-unavailable:focus-visible {
+  border-top-color: var(--border-strong);
+}
+
+.edge-unavailable .int-card-band {
+  background: var(--text-faint);
+}
+
+.edge-unavailable .int-card-action,
+.edge-unavailable:hover .int-card-action {
+  background: var(--bg-muted);
+  color: var(--text);
+}
+
+.edge-label.edge-label-muted {
+  color: var(--text-faint);
+}
+
 .int-card-name.wrap {
   white-space: normal;
   display: -webkit-box;
@@ -426,6 +447,11 @@
   color: var(--badge-warn-fg);
 }
 
+.badge-unavailable {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
 .badge-waiting {
   margin-left: 6px;
   background: var(--bg-muted);
@@ -469,6 +495,19 @@
 
 .im-waiting > span {
   flex: 1;
+}
+
+.im-unavailable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 24px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-size: var(--fs-md);
 }
 
 .im-tabs {

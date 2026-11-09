@@ -295,7 +295,11 @@ or SDK features.
   installing an integration installs its library log pipelines (each names its catalog `integration` in
   `pipelines.json`) and its integrations-core dashboards. Integrations that send only logs (Supply Chain Firewall) have
   no metric prefix to detect, so this is how they get their dashboards. Uninstalling removes the pipelines; the
-  dashboards stay.
+  dashboards stay. Each catalog entry carries its `collection` (agent, logs, crawler, oauth, webhook, push-site, docs;
+  `collectionOf` in `import-integration-catalog.mjs`, README-only cases in its override table): what Datadog's own
+  service collects (crawler, oauth) or only documents is "Not available in ObserveCraft" (`web/src/api/integrations/collection.ts`)
+  and the server refuses to install it (`seeds/integrations/core/collected-by-datadog.json`, generated with the catalog);
+  webhooks get the intake URL to paste, push-site senders only when they take a custom URL (`customEndpoint`).
 - **Still missing:**
   - Cloud Network Monitoring's network paths;
   - Logs: forwarding to Microsoft Sentinel (needs Azure credentials), Azure Blob archives, archive readers (roles), the

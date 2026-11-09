@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { API_MODE } from '../../api/http';
 import { Link } from 'react-router-dom';
-import { BookOpen, Check, ChevronDown, Clock, ExternalLink, GitBranch, LayoutDashboard, Newspaper, Plus, Search, Siren, TriangleAlert, X } from 'lucide-react';
+import { ArrowRight, BookOpen, Ban, Check, ChevronDown, Clock, ExternalLink, GitBranch, LayoutDashboard, Newspaper, Plus, Search, Siren, TriangleAlert, X } from 'lucide-react';
 import type { IntegrationDocs } from '../../api/integrations/catalog';
+import { unavailableReason, webhookUrl } from '../../api/integrations/collection';
 import type { IntegrationDetail, IntegrationStatus } from '../../api/integrations/types';
 import { CodeBlock } from '../../components/code/CodeBlock';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
@@ -19,12 +20,18 @@ const CI_SETUP: Record<string, string> = { gitlab: '/ci/settings?provider=gitlab
 
 const TABS = ['Overview', 'Configure', 'Data Collected', 'Hosts', 'Monitoring Resources', 'Support', 'Release Notes'] as const;
 type Tab = (typeof TABS)[number];
+/** An integration ObserveCraft can't collect: what it is and what it collects, not Datadog's setup for it. */
+const UNAVAILABLE_TABS: readonly Tab[] = ['Overview', 'Data Collected'];
+
+/** The intake's address as the browser reaches this install (port 4318), as the setup pages show it. */
+const intakeUrl = () => `${window.location.protocol}//${window.location.hostname}:4318`;
 
 const STATUS_BADGE: Record<IntegrationStatus, string> = {
   available: 'AVAILABLE',
   detected: 'DETECTED',
   installed: 'INSTALLED',
   warning: 'NEEDS ATTENTION',
+  unavailable: 'NOT AVAILABLE IN OBSERVECRAFT',
 };
 
 interface Props {
@@ -54,6 +61,8 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
   const docs = useIntegrationDocs(d.coreId).data ?? null;
   const installed = d.status === 'installed' || d.status === 'warning';
   const waiting = d.status === 'installed' && !!d.waitingForData;
+  const unavailable = d.status === 'unavailable';
+  const tabs = unavailable ? UNAVAILABLE_TABS : TABS;
 
   return (
     <>
@@ -77,7 +86,12 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
               <GitBranch size={14} /> Set up CI pipelines
             </Link>
           )}
-          {installed ? (
+          {d.related && (
+            <Link className={`btn${unavailable ? ' btn-primary' : ''}`} to={d.related.to}>
+              Open {d.related.label} <ArrowRight size={14} />
+            </Link>
+          )}
+          {unavailable || (!installed && !d.installable) ? null : installed ? (
             <div className="btn-group">
               <span className="btn im-installed">
                 <Check size={14} /> Installed
@@ -96,6 +110,14 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
         </div>
       </header>
 
+      {unavailable && (
+        <div className="im-unavailable">
+          <Ban size={15} />
+          <span>
+            {unavailableReason(d.name, d)} ObserveCraft doesn&apos;t collect it{d.related ? `; ${d.related.label} covers it instead.` : '.'}
+          </span>
+        </div>
+      )}
       {d.status === 'warning' && d.warning && (
         <div className="im-warning">
           <TriangleAlert size={15} /> {d.warning}
@@ -120,7 +142,7 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
       )}
 
       <nav className="im-tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t} className={t === tab ? 'active' : ''} onClick={() => setTab(t)}>
             {t}
           </button>
@@ -254,6 +276,7 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
                 <li key={s}>{s}</li>
               ))}
             </ol>
+            <IntakeTarget d={d} />
           </div>
           <h3>Configuration</h3>
           <ReadmeMarkdown source={docs.setup} />
@@ -266,6 +289,7 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
               <li key={s}>{s}</li>
             ))}
           </ol>
+          <IntakeTarget d={d} />
         </>
       )}
 
@@ -310,7 +334,7 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
       )}
 
       <div className="im-install-row">
-        {installed ? (
+        {!d.installable ? null : installed ? (
           <span className="im-installed-note">
             <Check size={15} /> Installed. Its log pipelines and dashboards are set up.
           </span>
@@ -326,11 +350,30 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
         )}
       </div>
       <p className="muted-text">
-        Installing adds the integration&apos;s log pipelines and dashboards. Collection is configured on your Agents or collectors; this page does not deploy them. Metrics received in the last 24
-        hours mark an integration as detected.
+        {d.installable ? 'Installing adds the integration’s log pipelines and dashboards. ' : 'There is nothing to install: its data comes as described above. '} Collection is configured on your
+        Agents or collectors; this page does not deploy them. Metrics received in the last 24 hours mark an integration as detected.
       </p>
     </div>
   );
+}
+
+/** Where a vendor that pushes its data sends it: a webhook's URL, or the intake for senders that take any URL. */
+function IntakeTarget({ d }: { d: IntegrationDetail }) {
+  if (d.collection === 'webhook')
+    return (
+      <>
+        <p>Paste this URL in {d.name}&apos;s webhook settings:</p>
+        <CodeBlock code={webhookUrl(intakeUrl(), d.logSource ?? d.coreId ?? d.id)} />
+      </>
+    );
+  if (d.collection === 'push-site' && d.customEndpoint)
+    return (
+      <>
+        <p>Works if you point {d.name} at your ObserveCraft intake:</p>
+        <CodeBlock code={intakeUrl()} />
+      </>
+    );
+  return null;
 }
 
 const PAGE = 10;

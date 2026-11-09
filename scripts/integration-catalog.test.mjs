@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { catalogEntry, classifierTags, createTemplates, finalizeCatalog, resolveSpec } from './import-integration-catalog.mjs';
+import { catalogEntry, classifierTags, collectionOf, createTemplates, finalizeCatalog, parseArgs, resolveSpec } from './import-integration-catalog.mjs';
 import { hasReportedMetrics, reportedMetricNames } from '../web/src/api/integrations/detection.ts';
 import { instanceOptions, renderAgentConfig } from '../web/src/api/integrations/agentConfig.ts';
 
@@ -265,4 +265,54 @@ test('curated entries are linked to their integrations-core entry; the others st
     unlinked.map((c) => c.id),
     ['ibm-mq'],
   );
+});
+
+test('the revision is what is left once --source and --extras are taken out, whatever their order', () => {
+  assert.deepEqual(parseArgs(['--source', '/c', '--extras', '/e']), { dir: '/c', extrasDir: '/e', revision: undefined });
+  assert.deepEqual(parseArgs(['--extras', '/e', 'abc123', '--source', '/c']), { dir: '/c', extrasDir: '/e', revision: 'abc123' });
+  assert.deepEqual(parseArgs([]), { dir: null, extrasDir: null, revision: undefined });
+});
+
+test('how Datadog collects an integration, from its check code, spec and manifest', () => {
+  const spec = (...sections) => ({ files: [{ name: 'x.yaml', options: sections.map((s) => ({ template: s })) }] });
+  // A Python check, or a spec with instances: an Agent check.
+  assert.equal(collectionOf({ id: 'redis', check: 'x', hasCode: true, spec: spec('init_config', 'instances', 'logs') }), 'agent');
+  assert.equal(collectionOf({ id: 'activemq', check: 'x', hasCode: false, spec: spec('instances') }), 'agent');
+  // A spec with only logs: the Agent (or a forwarder) tails or receives logs.
+  assert.equal(collectionOf({ id: 'cisco-asa', check: 'x', hasCode: true, spec: spec('logs') }), 'logs');
+  // A SaaS tile with no operating system: Datadog's own service calls the vendor's API.
+  assert.equal(collectionOf({ id: 'asana', check: 'asana', hasCode: false, owner: 'saas-integrations', supportedOs: [] }), 'crawler');
+  // A core check written in Go (no Python code, no spec) still runs in the Agent.
+  assert.equal(collectionOf({ id: 'container', check: 'container', hasCode: false, owner: 'container-integrations', supportedOs: ['Linux'] }), 'agent');
+  // What only the README says comes from the override table.
+  assert.equal(collectionOf({ id: 'vercel', check: 'vercel', hasCode: false, owner: 'integrations-developer-platform', supportedOs: ['Linux'] }), 'oauth');
+  assert.equal(collectionOf({ id: 'adyen', check: 'adyen', hasCode: false, owner: 'saas-integrations', supportedOs: [] }), 'webhook');
+  assert.equal(collectionOf({ id: 'auth0', check: 'auth0', hasCode: false, owner: 'saas-integrations', supportedOs: [] }), 'push-site');
+  assert.equal(collectionOf({ id: 'gke', check: 'gke', hasCode: false, owner: 'agent-integrations', supportedOs: ['Linux'] }), 'docs');
+});
+
+test('every catalog entry says how its data is collected; push-site tiles that take any URL say so', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const catalog = JSON.parse(await readFile(new URL('../web/src/api/integrations/catalog.generated.json', import.meta.url), 'utf8'));
+  assert.match(catalog.source, /^DataDog\/integrations-core@[0-9a-f]{40}, /);
+  const counts = {};
+  for (const c of catalog.integrations) counts[c.collection] = (counts[c.collection] ?? 0) + 1;
+  // integrations-core @1e7420ec + integrations-extras @20d3ceea, as audited.
+  assert.deepEqual(counts, { agent: 342, logs: 41, crawler: 65, oauth: 11, webhook: 14, 'push-site': 20, docs: 11 });
+  const custom = catalog.integrations.filter((c) => c.customEndpoint).map((c) => c.id);
+  assert.deepEqual(custom.sort(), ['contrast-security-adr', 'f5-distributed-cloud-services', 'gravitee', 'jamf-protect', 'jmeter', 'keeper', 'otel', 'tailscale', 'ziris']);
+  const byId = Object.fromEntries(catalog.integrations.map((c) => [c.id, c.collection]));
+  assert.equal(byId.redis, 'agent');
+  assert.equal(byId['supply-chain-firewall'], 'logs');
+  assert.equal(byId.asana, 'crawler');
+  assert.equal(byId.gitlab, 'agent');
+});
+
+test('the server gets the integrations it must not install, generated with the catalog', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const catalog = JSON.parse(await readFile(new URL('../web/src/api/integrations/catalog.generated.json', import.meta.url), 'utf8'));
+  const seed = JSON.parse(await readFile(new URL('../server/seeds/integrations/core/collected-by-datadog.json', import.meta.url), 'utf8'));
+  const expected = Object.fromEntries(catalog.integrations.filter((c) => ['crawler', 'oauth', 'docs'].includes(c.collection)).map((c) => [c.id, c.collection]));
+  assert.deepEqual(seed.integrations, expected);
+  assert.equal(Object.keys(seed.integrations).length, 65 + 11 + 11);
 });

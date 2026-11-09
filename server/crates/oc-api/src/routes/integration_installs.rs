@@ -4,7 +4,12 @@
 //! (`integration_dashboards`). Integrations that send only logs (Supply Chain Firewall) have no metric prefix for
 //! `dashboards::enabled_integrations` to detect, so this is how their dashboards appear. Uninstalling removes the
 //! record and the integration's pipelines; its dashboards stay (favorites and scheduled reports depend on them), as
-//! dashboards the org deletes itself.
+//! dashboards the org deletes itself. Integrations Datadog collects with its own service (calling the vendor's API,
+//! an OAuth connection) or whose tile is documentation only can't be installed: nothing here would collect them
+//! (`seeds/integrations/core/collected-by-datadog.json`, generated with the catalog).
+
+use std::collections::HashMap;
+use std::sync::OnceLock;
 
 use axum::extract::{Path, State};
 use axum::Json;
@@ -57,15 +62,42 @@ fn checked(id: String) -> Result<String, ApiError> {
     }
 }
 
+/// The catalog ids Datadog collects itself, with how (`crawler`, `oauth`, `docs`).
+fn collected_by_datadog(id: &str) -> Option<&'static str> {
+    #[derive(serde::Deserialize)]
+    struct Seed {
+        integrations: HashMap<String, String>,
+    }
+    static SEED: OnceLock<HashMap<String, String>> = OnceLock::new();
+    let seed = SEED.get_or_init(|| {
+        let seed: Seed = serde_json::from_str(include_str!("../../../../seeds/integrations/core/collected-by-datadog.json")).expect("collected-by-datadog.json is valid");
+        seed.integrations
+    });
+    seed.get(id).map(String::as_str)
+}
+
+/// A catalog id that can be installed here.
+fn installable(id: String) -> Result<String, ApiError> {
+    let id = checked(id)?;
+    let why = match collected_by_datadog(&id) {
+        None => return Ok(id),
+        Some("crawler") => "Datadog collects it by calling the vendor's API from its own service",
+        Some("oauth") => "Datadog collects it through an OAuth connection to its own service",
+        Some(_) => "its Datadog tile is documentation only",
+    };
+    Err(ApiError::BadRequest(format!("{id} is not available in ObserveCraft: {why}, so there is nothing to install")))
+}
+
 /// Integrations set up on their own page rather than from their tile: the table holding their connection or
 /// accounts, by catalog id. Having one counts as installed.
-const CONNECTIONS: [(&str, &str); 6] = [
+const CONNECTIONS: [(&str, &str); 7] = [
     ("authentik", "authentik_connections"),
     ("aws", "aws_accounts"),
     ("azure", "azure_accounts"),
     ("fleetdm", "fleetdm_connections"),
     ("google-cloud", "gcp_accounts"),
     ("netbird", "netbird_connections"),
+    ("slack", "slack_accounts"),
 ];
 
 /// The org's installed integrations (catalog ids): installed from their tile, or with a saved connection.
@@ -85,7 +117,7 @@ pub async fn list(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<Ve
 #[utoipa::path(put, path = "/api/v1/integrations/{id}/install", operation_id = "install_integration", params(("id" = String, Path)),
     responses((status = 200, body = IntegrationInstall), (status = 400, body = crate::error::ErrorBody)), tag = "integrations")]
 pub async fn install(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<String>) -> ApiResult<IntegrationInstall> {
-    let id = checked(id)?;
+    let id = installable(id)?;
     sqlx::query("INSERT INTO integration_installs (org_id, integration, installed_by) VALUES ($1, $2, $3::uuid) ON CONFLICT DO NOTHING")
         .bind(&ctx.org_id)
         .bind(&id)
@@ -163,10 +195,26 @@ mod tests {
                 .unwrap();
         }
         sqlx::query("INSERT INTO aws_accounts (org_id, aws_account_id) VALUES ($1, '123456789012')").bind(&org).execute(&st.postgres).await.unwrap();
+        sqlx::query("INSERT INTO slack_accounts (org_id, name, team_id, bot_token_enc, installed_via) VALUES ($1, 'main', 'T0001', 'sealed', 'token')").bind(&org).execute(&st.postgres).await.unwrap();
         let Json(ids) = list(State(st.clone()), OrgId(org.clone())).await.unwrap();
-        assert_eq!(ids, ["authentik", "aws", "fleetdm"]);
+        assert_eq!(ids, ["authentik", "aws", "fleetdm", "slack"]);
         let other = crate::test_support::new_org(st, "integration-connections-other").await;
         assert!(list(State(st.clone()), OrgId(other)).await.unwrap().0.is_empty(), "another org's connections don't count");
+    }
+
+    #[test]
+    fn integrations_datadog_collects_itself_are_not_installable() {
+        assert_eq!(collected_by_datadog("asana"), Some("crawler"));
+        assert_eq!(collected_by_datadog("vercel"), Some("oauth"));
+        assert_eq!(collected_by_datadog("gke"), Some("docs"));
+        for id in ["redis", "supply-chain-firewall", "adyen", "otel", "no-such-integration"] {
+            assert_eq!(collected_by_datadog(id), None, "{id}");
+        }
+        let Err(ApiError::BadRequest(message)) = installable("asana".into()) else { panic!("asana is collected by Datadog's own service") };
+        assert!(message.contains("calling") && message.contains("API"), "{message}");
+        assert!(matches!(installable("gke".into()), Err(ApiError::BadRequest(m)) if m.contains("documentation")));
+        assert_eq!(installable("redis".into()).unwrap(), "redis");
+        assert!(installable("Redis".into()).is_err());
     }
 
     #[test]

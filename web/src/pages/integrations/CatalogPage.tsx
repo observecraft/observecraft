@@ -9,6 +9,7 @@ import { CategoryChips, SearchBox } from './CatalogFilters';
 import { IntegrationCard } from './IntegrationCard';
 import { IntegrationModal } from './IntegrationModal';
 import { useCatalog } from './queries';
+import { showsUnavailable } from '../../api/integrations/catalogFilter';
 
 /** Integrations with their own page instead of the detail modal. */
 const OWN_PAGES: Record<string, string> = {
@@ -28,6 +29,7 @@ const STATUSES: Option<IntegrationStatus | 'all'>[] = [
   { value: 'installed', label: 'Installed' },
   { value: 'warning', label: 'Needs Attention' },
   { value: 'available', label: 'Available' },
+  { value: 'unavailable', label: 'Not available' },
 ];
 
 const SECTIONS: { title: string; hint?: string; match: (s: IntegrationStatus) => boolean }[] = [
@@ -41,6 +43,11 @@ const SECTIONS: { title: string; hint?: string; match: (s: IntegrationStatus) =>
   },
   { title: 'Installed', match: (s) => s === 'installed' || s === 'warning' },
   { title: 'Available', match: (s) => s === 'available' },
+  {
+    title: 'Not available in ObserveCraft',
+    hint: 'Datadog collects these with its own service (calling the vendor’s API, an OAuth connection) or only documents them, so ObserveCraft receives nothing from them.',
+    match: (s) => s === 'unavailable',
+  },
 ];
 
 export function CatalogPage() {
@@ -67,7 +74,8 @@ export function CatalogPage() {
   // Typing stays responsive; filtering and re-rendering the cards follow the deferred value.
   const deferredQuery = useDeferredValue(query);
   const catalog = useCatalog({ query: deferredQuery, status, category });
-  const items = catalog.data?.integrations ?? [];
+  // Integrations ObserveCraft can't collect are listed only when searched for or filtered on.
+  const items = (catalog.data?.integrations ?? []).filter((i) => i.status !== 'unavailable' || showsUnavailable({ query: deferredQuery, status }));
 
   const navigate = useNavigate();
   // Integrations with their own page open it; the others open the detail modal.

@@ -6,6 +6,7 @@ import type { CollectedMetric, CollectorConfig, IntegrationDetail, IntegrationHo
 import { rng } from './generator';
 import { coreCatalog, type CoreIntegration } from '../integrations/catalog';
 import { linkCore } from '../integrations/coreLink';
+import { availableHere, installable, ownIntegration, unavailableReason, type Collection, type CollectionInfo } from '../integrations/collection';
 import { awsMetricPrefix } from '../integrations/detection';
 import awsCatalog from '../../../../server/seeds/aws_integration.json';
 import azureCatalog from '../../../../server/seeds/azure_integration.json';
@@ -70,6 +71,10 @@ interface Entry {
   about?: string;
   /** The integrations-core entry for the same integration. */
   core?: CoreIntegration;
+  /** How Datadog collects it, when it isn't its integrations-core entry's (curated entries without one). */
+  collection?: Collection;
+  /** Where ObserveCraft covers it instead, when it isn't one of our integration pages (collection.ts). */
+  related?: { to: string; label: string };
 }
 
 const REDIS: M[] = [
@@ -430,12 +435,16 @@ const CURATED: Entry[] = [
     status: 'installed',
     collect: { kind: 'notify', settings: [{ key: 'routing_key', label: 'Integration (routing) key', placeholder: 'R0…', secret: true }] },
   },
+  // Datadog's GitHub integration is a GitHub App its own service reads (audit log, repositories, pull requests): not
+  // something an Agent or a webhook here receives. The Developer Portal links GitHub repositories itself.
   {
     id: 'github',
     name: 'GitHub',
     categories: ['Source Control', 'Developer Tools'],
-    status: 'installed',
-    collect: { kind: 'notify', settings: [{ key: 'app_installation', label: 'GitHub App installation ID', placeholder: '12345678' }] },
+    about: 'Datadog reads GitHub through a GitHub App installed on its own service.',
+    collection: 'crawler',
+    related: { to: '/portal/settings/sources', label: 'Developer Portal sources' },
+    collect: { kind: 'notify', settings: [] },
   },
   // ---- available
   {
@@ -501,11 +510,14 @@ const CURATED: Entry[] = [
       ],
     },
   },
+  // integrations-core's gitlab check: the Agent scrapes a self-hosted GitLab's Prometheus endpoint. Its CI pipelines
+  // are Software Delivery's (the modal links that setup).
   {
     id: 'gitlab',
     name: 'GitLab',
     categories: ['Source Control', 'Developer Tools'],
-    collect: { kind: 'notify', settings: [{ key: 'token', label: 'Access token', placeholder: 'glpat-…', secret: true }] },
+    about: "Metrics of a self-hosted GitLab, read from its Prometheus endpoint by the Datadog Agent's gitlab check.",
+    collect: { kind: 'agent' },
   },
   {
     id: 'terraform',
@@ -979,7 +991,20 @@ const HOSTS = ['i-0a1b2c3d4e5f60001', 'i-0a1b2c3d4e5f60002', 'i-0a1b2c3d4e5f6000
 /** Session-local install state (the mock's "database"). */
 const statusOverride = new Map<string, IntegrationStatus>();
 
+/** How Datadog collects an entry: our own collection (OpenTelemetry, Prometheus, OTLP, clouds) has none. */
+function collectionInfo(e: Entry): CollectionInfo {
+  if (e.collection) return { collection: e.collection };
+  if (e.collect.kind !== 'agent' && e.collect.kind !== 'notify') return {};
+  return e.core ? { collection: e.core.collection, customEndpoint: e.core.customEndpoint } : {};
+}
+
+/** Install refuses what Datadog's own service collects, ours included when it shares that integration's id. */
+function entryInstallable(e: Entry): boolean {
+  return installable(collectionInfo(e).collection) && installable(e.core?.collection);
+}
+
 function statusOf(e: Entry): IntegrationStatus {
+  if (!availableHere(collectionInfo(e))) return 'unavailable';
   return statusOverride.get(e.id) ?? e.status ?? 'available';
 }
 
@@ -1001,6 +1026,7 @@ function summary(e: Entry): IntegrationSummary {
     warning: status === 'warning' ? e.warning : undefined,
     repository: e.core?.repository,
     waitingForData: waitingForData(e) || undefined,
+    ...collectionInfo(e),
   };
 }
 
@@ -1108,7 +1134,7 @@ function metricsFor(e: Entry): CollectedMetric[] {
 }
 
 function hostsFor(e: Entry, status: IntegrationStatus): IntegrationHost[] {
-  if (status === 'available' || waitingForData(e) || e.collect.kind === 'notify' || e.collect.kind === 'cloud') return [];
+  if (status === 'available' || status === 'unavailable' || waitingForData(e) || e.collect.kind === 'notify' || e.collect.kind === 'cloud') return [];
   const r = rng(e.id.length * 131 + e.id.charCodeAt(0));
   const n = 1 + Math.floor(r() * 4);
   const now = Date.now();
@@ -1146,39 +1172,51 @@ function detail(e: Entry): IntegrationDetail {
               ? `the Datadog Agent's ${e.core!.check} check`
               : 'the provider API — no collector changes are required';
   const steps =
-    c.kind === 'notify'
-      ? [`Fill in the ${e.name} settings below.`, 'Click Install. ObserveCraft validates the credentials.', `Reference @${e.id} in monitor notifications.`]
-      : c.kind === 'otlp'
-        ? [
-            'Add the OpenTelemetry SDK and auto-instrumentation to your service.',
-            'Point OTEL_EXPORTER_OTLP_ENDPOINT at the local collector (port 4317).',
-            'Click Install to enable the bundled dashboards and monitors.',
-          ]
-        : c.kind === 'agent'
-          ? AGENT_STEPS(e.core!)
-          : c.kind === 'cloud'
-            ? CLOUDS[c.cloud].steps
-            : [
-                `Click Install. The fleet manager adds the configuration below to collectors on matching hosts.`,
-                'Set any referenced environment variables (credentials, endpoints) via your secret store.',
-                `Data appears within a few minutes under the "${e.id}" source.`,
-              ];
+    s.status === 'unavailable'
+      ? []
+      : c.kind === 'notify'
+        ? [`Fill in the ${e.name} settings below.`, 'Click Install. ObserveCraft validates the credentials.', `Reference @${e.id} in monitor notifications.`]
+        : c.kind === 'otlp'
+          ? [
+              'Add the OpenTelemetry SDK and auto-instrumentation to your service.',
+              'Point OTEL_EXPORTER_OTLP_ENDPOINT at the local collector (port 4317).',
+              'Click Install to enable the bundled dashboards and monitors.',
+            ]
+          : c.kind === 'agent'
+            ? coreSteps(e.core!)
+            : c.kind === 'cloud'
+              ? CLOUDS[c.cloud].steps
+              : [
+                  `Click Install. The fleet manager adds the configuration below to collectors on matching hosts.`,
+                  'Set any referenced environment variables (credentials, endpoints) via your secret store.',
+                  `Data appears within a few minutes under the "${e.id}" source.`,
+                ];
   return {
     ...s,
-    overview: `${e.about ? `${e.about} ` : ''}This integration collects ${e.name} telemetry through ${how}.`,
+    overview:
+      s.status === 'unavailable'
+        ? `${e.about ? `${e.about} ` : ''}${unavailableReason(e.name, collectionInfo(e))}`
+        : `${e.about ? `${e.about} ` : ''}This integration collects ${e.name} telemetry through ${how}.`,
     offerings: e.core?.offerings.length ? e.core.offerings : ['Integration'],
     supportedOs: e.os ?? (e.core?.supportedOs.length ? e.core.supportedOs : ['Linux', 'Windows', 'macOS']),
     dataTypes,
     minCollectorVersion: COLLECTOR_VERSION,
     setupSteps: steps,
     configureUrl: c.kind === 'cloud' ? CLOUDS[c.cloud].page : undefined,
+    installable: entryInstallable(e),
+    logSource: e.core?.logSource ?? null,
+    related: e.related ?? ownIntegration(e.id),
     configs: configsFor(e),
     settings: c.kind === 'notify' ? c.settings : [],
     metrics: metricsFor(e),
     logs: e.logs
       ? `Logs are collected by Vector and tagged source:${e.id}.`
       : e.core?.logSource
-        ? `The Datadog Agent collects logs with source:${e.core.logSource} when log collection is enabled for the check.`
+        ? s.collection === 'webhook' || s.collection === 'push-site'
+          ? `Logs arrive with source:${e.core.logSource} once ${e.name} sends them to the intake.`
+          : s.collection === 'agent' || s.collection === 'logs'
+            ? `The Datadog Agent collects logs with source:${e.core.logSource} when log collection is enabled for the check.`
+            : `Datadog's own service collects these logs with source:${e.core.logSource}.`
         : null,
     agent: e.core ? { check: e.core.check, configurable: e.core.configurable, source: coreCatalog.source } : undefined,
     coreId: e.core?.id,
@@ -1207,6 +1245,32 @@ function detail(e: Entry): IntegrationDetail {
 function coreDataTypes(c: CoreIntegration): string[] {
   if (c.dataTypes.length) return c.dataTypes;
   return [...(c.metricPrefix ? ['Metrics'] : []), ...(c.logSource ? ['Logs'] : [])];
+}
+
+/** How an integrations-core entry is set up to send to ObserveCraft, by how it is collected. */
+function coreSteps(c: CoreIntegration): string[] {
+  switch (c.collection) {
+    case 'webhook':
+      return [
+        'Create an ingest key in Organization Settings → API Keys.',
+        `In ${c.name}, add a webhook that posts to the URL below, with the ingest key in place of <INGEST_API_KEY>.`,
+        'Click Install to add its log pipelines and dashboards.',
+      ];
+    case 'push-site':
+      return c.customEndpoint
+        ? [
+            `In ${c.name}, choose a custom endpoint instead of a Datadog site and enter your ObserveCraft intake (below).`,
+            'Use an ingest key from Organization Settings → API Keys where it asks for the Datadog API key.',
+            'Click Install to add its log pipelines and dashboards.',
+          ]
+        : [];
+    case 'crawler':
+    case 'oauth':
+    case 'docs':
+      return [];
+    default:
+      return AGENT_STEPS(c);
+  }
 }
 
 const AGENT_STEPS = (c: CoreIntegration) => [
@@ -1267,9 +1331,10 @@ export function integrationMetadata(id: string): IntegrationDetail {
     hosts: [],
     resources: [],
     releaseNotes: [],
-    setupSteps:
-      e.collect.kind === 'agent'
-        ? AGENT_STEPS(e.core!)
+    setupSteps: !availableHere(collectionInfo(e))
+      ? []
+      : e.collect.kind === 'agent'
+        ? coreSteps(e.core!)
         : e.collect.kind === 'cloud'
           ? CLOUDS[e.collect.cloud].steps
           : e.collect.kind === 'notify'

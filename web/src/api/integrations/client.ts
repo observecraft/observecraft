@@ -2,6 +2,7 @@
 // installs an integration's log pipelines and dashboards). Catalog templates do not install collectors.
 import * as mock from '../mock/integrations';
 import { API_MODE, del, get, put } from '../http';
+import { availableHere, type CollectionInfo } from './collection';
 import { hasReportedMetrics, reportedMetricNames, waitingForData, type ReportedMetrics } from './detection';
 import type { IntegrationDetail, IntegrationHost, IntegrationStatus, IntegrationSummary } from './types';
 
@@ -14,15 +15,15 @@ async function installedIds(): Promise<Set<string>> {
   return new Set(await get('/api/v1/integrations/installed', {}));
 }
 
-function liveStatus(id: string, installed: Set<string>, detected: boolean): IntegrationStatus {
-  return installed.has(id) ? 'installed' : detected ? 'detected' : 'available';
+function liveStatus(id: string, installed: Set<string>, detected: boolean, available: boolean): IntegrationStatus {
+  return installed.has(id) ? 'installed' : !available ? 'unavailable' : detected ? 'detected' : 'available';
 }
 
-/** The status and data state of an integration from what the org installed and the metrics it received. */
-function liveState(id: string, declared: { name: string }[], reported: ReportedMetrics, installed: Set<string>): Pick<IntegrationSummary, 'status' | 'waitingForData'> {
+/** The status and data state of an integration from how it is collected, what the org installed and the metrics it received. */
+function liveState(id: string, collection: CollectionInfo, declared: { name: string }[], reported: ReportedMetrics, installed: Set<string>): Pick<IntegrationSummary, 'status' | 'waitingForData'> {
   const prefixes = mock.catalogPrefixes(id);
   return {
-    status: liveStatus(id, installed, hasReportedMetrics(id, declared, reported, prefixes)),
+    status: liveStatus(id, installed, hasReportedMetrics(id, declared, reported, prefixes), availableHere(collection)),
     waitingForData: waitingForData(id, installed.has(id), declared, reported, prefixes),
   };
 }
@@ -46,7 +47,7 @@ async function checkHosts(check: string): Promise<IntegrationHost[]> {
 export async function listCatalog(): Promise<IntegrationSummary[]> {
   if (API_MODE === 'mock') return mock.listCatalog();
   const [reported, installed] = await Promise.all([reportedMetrics(), installedIds()]);
-  return mock.catalogMetadata().map((entry) => ({ ...entry, ...liveState(entry.id, mock.declaredMetrics(entry.id), reported, installed) }));
+  return mock.catalogMetadata().map((entry) => ({ ...entry, ...liveState(entry.id, entry, mock.declaredMetrics(entry.id), reported, installed) }));
 }
 
 export const listCategories = mock.listCategories;
@@ -58,7 +59,7 @@ export async function getIntegration(id: string): Promise<IntegrationDetail> {
   if (API_MODE === 'mock') return mock.getIntegration(id);
   const detail = mock.integrationMetadata(id);
   const [reported, installed, hosts] = await Promise.all([reportedMetrics(), installedIds(), detail.agent ? checkHosts(detail.agent.check) : []]);
-  return { ...detail, ...liveState(id, detail.metrics, reported, installed), hosts };
+  return { ...detail, ...liveState(id, detail, detail.metrics, reported, installed), hosts };
 }
 
 /** Installs an integration's log pipelines and dashboards; collection itself is configured on the Agents. */

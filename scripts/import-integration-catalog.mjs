@@ -186,6 +186,105 @@ const TILES = {
   'traefik-mesh': { name: 'Traefik', description: 'Monitor Traefik Proxy, as an ingress controller or on its own, and Traefik Mesh: entrypoints, routers, services and logs.' },
 };
 
+/**
+ * How Datadog collects an integration (Integrations → its tile says so, and only some can be installed here):
+ * - `agent`: a check the Datadog Agent runs (Python check code, or a spec with `instances`; core checks in Go);
+ * - `logs`: logs the Agent tails or receives (a spec with only `logs`), or a forwarder sends;
+ * - `crawler`: Datadog's own service calls the vendor's API with credentials entered in its tile;
+ * - `oauth`: the vendor is connected to Datadog's service through OAuth ("Connect Accounts");
+ * - `webhook`: the vendor posts to a URL that Datadog's tile generates;
+ * - `push-site`: the vendor pushes with an API key to a Datadog site it picks from a fixed list (`customEndpoint`
+ *   when it also takes any URL, so it can be pointed at ObserveCraft's intake);
+ * - `docs`: the tile only documents a setup that lives elsewhere (another integration, a chart, a library).
+ */
+export const COLLECTIONS = ['agent', 'logs', 'crawler', 'oauth', 'webhook', 'push-site', 'docs'];
+
+/** Tiles whose collection only their README tells (no check code, no spec): an audit of every one of them. */
+const COLLECTION_OVERRIDES = {
+  // SaaS tiles that list operating systems: Datadog's service still calls the vendor's API.
+  crawler: ['anthropic', 'anthropic-usage-and-costs', 'idira-endpoint-privilege-manager', 'openai'],
+  oauth: ['aimon', 'anecdote', 'dagster-plus', 'doppler', 'fauna', 'invary', 'lambdatest', 'modal', 'reflectiz', 'sym', 'vercel'],
+  webhook: [
+    'adyen',
+    'beyondtrust-identity-security-insights',
+    'bitdefender',
+    'brevo',
+    'checkpoint-harmony-email-and-collaboration',
+    'contentful',
+    'incident-io',
+    'intercom',
+    'jamf-pro',
+    'postmark',
+    'push-security',
+    'resend',
+    'solarwinds',
+    'z-scaler',
+  ],
+  'push-site': [
+    'akamai-datastream-2',
+    'appomni',
+    'auth0',
+    'contrast-security-adr',
+    'datazoom',
+    'f5-distributed-cloud-services',
+    'gigamon',
+    'gravitee',
+    'jamf-protect',
+    'jfrog-platform-cloud',
+    'jmeter',
+    'keeper',
+    'lacework',
+    'loadrunner-professional',
+    'ngrok',
+    'orca-security',
+    'otel',
+    'tailscale',
+    'typingdna-activelock',
+    'ziris',
+  ],
+  // Logs the Agent collects (a syslog or file source its README configures) or a cloud forwarder sends.
+  logs: ['azure-active-directory', 'contrastsecurity', 'iam-access-analyzer', 'ide-shepherd', 'supply-chain-firewall', 'twingate'],
+  docs: ['amazon-eks', 'amazon-eks-blueprints', 'crewai', 'datadog-operator', 'eks-anywhere', 'gke', 'langchain', 'oke', 'pivotal-pks', 'storage-management', 'terraform'],
+};
+const OVERRIDES = new Map(Object.entries(COLLECTION_OVERRIDES).flatMap(([collection, ids]) => ids.map((id) => [id, collection])));
+
+/** Collected by Datadog's own service (or not collected at all): installing them here would install nothing that works. */
+export const NOT_INSTALLABLE = ['crawler', 'oauth', 'docs'];
+
+/** push-site tiles whose sender also takes a free-form URL (an HTTP endpoint, an OTLP exporter). */
+export const CUSTOM_ENDPOINT = new Set(['contrast-security-adr', 'f5-distributed-cloud-services', 'gravitee', 'jamf-protect', 'jmeter', 'keeper', 'otel', 'tailscale', 'ziris']);
+
+/** The top-level sections of a configuration spec's main file (`init_config`, `instances`, `logs`). */
+function specSections(spec, check) {
+  const files = spec?.files ?? [];
+  const file = files.find((f) => f.name === `${check}.yaml`) ?? files[0];
+  return new Set((file?.options ?? []).map((o) => String(o?.name ?? o?.template ?? '').split(/[/.]/)[0]));
+}
+
+/** An integration's collection (see COLLECTIONS) from its check code, configuration spec and manifest. */
+export function collectionOf({ id, check, hasCode, spec, owner, supportedOs = [] }) {
+  const override = OVERRIDES.get(id);
+  if (override) return override;
+  const sections = specSections(spec, check);
+  if (sections.has('instances')) return 'agent';
+  if (sections.has('logs')) return 'logs';
+  if (hasCode) return 'agent';
+  if (owner === 'saas-integrations' && supportedOs.length === 0) return 'crawler';
+  return 'agent';
+}
+
+/** `[--source <dir>] [--extras <dir>] [revision]`, in any order. */
+export function parseArgs(argv) {
+  const args = [...argv];
+  const take = (flag) => {
+    const index = args.indexOf(flag);
+    return index >= 0 ? args.splice(index, 2)[1] : null;
+  };
+  const dir = take('--source');
+  const extrasDir = take('--extras');
+  return { dir, extrasDir, revision: args[0] };
+}
+
 const metricChecks = (check) => (check === undefined ? [] : Array.isArray(check) ? check : [check]);
 
 /** A catalog entry from an integration's directory name and manifest.json. */
@@ -278,10 +377,9 @@ async function mapLimit(items, limit, fn) {
 }
 
 async function main() {
-  const args = process.argv.slice(2);
-  const sourceIndex = args.indexOf('--source');
-  const dir = sourceIndex >= 0 ? args.splice(sourceIndex, 2)[1] : null;
-  const revision = args[0] ?? PINNED_REVISION;
+  // Both flags are taken out before the revision is read, or `--extras` would be read as the revision.
+  const { dir, extrasDir, revision: given } = parseArgs(process.argv.slice(2));
+  const revision = given ?? PINNED_REVISION;
   const repo = source(dir, revision);
 
   const templateFiles = new Map();
@@ -293,8 +391,6 @@ async function main() {
     return templateFiles.get(path);
   };
 
-  const extrasIndex = args.indexOf('--extras');
-  const extrasDir = extrasIndex >= 0 ? args.splice(extrasIndex, 2)[1] : null;
   const extras = extrasDir ? source(extrasDir, EXTRAS_REVISION) : null;
   // integrations-extras: what runs in the Agent (a check) or arrives as logs (a pipeline); its specs use core's templates.
   const { existsSync, readdirSync } = await import('node:fs');
@@ -323,6 +419,8 @@ async function main() {
       console.warn(`${check}: ${error.reason ?? error.message}`);
       entry.configurable = false;
     }
+    const hasCode = (await from.read(`${check}/pyproject.toml`)) !== undefined || (await from.read(`${check}/setup.py`)) !== undefined;
+    entry.collection = collectionOf({ id: entry.id, check, hasCode, spec, owner: manifest.owner, supportedOs: entry.supportedOs });
     return { entry, spec };
   });
 
@@ -358,7 +456,9 @@ async function main() {
       item.entry.configurable = false;
     }
   }
-  const catalog = finalizeCatalog(integrations).sort((a, b) => a.name.localeCompare(b.name));
+  const catalog = finalizeCatalog(integrations)
+    .map((e) => ({ ...e, ...(e.collection === 'push-site' && CUSTOM_ENDPOINT.has(e.id) ? { customEndpoint: true } : {}) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const out = new URL('../web/src/api/integrations/', import.meta.url);
   const sources = [`DataDog/integrations-core@${revision}`, ...(extras ? [`DataDog/integrations-extras@${EXTRAS_REVISION}`] : [])].join(', ');
@@ -368,6 +468,12 @@ async function main() {
   await rm(specDir, { recursive: true, force: true });
   await mkdir(specDir);
   for (const [check, spec] of Object.entries(specs)) await writeFile(new URL(`${check}.json`, specDir), JSON.stringify(spec) + '\n');
+  // The server refuses to install what Datadog collects with its own service (oc-api routes/integration_installs.rs).
+  const byDatadog = Object.fromEntries(catalog.filter((e) => NOT_INSTALLABLE.includes(e.collection)).map((e) => [e.id, e.collection]));
+  await writeFile(
+    new URL('../server/seeds/integrations/core/collected-by-datadog.json', import.meta.url),
+    JSON.stringify({ source: sources, integrations: Object.fromEntries(Object.entries(byDatadog).sort(([a], [b]) => a.localeCompare(b))) }, null, 1) + '\n',
+  );
   await writeFile(new URL('integrations-core.LICENSE', out), await repo.read('LICENSE'));
   if (extras) await writeFile(new URL('integrations-extras.LICENSE', out), await extras.read('LICENSE'));
   console.log(`${catalog.length} integrations, ${Object.keys(specs).length} configuration specs`);
