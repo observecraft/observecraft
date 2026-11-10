@@ -1,0 +1,14 @@
+{
+  "data": [
+    { "id": "4a1b2c3d-5e6f-7081-92a3-b4c5d6e7f809", "type": "events",
+      "attributes": { "time": "2026-11-10T11:00:00.000Z", "action": "user_granted_role",
+        "actor": { "id": "5b10ac8d82e05b22cc7d4ef5", "name": "Jordan Patel", "email": "jordan.patel@example.com", "links": { "self": "https://api.atlassian.com/users/5b10ac8d82e05b22cc7d4ef5/manage/profile" } },
+        "context": [ { "id": "5b10ac8d82e05b22cc7d4ef6", "type": "users", "attributes": { "email": "sam.lee@example.com", "name": "Sam Lee" } } ],
+        "container": [ { "id": "0a1b2c3d-4e5f-6789-abcd-ef0123456789", "type": "sites", "attributes": { "siteName": "example" } } ],
+        "location": { "ip": "198.51.100.7", "geo": "44.43,26.10", "countryName": "Romania", "regionName": "Bucuresti", "city": "Bucharest" } },
+      "links": { "self": "https://api.atlassian.com/admin/v1/orgs/0a1b2c3d-4e5f-6789-abcd-ef0123456789/events/4a1b2c3d-5e6f-7081-92a3-b4c5d6e7f809" },
+      "message": { "content": "Granted Sam Lee the site-admin role", "format": "simple" } }
+  ],
+  "meta": { "next": "c2Vjb25k", "page_size": 1 },
+  "links": { "self": "https://api.atlassian.com/admin/v1/orgs/0a1b2c3d-4e5f-6789-abcd-ef0123456789/events", "next": "https://api.atlassian.com/admin/v1/orgs/0a1b2c3d-4e5f-6789-abcd-ef0123456789/events?cursor=c2Vjb25k" }
+}

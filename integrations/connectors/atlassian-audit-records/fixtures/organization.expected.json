@@ -1,0 +1,122 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c51d-6380-7b18-8c34-328a7c239d45"
+      },
+      "action": "user_granted_role",
+      "actor": {
+        "email": "jordan.patel@example.com",
+        "id": "5b10ac8d82e05b22cc7d4ef5",
+        "links": {
+          "self": "https://api.atlassian.com/users/5b10ac8d82e05b22cc7d4ef5/manage/profile"
+        },
+        "name": "Jordan Patel"
+      },
+      "container": [
+        {
+          "attributes": {
+            "siteName": "example"
+          },
+          "id": "0a1b2c3d-4e5f-6789-abcd-ef0123456789",
+          "type": "sites"
+        }
+      ],
+      "context": [
+        {
+          "attributes": {
+            "email": "sam.lee@example.com",
+            "name": "Sam Lee"
+          },
+          "id": "5b10ac8d82e05b22cc7d4ef6",
+          "type": "users"
+        }
+      ],
+      "date": "2026-11-10T11:00:00.000Z",
+      "ddsource": "atlassian",
+      "evt": {
+        "name": "user_granted_role"
+      },
+      "host": "example.atlassian.net",
+      "id": "4a1b2c3d-5e6f-7081-92a3-b4c5d6e7f809",
+      "location": {
+        "city": "Bucharest",
+        "countryName": "Romania",
+        "geo": "44.43,26.10",
+        "ip": "198.51.100.7",
+        "regionName": "Bucuresti"
+      },
+      "message": "user_granted_role by Jordan Patel",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": "Bucharest",
+            "country": "Romania"
+          },
+          "ip": "198.51.100.7"
+        }
+      },
+      "service": "organization",
+      "status": "info",
+      "time": "2026-11-10T11:00:00.000Z",
+      "usr": {
+        "email": "jordan.patel@example.com",
+        "id": "5b10ac8d82e05b22cc7d4ef5",
+        "name": "Jordan Patel"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c46a-dc60-7630-94ce-0ad6e5ceb45d"
+      },
+      "action": "api_token_created",
+      "actor": {
+        "email": "alex.morgan@example.com",
+        "id": "5b10ac8d82e05b22cc7d4ef7",
+        "name": "Alex Morgan"
+      },
+      "container": [],
+      "context": [],
+      "date": "2026-11-10T07:45:00.000Z",
+      "ddsource": "atlassian",
+      "evt": {
+        "name": "api_token_created"
+      },
+      "host": "example.atlassian.net",
+      "id": "5b2c3d4e-6f70-8192-a3b4-c5d6e7f8091a",
+      "location": {
+        "city": "Ashburn",
+        "countryName": "United States",
+        "ip": "203.0.113.20"
+      },
+      "message": "api_token_created by Alex Morgan",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": "Ashburn",
+            "country": "United States"
+          },
+          "ip": "203.0.113.20"
+        }
+      },
+      "service": "organization",
+      "status": "info",
+      "time": "2026-11-10T07:45:00.000Z",
+      "usr": {
+        "email": "alex.morgan@example.com",
+        "id": "5b10ac8d82e05b22cc7d4ef7",
+        "name": "Alex Morgan"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

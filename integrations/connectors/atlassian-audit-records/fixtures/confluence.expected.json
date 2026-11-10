@@ -1,0 +1,103 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c526-8b40-7ced-a907-2e969930a42a"
+      },
+      "affectedObject": {
+        "name": "ENG",
+        "objectType": "Space"
+      },
+      "associatedObjects": [],
+      "author": {
+        "accountId": "5b10ac8d82e05b22cc7d4ef5",
+        "displayName": "Jordan Patel",
+        "operations": null,
+        "type": "user"
+      },
+      "category": "Permissions",
+      "changedValues": [
+        {
+          "name": "Delete pages",
+          "newValue": "true",
+          "oldValue": "false"
+        }
+      ],
+      "creationDate": 1794309000000,
+      "date": "2026-11-10T11:10:00.000Z",
+      "ddsource": "confluence-audit-records",
+      "description": "",
+      "evt": {
+        "category": "Permissions",
+        "name": "Space permissions changed"
+      },
+      "host": "example.atlassian.net",
+      "message": "Space permissions changed: ENG",
+      "network": {
+        "client": {
+          "ip": "198.51.100.7"
+        }
+      },
+      "remoteAddress": "198.51.100.7",
+      "service": "confluence",
+      "status": "info",
+      "summary": "Space permissions changed",
+      "sysAdmin": false,
+      "usr": {
+        "id": "5b10ac8d82e05b22cc7d4ef5",
+        "name": "Jordan Patel"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b8-ae40-7947-bbdf-6a59ce5757e8"
+      },
+      "affectedObject": {
+        "name": "Billing",
+        "objectType": "Space"
+      },
+      "associatedObjects": [],
+      "author": {
+        "accountId": "5b10ac8d82e05b22cc7d4ef7",
+        "displayName": "Alex Morgan",
+        "type": "user"
+      },
+      "category": "Import/Export",
+      "changedValues": [],
+      "creationDate": 1794301800000,
+      "date": "2026-11-10T09:10:00.000Z",
+      "ddsource": "confluence-audit-records",
+      "description": "",
+      "evt": {
+        "category": "Import/Export",
+        "name": "Space exported"
+      },
+      "host": "example.atlassian.net",
+      "message": "Space exported: Billing",
+      "network": {
+        "client": {
+          "ip": "203.0.113.20"
+        }
+      },
+      "remoteAddress": "203.0.113.20",
+      "service": "confluence",
+      "status": "info",
+      "summary": "Space exported",
+      "sysAdmin": false,
+      "usr": {
+        "id": "5b10ac8d82e05b22cc7d4ef7",
+        "name": "Alex Morgan"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}
