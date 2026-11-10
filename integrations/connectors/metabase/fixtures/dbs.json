@@ -1,0 +1,42 @@
+{
+ "data": {
+  "rows": [
+   [
+    1,
+    "database_1",
+    "Shop Warehouse",
+    "The storefront's order and inventory data.",
+    "postgres"
+   ]
+  ],
+  "cols": [
+   {
+    "name": "entity_id",
+    "display_name": "Entity Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "entity_qualified_id",
+    "display_name": "Entity Qualified Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "name",
+    "display_name": "Name",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "description",
+    "display_name": "Description",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "database_type",
+    "display_name": "Database Type",
+    "base_type": "type/Text"
+   }
+  ]
+ },
+ "row_count": 1,
+ "status": "completed"
+}

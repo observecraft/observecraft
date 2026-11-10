@@ -1,0 +1,102 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c51e-7c9d-707d-9968-14b990459085"
+      },
+      "action_id": null,
+      "action_qualified_id": null,
+      "cache_hit": false,
+      "card_description": null,
+      "card_id": 120,
+      "card_name": "Orders by day",
+      "card_qualified_id": "card_120",
+      "dashboard_description": "Daily orders, revenue and refunds of the storefront.",
+      "dashboard_id": 11,
+      "dashboard_name": "Orders overview",
+      "dashboard_qualified_id": "dashboard_11",
+      "database_description": "The storefront's order and inventory data.",
+      "database_id": 1,
+      "database_name": "Shop Warehouse",
+      "database_qualified_id": "database_1",
+      "date": "2026-11-10T11:01:11.965619Z",
+      "ddsource": "metabase",
+      "entity_id": 306,
+      "error": null,
+      "host": "shop-analytics.metabaseapp.com",
+      "is_native": false,
+      "message": "Query of Orders by day on Orders overview: 31 rows in 0.169s",
+      "pulse_id": null,
+      "query_source": "dashboard",
+      "result_rows": 31,
+      "running_time_seconds": 0.169,
+      "service": "query-logs",
+      "started_at": "2026-11-10T11:01:11.965619Z",
+      "status": "info",
+      "user_id": 2,
+      "user_type": "personal",
+      "usr": {
+        "email": "sam.rivera@example.com",
+        "id": 2,
+        "name": "Sam Rivera"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c52f-bb34-7eca-893c-819af46f5d8a"
+      },
+      "action_id": null,
+      "action_qualified_id": null,
+      "cache_hit": false,
+      "card_description": null,
+      "card_id": null,
+      "card_name": null,
+      "card_qualified_id": null,
+      "dashboard_description": null,
+      "dashboard_id": null,
+      "dashboard_name": null,
+      "dashboard_qualified_id": null,
+      "database_description": "The storefront's order and inventory data.",
+      "database_id": 1,
+      "database_name": "Shop Warehouse",
+      "database_qualified_id": "database_1",
+      "date": "2026-11-10T11:20:02.100000Z",
+      "ddsource": "metabase",
+      "entity_id": 307,
+      "error": "ERROR: relation \"order_items_old\" does not exist",
+      "host": "shop-analytics.metabaseapp.com",
+      "is_native": true,
+      "message": "Native query: 0 rows in 2.84s: ERROR: relation \"order_items_old\" does not exist",
+      "pulse_id": null,
+      "query_source": "ad-hoc",
+      "result_rows": 0,
+      "running_time_seconds": 2.84,
+      "service": "query-logs",
+      "started_at": "2026-11-10T11:20:02.100000Z",
+      "status": "error",
+      "user_id": 1,
+      "user_type": "personal",
+      "usr": {
+        "email": "jane.doe@example.com",
+        "id": 1,
+        "name": "Jane Doe"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794309602100,
+        "seen": [
+          {
+            "id": "57288818224923d3",
+            "t": 1794309602100
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,77 @@
+{
+ "data": {
+  "rows": [
+   [
+    178,
+    "dashboard-add-cards",
+    "2026-11-10T09:47:26.247269Z",
+    null,
+    1,
+    "dashboard",
+    11,
+    "dashboard_11",
+    "{\"name\":\"Orders overview\",\"id\":11,\"dashcards\":[{\"id\":118,\"card_id\":120,\"name\":\"Orders by day\"}]}"
+   ],
+   [
+    188,
+    "setting-update",
+    "2026-11-10T10:37:04.133904Z",
+    null,
+    1,
+    "setting",
+    null,
+    null,
+    "{\"key\":\"report-timezone\",\"previous-value\":\"UCT\",\"new-value\":\"UTC\"}"
+   ]
+  ],
+  "cols": [
+   {
+    "name": "id",
+    "display_name": "Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "topic",
+    "display_name": "Topic",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "timestamp",
+    "display_name": "Timestamp",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "end_timestamp",
+    "display_name": "End Timestamp",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "user_id",
+    "display_name": "User Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "entity_type",
+    "display_name": "Entity Type",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "entity_id",
+    "display_name": "Entity Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "entity_qualified_id",
+    "display_name": "Entity Qualified Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "details",
+    "display_name": "Details",
+    "base_type": "type/Text"
+   }
+  ]
+ },
+ "row_count": 2,
+ "status": "completed"
+}

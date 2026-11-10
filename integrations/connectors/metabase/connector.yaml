@@ -1,0 +1,275 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Metabase (https://www.metabase.com/docs/latest/api): the usage analytics of a Metabase Pro or Enterprise instance
+# (its activity log, view log and query log), read by querying the instance's usage analytics collection through
+# /api/dataset, as the logs Datadog's integration sends (source:metabase; service:activity-events, view-logs and
+# query-logs; the views' columns at the top, joined with the people, content, tables and databases they name). The
+# tile's pipeline and dashboards (Activity, Views, Query Overview) are installed from integrations-core.
+#
+# Unverified against a live instance: the usage analytics database being listed by /api/database with `is_audit`, its
+# view names (v_audit_log, v_view_log, v_query_log, v_users, v_content, v_tables, v_databases) and MBQL field
+# references by column name; they follow Metabase's usage analytics reference and its open-source views.
+schema_version: 1
+id: metabase
+name: Metabase
+publisher: ObserveCraft
+vendor: Metabase
+description: >-
+  The activity log (dashboards, questions, settings, people and permission changes), view log (who viewed which
+  dashboard, question or table) and query log (running time, rows, errors, cache hits per question and dashboard) of a
+  Metabase Pro or Enterprise instance, read from its usage analytics as logs.
+tiles: [metabase]
+categories: [Log Collection, Data Stores, Developer Tools]
+docs_url: https://www.metabase.com/docs/latest/api
+setup: |
+  1. Usage analytics needs Metabase **Pro** or **Enterprise** (Cloud or self-hosted).
+  2. In Metabase, open **Admin → Settings → Authentication → API keys** and create a key in the **Administrators**
+     group, e.g. `observecraft`; copy it, Metabase shows it once.
+  3. Enter the instance's URL: `https://<alias>.metabaseapp.com` on Metabase Cloud, your public HTTPS domain when
+     self-hosted.
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: Metabase URL
+    type: url
+    required: true
+    placeholder: https://example.metabaseapp.com
+    strip_suffix: [/api]
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+    placeholder: mb_…
+    help: An API key in the Administrators group.
+
+auth:
+  kind: api_key
+  name: x-api-key
+  value: "{{ secrets.api_key }}"
+
+rate_limit: { requests_per_minute: 60 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Metabase refused the API key
+  - status: [403]
+    kind: access_denied
+    message: The API key isn't in the Administrators group, or usage analytics needs Metabase Pro or Enterprise
+  - status: [404]
+    kind: access_denied
+    message: "No Metabase API at {{ config.base_url }}"
+
+# The usage analytics database and its views' table ids.
+discover:
+  - name: audit
+    request:
+      url: "{{ config.base_url }}/api/database"
+      query: { include: tables }
+    value: >-
+      {{ {db: (response.data ?? response) | where('is_audit', true) | pluck('id') | first,
+          tables: (response.data ?? response) | where('is_audit', true) | pluck('tables') | flatten | index_by('name')} }}
+    ttl: 6h
+
+streams:
+  - id: activity
+    name: Activity log
+    description: >-
+      Every activity log entry (service:activity-events): topic (evt.name: dashboard-create, card-update,
+      setting-update, user-joined, …), entity_type, entity_id, entity_qualified_id, details, user_id.
+    interval: 5m
+    request:
+      method: POST
+      url: "{{ config.base_url }}/api/dataset"
+      body:
+        database: "{{ discovery.audit.db }}"
+        type: query
+        query:
+          source-table: "{{ discovery.audit.tables.v_audit_log.id }}"
+          filter:
+            - and
+            - [">=", [field, timestamp, { base-type: type/DateTimeWithLocalTZ }], "{{ window.start | rfc3339 }}"]
+            - ["<", [field, timestamp, { base-type: type/DateTimeWithLocalTZ }], "{{ window.end | rfc3339 }}"]
+          order-by: [[asc, [field, timestamp, { base-type: type/DateTimeWithLocalTZ }]]]
+          limit: 2000
+    records: &rows "{{ response.data.rows | to_objects(response.data.cols) }}"
+    record_id: "{{ record.id | str }}"
+    incremental: &time
+      kind: time
+      record_time: "{{ record.timestamp }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 2m
+      cursor: last_record
+    output:
+      logs:
+        service: activity-events
+        message: "{{ record.topic }}{{ (' ' + record.entity_qualified_id) ?? '' }}{{ (' by user ' + (record.user_id | str)) ?? '' }}"
+        date: "{{ record.timestamp }}"
+        attributes: >-
+          {{ record + {details: (record.details | parse_json) ?? record.details, evt: {name: record.topic}, usr: {id: record.user_id}} }}
+
+  - id: views
+    name: View log
+    description: >-
+      Every view of a dashboard, question, model or table (service:view-logs): entity_type, entity_qualified_id,
+      entity_name / entity_display_name / entity_description, the viewer (usr.*, user_type) and, for tables, their
+      database.
+    interval: 5m
+    lookups: &lookups
+      - name: users
+        request:
+          method: POST
+          url: "{{ config.base_url }}/api/dataset"
+          body:
+            database: "{{ discovery.audit.db }}"
+            type: query
+            query: { source-table: "{{ discovery.audit.tables.v_users.id }}", page: { page: "{{ page.number }}", items: 2000 } }
+        records: *rows
+        pagination: { kind: page, size: 2000 }
+        key: "{{ record.user_id | str }}"
+        ttl: 1h
+      - name: content
+        request:
+          method: POST
+          url: "{{ config.base_url }}/api/dataset"
+          body:
+            database: "{{ discovery.audit.db }}"
+            type: query
+            query: { source-table: "{{ discovery.audit.tables.v_content.id }}", page: { page: "{{ page.number }}", items: 2000 } }
+        records: *rows
+        pagination: { kind: page, size: 2000 }
+        key: "{{ record.entity_qualified_id }}"
+        value: "{{ {name: record.name, description: record.description} }}"
+        ttl: 1h
+      - name: tables
+        request:
+          method: POST
+          url: "{{ config.base_url }}/api/dataset"
+          body:
+            database: "{{ discovery.audit.db }}"
+            type: query
+            query: { source-table: "{{ discovery.audit.tables.v_tables.id }}", page: { page: "{{ page.number }}", items: 2000 } }
+        records: *rows
+        pagination: { kind: page, size: 2000 }
+        key: "{{ record.entity_qualified_id }}"
+        value: "{{ {name: record.name, display_name: record.display_name, description: record.description, database_id: record.database_id} }}"
+        ttl: 1h
+      - name: databases
+        request:
+          method: POST
+          url: "{{ config.base_url }}/api/dataset"
+          body:
+            database: "{{ discovery.audit.db }}"
+            type: query
+            query: { source-table: "{{ discovery.audit.tables.v_databases.id }}", page: { page: "{{ page.number }}", items: 2000 } }
+        records: *rows
+        pagination: { kind: page, size: 2000 }
+        key: "{{ record.entity_id | str }}"
+        value: "{{ {name: record.name, description: record.description} }}"
+        ttl: 1h
+    request:
+      method: POST
+      url: "{{ config.base_url }}/api/dataset"
+      body:
+        database: "{{ discovery.audit.db }}"
+        type: query
+        query:
+          source-table: "{{ discovery.audit.tables.v_view_log.id }}"
+          filter:
+            - and
+            - [">=", [field, timestamp, { base-type: type/DateTimeWithLocalTZ }], "{{ window.start | rfc3339 }}"]
+            - ["<", [field, timestamp, { base-type: type/DateTimeWithLocalTZ }], "{{ window.end | rfc3339 }}"]
+          order-by: [[asc, [field, timestamp, { base-type: type/DateTimeWithLocalTZ }]]]
+          limit: 2000
+    records: *rows
+    record_id: "{{ record.id | str }}"
+    incremental: *time
+    vars:
+      user: "{{ lookups.users[record.user_id | str] }}"
+      entity: "{{ record.entity_type == 'table' ? lookups.tables[record.entity_qualified_id] : lookups.content[record.entity_qualified_id] }}"
+      database: "{{ record.entity_type == 'table' ? lookups.databases[lookups.tables[record.entity_qualified_id].database_id | str] : null }}"
+    output:
+      logs:
+        service: view-logs
+        message: "{{ vars.user.full_name ?? ('User ' + (record.user_id | str)) }} viewed {{ record.entity_type }} {{ vars.entity.display_name ?? vars.entity.name ?? record.entity_qualified_id }}"
+        date: "{{ record.timestamp }}"
+        attributes: >-
+          {{ record + {entity_name: vars.entity.name, entity_display_name: vars.entity.display_name, entity_description: vars.entity.description,
+             database_name: vars.database.name, database_description: vars.database.description, user_type: vars.user.type,
+             usr: {id: record.user_id, email: vars.user.email, name: vars.user.full_name}} }}
+
+  - id: queries
+    name: Query log
+    description: >-
+      Every query run (service:query-logs): running_time_seconds, result_rows, is_native, query_source, error,
+      cache_hit, the question (card_name), dashboard (dashboard_name) and database (database_name) it ran for, and who
+      ran it (usr.*, user_type).
+    interval: 5m
+    lookups: *lookups
+    request:
+      method: POST
+      url: "{{ config.base_url }}/api/dataset"
+      body:
+        database: "{{ discovery.audit.db }}"
+        type: query
+        query:
+          source-table: "{{ discovery.audit.tables.v_query_log.id }}"
+          filter:
+            - and
+            - [">=", [field, started_at, { base-type: type/DateTimeWithLocalTZ }], "{{ window.start | rfc3339 }}"]
+            - ["<", [field, started_at, { base-type: type/DateTimeWithLocalTZ }], "{{ window.end | rfc3339 }}"]
+          order-by: [[asc, [field, started_at, { base-type: type/DateTimeWithLocalTZ }]]]
+          limit: 2000
+    records: *rows
+    record_id: "{{ record.entity_id | str }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.started_at }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 2m
+      cursor: last_record
+    vars:
+      user: "{{ lookups.users[record.user_id | str] }}"
+      card: "{{ lookups.content[record.card_qualified_id] }}"
+      dashboard: "{{ lookups.content[record.dashboard_qualified_id] }}"
+      database: "{{ lookups.databases[record.database_id | str] }}"
+    output:
+      logs:
+        service: query-logs
+        status: "{{ record.error ? 'error' : 'info' }}"
+        message: >-
+          {{ record.is_native ? 'Native query' : 'Query' }}{{ (' of ' + vars.card.name) ?? '' }}{{ (' on ' + vars.dashboard.name) ?? '' }}: {{ record.result_rows ?? 0 }} rows in {{ record.running_time_seconds }}s{{ (': ' + record.error) ?? '' }}
+        date: "{{ record.started_at }}"
+        attributes: >-
+          {{ record + {card_name: vars.card.name, card_description: vars.card.description, dashboard_name: vars.dashboard.name,
+             dashboard_description: vars.dashboard.description, database_name: vars.database.name, database_description: vars.database.description,
+             user_type: vars.user.type, usr: {id: record.user_id, email: vars.user.email, name: vars.user.full_name}} }}
+
+test:
+  request: { url: "{{ config.base_url }}/api/user/current" }
+  success: "{{ response.is_superuser }}"
+  message: "Connected as {{ response.common_name ?? response.email }}"
+  failure: "{{ response.common_name ?? 'The API key' }} isn't an administrator: create the key in the Administrators group"
+
+mock:
+  config: { base_url: "https://shop-analytics.metabaseapp.com" }
+  secrets: { api_key: mb_test_key_0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://shop-analytics.metabaseapp.com/api/database", file: fixtures/databases.json }
+    - { method: POST, url: "https://shop-analytics.metabaseapp.com/api/dataset", body_contains: '"source-table":901', file: fixtures/audit-log.json }
+    - { method: POST, url: "https://shop-analytics.metabaseapp.com/api/dataset", body_contains: '"source-table":902', file: fixtures/view-log.json }
+    - { method: POST, url: "https://shop-analytics.metabaseapp.com/api/dataset", body_contains: '"source-table":903', file: fixtures/query-log.json }
+    - { method: POST, url: "https://shop-analytics.metabaseapp.com/api/dataset", body_contains: '"source-table":904', file: fixtures/users.json }
+    - { method: POST, url: "https://shop-analytics.metabaseapp.com/api/dataset", body_contains: '"source-table":905', file: fixtures/content.json }
+    - { method: POST, url: "https://shop-analytics.metabaseapp.com/api/dataset", body_contains: '"source-table":906', file: fixtures/tables.json }
+    - { method: POST, url: "https://shop-analytics.metabaseapp.com/api/dataset", body_contains: '"source-table":907', file: fixtures/dbs.json }
+    - { url: "https://shop-analytics.metabaseapp.com/api/user/current", body: { id: 1, email: admin@example.com, common_name: Jane Doe, is_superuser: true } }
+  expect:
+    activity: { records: 2, logs: 2, rerun: 0, golden: fixtures/activity.expected.json }
+    views: { records: 2, logs: 2, rerun: 0, golden: fixtures/views.expected.json }
+    queries: { records: 2, logs: 2, rerun: 0, golden: fixtures/queries.expected.json }
+    test: { ok: true, message: "Jane Doe" }

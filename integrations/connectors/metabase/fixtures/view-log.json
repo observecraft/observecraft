@@ -1,0 +1,56 @@
+{
+ "data": {
+  "rows": [
+   [
+    12,
+    "2026-11-10T11:01:10.181879Z",
+    2,
+    "dashboard",
+    11,
+    "dashboard_11"
+   ],
+   [
+    13,
+    "2026-11-10T11:05:42.000000Z",
+    2,
+    "table",
+    5,
+    "table_5"
+   ]
+  ],
+  "cols": [
+   {
+    "name": "id",
+    "display_name": "Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "timestamp",
+    "display_name": "Timestamp",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "user_id",
+    "display_name": "User Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "entity_type",
+    "display_name": "Entity Type",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "entity_id",
+    "display_name": "Entity Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "entity_qualified_id",
+    "display_name": "Entity Qualified Id",
+    "base_type": "type/Text"
+   }
+  ]
+ },
+ "row_count": 2,
+ "status": "completed"
+}

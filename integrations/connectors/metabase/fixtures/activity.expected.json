@@ -1,0 +1,86 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4da-f4a7-7eb6-b525-0d2178e85d76"
+      },
+      "date": "2026-11-10T09:47:26.247269Z",
+      "ddsource": "metabase",
+      "details": {
+        "dashcards": [
+          {
+            "card_id": 120,
+            "id": 118,
+            "name": "Orders by day"
+          }
+        ],
+        "id": 11,
+        "name": "Orders overview"
+      },
+      "end_timestamp": null,
+      "entity_id": 11,
+      "entity_qualified_id": "dashboard_11",
+      "entity_type": "dashboard",
+      "evt": {
+        "name": "dashboard-add-cards"
+      },
+      "host": "shop-analytics.metabaseapp.com",
+      "id": 178,
+      "message": "dashboard-add-cards dashboard_11 by user 1",
+      "service": "activity-events",
+      "status": "info",
+      "timestamp": "2026-11-10T09:47:26.247269Z",
+      "topic": "dashboard-add-cards",
+      "user_id": 1,
+      "usr": {
+        "id": 1
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c508-6505-7db1-a594-08ee1b4ff8e9"
+      },
+      "date": "2026-11-10T10:37:04.133904Z",
+      "ddsource": "metabase",
+      "details": {
+        "key": "report-timezone",
+        "new-value": "UTC",
+        "previous-value": "UCT"
+      },
+      "end_timestamp": null,
+      "entity_id": null,
+      "entity_qualified_id": null,
+      "entity_type": "setting",
+      "evt": {
+        "name": "setting-update"
+      },
+      "host": "shop-analytics.metabaseapp.com",
+      "id": 188,
+      "message": "setting-update by user 1",
+      "service": "activity-events",
+      "status": "info",
+      "timestamp": "2026-11-10T10:37:04.133904Z",
+      "topic": "setting-update",
+      "user_id": 1,
+      "usr": {
+        "id": 1
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794307024133,
+        "seen": [
+          {
+            "id": "454dbf181805d95c",
+            "t": 1794307024133
+          }
+        ]
+      }
+    }
+  }
+}

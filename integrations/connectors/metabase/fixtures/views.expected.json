@@ -1,0 +1,76 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c51e-75a5-7a31-8e8c-937e508da569"
+      },
+      "database_description": null,
+      "database_name": null,
+      "date": "2026-11-10T11:01:10.181879Z",
+      "ddsource": "metabase",
+      "entity_description": "Daily orders, revenue and refunds of the storefront.",
+      "entity_display_name": null,
+      "entity_id": 11,
+      "entity_name": "Orders overview",
+      "entity_qualified_id": "dashboard_11",
+      "entity_type": "dashboard",
+      "host": "shop-analytics.metabaseapp.com",
+      "id": 12,
+      "message": "Sam Rivera viewed dashboard Orders overview",
+      "service": "view-logs",
+      "status": "info",
+      "timestamp": "2026-11-10T11:01:10.181879Z",
+      "user_id": 2,
+      "user_type": "personal",
+      "usr": {
+        "email": "sam.rivera@example.com",
+        "id": 2,
+        "name": "Sam Rivera"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c522-9b70-787e-80a3-5ace4497512e"
+      },
+      "database_description": "The storefront's order and inventory data.",
+      "database_name": "Shop Warehouse",
+      "date": "2026-11-10T11:05:42.000000Z",
+      "ddsource": "metabase",
+      "entity_description": "One row per order placed on the storefront.",
+      "entity_display_name": "Orders",
+      "entity_id": 5,
+      "entity_name": "orders",
+      "entity_qualified_id": "table_5",
+      "entity_type": "table",
+      "host": "shop-analytics.metabaseapp.com",
+      "id": 13,
+      "message": "Sam Rivera viewed table Orders",
+      "service": "view-logs",
+      "status": "info",
+      "timestamp": "2026-11-10T11:05:42.000000Z",
+      "user_id": 2,
+      "user_type": "personal",
+      "usr": {
+        "email": "sam.rivera@example.com",
+        "id": 2,
+        "name": "Sam Rivera"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794308742000,
+        "seen": [
+          {
+            "id": "07f89507b4ba0dbd",
+            "t": 1794308742000
+          }
+        ]
+      }
+    }
+  }
+}
