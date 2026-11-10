@@ -1,0 +1,249 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Idira Endpoint Privilege Manager by Palo Alto Networks (formerly CyberArk EPM): the raw events and policy audit
+# events of every set, the set admins' audit and the account admins' audit, read from EPM's REST API, as the logs
+# Datadog's integration sends (source:idira-endpoint-privilege-manager, the record's fields at the top and
+# vendor.endpoint naming the API: raw-events, policy-audit-events, set-admin-audit-events,
+# account-admin-audit-events). integrations-core's pipeline and four dashboards read them as they are, so this
+# package ships none: saving a connection installs the tile's.
+#
+# EPM's native logon (POST /EPM/API/Auth/EPM/Logon on the region's dispatcher) answers a session token and the
+# account's ManagerURL; every later call goes to that URL with `Authorization: basic <token>`.
+schema_version: 1
+id: idira-endpoint-privilege-manager
+name: Idira Endpoint Privilege Manager
+publisher: ObserveCraft
+vendor: Palo Alto Networks
+description: >-
+  Endpoint Privilege Manager's raw events (elevations, blocks, launches, just-in-time access) and policy audit events
+  of every set, and its set and account admin audits, read from EPM's REST API as logs.
+tiles: [idira-endpoint-privilege-manager]
+categories: [Log Collection, Security]
+docs_url: https://docs.cyberark.com/epm/latest/en/content/webservices/webservicesintro.htm
+setup: |
+  1. In EPM, open **Administration → Account Configuration → User Management** and add a local EPM user for
+     ObserveCraft, e.g. `observecraft@example.com` (EPM authentication, not SAML).
+  2. Give it the **Account Admin – View Only** account role, and **View Only Set Admin** on each set to read.
+  3. Choose the region of your EPM account; ObserveCraft logs on there and follows the account's manager URL.
+instance: "{{ config.username }}"
+
+tables:
+  # The EPM dispatcher of each region (the logon host).
+  dispatchers:
+    usa: login.epm.cyberark.com
+    germany: eu.epm.cyberark.com
+    switzerland: ch.epm.cyberark.com
+    uk: uk.epm.cyberark.com
+    australia: au.epm.cyberark.com
+    canada: ca.epm.cyberark.com
+    india: in.epm.cyberark.com
+    japan: jp.epm.cyberark.com
+    singapore: sg.epm.cyberark.com
+    italy: it.epm.cyberark.com
+    uae: ae.epm.cyberark.com
+    federal: login.epm.cyberarkgov.com
+
+config:
+  - key: region
+    label: EPM account region
+    type: select
+    required: true
+    default: usa
+    options:
+      - { value: usa, label: USA }
+      - { value: germany, label: Germany }
+      - { value: switzerland, label: Switzerland }
+      - { value: uk, label: UK }
+      - { value: australia, label: Australia }
+      - { value: canada, label: Canada }
+      - { value: india, label: India }
+      - { value: japan, label: Japan }
+      - { value: singapore, label: Singapore }
+      - { value: italy, label: Italy }
+      - { value: uae, label: UAE }
+      - { value: federal, label: Federal }
+  - key: username
+    label: Username
+    type: string
+    required: true
+    placeholder: observecraft@example.com
+  - key: password
+    label: Password
+    type: string
+    secret: true
+    required: true
+  - key: set_ids
+    label: Sets
+    type: list
+    help: Set IDs to read; leave empty to read every set the user can see.
+
+auth:
+  kind: token_exchange
+  request:
+    method: POST
+    url: "https://{{ tables.dispatchers[config.region] }}/EPM/API/Auth/EPM/Logon"
+    body:
+      Username: "{{ config.username }}"
+      Password: "{{ secrets.password }}"
+      ApplicationID: ObserveCraft
+  capture:
+    token: "{{ response.EPMAuthenticationResult }}"
+    manager_url: "{{ response.ManagerURL }}"
+  headers:
+    Authorization: "basic {{ auth.token }}"
+  # EPM ends idle sessions after about 20 minutes.
+  ttl: 15m
+
+# EPM limits each API to a few calls a minute per account.
+rate_limit: { requests_per_minute: 20 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: EPM refused the username and password (an EPM-authenticated user is needed, not a SAML one)
+  - status: [403]
+    kind: access_denied
+    message: The EPM user lacks a view-only role (Account Admin – View Only, View Only Set Admin on the sets)
+  - status: [429]
+    kind: throttled
+    message: EPM's per-minute API limit was reached
+
+streams:
+  - id: raw_events
+    name: Raw events
+    description: >-
+      Every raw event of each set as a log (vendor.endpoint:raw-events): eventType, fileName, filePath, userName,
+      computerName, policyName, justification, agentId, arrivalTime, lastEventDate.
+    interval: 5m
+    for_each: &sets "{{ config.set_ids ?? (lookups.sets | keys) }}"
+    lookups: &lookups
+      - name: sets
+        request: { url: "{{ auth.manager_url }}/EPM/API/Sets" }
+        records: "{{ response.Sets }}"
+        key: "{{ record.Id }}"
+        ttl: 1h
+    request:
+      method: POST
+      url: "{{ auth.manager_url }}/EPM/API/Sets/{{ item }}/Events/Search"
+      query: { limit: 1000, nextCursor: "{{ page.cursor }}" }
+      body:
+        filter: "arrivalTime GE {{ window.start | rfc3339 }} AND arrivalTime LE {{ window.end | rfc3339 }}"
+    records: "{{ response.events }}"
+    pagination: { kind: cursor, next: "{{ response.nextCursor }}" }
+    record_id: "{{ record.eventId ?? null }}"
+    incremental: &arrival
+      kind: time
+      # When EPM received it: agents upload late, so their own times can be far behind.
+      record_time: "{{ record.arrivalTime }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+      settle: 1m
+    output:
+      logs:
+        message: "{{ record.eventType }}: {{ record.fileName ?? record.displayName }} by {{ record.userName }} on {{ record.computerName }}"
+        date: "{{ record.lastEventDate ?? record.arrivalTime }}"
+        attributes: "{{ record + {vendor: {endpoint: 'raw-events'}} }}"
+
+  - id: policy_audit_events
+    name: Policy audit events
+    description: >-
+      Every policy audit event of each set as a log (vendor.endpoint:policy-audit-events): policyName, policyAction,
+      fileName, userName, computerName, justification, arrivalTime.
+    interval: 5m
+    for_each: *sets
+    lookups: *lookups
+    request:
+      method: POST
+      url: "{{ auth.manager_url }}/EPM/API/Sets/{{ item }}/policyaudits/search"
+      query: { limit: 1000, nextCursor: "{{ page.cursor }}" }
+      body:
+        filter: "arrivalTime GE {{ window.start | rfc3339 }} AND arrivalTime LE {{ window.end | rfc3339 }}"
+    records: "{{ response.events }}"
+    pagination: { kind: cursor, next: "{{ response.nextCursor }}" }
+    record_id: "{{ record.eventId ?? null }}"
+    incremental: *arrival
+    output:
+      logs:
+        message: "{{ record.policyName }}: {{ record.policyAction ?? 'audit' }} {{ record.fileName ?? record.displayName }} by {{ record.userName }} on {{ record.computerName }}"
+        status: "{{ record.policyAction == 'Block' ? 'warn' : 'info' }}"
+        date: "{{ record.lastEventDate ?? record.arrivalTime }}"
+        attributes: "{{ record + {vendor: {endpoint: 'policy-audit-events'}} }}"
+
+  - id: set_admin_audit
+    name: Set admin audit
+    description: >-
+      What the admins of each set did, as logs (vendor.endpoint:set-admin-audit-events): Administrator, Role,
+      Feature, Description, LoggedFrom, SetName, EventTime.
+    interval: 10m
+    for_each: *sets
+    lookups: *lookups
+    request:
+      url: "{{ auth.manager_url }}/EPM/API/Sets/{{ item }}/AdminAudit"
+      query:
+        DateFrom: "{{ window.start | rfc3339 }}"
+        DateTo: "{{ window.end | rfc3339 }}"
+        limit: 500
+        offset: "{{ page.offset }}"
+    records: "{{ response.AdminAudits }}"
+    pagination: { kind: offset, size: 500, total: "{{ response.TotalCount }}" }
+    record_id: "{{ item + ':' + record.EventTime + ':' + record.InternalSessionId + ':' + record.Description }}"
+    incremental: &audit
+      kind: time
+      record_time: "{{ record.EventTime }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        message: "{{ record.Description }}"
+        date: "{{ record.EventTime }}"
+        attributes: "{{ record + {SetName: record.SetName ?? lookups.sets[item].Name, vendor: {endpoint: 'set-admin-audit-events'}} }}"
+
+  - id: account_admin_audit
+    name: Account admin audit
+    description: >-
+      What the account's admins did, as logs (vendor.endpoint:account-admin-audit-events): Administrator, Role,
+      Feature, Description, LoggedFrom, EventTime.
+    interval: 10m
+    request:
+      url: "{{ auth.manager_url }}/EPM/API/Account/AdminAudit"
+      query:
+        DateFrom: "{{ window.start | rfc3339 }}"
+        DateTo: "{{ window.end | rfc3339 }}"
+        limit: 500
+        offset: "{{ page.offset }}"
+    records: "{{ response.AdminAudits }}"
+    pagination: { kind: offset, size: 500, total: "{{ response.TotalCount }}" }
+    record_id: "{{ record.EventTime + ':' + record.InternalSessionId + ':' + record.Description }}"
+    incremental: *audit
+    output:
+      logs:
+        message: "{{ record.Description }}"
+        date: "{{ record.EventTime }}"
+        attributes: "{{ record + {vendor: {endpoint: 'account-admin-audit-events'}} }}"
+
+test:
+  request: { url: "{{ auth.manager_url }}/EPM/API/Sets" }
+  success: "{{ response.Sets }}"
+  message: "Connected to {{ auth.manager_url | host }}: {{ response.Sets | len }} sets"
+
+mock:
+  config: { region: germany, username: observecraft@example.com }
+  secrets: { password: epm-test-password }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://eu.epm.cyberark.com/EPM/API/Auth/EPM/Logon", body_contains: observecraft@example.com, body: { IsPasswordExpired: false, ManagerURL: "https://eu112.epm.cyberark.com", EPMAuthenticationResult: "c2Vzc2lvbi10ZXN0LXRva2Vu" } }
+    - { url: "https://eu112.epm.cyberark.com/EPM/API/Sets", file: fixtures/sets.json }
+    - { method: POST, url: "https://eu112.epm.cyberark.com/EPM/API/Sets/8f1d0000-0000-4000-8000-000000000001/Events/Search", file: fixtures/events-workstations.json }
+    - { method: POST, url: "https://eu112.epm.cyberark.com/EPM/API/Sets/8f1d0000-0000-4000-8000-000000000002/Events/Search", body: { nextCursor: null, events: [] } }
+    - { method: POST, url: "https://eu112.epm.cyberark.com/EPM/API/Sets/8f1d0000-0000-4000-8000-000000000001/policyaudits/search", file: fixtures/policyaudits-workstations.json }
+    - { method: POST, url: "https://eu112.epm.cyberark.com/EPM/API/Sets/8f1d0000-0000-4000-8000-000000000002/policyaudits/search", body: { nextCursor: null, events: [] } }
+    - { url: "https://eu112.epm.cyberark.com/EPM/API/Sets/8f1d0000-0000-4000-8000-000000000001/AdminAudit", body: { AdminAudits: [], TotalCount: 0 } }
+    - { url: "https://eu112.epm.cyberark.com/EPM/API/Sets/8f1d0000-0000-4000-8000-000000000002/AdminAudit", file: fixtures/adminaudit-servers.json }
+    - { url: "https://eu112.epm.cyberark.com/EPM/API/Account/AdminAudit", file: fixtures/account-adminaudit.json }
+  expect:
+    raw_events: { records: 2, logs: 2, rerun: 0, golden: fixtures/raw_events.expected.json }
+    policy_audit_events: { records: 1, logs: 1, rerun: 0, golden: fixtures/policy_audit_events.expected.json }
+    set_admin_audit: { records: 2, logs: 2, rerun: 0, golden: fixtures/set_admin_audit.expected.json }
+    account_admin_audit: { records: 1, logs: 1, rerun: 0, golden: fixtures/account_admin_audit.expected.json }
+    test: { ok: true, message: "2 sets" }

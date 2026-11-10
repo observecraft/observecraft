@@ -1,0 +1,61 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e5-3a41-7d7a-a619-0deb052763cb"
+      },
+      "accessTargetType": "Internet",
+      "agentEventCount": 1,
+      "agentId": "9dbcb1f8-0000-4000-8000-000000000001",
+      "arrivalTime": "2026-11-10T09:58:39.425Z",
+      "company": "Microsoft Corporation",
+      "computerName": "STORE-LT-0017",
+      "date": "2026-11-10T09:58:39.425Z",
+      "ddsource": "idira-endpoint-privilege-manager",
+      "displayName": "regedit.exe",
+      "eventCount": 1,
+      "eventId": "7c7c7c7c-0000-4000-8000-00000000e003",
+      "eventType": "Launch",
+      "fileName": "regedit.exe",
+      "filePath": "C:\\Windows\\regedit.exe",
+      "fileVersion": "10.0.22621.1",
+      "firstEventDate": "2026-11-10T09:58:39.425Z",
+      "host": "observecraft@example.com",
+      "justification": "",
+      "justificationType": 0,
+      "lastEventDate": "2026-11-10T09:58:39.425Z",
+      "logonAttemptTypeId": 0,
+      "message": "Block registry editor: Block regedit.exe by EXAMPLE\\sam on STORE-LT-0017",
+      "modificationTime": "2026-11-10T09:58:39.425Z",
+      "operatingSystemType": "Windows",
+      "originalFileName": "REGEDIT.EXE",
+      "owner": "BUILTIN\\Administrators",
+      "policyAction": "Block",
+      "policyName": "Block registry editor",
+      "productName": "Microsoft Windows Operating System",
+      "service": "idira-endpoint-privilege-manager",
+      "skippedCount": 0,
+      "status": "warn",
+      "threatProtectionActionId": 0,
+      "userIsAdmin": false,
+      "userName": "EXAMPLE\\sam",
+      "vendor": {
+        "endpoint": "policy-audit-events"
+      },
+      "winEventRecordId": 0
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "8f1d0000-0000-4000-8000-000000000001": {
+        "cursor": 1794311940000
+      },
+      "8f1d0000-0000-4000-8000-000000000002": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}
