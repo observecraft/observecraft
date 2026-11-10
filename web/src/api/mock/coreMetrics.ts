@@ -259,7 +259,7 @@ for (const d of dashboards) {
   for (const v of d.templateVariables) if (v.prefix && v.default && !/[*$]/.test(v.default)) filtered.set(v.prefix, (filtered.get(v.prefix) ?? new Set()).add(v.default));
   // The tags its queries split by or keep (`by {rule}`, `rule:ALL`), so those charts have data too.
   const text = JSON.stringify(d.widgets);
-  for (const [, keys] of text.matchAll(/ by \{([a-z0-9_.,]+)\}/g)) for (const k of keys.split(',')) tags.add(k);
+  for (const [, keys] of text.matchAll(/ by \{([a-z0-9_., ]+)\}/g)) for (const k of keys.split(',')) tags.add(k.trim());
   // Check status widgets split by their group_by tags.
   for (const [, keys] of text.matchAll(/"group_by":\[((?:"[a-z0-9_.]+",?)+)\]/g)) for (const k of keys.split(',')) tags.add(k.slice(1, -1));
   for (const [, filters] of text.matchAll(/:[a-z][a-z0-9_.]*\{([^}]*)\}/g))
@@ -291,7 +291,7 @@ for (const [logo, tags] of tagsOf) {
 
 /** The metrics a dashboard queries; a percentile of a distribution (`p95:m{…}`) is the engine's `m.p95` series. */
 const queried = (d: Dashboard) =>
-  [...JSON.stringify(d.widgets).matchAll(/(?<![\w.])([a-z]+|p\d{1,2}(?:\.\d+)?):([a-z][a-z0-9_]*\.[A-Za-z0-9_.]+)\{([^}]*)\}(?: by \{([a-z0-9_.,]+)\})?/g)].map(([, agg, metric, filters, by]) => ({
+  [...JSON.stringify(d.widgets).matchAll(/(?<![\w.])([a-z]+|p\d{1,2}(?:\.\d+)?):([a-z][a-z0-9_]*\.[A-Za-z0-9_.]+)\{([^}]*)\}(?: by \{([a-z0-9_., ]+)\})?/g)].map(([, agg, metric, filters, by]) => ({
     metric: /^p\d/.test(agg) ? `${metric}.${agg}` : metric,
     base: metric,
     filters,
@@ -328,7 +328,7 @@ for (const d of dashboards)
   for (const { metric, filters, by } of queried(d)) {
     const keys = keysOf.get(metric) ?? new Set(['host', ...d.templateVariables.flatMap((v) => (v.prefix ? [v.prefix] : []))]);
     for (const f of filterTerms(filters)) if (/^!?[a-z][a-z0-9_]*:/.test(f)) keys.add(f.replace(/^!/, '').split(':')[0]);
-    for (const k of by?.split(',') ?? []) keys.add(k);
+    for (const k of by?.split(',') ?? []) keys.add(k.trim());
     keysOf.set(metric, keys);
   }
 for (const [metric, def] of Object.entries(CORE_METRICS)) {

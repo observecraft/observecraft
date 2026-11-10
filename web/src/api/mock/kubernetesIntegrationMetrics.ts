@@ -6,6 +6,9 @@ type Tags = Record<string, string>;
 type Rand = () => number;
 type Override = { base: (e: Tags, r: Rand) => number; noise: number; integer?: boolean; max?: number };
 
+const HOSTS = ['i-0a1b2c3d4e5f60001', 'i-0a1b2c3d4e5f60002', 'i-0a1b2c3d4e5f60003', 'i-0a1b2c3d4e5f60006'];
+const CLUSTER = ['shop-prod-eks', 'shop-prod-eks', 'shop-prod-eks', 'shop-qa-eks'];
+
 /** A value between `lo` and `hi` per instance, varying by `noise`. */
 const between = (lo: number, hi: number, noise = 0.15, integer = false): Override => ({ base: (_e, r) => lo + r() * (hi - lo), noise, ...(integer ? { integer } : {}) });
 /** Always `v` (versions, info gauges, configured limits). */
@@ -13,10 +16,33 @@ const fixed = (v: number): Override => ({ base: () => v, noise: 0, integer: Numb
 /** Usually 0, sometimes up to `hi` (errors, retries, restarts). */
 const rare = (hi: number, share = 0.25): Override => ({ base: (_e, r) => (r() < share ? 1 + r() * (hi - 1) : 0), noise: 0.6, integer: true });
 
+/** The control plane's tags (kube-apiserver, kube-scheduler, kube-controller-manager). */
+const CONTROL_PLANE = {
+  kube_cluster_name: CLUSTER,
+  pod_name: ['kube-apiserver-ip-10-0-1-10', 'kube-apiserver-ip-10-0-2-10', 'kube-apiserver-ip-10-0-3-10', 'kube-apiserver-ip-10-0-1-10'],
+  code: ['200', '201', '200', '404'],
+  method: ['GET', 'PUT', 'PATCH', 'POST'],
+  verb: ['list', 'get', 'watch', 'patch'],
+};
+
 export const INFRA_VALUES: Record<string, Record<string, string[]>> = {
   'nginx-ingress-controller': {
     state: ['active', 'reading', 'writing', 'waiting'],
     controller_pod: ['ingress-nginx-controller-7c9d8b6f5-4qmzx', 'ingress-nginx-controller-7c9d8b6f5-8hjkt', 'ingress-nginx-controller-7c9d8b6f5-r2vnc', 'ingress-nginx-controller-5b8f7d9c4-x7lpw'],
+  },
+  'kube-apiserver-metrics': {
+    ...CONTROL_PLANE,
+    verb: ['LIST', 'GET', 'WATCH', 'PATCH'],
+    kind: ['Pod', 'ConfigMap', 'Lease', 'EndpointSlice'],
+    resource: ['pods', 'configmaps', 'leases', 'events'],
+    scope: ['cluster', 'namespace', 'resource', 'namespace'],
+    grpc_code: ['OK', 'OK', 'OK', 'Canceled'],
+    grpc_service: ['etcdserverpb.KV', 'etcdserverpb.Watch', 'etcdserverpb.Lease', 'etcdserverpb.KV'],
+    grpc_method: ['Range', 'Watch', 'LeaseKeepAlive', 'Txn'],
+    name: ['SidecarContainers', 'InPlacePodVerticalScaling', 'JobPodReplacementPolicy', 'DynamicResourceAllocation'],
+    stage: ['BETA', 'ALPHA', 'BETA', 'ALPHA'],
+    kube_namespace: ['kube-system', 'keda', 'kube-system', 'keda'],
+    apiservice_name: ['v1beta1.metrics.k8s.io', 'v1beta1.external.metrics.k8s.io', 'v1beta1.metrics.k8s.io', 'v1beta1.external.metrics.k8s.io'],
   },
 };
 
@@ -32,4 +58,62 @@ export const INFRA_OVERRIDES: Record<string, Override> = {
   'nginx_ingress.controller.mem.resident': between(60e6, 140e6, 0.05),
   'nginx_ingress.controller.mem.virtual': between(760e6, 1.3e9, 0.02),
   'nginx_ingress.controller.reload.success': rare(2, 0.1),
+  'kube_apiserver.registered_watchers': between(5, 180, 0.05, true),
+  'kube_apiserver.process_virtual_memory_bytes': between(1.6e9, 2.1e9, 0.01),
+  'kube_apiserver.process_resident_memory_bytes': between(650e6, 1.2e9, 0.03),
+  'kube_apiserver.audit_event.count': between(40, 260, 0.25),
+  'kube_apiserver.aggregator_unavailable_apiservice': fixed(0),
+  'kube_apiserver.rest_client_requests_total.count': between(2, 40, 0.3),
+  'kube_apiserver.storage_objects': between(40, 900, 0.01, true),
+  'kube_apiserver.go_threads': between(18, 32, 0.05, true),
+  'kube_apiserver.go_goroutines': between(2200, 5200, 0.05, true),
+  'kube_apiserver.apiserver_request_total.count': between(15, 320, 0.25),
+  'kube_apiserver.current_inflight_requests': between(1, 12, 0.5, true),
+  'kube_apiserver.longrunning_gauge': between(40, 380, 0.05, true),
+  'kube_apiserver.grpc_client_handled_total': between(20, 400, 0.25),
+  'kube_apiserver.apiserver_admission_webhook_fail_open_count.count': rare(3, 0.1),
+  'kube_apiserver.admission_webhook_admission_latencies_seconds.sum': between(0.02, 0.25, 0.3),
+  // On for the beta gates, off for the alpha ones.
+  'kube_apiserver.kubernetes_feature_enabled': { base: (e) => (e.stage === 'ALPHA' ? 0 : 1), noise: 0, integer: true },
+};
+
+/** Pods of the Kubernetes integrations whose dashboards chart their containers (`short_image:kube-apiserver`,
+ * Istio's `short_image:pilot`): the control plane's static pods and Istio's, on the demo's clusters.
+ * [short image, container, namespace, pods, CPU request (cores), CPU used (millicores), memory request and used (MiB)]. */
+const INFRA_CONTAINERS: [image: string, container: string, namespace: string, pods: string[], cpu: number, used: number, memory: number, rss: number][] = [
+  ['kube-apiserver', 'kube-apiserver', 'kube-system', ['kube-apiserver-ip-10-0-1-10', 'kube-apiserver-ip-10-0-2-10', 'kube-apiserver-ip-10-0-3-10'], 0.25, 420, 512, 1400],
+  ['kube-scheduler', 'kube-scheduler', 'kube-system', ['kube-scheduler-ip-10-0-1-10', 'kube-scheduler-ip-10-0-2-10', 'kube-scheduler-ip-10-0-3-10'], 0.1, 18, 64, 90],
+  [
+    'kube-controller-manager',
+    'kube-controller-manager',
+    'kube-system',
+    ['kube-controller-manager-ip-10-0-1-10', 'kube-controller-manager-ip-10-0-2-10', 'kube-controller-manager-ip-10-0-3-10'],
+    0.2,
+    65,
+    128,
+    210,
+  ],
+  ['pilot', 'discovery', 'istio-system', ['istiod-7d9c6b5f4-2xkqp', 'istiod-7d9c6b5f4-9tmwz'], 0.5, 140, 2048, 420],
+  ['proxyv2', 'istio-proxy', 'storefront', ['storefront-api-6f8b9c7d5-4kzxq', 'order-service-5c7d8b6f9-h2lmn', 'billing-7b6c5d4f8-p9wvx', 'catalog-service-84f7c6d59-tq3rs'], 0.1, 35, 128, 80],
+];
+export const INFRA_PODS: Tags[] = INFRA_CONTAINERS.flatMap(([image, container, namespace, pods]) =>
+  pods.map((pod, i) => ({
+    short_image: image,
+    kube_container_name: container,
+    container_name: container,
+    kube_namespace: namespace,
+    pod_name: pod,
+    host: HOSTS[i % HOSTS.length],
+    kube_cluster_name: CLUSTER[i % 3],
+    cluster_name: CLUSTER[i % 3],
+  })),
+);
+const sizes = (e: Tags) => INFRA_CONTAINERS.find(([image]) => image === e.short_image);
+/** Their Kubernetes container metrics (the mock engine's `kubernetes.*` on its deployments, these pods added). */
+export const INFRA_POD_VALUES: Record<string, (e: Tags, r: () => number) => number | undefined> = {
+  'kubernetes.cpu.requests': (e) => sizes(e)?.[4],
+  'kubernetes.cpu.usage.total': (e, r) => (sizes(e)?.[5] ?? 0) * (0.8 + r() * 0.4),
+  'kubernetes.memory.requests': (e) => sizes(e)?.[6],
+  'kubernetes.memory.usage': (e, r) => (sizes(e)?.[7] ?? 0) * (0.9 + r() * 0.2),
+  'kubernetes.containers.running': () => 1,
 };

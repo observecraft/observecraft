@@ -16,6 +16,7 @@ import { NETBIRD_METRICS, NETBIRD_SETS } from './netbirdMetrics';
 import { FLEETDM_METRICS, FLEETDM_SETS } from './fleetdmMetrics';
 import { OBSERVECRAFT_METRICS, OBSERVECRAFT_PODS, OBSERVECRAFT_SETS } from './observecraftMetrics';
 import { CORE_METRICS, CORE_SETS } from './coreMetrics';
+import { INFRA_POD_VALUES, INFRA_PODS } from './kubernetesIntegrationMetrics';
 
 type Tags = Record<string, string>;
 
@@ -258,6 +259,11 @@ const METRICS: Record<string, MetricDef> = {
     integer: false,
   },
 };
+// The Kubernetes integrations' pods (control plane, Istio) next to the deployments, for their dashboards' container charts.
+for (const [metric, value] of Object.entries(INFRA_POD_VALUES)) {
+  const d = METRICS[metric];
+  METRICS[metric] = { ...d, entities: [...(d.entities ?? SETS[d.set]), ...INFRA_PODS], base: (e, r) => (INFRA_PODS.includes(e) ? (value(e, r) ?? 0) : d.base(e, r)) };
+}
 
 // ---------------------------------------------------------------- generated metrics (mock/logMetrics.ts)
 

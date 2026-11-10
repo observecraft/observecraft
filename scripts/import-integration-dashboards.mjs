@@ -339,6 +339,7 @@ const MOCK_INTEGRATIONS = [
   'strimzi',
   'confluent-platform',
   'nginx-ingress-controller',
+  'kube-apiserver-metrics',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */

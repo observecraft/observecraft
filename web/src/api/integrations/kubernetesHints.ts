@@ -62,6 +62,22 @@ export function clusterCheckValues(check: string, instance: object, extra = ''):
   return `clusterChecksRunner:\n  enabled: true\n${extra}clusterAgent:\n  confd:\n    ${check}.yaml: |\n${indent(body, 6)}`;
 }
 
+/** Plain data as YAML (objects, lists, strings, numbers, booleans), indented by `pad`. */
+function toYaml(v: unknown, pad = ''): string {
+  if (Array.isArray(v)) return v.map((x) => `${pad}- ${toYaml(x, `${pad}  `).trimStart()}`).join('\n');
+  if (v && typeof v === 'object')
+    return Object.entries(v)
+      .map(([k, x]) => (x && typeof x === 'object' && Object.keys(x).length ? `${pad}${k}:\n${toYaml(x, `${pad}  `)}` : `${pad}${k}: ${x && typeof x === 'object' ? '{}' : toYaml(x)}`))
+      .join('\n');
+  return typeof v === 'string' ? JSON.stringify(v) : String(v);
+}
+
+/** A cluster check in the Datadog Helm chart's values: the Cluster Agent runs it against a Service's endpoints. */
+export function endpointsClusterCheck(check: string, service: { name: string; namespace: string }, instances: object[], init_config: object = {}): string {
+  const config = toYaml({ advanced_ad_identifiers: [{ kube_endpoints: service }], cluster_check: true, init_config, instances }, '      ');
+  return `clusterAgent:\n  confd:\n    ${check}.yaml: |-\n${config}`;
+}
+
 /** Reading a password from a Kubernetes secret: the Agent's secret backend (`ENC[k8s_secret@namespace/name/key]`). */
 const SECRET_NOTE =
   'The password is read from a Kubernetes secret by the Agent’s secret backend: set `datadog.secretBackend.command: /readsecret_multiple_providers.sh` in the Datadog chart’s values (it lets the Agent read secrets; `datadog.secretBackend.roles` narrows that to the ones named).';
@@ -429,6 +445,17 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
           checkAnnotation('controller', 'nginx_ingress_controller', { instances: [{ prometheus_url: 'http://%%host%%:10254/metrics' }] }),
           logsAnnotation('controller', 'nginx-ingress-controller', 'ingress-nginx'),
         ].join('\n'),
+      },
+    ],
+  },
+  {
+    check: 'kube_apiserver_metrics',
+    variants: [
+      {
+        label: 'Managed control plane (AKS, EKS) or any cluster',
+        text: 'The API server isn’t a pod you can annotate on a managed cluster, but it answers on the `kubernetes` Service in `default`: run the check as a cluster check from the Cluster Agent (`clusterAgent.enabled` and `datadog.clusterChecks.enabled`, the chart’s defaults). The Agent’s service account already may read `/metrics`. Self-managed control planes with static `kube-apiserver` pods are found by the Agent by itself.',
+        filename: CLUSTER_CHECK_VALUES,
+        code: endpointsClusterCheck('kube_apiserver_metrics', { name: 'kubernetes', namespace: 'default' }, [{ prometheus_url: 'https://%%host%%:%%port%%/metrics', bearer_token_auth: true }]),
       },
     ],
   },

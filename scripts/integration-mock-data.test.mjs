@@ -77,6 +77,7 @@ for (const title of [
   'Strimzi Overview',
   'Confluent Platform Overview',
   'Kubernetes NGINX Ingress Controller - Overview',
+  'Kubernetes API Server Overview',
 ]) {
   test(`every widget of ${title} has data in mock mode`, async () => {
     const d = mock.dashboards.find((x) => x.title === title);
