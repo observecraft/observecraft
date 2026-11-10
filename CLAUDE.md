@@ -59,14 +59,17 @@ or SDK features.
   - metrics `/api/v1/series` and `/api/v2/series` (JSON and protobuf);
   - distributions `/api/beta/sketches`, stored as exponential histograms;
   - service checks `/api/v1/check_run` and `/api/v2/service_checks`, stored as the `service_check.status` gauge;
-  - logs `/api/v2/logs`;
+  - logs `/api/v2/logs` (its `ddsource`, `service`, `hostname` and `ddtags` query parameters apply to every log, for
+    vendors' webhooks, `log_query.rs`);
   - APM `/api/v0.2/traces` (legacy and idx payloads), plus `/api/v0.2/stats`, which is acknowledged;
   - profiles `/api/v2/profile`, forwarded to the server and stored in `otel.profiles` (APM → Profiles);
   - Code Security: the tracers' telemetry `/api/v2/apmtelemetry` (via the Agent; libraries services load) and
     `datadog-ci sarif upload` `/api/v2/cicodescan`, forwarded to the server (`code_security.rs`, Postgres `cs_*`);
     `datadog-ci sbom upload` goes to the management API (`/api/v2/static-analysis-sca/dependencies`); IAST findings
     are read from the spans' `_dd.iast.json`; advisories come from OSV.dev (`OC_OSV_URL`);
-  - events `/api/v1/events`, `/api/v2/events` and the events inside `/intake/`, stored in `otel.otel_events`;
+  - events `/api/v1/events`, `/api/v2/events` and the events inside `/intake/`, stored in `otel.otel_events`; vendors'
+    alert webhooks `/intake/webhook/<name>?api_key=` (SolarWinds, Alertmanager, Zabbix, else generic) become events
+    too (`datadog_webhooks.rs`);
   - RUM events of the browser and mobile SDKs `/api/v2/rum` (with the application's client token `pub…`, or through
     the SDK's `proxy` option as `?ddforward=`), stored in `otel.otel_rum` (`datadog_rum.rs`); applications are
     `datadog_rum_application` (`datadog_api/rum.rs`, `routes/rum.rs`); Product Analytics reads the same events

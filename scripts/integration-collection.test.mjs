@@ -28,6 +28,8 @@ test('an unavailable tile says why in one line', () => {
 
 test('a webhook posts its logs to the intake with the ingest key and its log source', () => {
   assert.equal(webhookUrl('https://intake.example.com:4318/', 'adyen'), 'https://intake.example.com:4318/api/v2/logs?dd-api-key=<INGEST_API_KEY>&ddsource=adyen');
+  // Alerts Datadog makes events of post to the intake's event webhook instead.
+  assert.equal(webhookUrl('https://intake.example.com', 'solarwinds'), 'https://intake.example.com/intake/webhook/solarwinds?api_key=<INGEST_API_KEY>');
 });
 
 test('tiles that ObserveCraft covers with its own integration link to it', () => {

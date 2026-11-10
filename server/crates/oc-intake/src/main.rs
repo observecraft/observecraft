@@ -8,7 +8,8 @@
 //!
 //! - `POST /v1/traces | /v1/logs | /v1/metrics`  OTLP/HTTP (protobuf or JSON, optionally gzip) → Collector
 //! - OTLP/gRPC on OC_INTAKE_GRPC_ADDR             the same three services (passed through undecoded) → Collector
-//! - `POST /api/v2/logs`                         JSON log events (object or array; Datadog's format) → Vector
+//! - `POST /api/v2/logs`                         JSON log events (object or array; Datadog's format) → Vector;
+//!   `?ddsource=&service=&hostname=&ddtags=` apply to every log (webhooks, `log_query`)
 //! - `POST /api/v2/secruntime`, `/api/v2/secinfo` the Agent's runtime security events (Workload Protection), as logs
 //! - `POST /api/v2/series`, `/api/v1/series`     Datadog metrics (JSON or the Agent's protobuf) → OTLP → Collector
 //! - `POST /api/beta/sketches`                   Datadog distribution metrics (DDSketch) → OTLP exponential histograms
@@ -25,6 +26,7 @@
 //! - `POST /intake/`, `/api/v2/host_metadata`   Datadog Agent host metadata → Postgres `datadog_hosts`; its events → events.
 //!   Its host tags are added to that host's series, sketches and service checks (see `host_tags`)
 //! - `POST /api/v1/events`, `/api/v2/events`     Datadog events (API, Agent) → otel.otel_events
+//! - `POST /intake/webhook/{name}`               vendors' alert webhooks (SolarWinds, Alertmanager, Zabbix) → events
 //! - `POST /api/v2/rum`                          RUM events of the browser and mobile SDKs (client token `pub…`) → otel.otel_rum
 //! - `POST /api/v2/replay`                       Session Replay segments of the browser SDK (multipart) → otel.otel_rum_replay
 //! - `POST /api/v2/service_checks`               the Agent's service checks (as `/api/v1/check_run`)
@@ -63,10 +65,12 @@ mod datadog_replay;
 mod datadog_rum;
 mod datadog_sbom;
 mod datadog_tags;
+mod datadog_webhooks;
 mod grpc;
 mod host_tags;
 mod kafka;
 mod log_identity;
+mod log_query;
 mod otlp_log_identity;
 mod metric_rules;
 mod ofrep;
@@ -80,7 +84,7 @@ use std::time::{Duration, Instant};
 use anyhow::Context;
 use axum::body::Bytes;
 use kafka::Sink;
-use axum::extract::{DefaultBodyLimit, State};
+use axum::extract::{DefaultBodyLimit, RawQuery, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -533,9 +537,14 @@ async fn forward(st: Shared, headers: HeaderMap, body: Bytes, target: Sink) -> R
         Ok(org) => org,
         Err(r) => return r.into_response(),
     };
+    forward_admitted(&st, &org, &headers, body, target).await
+}
+
+/// [`forward`] for a request already admitted.
+async fn forward_admitted(st: &Shared, org: &KeyOrg, headers: &HeaderMap, body: Bytes, target: Sink) -> Response {
     match send(
-        &st,
-        &org,
+        st,
+        org,
         target,
         headers.get(header::CONTENT_TYPE),
         headers.get(header::CONTENT_ENCODING),
@@ -682,8 +691,25 @@ async fn otlp_logs(State(st): State<Shared>, headers: HeaderMap, body: Bytes) ->
     forward(st, headers, body, Sink::Logs).await
 }
 
-async fn json_logs(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
-    forward(st, headers, body, Sink::JsonLogs).await
+/// `POST /api/v2/logs`: JSON logs; `ddsource`, `service`, `hostname` and `ddtags` in the query string apply to
+/// every log of the body (`log_query`), as on Datadog's intake.
+async fn json_logs(State(st): State<Shared>, RawQuery(query): RawQuery, mut headers: HeaderMap, body: Bytes) -> Response {
+    let defaults = log_query::LogDefaults::from_query(query.as_deref());
+    if defaults.is_empty() {
+        return forward(st, headers, body, Sink::JsonLogs).await;
+    }
+    let org = match admit(&st, &headers, body.len()).await {
+        Ok(org) => org,
+        Err(r) => return r.into_response(),
+    };
+    let applied = datadog::inflate(&headers, &body).map_err(|_| "cannot decompress body").and_then(|raw| defaults.apply(&raw));
+    match applied {
+        Ok(body) => {
+            headers.remove(header::CONTENT_ENCODING);
+            forward_admitted(&st, &org, &headers, Bytes::from(body), Sink::JsonLogs).await
+        }
+        Err(message) => reject(StatusCode::BAD_REQUEST, message),
+    }
 }
 
 /// Datadog clients may pass the key in the query string (`?api_key=…` or `?dd-api-key=…`, e.g. the
@@ -814,6 +840,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/check_run", post(datadog::check_run))
         .route("/api/v1/metadata", post(datadog::metadata))
         .route("/intake/", post(datadog::intake))
+        .route("/intake/webhook/{name}", post(datadog_webhooks::post))
         .route("/api/v2/host_metadata", post(datadog::intake))
         .route("/api/v1/events", post(datadog_events::post_v1))
         .route("/api/v2/events", post(datadog_events::post_agent))
@@ -840,6 +867,53 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    /// A webhook posting to `/api/v2/logs?ddsource=…`: its logs reach the pipeline with the query's source,
+    /// service, host and tags, compressed or not; without parameters the body passes as it was.
+    #[tokio::test]
+    async fn log_query_parameters_reach_the_pipeline() {
+        use sha2::{Digest, Sha256};
+        use std::io::Write;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mut cfg = Config::from_env();
+        cfg.logs_url = format!("http://{}/", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            axum::serve(listener, Router::new().route("/", post(|body: Bytes| async move { body }))).await.unwrap();
+        });
+        let st = test_state(cfg);
+        let org = KeyOrg { org_id: "example-org".into(), span_retention_days: 15, metrics_retention_days: 30, metrics_5m_days: 90, metrics_1h_days: 395, flag_environment_id: None, ingest_mbps: None, ingest_rps: None };
+        st.keys.lock().unwrap().insert(Sha256::digest(b"ocik_webhook_test").to_vec(), CachedKey { org: Some(org), at: Instant::now(), touched: Some(Instant::now()) });
+        let mut headers = HeaderMap::new();
+        headers.insert("dd-api-key", HeaderValue::from_static("ocik_webhook_test"));
+        headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        let post = |query: Option<&str>, headers: HeaderMap, body: Vec<u8>| {
+            let st = st.clone();
+            let query = query.map(str::to_string);
+            async move {
+                let res = json_logs(State(st), RawQuery(query), headers, Bytes::from(body)).await;
+                let status = res.status();
+                (status, serde_json::from_slice::<serde_json::Value>(&axum::body::to_bytes(res.into_body(), 1 << 16).await.unwrap()).unwrap_or_default())
+            }
+        };
+        let query = Some("dd-api-key=ocik_webhook_test&ddsource=solarwinds&service=orion&hostname=nms-01&ddtags=env%3Aprod");
+        let (status, got) = post(query, headers.clone(), br#"{"alert_name":"Node down","host":"core-sw-01"}"#.to_vec()).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!((&got["ddsource"], &got["service"], &got["hostname"], &got["ddtags"], &got["alert_name"]), (&serde_json::json!("solarwinds"), &serde_json::json!("orion"), &serde_json::json!("nms-01"), &serde_json::json!("env:prod"), &serde_json::json!("Node down")));
+        assert!(got["_oc_ingest"]["id"].is_string(), "stamped as any JSON log");
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gzip.write_all(br#"[{"message":"a"},{"message":"b","ddsource":"own"}]"#).unwrap();
+        let mut gz_headers = headers.clone();
+        gz_headers.insert(header::CONTENT_ENCODING, HeaderValue::from_static("gzip"));
+        let (status, got) = post(query, gz_headers, gzip.finish().unwrap()).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!((&got[0]["ddsource"], &got[1]["ddsource"]), (&serde_json::json!("solarwinds"), &serde_json::json!("own")));
+        let (_, got) = post(Some("api_key=ocik_webhook_test"), headers.clone(), br#"{"message":"plain"}"#.to_vec()).await;
+        assert!(got.get("ddsource").is_none());
+        let (status, _) = post(query, headers.clone(), b"not json".to_vec()).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        let (status, _) = post(query, HeaderMap::new(), br#"{"message":"x"}"#.to_vec()).await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED, "admitted before the body is read");
+    }
 
     /// The Cluster Agent's external recommender call: admitted by its key, forwarded to the server
     /// with the org, and the server's reply (body and status) returned as is.

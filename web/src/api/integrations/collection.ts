@@ -41,9 +41,15 @@ export function unavailableReason(name: string, c: CollectionInfo): string {
   }
 }
 
-/** The intake URL a vendor's webhook posts its events to, as logs with the integration's source. */
+/** Vendors whose alert webhooks Datadog turns into events (`/intake/webhook/<name>`), not logs. */
+const EVENT_WEBHOOKS = new Set(['solarwinds']);
+
+/** The intake URL a vendor's webhook posts to: as logs with the integration's source (the query applies it to every
+ * log), or as events for the alert webhooks Datadog makes events of. */
 export function webhookUrl(intake: string, logSource: string): string {
-  return `${intake.replace(/\/+$/, '')}/api/v2/logs?dd-api-key=<INGEST_API_KEY>&ddsource=${encodeURIComponent(logSource)}`;
+  const base = intake.replace(/\/+$/, '');
+  if (EVENT_WEBHOOKS.has(logSource)) return `${base}/intake/webhook/${logSource}?api_key=<INGEST_API_KEY>`;
+  return `${base}/api/v2/logs?dd-api-key=<INGEST_API_KEY>&ddsource=${encodeURIComponent(logSource)}`;
 }
 
 /** ObserveCraft's own integration pages, for the tiles they cover. */
