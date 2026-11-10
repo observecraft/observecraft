@@ -219,3 +219,59 @@ pub async fn run(st: AppState, runner: Arc<Runner>, concurrency: i64) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cloud::testing::FakeSink;
+    use oc_connectors::replay::MockTransport;
+    use serde_json::{json, Value};
+
+    fn runner(logs: Arc<FakeSink>) -> Runner {
+        let pkg = registry().package("have-i-been-pwned").unwrap();
+        let mock = pkg.package.manifest.mock.as_ref().unwrap();
+        let rt = Arc::new(Runtime::new(Arc::new(MockTransport::new(&pkg.package, mock)), false));
+        Runner { rt, sinks: Sinks { logs, metrics: Arc::new(FakeSink::default()), events: Arc::new(FakeSink::default()) } }
+    }
+
+    /// A run publishes its logs with the org's headers before the state moves; a failed publish keeps the state, so the
+    /// next run sends the same records; a run after a stored one sends nothing new.
+    #[tokio::test]
+    async fn records_are_published_before_the_state_moves() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let a = crate::test_support::admin_of_new_org(st, "connector-runs").await;
+        let input: crate::routes::connectors::ConnectionInput = serde_json::from_value(json!({ "secrets": { "api_key": "hibp-test-key-0000" } })).unwrap();
+        let saved = crate::routes::connectors::create_connection(axum::extract::State(st.clone()), crate::auth::Admin(a.clone()), axum::extract::Path("have-i-been-pwned".into()), axum::Json(input)).await.unwrap().0;
+        let pkg = registry().package("have-i-been-pwned").unwrap();
+        let job = JobKey { provider: "have-i-been-pwned".into(), org_id: a.org_id.clone(), account_id: saved.id.clone(), scope: "breached_accounts".into(), collected_until: None };
+        let now = crate::connectors::runner::tests::mock_now();
+
+        let down = Arc::new(FakeSink { fail: true, ..Default::default() });
+        assert!(matches!(run_job(st, &runner(down), pkg, &job, now).await.unwrap(), Outcome::Failed(i) if i.message.contains("Kafka")));
+        assert_eq!(store::state(st, &a.org_id, &saved.id, "breached_accounts").await.unwrap(), Default::default(), "nothing stored, nothing remembered");
+
+        let sink = Arc::new(FakeSink::default());
+        let outcome = run_job(st, &runner(sink.clone()), pkg, &job, now).await.unwrap();
+        assert!(matches!(outcome, Outcome::Collected { metrics: 4, points: 4, .. }), "{outcome:?}");
+        let records = sink.records.lock().unwrap().clone();
+        assert!(records.iter().all(|(org, headers, _)| org == &a.org_id && headers.contains(&("x-oc-org".to_string(), a.org_id.clone()))));
+        let logs: Vec<Value> = records.iter().flat_map(|(_, _, body)| body.as_array().unwrap().clone()).collect();
+        assert_eq!(logs.len(), 4);
+        assert!(logs.iter().all(|l| l["ddsource"] == "have-i-been-pwned" && l["service"] == "breach"));
+        assert!(!serde_json::to_string(&logs).unwrap().contains("hibp-test-key-0000"), "secrets never reach the logs");
+        let again = Arc::new(FakeSink::default());
+        assert!(matches!(run_job(st, &runner(again.clone()), pkg, &job, now + 3_600_000).await.unwrap(), Outcome::Collected { metrics: 0, .. }));
+        assert!(again.records.lock().unwrap().is_empty());
+
+        // Another org's job for this connection runs nothing.
+        let b = crate::test_support::admin_of_new_org(st, "connector-runs-b").await;
+        let theirs = JobKey { org_id: b.org_id.clone(), ..job.clone() };
+        assert_eq!(run_job(st, &runner(Arc::new(FakeSink::default())), pkg, &theirs, now).await.unwrap(), Outcome::Idle);
+    }
+
+    pub fn mock_now() -> i64 {
+        let pkg = registry().package("have-i-been-pwned").unwrap();
+        oc_connectors::expr::to_ms(&Value::String(pkg.package.manifest.mock.as_ref().unwrap().now.clone())).unwrap()
+    }
+}
