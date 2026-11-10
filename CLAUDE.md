@@ -90,6 +90,10 @@ or SDK features.
   - the Agent's runtime security events `/api/v2/secruntime` and `/api/v2/secinfo` (logs payloads,
     `source:runtime-security-agent`), stored as logs (Workload Protection); its inventory `/api/v1/metadata` in
     `datadog_hosts.agent_inventory`;
+  - connector packages' webhooks `/intake/webhook/<package>` and signed log drains `/api/v2/logs?ddsource=` (signature
+    checked with the org's saved secret, mapped by the package: `connector_push.rs`, `oc-connectors::push`);
+  - Splunk HEC-compatible logs `/services/collector[/event|/raw]` (`Authorization: Splunk <ingest key>`, GitHub's
+    audit log streaming, `splunk_hec.rs`) and Fastly's `/.well-known/fastly/logging/challenge`;
   - `/api/v1/validate`. The API key is also accepted as `?api_key=`.
 - **Management API (server, `server/crates/oc-api/src/routes/datadog_api`):** Datadog's configuration endpoints for
   its Terraform provider and API clients (ADR-0003, `docs/datadog-api.md`), with Datadog's `{"errors": [...]}` shape

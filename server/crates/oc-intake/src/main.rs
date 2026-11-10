@@ -32,6 +32,9 @@
 //! - `POST /api/v2/rum`                          RUM events of the browser and mobile SDKs (client token `pub…`) → otel.otel_rum
 //! - `POST /api/v2/replay`                       Session Replay segments of the browser SDK (multipart) → otel.otel_rum_replay
 //! - `POST /api/v2/service_checks`               the Agent's service checks (as `/api/v1/check_run`)
+//! - `POST /services/collector[/event|/raw]`     Splunk HEC-compatible logs (`Authorization: Splunk <ingest key>`:
+//!   GitHub's audit log streaming, see `splunk_hec`)
+//! - `GET /.well-known/fastly/logging/challenge` Fastly logging endpoints' check (OC_INTAKE_FASTLY_SERVICES, else `*`)
 //! - `POST /ofrep/v1/evaluate/flags[/{key}]`     feature flag evaluation for OpenFeature SDKs (OFREP, see `ofrep`)
 //! - `POST /api/v1/metadata`                     the Agent's inventory (features, configuration) → `datadog_hosts.agent_inventory`;
 //!   other inventories are acknowledged
@@ -51,7 +54,8 @@
 //! OC_INTAKE_SBOM_URL (http://localhost:8090/ingest/sbom),
 //! OC_INTAKE_CODE_SCANS_URL (http://localhost:8090/ingest/code-scans),
 //! OC_INTAKE_FLAG_EVALUATIONS_URL (http://localhost:8090/ingest/feature-flag-evaluations),
-//! OC_INTAKE_CONNECTORS_URL (http://localhost:8090/ingest/connectors), OC_INTERNAL_TOKEN,
+//! OC_INTAKE_CONNECTORS_URL (http://localhost:8090/ingest/connectors), OC_INTAKE_FASTLY_SERVICES (Fastly service ids
+//! allowed by the logging challenge; unset: any), OC_INTERNAL_TOKEN,
 //! OC_INTAKE_MAX_BODY_MB (16), OC_INTAKE_ORG_RPS (500), OC_INTAKE_ORG_MBPS (50),
 //! OC_INTAKE_SERIES_CACHE (6000000 series × hour entries, ~20 bytes each; 0 = no series marking, see `series_cache`).
 //! It must exceed the active series a replica sees: past it, points keep rewriting their series and tags rows.
@@ -81,6 +85,7 @@ mod metric_rules;
 mod ofrep;
 mod otlp;
 mod series_cache;
+mod splunk_hec;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -126,6 +131,8 @@ struct Config {
     autoscaling_url: String,
     /// The server's internal listener for connector packages' push definitions and signing secrets.
     connectors_url: String,
+    /// Fastly service ids whose logging endpoints may send here (`/.well-known/fastly/logging/challenge`); empty: any.
+    fastly_services: Vec<String>,
     /// Bearer token of the server's internal listener (OC_INTERNAL_TOKEN), if it requires one.
     internal_token: Option<String>,
     max_body: usize,
@@ -168,6 +175,7 @@ impl Config {
             code_scans_url: env("OC_INTAKE_CODE_SCANS_URL", "http://localhost:8090/ingest/code-scans"),
             autoscaling_url: env("OC_INTAKE_AUTOSCALING_URL", "http://localhost:8090/ingest/autoscaling-recommendation"),
             connectors_url: env("OC_INTAKE_CONNECTORS_URL", "http://localhost:8090/ingest/connectors").trim_end_matches('/').to_string(),
+            fastly_services: env("OC_INTAKE_FASTLY_SERVICES", "").split(',').map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect(),
             internal_token: std::env::var("OC_INTERNAL_TOKEN")
                 .ok()
                 .filter(|t| !t.is_empty()),
@@ -276,10 +284,11 @@ fn reject(status: StatusCode, msg: &str) -> Response {
 }
 
 fn api_key(headers: &HeaderMap) -> Option<&str> {
+    // `Splunk <token>`: the HEC endpoint's token (`splunk_hec`).
     let bearer = headers
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "));
+        .and_then(|v| v.strip_prefix("Bearer ").or_else(|| v.strip_prefix("Splunk ")));
     let plain = || {
         ["oc-api-key", "dd-api-key"]
             .into_iter()
@@ -748,6 +757,18 @@ async fn json_logs(State(st): State<Shared>, RawQuery(query): RawQuery, mut head
     }
 }
 
+/// `GET /.well-known/fastly/logging/challenge`: Fastly's HTTPS logging endpoints check that the host accepts their
+/// service before sending (the hex SHA-256 of each allowed service id, one per line; `*` allows any). The challenge
+/// carries no key, so it is the install's (OC_INTAKE_FASTLY_SERVICES); the logs themselves need the org's ingest key.
+async fn fastly_challenge(State(st): State<Shared>) -> Response {
+    let body = if st.cfg.fastly_services.is_empty() {
+        "*\n".to_string()
+    } else {
+        st.cfg.fastly_services.iter().map(|id| Sha256::digest(id.as_bytes()).iter().map(|b| format!("{b:02x}")).collect::<String>() + "\n").collect()
+    };
+    ([(header::CONTENT_TYPE, "text/plain")], body).into_response()
+}
+
 /// Datadog clients may pass the key in the query string (`?api_key=…` or `?dd-api-key=…`, e.g. the
 /// Agent's key validation); it becomes the `DD-API-KEY` header the handlers read.
 async fn query_api_key(mut req: axum::extract::Request, next: axum::middleware::Next) -> Response {
@@ -882,6 +903,14 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/events", post(datadog_events::post_v1))
         .route("/api/v2/events", post(datadog_events::post_agent))
         .route("/api/v2/service_checks", post(datadog::check_run))
+        .route("/.well-known/fastly/logging/challenge", get(fastly_challenge))
+        .route("/services/collector", post(splunk_hec::event))
+        .route("/services/collector/event", post(splunk_hec::event))
+        .route("/services/collector/event/1.0", post(splunk_hec::event))
+        .route("/services/collector/raw", post(splunk_hec::raw))
+        .route("/services/collector/raw/1.0", post(splunk_hec::raw))
+        .route("/services/collector/health", get(splunk_hec::health))
+        .route("/services/collector/health/1.0", get(splunk_hec::health))
         .merge(ofrep_routes)
         .merge(rum_routes)
         .layer(DefaultBodyLimit::max(max_body))
@@ -1035,6 +1064,20 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn fastly_challenge_answers_the_allowed_services() {
+        let body = |r: Response| async { String::from_utf8(axum::body::to_bytes(r.into_body(), 1024).await.unwrap().to_vec()).unwrap() };
+        let st = test_state(Config::from_env());
+        assert_eq!(body(fastly_challenge(State(st)).await).await, "*\n", "any service by default");
+        let mut cfg = Config::from_env();
+        cfg.fastly_services = vec!["SU1Z0isxPaozGVKXdv0eY".into(), "other".into()];
+        let lines = body(fastly_challenge(State(test_state(cfg))).await).await;
+        let hex = |s: &[u8]| Sha256::digest(s).iter().map(|b| format!("{b:02x}")).collect::<String>();
+        let want = format!("{}\n{}\n", hex(b"SU1Z0isxPaozGVKXdv0eY"), hex(b"other"));
+        assert_eq!(lines, want);
+        assert_eq!(lines.lines().next().unwrap().len(), 64);
+    }
+
     #[test]
     fn key_headers() {
         let mut h = HeaderMap::new();
@@ -1043,6 +1086,9 @@ mod tests {
         let mut h = HeaderMap::new();
         h.insert("oc-api-key", HeaderValue::from_static("ocik_xyz"));
         assert_eq!(api_key(&h), Some("ocik_xyz"));
+        let mut h = HeaderMap::new();
+        h.insert(header::AUTHORIZATION, HeaderValue::from_static("Splunk ocik_hec"));
+        assert_eq!(api_key(&h), Some("ocik_hec"), "a Splunk HEC token");
         // Application keys (ocak_) are for the read API, not for sending data.
         let mut h = HeaderMap::new();
         h.insert(header::AUTHORIZATION, HeaderValue::from_static("Bearer ocak_abc"));
