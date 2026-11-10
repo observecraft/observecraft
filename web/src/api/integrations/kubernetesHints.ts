@@ -459,6 +459,37 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
       },
     ],
   },
+  ...(
+    [
+      ['kube_scheduler', 'scheduler', 'ksh', 'kube-scheduler'],
+      ['kube_controller_manager', 'controller manager', 'kcm', 'kube-controller-manager'],
+    ] as const
+  ).map(([check, name, path, pod]) => ({
+    check,
+    variants: [
+      {
+        label: 'Amazon EKS',
+        text: `EKS serves the ${name}’s metrics through the API server (\`/apis/metrics.eks.amazonaws.com/v1/${path}/container/metrics\`, Kubernetes 1.28 and later): run the check as a cluster check against the \`kubernetes\` Service. Let the Agent read them with a ClusterRole allowing \`get\` on \`${path}/metrics\` in the \`metrics.eks.amazonaws.com\` API group, bound to the Agent’s service account.`,
+        filename: CLUSTER_CHECK_VALUES,
+        code: endpointsClusterCheck(check, { name: 'kubernetes', namespace: 'default' }, [
+          {
+            prometheus_url: `https://%%host%%:%%port%%/apis/metrics.eks.amazonaws.com/v1/${path}/container/metrics`,
+            extra_headers: { accept: '*/*' },
+            bearer_token_auth: true,
+            tls_ca_cert: '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt',
+          },
+        ]),
+      },
+      {
+        label: 'Azure AKS',
+        text: `AKS runs the ${name} in Microsoft’s control plane, which exposes no metrics endpoint to the cluster: there is nothing to annotate, and this check can’t run there.`,
+      },
+      {
+        label: 'Self-managed control plane (kubeadm, kOps)',
+        text: `The Agent on a control-plane node finds the static \`${pod}\` pod and runs the check by itself; let the Agent run there (a toleration for the control-plane taint).`,
+      },
+    ],
+  })),
 ];
 
 /** The Kubernetes hint of an Agent check, if there is one. */

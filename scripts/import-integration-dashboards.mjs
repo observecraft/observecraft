@@ -340,6 +340,8 @@ const MOCK_INTEGRATIONS = [
   'confluent-platform',
   'nginx-ingress-controller',
   'kube-apiserver-metrics',
+  'kube-scheduler',
+  'kube-controller-manager',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */

@@ -40,6 +40,8 @@ const KNOWN = new Map([
   ['Host Reporting Argo CD Metrics by Cluster', 'user tag'],
   // Redis's pipeline maps its severities (. - * #) to debug, info and warn: no log of its is an error, in Datadog too.
   ['Redis - Overview / Error Logs', 'no error status'],
+  // Upstream's query reads `short_image::*kube-controller-manager` (a doubled colon): no tag value matches it.
+  ['Kube Controller Manager memory usage vs requests', 'upstream query typo'],
 ]);
 
 const widgets = (items) => items.flatMap((w) => (w.definition.type === 'group' ? widgets(w.definition.widgets) : [w.definition]));
@@ -78,6 +80,8 @@ for (const title of [
   'Confluent Platform Overview',
   'Kubernetes NGINX Ingress Controller - Overview',
   'Kubernetes API Server Overview',
+  'Kubernetes Scheduler Overview',
+  'Kubernetes Controller Manager Overview',
 ]) {
   test(`every widget of ${title} has data in mock mode`, async () => {
     const d = mock.dashboards.find((x) => x.title === title);

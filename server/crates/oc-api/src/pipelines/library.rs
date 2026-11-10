@@ -319,6 +319,21 @@ mod tests {
         assert_eq!((log.status.as_str(), log.get("network.client.ip"), log.get("server")), ("error", Some(json!("10.0.12.34")), Some(json!("shop.example.com"))));
     }
 
+    /// kube-scheduler's klog lines, as integrations-core's `kube_scheduler_tests.yaml` expects: the level letter as
+    /// the status, the text after the header as the message.
+    #[test]
+    fn kube_scheduler_klog_lines() {
+        use serde_json::json;
+        let line = r#"E1110 09:15:02.123456       1 reflector.go:150] k8s.io/client-go/informers/factory.go:160: Failed to watch *v1.PersistentVolumeClaim: the server has asked for the client to provide credentials"#;
+        let log = agent_log("kube_scheduler", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60001", "service": "kube-scheduler", "ddsource": "kube-scheduler"}));
+        assert_eq!((log.status.as_str(), log.get("logger.name"), log.get("lineno")), ("error", Some(json!("reflector.go")), Some(json!(150))));
+        assert!(log.message.starts_with("k8s.io/client-go/informers/factory.go:160: Failed to watch"), "{}", log.message);
+        assert_eq!(log.get("msg"), None, "moved to the message");
+        let line = r#"I1110 09:15:03.000001       1 schedule_one.go:286] "Successfully bound pod to node" pod="checkout/order-service-7d9c6b5f4-x2k9p" node="ip-10-0-2-17.ec2.internal""#;
+        let log = agent_log("kube_scheduler", json!({"message": line, "service": "kube-scheduler", "ddsource": "kube-scheduler"}));
+        assert_eq!((log.status.as_str(), log.get("logger.thread_id")), ("info", Some(json!(1))));
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};
