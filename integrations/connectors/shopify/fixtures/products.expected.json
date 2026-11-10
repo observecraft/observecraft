@@ -1,0 +1,122 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4fa-c820-7329-b45d-0dd6edd1aa7d"
+      },
+      "category": {
+        "fullName": "Apparel & Accessories > Clothing > Socks",
+        "id": "gid://shopify/TaxonomyCategory/aa-1-14",
+        "isArchived": false,
+        "name": "Socks"
+      },
+      "createdAt": "2026-02-01T09:00:00Z",
+      "date": "2026-11-10T10:22:12Z",
+      "ddsource": "shopify",
+      "description": "Breathable socks for long runs.",
+      "handle": "running-socks",
+      "hasOnlyDefaultVariant": false,
+      "hasOutOfStockVariants": true,
+      "hasVariantsThatRequiresComponents": false,
+      "host": "example-shop.myshopify.com",
+      "id": "gid://shopify/Product/8000000002",
+      "isGiftCard": false,
+      "legacyResourceId": "8000000002",
+      "mediaCount": {
+        "count": 2
+      },
+      "message": "Product Running Socks (active): 0 in stock",
+      "onlineStoreUrl": "https://shop.example.com/products/running-socks",
+      "priceRangeV2": {
+        "maxVariantPrice": {
+          "amount": "10.0",
+          "currencyCode": "USD"
+        },
+        "minVariantPrice": {
+          "amount": "10.0",
+          "currencyCode": "USD"
+        }
+      },
+      "productType": "Socks",
+      "publishedAt": "2026-02-01T09:00:00Z",
+      "requiresSellingPlan": false,
+      "sellingPlanGroupsCount": {
+        "count": 0
+      },
+      "service": "product",
+      "status": "ACTIVE",
+      "title": "Running Socks",
+      "totalInventory": 0,
+      "tracksInventory": true,
+      "updatedAt": "2026-11-10T10:22:12Z",
+      "variantsCount": {
+        "count": 3
+      },
+      "vendor": "Example Co"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f5-b740-7564-b3ea-250d608c1872"
+      },
+      "category": {
+        "fullName": "Apparel & Accessories > Shoes",
+        "id": "gid://shopify/TaxonomyCategory/aa-8",
+        "isArchived": false,
+        "name": "Shoes"
+      },
+      "createdAt": "2026-11-10T10:15:02Z",
+      "date": "2026-11-10T10:16:40Z",
+      "ddsource": "shopify",
+      "description": "A grippy shoe for muddy trails.",
+      "handle": "trail-running-shoe",
+      "hasOnlyDefaultVariant": false,
+      "hasOutOfStockVariants": false,
+      "hasVariantsThatRequiresComponents": false,
+      "host": "example-shop.myshopify.com",
+      "id": "gid://shopify/Product/8000000001",
+      "isGiftCard": false,
+      "legacyResourceId": "8000000001",
+      "mediaCount": {
+        "count": 4
+      },
+      "message": "Product Trail Running Shoe (draft): 42 in stock",
+      "onlineStoreUrl": null,
+      "priceRangeV2": {
+        "maxVariantPrice": {
+          "amount": "104.0",
+          "currencyCode": "USD"
+        },
+        "minVariantPrice": {
+          "amount": "98.0",
+          "currencyCode": "USD"
+        }
+      },
+      "productType": "Shoes",
+      "publishedAt": null,
+      "requiresSellingPlan": false,
+      "sellingPlanGroupsCount": {
+        "count": 0
+      },
+      "service": "product",
+      "status": "DRAFT",
+      "title": "Trail Running Shoe",
+      "totalInventory": 42,
+      "tracksInventory": true,
+      "updatedAt": "2026-11-10T10:16:40Z",
+      "variantsCount": {
+        "count": 6
+      },
+      "vendor": "Example Co"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "events": [
+    { "id": 222397999050803, "subject_id": 1234, "subject_type": "Blog", "verb": "create", "arguments": ["News"], "body": null, "message": "Blog was created: <a href=\"https://admin.shopify.com/store/example-shop/admin/blogs/1234\">News</a>.", "author": "Shopify", "description": "Blog was created: News.", "path": "/admin/blogs/1234", "created_at": "2026-11-10T05:02:00-05:00" }
+  ]
+}

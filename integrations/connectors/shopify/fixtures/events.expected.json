@@ -1,0 +1,83 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bd-49f0-79b3-9cb1-c78215516daf"
+      },
+      "arguments": [
+        "Trail Running Shoe"
+      ],
+      "author": "Alex Example",
+      "body": null,
+      "created_at": "2026-11-10T04:15:02-05:00",
+      "date": "2026-11-10T04:15:02-05:00",
+      "ddsource": "shopify",
+      "description": "Alex Example created a new product: Trail Running Shoe.",
+      "host": "example-shop.myshopify.com",
+      "id": 222397999050801,
+      "message": "Alex Example created a new product: <a href=\"https://admin.shopify.com/store/example-shop/products/8000000001\">Trail Running Shoe</a>.",
+      "path": "/admin/products/8000000001",
+      "service": "event",
+      "status": "info",
+      "subject_id": 8000000001,
+      "subject_type": "Product",
+      "verb": "create"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4c2-81e0-7b66-98fc-ed75c513bdfc"
+      },
+      "arguments": [
+        "#1001"
+      ],
+      "author": "Shopify",
+      "body": null,
+      "created_at": "2026-11-10T04:20:44-05:00",
+      "date": "2026-11-10T04:20:44-05:00",
+      "ddsource": "shopify",
+      "description": "Received new order #1001 by Jane Example.",
+      "host": "example-shop.myshopify.com",
+      "id": 222397999050802,
+      "message": "Received new order <a href=\"https://admin.shopify.com/store/example-shop/orders/5500000000001\">#1001</a> by Jane Example.",
+      "path": "/admin/orders/5500000000001",
+      "service": "event",
+      "status": "info",
+      "subject_id": 5500000000001,
+      "subject_type": "Order",
+      "verb": "confirmed"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e8-49c0-7d19-8260-685f62d13d6d"
+      },
+      "arguments": [
+        "News"
+      ],
+      "author": "Shopify",
+      "body": null,
+      "created_at": "2026-11-10T05:02:00-05:00",
+      "date": "2026-11-10T05:02:00-05:00",
+      "ddsource": "shopify",
+      "description": "Blog was created: News.",
+      "host": "example-shop.myshopify.com",
+      "id": 222397999050803,
+      "message": "Blog was created: <a href=\"https://admin.shopify.com/store/example-shop/admin/blogs/1234\">News</a>.",
+      "path": "/admin/blogs/1234",
+      "service": "event",
+      "status": "info",
+      "subject_id": 1234,
+      "subject_type": "Blog",
+      "verb": "create"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

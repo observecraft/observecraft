@@ -1,0 +1,6 @@
+{
+  "events": [
+    { "id": 222397999050801, "subject_id": 8000000001, "subject_type": "Product", "verb": "create", "arguments": ["Trail Running Shoe"], "body": null, "message": "Alex Example created a new product: <a href=\"https://admin.shopify.com/store/example-shop/products/8000000001\">Trail Running Shoe</a>.", "author": "Alex Example", "description": "Alex Example created a new product: Trail Running Shoe.", "path": "/admin/products/8000000001", "created_at": "2026-11-10T04:15:02-05:00" },
+    { "id": 222397999050802, "subject_id": 5500000000001, "subject_type": "Order", "verb": "confirmed", "arguments": ["#1001"], "body": null, "message": "Received new order <a href=\"https://admin.shopify.com/store/example-shop/orders/5500000000001\">#1001</a> by Jane Example.", "author": "Shopify", "description": "Received new order #1001 by Jane Example.", "path": "/admin/orders/5500000000001", "created_at": "2026-11-10T04:20:44-05:00" }
+  ]
+}

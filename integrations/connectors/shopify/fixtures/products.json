@@ -1,0 +1,11 @@
+{
+  "data": {
+    "products": {
+      "pageInfo": { "hasNextPage": false, "endCursor": "eyJsYXN0X2lkIjo4MDAwMDAwMDAyfQ" },
+      "nodes": [
+        { "id": "gid://shopify/Product/8000000002", "legacyResourceId": "8000000002", "title": "Running Socks", "handle": "running-socks", "description": "Breathable socks for long runs.", "vendor": "Example Co", "productType": "Socks", "status": "ACTIVE", "totalInventory": 0, "tracksInventory": true, "hasOutOfStockVariants": true, "hasOnlyDefaultVariant": false, "hasVariantsThatRequiresComponents": false, "isGiftCard": false, "requiresSellingPlan": false, "onlineStoreUrl": "https://shop.example.com/products/running-socks", "createdAt": "2026-02-01T09:00:00Z", "updatedAt": "2026-11-10T10:22:12Z", "publishedAt": "2026-02-01T09:00:00Z", "category": { "id": "gid://shopify/TaxonomyCategory/aa-1-14", "name": "Socks", "fullName": "Apparel & Accessories > Clothing > Socks", "isArchived": false }, "variantsCount": { "count": 3 }, "mediaCount": { "count": 2 }, "sellingPlanGroupsCount": { "count": 0 }, "priceRangeV2": { "minVariantPrice": { "amount": "10.0", "currencyCode": "USD" }, "maxVariantPrice": { "amount": "10.0", "currencyCode": "USD" } } },
+        { "id": "gid://shopify/Product/8000000001", "legacyResourceId": "8000000001", "title": "Trail Running Shoe", "handle": "trail-running-shoe", "description": "A grippy shoe for muddy trails.", "vendor": "Example Co", "productType": "Shoes", "status": "DRAFT", "totalInventory": 42, "tracksInventory": true, "hasOutOfStockVariants": false, "hasOnlyDefaultVariant": false, "hasVariantsThatRequiresComponents": false, "isGiftCard": false, "requiresSellingPlan": false, "onlineStoreUrl": null, "createdAt": "2026-11-10T10:15:02Z", "updatedAt": "2026-11-10T10:16:40Z", "publishedAt": null, "category": { "id": "gid://shopify/TaxonomyCategory/aa-8", "name": "Shoes", "fullName": "Apparel & Accessories > Shoes", "isArchived": false }, "variantsCount": { "count": 6 }, "mediaCount": { "count": 4 }, "sellingPlanGroupsCount": { "count": 0 }, "priceRangeV2": { "minVariantPrice": { "amount": "98.0", "currencyCode": "USD" }, "maxVariantPrice": { "amount": "104.0", "currencyCode": "USD" } } }
+      ]
+    }
+  }
+}
