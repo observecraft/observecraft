@@ -1,0 +1,115 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Auth0 (https://auth0.com/docs/customize/log-streams/custom-log-streams and
+# https://auth0.com/docs/api/management/v2/logs/get-logs): a tenant's logs as the integrations-extras auth0 tile
+# expects them (source:auth0, service:auth0, `{log_id, data: {…}}` as Auth0's log stream sends them), so the tile's
+# pipeline and dashboard work unchanged. Preferred: Auth0 pushes them through a Custom Webhook log stream (push
+# below, through the intake's Datadog logs endpoint). Alternative: this package polls the Management API's logs with
+# a machine-to-machine application. Auth0's own Datadog stream also sends the auth0.api_request.count metric; a
+# Custom Webhook stream sends logs only.
+schema_version: 1
+id: auth0
+name: Auth0
+publisher: ObserveCraft
+vendor: Auth0
+description: >-
+  An Auth0 tenant's logs (logins and failed logins, signups, password changes, MFA, Management API and token
+  exchanges), pushed by an Auth0 log stream or read every minute from the Management API.
+tiles: [auth0]
+categories: [Security, SIEM, Log Collection]
+docs_url: https://auth0.com/docs/api/management/v2/logs/get-logs
+setup: |
+  **Pushing (recommended)** needs no credentials here: follow the push instructions below.
+
+  **Polling** instead: in the Auth0 Dashboard, open **Applications → Applications → Create Application**, a
+  **Machine to Machine** application named e.g. `ObserveCraft`, authorized for the **Auth0 Management API** with the
+  `read:logs` and `read:logs_users` scopes. Copy its domain, client id and client secret. Use the tenant's
+  canonical domain (`example.us.auth0.com`), not a custom domain.
+links:
+  - { label: Log streams, url: "https://manage.auth0.com/#/logs/streams" }
+instance: "{{ config.domain }}"
+
+config:
+  - { key: domain, label: Tenant domain, type: string, required: true, placeholder: example.us.auth0.com, pattern: "[a-z0-9.-]+" }
+  - { key: client_id, label: Client ID, type: string, required: true }
+  - { key: client_secret, label: Client secret, type: string, secret: true, required: true }
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "https://{{ config.domain }}/oauth/token"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: body
+  params: { audience: "https://{{ config.domain }}/api/v2/" }
+
+# The Management API allows 2 to 50 requests a second by plan; logs are read a page at a time.
+rate_limit: { requests_per_minute: 60 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: "Auth0 refused the application's credentials or token ({{ response.message ?? response.error_description ?? 'unauthorized' }})"
+  - status: [403]
+    kind: access_denied
+    message: "The application can't read logs: authorize it for the Management API with read:logs ({{ response.message ?? 'forbidden' }})"
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Auth0 (resets at {{ headers['x-ratelimit-reset'] ?? '?' }})"
+
+streams:
+  - id: logs
+    name: Tenant logs
+    description: >-
+      Every tenant log as a log (source:auth0, service:auth0), shaped as Auth0's log streams send them: log_id and
+      the event under data (type, description, client, connection, user, ip). The first run reads the last day
+      (at most 1,000 logs); later runs read on from the last log_id.
+    request:
+      url: "https://{{ config.domain }}/api/v2/logs"
+      query:
+        from: "{{ page.cursor ?? cursor.token }}"
+        take: "{{ (page.cursor ?? cursor.token) ? 100 : null }}"
+        q: "{{ (page.cursor ?? cursor.token) ? null : 'date:[' + ((now - 86400000) | rfc3339) + ' TO *]' }}"
+        sort: "{{ (page.cursor ?? cursor.token) ? null : 'date:1' }}"
+        per_page: "{{ (page.cursor ?? cursor.token) ? null : 100 }}"
+    # Checkpoint pages: the logs after a log_id, oldest first.
+    pagination: { kind: cursor, next: "{{ (records | len) >= 100 ? last.log_id : null }}" }
+    max_pages: 30
+    record_id: "{{ record.log_id }}"
+    incremental: { kind: token, next: "{{ last.log_id }}" }
+    output:
+      logs:
+        service: auth0
+        message: "{{ record.description ?? record.type }}"
+        date: "{{ record.date }}"
+        attributes: { log_id: "{{ record.log_id }}", data: "{{ record }}" }
+
+test:
+  request: { url: "https://{{ config.domain }}/api/v2/logs", query: { per_page: 1 } }
+  message: "Connected to {{ config.domain }}: the application can read the tenant's logs"
+
+push:
+  kind: logs
+  instructions: |
+    In the Auth0 Dashboard, open **Monitoring → Streams → Create Stream → Custom Webhook**, named e.g.
+    `ObserveCraft`:
+
+    - **Payload URL**: `{{ intake }}/api/v2/logs?ddsource={{ source }}&service=auth0`
+    - **Authorization Token**: leave empty, and add the header below under **Custom Headers** (or append
+      `&api_key={{ api_key }}` to the URL)
+    - **Content Type**: `application/json`, **Content Format**: `JSON Array`
+
+    Leave the categories filter empty to send every log. Don't poll as well: one of the two is enough.
+  url: "{{ intake }}/api/v2/logs?ddsource={{ source }}&service=auth0"
+  headers: { DD-API-KEY: "{{ api_key }}" }
+
+mock:
+  config: { domain: example.us.auth0.com, client_id: AbCdEf0123456789AbCdEf0123456789 }
+  secrets: { client_secret: auth0-test-client-secret-000000000000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://example.us.auth0.com/oauth/token", body_contains: "client_credentials", body: { access_token: auth0-test-token, token_type: Bearer, expires_in: 86400, scope: "read:logs read:logs_users" } }
+    - { url: "https://example.us.auth0.com/api/v2/logs", query: { per_page: "1" }, body: [] }
+    - { url: "https://example.us.auth0.com/api/v2/logs", query: { from: "90020261110110500000000000000000000000000000000000003" }, body: [] }
+    - { url: "https://example.us.auth0.com/api/v2/logs", file: fixtures/logs.json }
+  expect:
+    logs: { records: 3, logs: 3, rerun: 0, golden: fixtures/logs.expected.json }
+    test: { ok: true, message: "Connected to example.us.auth0.com" }

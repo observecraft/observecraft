@@ -1,0 +1,116 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c478-c839-71d8-abd8-bce846f3b0d2"
+      },
+      "data": {
+        "client_id": "Zx0123456789AbCdEfGhIjKlMnOpQrSt",
+        "client_name": "storefront-web",
+        "connection": "Username-Password-Authentication",
+        "connection_id": "con_AbCdEf0123456789",
+        "date": "2026-11-10T08:00:12.345Z",
+        "description": "Wrong email or password.",
+        "details": {
+          "error": {
+            "message": "Wrong email or password."
+          }
+        },
+        "hostname": "example.us.auth0.com",
+        "ip": "203.0.113.77",
+        "log_id": "90020261110080012000000000000000000000000000000000001",
+        "strategy": "auth0",
+        "strategy_type": "database",
+        "tenant": "example",
+        "type": "f",
+        "user_agent": "Chrome 141.0.0 / Linux 0.0.0",
+        "user_name": "sam.lee@example.com"
+      },
+      "date": "2026-11-10T08:00:12.345Z",
+      "ddsource": "auth0",
+      "host": "example.us.auth0.com",
+      "log_id": "90020261110080012000000000000000000000000000000000001",
+      "message": "Wrong email or password.",
+      "service": "auth0",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c479-f792-7c8e-9f5a-b00f668a3d7c"
+      },
+      "data": {
+        "client_id": "Zx0123456789AbCdEfGhIjKlMnOpQrSt",
+        "client_name": "storefront-web",
+        "connection": "Username-Password-Authentication",
+        "connection_id": "con_AbCdEf0123456789",
+        "date": "2026-11-10T08:01:30.002Z",
+        "description": "Successful login",
+        "hostname": "example.us.auth0.com",
+        "ip": "203.0.113.77",
+        "log_id": "90020261110080130000000000000000000000000000000000002",
+        "strategy": "auth0",
+        "strategy_type": "database",
+        "tenant": "example",
+        "type": "s",
+        "user_agent": "Chrome 141.0.0 / Linux 0.0.0",
+        "user_id": "auth0|6730aa00bb11cc22dd330001",
+        "user_name": "sam.lee@example.com"
+      },
+      "date": "2026-11-10T08:01:30.002Z",
+      "ddsource": "auth0",
+      "host": "example.us.auth0.com",
+      "log_id": "90020261110080130000000000000000000000000000000000002",
+      "message": "Successful login",
+      "service": "auth0",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c521-f760-72e4-b353-bbb28d05d3d6"
+      },
+      "data": {
+        "client_id": "Mg0123456789AbCdEfGhIjKlMnOpQrSt",
+        "client_name": "",
+        "date": "2026-11-10T11:05:00.000Z",
+        "description": "Update a client",
+        "details": {
+          "request": {
+            "auth": {
+              "user": {
+                "email": "jordan.patel@example.com"
+              }
+            },
+            "method": "patch",
+            "path": "/api/v2/clients/Zx0123456789AbCdEfGhIjKlMnOpQrSt"
+          },
+          "response": {
+            "statusCode": 200
+          }
+        },
+        "ip": "198.51.100.7",
+        "log_id": "90020261110110500000000000000000000000000000000000003",
+        "tenant": "example",
+        "type": "sapi",
+        "user_agent": "node-fetch 1.0.0",
+        "user_id": "google-oauth2|1001"
+      },
+      "date": "2026-11-10T11:05:00.000Z",
+      "ddsource": "auth0",
+      "host": "example.us.auth0.com",
+      "log_id": "90020261110110500000000000000000000000000000000000003",
+      "message": "Update a client",
+      "service": "auth0",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "90020261110110500000000000000000000000000000000000003"
+      }
+    }
+  }
+}
