@@ -84,8 +84,10 @@ API integrations: adding one should be a package, not code, and operators should
   `schema_version` in the manifest guards future breaking changes.
 - Push-only vendors' intake side reads the same packages: the intake asks the server's internal listener for the
   push definitions and an org's signing secrets (cached a minute, org from the ingest key), checks signatures and maps
-  webhooks with `oc-connectors::push`, and publishes through Kafka. Long-lived streams (WebSockets, SQS) remain an
-  extension point: `native` names a connector compiled into the server.
+  webhooks with `oc-connectors::push`, and publishes through Kafka. Long-lived streams (WebSockets, SQS) are the
+  extension point: `native` names a source compiled into the server (`oc-api/src/connectors/sources/`: CrowdStrike
+  FDR, Proofpoint On-Demand) that runs the package's streams in long sessions on the same jobs, mapped by the package
+  as the engine maps records.
 - `oauth` tiles use `oauth2_authorization_code`: the operator registers an OAuth app per vendor and install
   (`OC_OAUTH_<ID>_CLIENT_ID` / `_CLIENT_SECRET`, redirect to `/api/v1/public/connectors/oauth/callback`), or a package
   lets each connection bring its own; the page's "Connect" runs the flow with PKCE and a single-use state

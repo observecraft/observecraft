@@ -21,8 +21,8 @@ Contents: [Layout](#layout) · [Writing one](#writing-a-package) · [Manifest](#
 [Templates](#templates-and-expressions) · [Auth](#auth) · [Requests](#requests) · [Pagination](#pagination) ·
 [Incremental reading](#incremental-reading) · [Records](#records) · [Output](#output) · [Errors, rate limits,
 quotas](#errors-rate-limits-and-quotas) · [Test](#the-connection-test) · [Assets](#assets) · [Push-only
-vendors](#push-only-vendors-and-webhooks) · [Testing](#testing-a-package) · [Recipes](#recipes) · [Third-party
-packages](#third-party-packages) · [Licensing](#licensing) · [Checklist](#checklist)
+vendors](#push-only-vendors-and-webhooks) · [Native sources](#native-sources) · [Testing](#testing-a-package) ·
+[Recipes](#recipes) · [Third-party packages](#third-party-packages) · [Licensing](#licensing) · [Checklist](#checklist)
 
 ## Layout
 
@@ -82,7 +82,7 @@ logos come from the catalog (`logo`, see the manifest).
 | `streams` | yes¹ | What is polled ([Requests](#requests) onwards). |
 | `test` | yes¹ | The connection test. |
 | `push`, `webhook` | | Push-only vendors ([below](#push-only-vendors-and-webhooks)). |
-| `native` | | A connector compiled into the server runs the streams (non-HTTP sources); see [ADR-0007](adr/0007-connectors.md). |
+| `native` | | A source compiled into the server runs the streams (non-HTTP vendors, [below](#native-sources)). |
 | `assets` | | Dashboards, pipeline, monitors, rules ([Assets](#assets)). |
 | `mock` | yes¹ | Recorded answers and expectations ([Testing](#testing-a-package)). |
 
@@ -484,6 +484,28 @@ that set only a host and a token (GitHub: no path, no query, no source of its ow
 `/.well-known/fastly/logging/challenge` first: the intake answers `*`, or the SHA-256 of each service id in
 `OC_INTAKE_FASTLY_SERVICES`. A package's `push.url` points there:
 `{{ intake }}/services/collector?ddsource={{ source }}`.
+
+## Native sources
+
+Vendors that aren't request/response HTTP APIs still are packages, with `native: <source>` naming code compiled into
+the server (`server/crates/oc-api/src/connectors/sources/`). The package keeps everything else: the form and its
+sealed secrets, the streams (without `request`), `record_id`, `filter`, `vars` and `output` (the same mapping, run by
+`oc_connectors::engine::Records`, with `parent` holding what a record came in), the tile, the generic page, its test
+button and each stream's status. A package naming a source this server doesn't have is invalid.
+
+A source tests a connection and runs a stream's *session*: a few minutes of reading on the stream's job (provider =
+package id, scope = stream, the lease extended with every batch), committed in batches. A commit publishes to Kafka,
+waits for the acknowledgement, then saves the stream's state; only then does the source acknowledge the vendor. Logs
+keep their record's identity, so what is read again after a crash is stored once. When a session ends its job is due
+again at once; a failed one waits its backoff.
+
+| Source | Package | Reads |
+|---|---|---|
+| `crowdstrike-fdr` | `crowdstrike-fdr` | The feed's SQS queue (long polling) and the S3 files it announces, streamed and gunzipped line by line; a notification is deleted after its files' events are committed. |
+| `proofpoint-on-demand` | `proofpoint-on-demand` | One WebSocket per stream (`type=message` or `maillog`), from `sinceTime` = the last stored event's `ts` (a new connection: an hour back). |
+
+New sources implement `sources::Source` and are listed in `sources::NAMES`; their tests use trait-mocked clients or an
+in-process server (no vendor, no LocalStack).
 
 ## Testing a package
 

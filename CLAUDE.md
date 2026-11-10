@@ -217,7 +217,11 @@ or SDK features.
   and the generic page (`web/src/pages/integrations/connectors/`). Native connectors (authentik, FleetDM, GitLab Audit
   Events, Google Workspace, Entra ID) implement the same `Connector` trait (`connectors/native.rs`) for the catalog,
   installed state and dashboard gating. NetBird is a package (migration 0102 moved its connections); Have I Been Pwned
-  is the example package. Write a package, not code: `node scripts/connector.mjs new|build|test`.
+  is the example package. Write a package, not code: `node scripts/connector.mjs new|build|test`. Vendors that aren't
+  request/response HTTP are packages with `native: <source>` (`connectors/sources/`): CrowdStrike FDR (SQS
+  notifications of gzip NDJSON files in S3; a notification is deleted only after Kafka acknowledged its events) and
+  Proofpoint On-Demand (a WebSocket per log type, resumed from the last stored event's `ts`), long sessions on the same
+  jobs (`sources::run`), mapped by the package's stream (`engine::Records`).
 - **FleetDM** (Integrations → FleetDM, `oc-api/src/fleetdm/`, `routes/fleetdm_integration.rs`; Datadog has no Fleet
   integration): the server polls a Fleet server's REST API (`/api/v1/fleet`, an API-only observer's token in Postgres
   `fleetdm_connections`, sealed) on the cloud crawlers' jobs (provider `fleetdm`, scopes `activities` and `hosts`):
