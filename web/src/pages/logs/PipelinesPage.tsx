@@ -80,6 +80,8 @@ export function processorSummary(p: Processor): string {
     case 'url-parser':
     case 'geo-ip-parser':
       return arrow(p.sources, p.target);
+    case 'schema-processor':
+      return `${p.schema.className} [${p.schema.classUid}] · ${p.mappers.length} mappers`;
     case 'array-processor':
       return `${p.operation.type} ${arrow(p.operation.source, p.operation.target)}`;
     case 'pipeline':

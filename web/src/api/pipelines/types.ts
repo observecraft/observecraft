@@ -85,6 +85,13 @@ export interface ArrayProcessor extends Base {
     | { type: 'length'; source: string; target: string };
 }
 
+/** An OCSF sub-pipeline's mapping onto an event class (integration pipelines); runs, edited through the API only. */
+export interface SchemaProcessor extends Base {
+  type: 'schema-processor';
+  schema: { schemaType: string; version: string; className: string; classUid: number };
+  mappers: unknown[];
+}
+
 export interface NestedPipeline extends Base {
   type: 'pipeline';
   filter: { query: string };
@@ -92,7 +99,18 @@ export interface NestedPipeline extends Base {
 }
 
 export type Processor =
-  GrokParser | ReservedRemapper | AttributeRemapper | CategoryProcessor | StringBuilder | LookupProcessor | ArithmeticProcessor | UrlParser | GeoIpParser | ArrayProcessor | NestedPipeline;
+  | GrokParser
+  | ReservedRemapper
+  | AttributeRemapper
+  | CategoryProcessor
+  | StringBuilder
+  | LookupProcessor
+  | ArithmeticProcessor
+  | UrlParser
+  | GeoIpParser
+  | ArrayProcessor
+  | SchemaProcessor
+  | NestedPipeline;
 export type ProcessorType = Processor['type'];
 
 /** The processor types the engine runs, with their labels. Others (from imported pipelines) are kept but skipped. */
@@ -114,8 +132,11 @@ export const PROCESSOR_TYPES: { type: ProcessorType; label: string; hint: string
   { type: 'pipeline', label: 'Nested Pipeline', hint: 'Processors for a subset of the logs' },
 ];
 
-export const isSupported = (type: string): type is ProcessorType => PROCESSOR_TYPES.some((t) => t.type === type);
-export const processorLabel = (type: string) => PROCESSOR_TYPES.find((t) => t.type === type)?.label ?? type;
+/** Types that run but aren't added from the editor. */
+const RUN_ONLY: { type: ProcessorType; label: string }[] = [{ type: 'schema-processor', label: 'Schema Processor (OCSF)' }];
+
+export const isSupported = (type: string): type is ProcessorType => [...PROCESSOR_TYPES, ...RUN_ONLY].some((t) => t.type === type);
+export const processorLabel = (type: string) => [...PROCESSOR_TYPES, ...RUN_ONLY].find((t) => t.type === type)?.label ?? type;
 
 export type LogPipeline = Omit<S['LogPipeline'], 'processors'> & { processors: Processor[] };
 export type LogPipelineInput = { name: string; filter: string; enabled: boolean; processors: Processor[] };

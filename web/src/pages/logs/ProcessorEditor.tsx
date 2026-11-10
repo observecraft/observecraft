@@ -28,6 +28,8 @@ export function blankProcessor(type: ProcessorType): Processor {
       return { type, name: '', enabled: true, operation: { type: 'length', source: '', target: '' } };
     case 'pipeline':
       return { type, name: '', enabled: true, filter: { query: '' }, processors: [] };
+    case 'schema-processor':
+      return { type, name: '', enabled: true, schema: { schemaType: 'ocsf', version: '1.5.0', className: '', classUid: 0 }, mappers: [] };
     default:
       return { type, name: '', enabled: true, sources: [] };
   }

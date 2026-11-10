@@ -29,8 +29,28 @@ pub enum Step {
     Url { sources: Vec<String>, target: String },
     GeoIp { sources: Vec<String>, target: String },
     Array(ArrayOp),
+    Schema(Box<Schema>),
     Pipeline(Box<Pipeline>),
 }
+
+/// A schema processor: the log mapped onto an OCSF event class (Datadog's OCSF sub-pipelines).
+pub struct Schema {
+    class_uid: i64,
+    class_name: String,
+    version: String,
+    profiles: Vec<String>,
+    mappers: Vec<Mapper>,
+}
+
+pub enum Mapper {
+    /// The first matching category's name and id into two attributes; else the fallback's values, the names read
+    /// from their sources when they have one.
+    Category { categories: Vec<(Filter, String, Value)>, name: String, id: String, fallback: Vec<(String, Value)>, fallback_sources: Vec<(String, Vec<String>)> },
+    Remap(Remap),
+}
+
+/// OCSF's event categories (an event class's uid divided by 1000).
+const OCSF_CATEGORIES: [&str; 8] = ["System Activity", "Findings", "Identity & Access Management", "Network Activity", "Discovery", "Application Activity", "Remediation", "Unmanned Systems"];
 
 /// An array processor's operation.
 pub enum ArrayOp {
@@ -151,6 +171,8 @@ struct CategoryRule {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TemplateDef {
+    /// Text, or a number (`template: 99` in upstream YAML).
+    #[serde(deserialize_with = "text_or_number")]
     template: String,
     target: String,
     #[serde(default, alias = "isReplaceMissing", alias = "is_replace_missing")]
@@ -183,6 +205,58 @@ struct UrlDef {
     sources: Vec<String>,
     #[serde(default)]
     target: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SchemaDef {
+    schema: SchemaInfo,
+    #[serde(default)]
+    mappers: Vec<Value>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SchemaInfo {
+    #[serde(default, alias = "class_name")]
+    class_name: String,
+    #[serde(default, alias = "class_uid")]
+    class_uid: i64,
+    #[serde(default)]
+    version: String,
+    #[serde(default)]
+    profiles: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct CategoryMapperDef {
+    #[serde(default)]
+    categories: Vec<SchemaCategory>,
+    targets: CategoryTargets,
+    #[serde(default)]
+    fallback: Option<CategoryFallback>,
+}
+
+#[derive(Deserialize)]
+struct SchemaCategory {
+    #[serde(default)]
+    filter: Value,
+    name: String,
+    id: Value,
+}
+
+#[derive(Deserialize)]
+struct CategoryTargets {
+    name: String,
+    id: String,
+}
+
+#[derive(Deserialize, Default)]
+struct CategoryFallback {
+    #[serde(default)]
+    values: serde_json::Map<String, Value>,
+    #[serde(default)]
+    sources: HashMap<String, Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -224,6 +298,14 @@ pub fn filter_query(v: &Value) -> &str {
     }
 }
 
+fn text_or_number<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    match Value::deserialize(d)? {
+        Value::String(s) => Ok(s),
+        v @ (Value::Number(_) | Value::Bool(_)) => Ok(v.to_string()),
+        _ => Err(serde::de::Error::custom("expected a string")),
+    }
+}
+
 fn de<T: serde::de::DeserializeOwned>(def: &Value) -> Result<T, String> {
     serde_json::from_value(def.clone()).map_err(|e| e.to_string())
 }
@@ -249,6 +331,7 @@ pub const SUPPORTED: &[&str] = &[
     "url-parser",
     "geo-ip-parser",
     "array-processor",
+    "schema-processor",
     "pipeline",
 ];
 
@@ -271,28 +354,7 @@ pub fn compile(def: &Value, depth: usize) -> Result<Option<Step>, String> {
         "service-remapper" => Step::Service(sources()?),
         "message-remapper" => Step::Message(sources()?),
         "trace-id-remapper" => Step::TraceId(sources()?),
-        "attribute-remapper" => {
-            let d: RemapDef = de(def)?;
-            let format = match d.target_format.as_deref().unwrap_or("auto") {
-                "auto" | "" => Format::Auto,
-                "string" => Format::Text,
-                "integer" => Format::Integer,
-                "double" => Format::Double,
-                f => return Err(format!("Unknown target format '{f}' (auto, string, integer or double)")),
-            };
-            if d.target.trim().is_empty() {
-                return Err("The remapper needs a target".into());
-            }
-            Step::Remap(Remap {
-                sources: d.sources,
-                from_tag: d.source_type.as_deref() == Some("tag"),
-                target: d.target,
-                to_tag: d.target_type.as_deref() == Some("tag"),
-                format,
-                preserve_source: d.preserve_source.unwrap_or(false),
-                override_on_conflict: d.override_on_conflict.unwrap_or(false),
-            })
-        }
+        "attribute-remapper" => Step::Remap(Remap::compile(def)?),
         "category-processor" => {
             let d: CategoryDef = de(def)?;
             Step::Category { target: d.target, categories: d.categories.into_iter().map(|c| (Filter::parse(filter_query(&c.filter)), c.name)).collect() }
@@ -318,6 +380,12 @@ pub fn compile(def: &Value, depth: usize) -> Result<Option<Step>, String> {
         "geo-ip-parser" => {
             let d: UrlDef = de(def)?;
             Step::GeoIp { sources: d.sources, target: d.target.filter(|t| !t.is_empty()).unwrap_or_else(|| "network.client.geoip".into()) }
+        }
+        "schema-processor" => {
+            let d: SchemaDef = de(def)?;
+            let mappers = d.mappers.iter().map(Mapper::compile).collect::<Result<Vec<_>, _>>()?;
+            let SchemaInfo { class_name, class_uid, version, profiles } = d.schema;
+            Step::Schema(Box::new(Schema { class_uid, class_name, version, profiles, mappers }))
         }
         "array-processor" => {
             let ArrayDef { operation: o } = de(def)?;
@@ -430,6 +498,7 @@ pub fn apply(step: &Step, log: &mut Log, now_ms: i64) {
             log.set(target, geo);
         }
         Step::Array(op) => op.apply(log),
+        Step::Schema(schema) => schema.apply(log),
         Step::Pipeline(p) => {
             p.apply(log, now_ms);
         }
@@ -440,6 +509,65 @@ impl Step {
     fn select(o: ArrayOpDef) -> Result<ArrayOp, String> {
         let value = o.value_to_extract.filter(|v| !v.is_empty()).ok_or("A select operation needs a value to extract")?;
         Ok(ArrayOp::Select { source: o.source, target: o.target, filter: Filter::parse(o.filter.as_deref().unwrap_or("").trim()), value })
+    }
+}
+
+impl Mapper {
+    fn compile(def: &Value) -> Result<Mapper, String> {
+        match def.get("type").and_then(Value::as_str).unwrap_or("") {
+            "schema-category-mapper" => {
+                let d: CategoryMapperDef = de(def)?;
+                let fallback = d.fallback.unwrap_or_default();
+                // Ids are numbers (`"99"` in fallbacks too).
+                let id = |v: Value| match &v {
+                    Value::String(s) => s.parse::<i64>().map(Value::from).unwrap_or(v),
+                    _ => v,
+                };
+                let values = fallback.values.into_iter().map(|(k, v)| if k == d.targets.id { (k, id(v)) } else { (k, v) }).collect();
+                Ok(Mapper::Category {
+                    categories: d.categories.into_iter().map(|c| (Filter::parse(filter_query(&c.filter)), c.name, id(c.id))).collect(),
+                    name: d.targets.name,
+                    id: d.targets.id,
+                    fallback: values,
+                    fallback_sources: fallback.sources.into_iter().collect(),
+                })
+            }
+            "schema-remapper" => Ok(Mapper::Remap(Remap::compile(def)?)),
+            t => Err(format!("Unknown schema mapper '{t}'")),
+        }
+    }
+}
+
+impl Schema {
+    fn apply(&self, log: &mut Log) {
+        log.set("ocsf.class_uid", Value::from(self.class_uid));
+        log.set("ocsf.class_name", Value::from(self.class_name.as_str()));
+        let category = self.class_uid / 1000;
+        log.set("ocsf.category_uid", Value::from(category));
+        if let Some(name) = usize::try_from(category).ok().and_then(|c| c.checked_sub(1)).and_then(|c| OCSF_CATEGORIES.get(c)) {
+            log.set("ocsf.category_name", Value::from(*name));
+        }
+        log.set("ocsf.metadata.version", Value::from(self.version.as_str()));
+        if !self.profiles.is_empty() {
+            log.set("ocsf.metadata.profiles", Value::from(self.profiles.clone()));
+        }
+        for mapper in &self.mappers {
+            match mapper {
+                Mapper::Remap(r) => r.apply(log),
+                Mapper::Category { categories, name, id, fallback, fallback_sources } => {
+                    if let Some((_, n, i)) = categories.iter().find(|(f, _, _)| log.matches(f)) {
+                        let (n, i) = (Value::from(n.as_str()), i.clone());
+                        log.set(name, n);
+                        log.set(id, i);
+                        continue;
+                    }
+                    for (target, v) in fallback {
+                        let read = fallback_sources.iter().find(|(t, _)| t == target).and_then(|(_, sources)| sources.iter().find_map(|s| log.get(s)));
+                        log.set(target, read.unwrap_or_else(|| v.clone()));
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -485,6 +613,30 @@ impl ArrayOp {
 }
 
 impl Remap {
+    /// An attribute remapper (or a schema processor's schema-remapper) from its definition.
+    fn compile(def: &Value) -> Result<Remap, String> {
+        let d: RemapDef = de(def)?;
+        let format = match d.target_format.as_deref().unwrap_or("auto") {
+            "auto" | "" => Format::Auto,
+            "string" => Format::Text,
+            "integer" => Format::Integer,
+            "double" => Format::Double,
+            f => return Err(format!("Unknown target format '{f}' (auto, string, integer or double)")),
+        };
+        if d.target.trim().is_empty() {
+            return Err("The remapper needs a target".into());
+        }
+        Ok(Remap {
+            sources: d.sources,
+            from_tag: d.source_type.as_deref() == Some("tag"),
+            target: d.target,
+            to_tag: d.target_type.as_deref() == Some("tag"),
+            format,
+            preserve_source: d.preserve_source.unwrap_or(false),
+            override_on_conflict: d.override_on_conflict.unwrap_or(false),
+        })
+    }
+
     fn apply(&self, log: &mut Log) {
         let read = |log: &Log, s: &str| if self.from_tag { log.tags.get(s).map(|v| Value::from(v.as_str())) } else { log.get(s) };
         let Some((source, v)) = self.sources.iter().find_map(|s| read(log, s).map(|v| (s, v))) else { return };
@@ -932,6 +1084,27 @@ mod tests {
         assert_eq!((out.get("outcome"), out.get("count")), (Some(json!("ok")), Some(json!(2))));
         assert_eq!((out.get("tags_list"), out.get("extra")), (Some(json!(["a", "b"])), None));
         assert_eq!((out.get("fresh"), out.get("single")), (Some(json!(["x"])), Some(json!("x"))));
+    }
+
+    #[test]
+    fn schema_processor_maps_onto_ocsf() {
+        let p = json!([{"type": "schema-processor", "schema": {"schemaType": "ocsf", "version": "1.5.0", "className": "DNS Activity", "classUid": 4003, "profiles": ["host"]}, "mappers": [
+            {"type": "schema-category-mapper", "name": "severity", "categories": [{"filter": {"query": "@level:(WARN OR WARNING)"}, "name": "Medium", "id": 3}, {"filter": {"query": "@level:ERROR"}, "name": "High", "id": 4}],
+             "targets": {"name": "ocsf.severity", "id": "ocsf.severity_id"}, "fallback": {"values": {"ocsf.severity": "Other", "ocsf.severity_id": "99"}, "sources": {"ocsf.severity": ["level"]}}},
+            {"type": "schema-category-mapper", "name": "activity", "categories": [{"filter": {"query": "*"}, "name": "Traffic", "id": 6}], "targets": {"name": "ocsf.activity_name", "id": "ocsf.activity_id"}},
+            {"type": "schema-remapper", "sources": ["network.client.port"], "target": "ocsf.src_endpoint.port", "targetFormat": "integer", "preserveSource": true, "overrideOnConflict": true}
+        ]}]);
+        let out = run(p.clone(), log("m", json!({"level": "ERROR", "network": {"client": {"port": "53"}}})));
+        let ocsf = out.get("ocsf").unwrap();
+        assert_eq!((ocsf["severity"].clone(), ocsf["severity_id"].clone(), ocsf["activity_name"].clone(), ocsf["activity_id"].clone()), (json!("High"), json!(4), json!("Traffic"), json!(6)));
+        assert_eq!((ocsf["src_endpoint"]["port"].clone(), out.get("network.client.port")), (json!(53), Some(json!("53"))));
+        assert_eq!((ocsf["class_uid"].clone(), ocsf["class_name"].clone(), ocsf["category_uid"].clone(), ocsf["category_name"].clone()), (json!(4003), json!("DNS Activity"), json!(4), json!("Network Activity")));
+        assert_eq!(ocsf["metadata"], json!({"version": "1.5.0", "profiles": ["host"]}));
+        // No category: the fallback's values, the name read from its source when there is one.
+        let out = run(p.clone(), log("m", json!({"level": "TRACE"})));
+        assert_eq!((out.get("ocsf.severity"), out.get("ocsf.severity_id")), (Some(json!("TRACE")), Some(json!(99))));
+        let out = run(p, log("m", json!({})));
+        assert_eq!((out.get("ocsf.severity"), out.get("ocsf.severity_id")), (Some(json!("Other")), Some(json!(99))));
     }
 
     #[test]

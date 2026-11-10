@@ -5,7 +5,7 @@ import { convertPipeline, MOCK_PIPELINES } from './import-integration-pipelines.
 
 const REV = 'c7dbc72cac1946294acda77f6491ecd081d9b498';
 
-test('an integrations-core pipeline keeps its filter and processors, without OCSF sub-pipelines', () => {
+test('an integrations-core pipeline keeps its filter and processors, OCSF sub-pipelines included', () => {
   const doc = {
     id: 'nginx',
     facets: [{ name: 'Method', path: 'http.method' }],
@@ -27,8 +27,9 @@ test('an integrations-core pipeline keeps its filter and processors, without OCS
   assert.equal(p.filter, 'source:nginx');
   assert.deepEqual(
     p.processors.map((x) => x.name),
-    ['Parsing', 'Errors'],
+    ['Parsing', 'OCSF', 'Errors'],
   );
+  assert.deepEqual(p.processors[1].processors, [{ type: 'schema-processor' }]);
   assert.deepEqual(p.processors[0].grok, doc.pipeline.processors[0].grok);
   assert.deepEqual(p.source, { repository: 'DataDog/integrations-core', revision: REV, path: 'nginx/assets/logs/nginx.yaml', license: 'BSD-3-Clause' });
   assert.throws(() => convertPipeline({ id: 'x' }, 'x', 'assets/logs/x.yaml', REV));
@@ -44,10 +45,8 @@ test('every integration’s pipelines are imported with their license, and the m
   for (const p of all) assert.ok(catalog.has(p.integration), `${p.id}: ${p.integration}`);
   assert.equal(all.find((p) => p.id === 'supply_chain_firewall').integration, 'supply-chain-firewall');
   assert.equal(all.find((p) => p.id === 'redisdb').integration, 'redis');
-  for (const p of all) {
-    assert.ok(!JSON.stringify(p).includes('"isOcsf":true'), p.id);
-    assert.equal(p.source.license, 'BSD-3-Clause');
-  }
+  for (const p of all) assert.equal(p.source.license, 'BSD-3-Clause');
+  assert.ok(all.filter((p) => JSON.stringify(p).includes('"isOcsf":true')).length >= 25, 'OCSF sub-pipelines are kept');
   assert.match(readFileSync(new URL('LICENSE', dir), 'utf8'), /Redistribution and use in source and binary forms/);
   const mock = JSON.parse(readFileSync(new URL('../web/src/api/pipelines/library.generated.json', import.meta.url), 'utf8'));
   assert.deepEqual(mock.map((p) => p.id).sort(), [...MOCK_PIPELINES].sort());

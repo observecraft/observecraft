@@ -11,13 +11,9 @@ const yaml = createRequire(new URL('../web/package.json', import.meta.url))('js-
 /** The pipelines the in-browser mock offers (web/src/api/pipelines/library.generated.json); the server offers them all. */
 export const MOCK_PIPELINES = ['clickhouse', 'coredns', 'etcd', 'kube_scheduler', 'mysql', 'nginx', 'nginx_ingress_controller', 'pgbouncer', 'postgres', 'redisdb'];
 
-/** OCSF sub-pipelines map logs onto Datadog's security schema (schema-processor), which we don't have. */
-const isOcsf = (p) => p.type === 'pipeline' && p.ocsf?.isOcsf === true;
-
-/** Drops what doesn't apply here (OCSF sub-pipelines) from a processor list, recursively, in the API's shape. */
+/** A processor list, recursively, in the API's shape (OCSF sub-pipelines and their schema processors included). */
 function processors(list) {
   return (list ?? [])
-    .filter((p) => !isOcsf(p))
     .map((p) => (p.type === 'pipeline' ? { ...p, processors: processors(p.processors) } : p))
     .map((p) =>
       // YAML files write a lookup table as one block of `key,value` lines; Datadog's API stores a list of them.
