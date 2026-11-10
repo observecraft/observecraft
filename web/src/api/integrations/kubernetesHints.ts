@@ -460,6 +460,19 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
     ],
   },
   {
+    check: 'keda',
+    variants: [
+      {
+        label: 'KEDA Helm chart (kedacore/keda)',
+        text: 'Turn the three components’ metrics on (`prometheus.operator.enabled`, `prometheus.metricServer.enabled` and `prometheus.webhooks.enabled`, each on port 8080) and put these annotations in the chart’s `podAnnotations.keda`, `podAnnotations.metricsAdapter` and `podAnnotations.webhooks` (one block for all three is fine: each pod reads its own container’s). The logs keep their images’ names (`keda`, `keda-metrics-apiserver`, `keda-admission-webhooks`), the sources the integration’s pipeline reads.',
+        filename: POD_ANNOTATIONS,
+        code: ['keda-operator', 'keda-operator-metrics-apiserver', 'keda-admission-webhooks']
+          .map((container) => checkAnnotation(container, 'keda', { instances: [{ openmetrics_endpoint: 'http://%%host%%:8080/metrics' }] }))
+          .join('\n'),
+      },
+    ],
+  },
+  {
     check: 'coredns',
     variants: [
       {

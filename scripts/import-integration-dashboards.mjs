@@ -343,6 +343,7 @@ const MOCK_INTEGRATIONS = [
   'kube-scheduler',
   'kube-controller-manager',
   'coredns',
+  'keda',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */

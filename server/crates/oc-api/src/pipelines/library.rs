@@ -346,6 +346,22 @@ mod tests {
         assert_eq!((log.get("duration"), log.get("dns.flags.list"), log.status.as_str()), (Some(json!(94523)), Some(json!(["qr", "aa", "rd"])), "info"));
     }
 
+    /// KEDA's operator (zap, a JSON tail) and metrics adapter (klog with quoted key-values), as integrations-core's
+    /// `keda_tests.yaml` expects.
+    #[test]
+    fn keda_operator_and_metrics_adapter_logs() {
+        use serde_json::json;
+        let line = "2026-11-10T09:15:02Z\tERROR\tscale_handler\terror resolving auth params\t{\"type\": \"ScaledObject\", \"namespace\": \"checkout\", \"name\": \"order-worker\", \"triggerIndex\": 0, \"error\": \"secret redis-auth not found\"}";
+        let log = agent_log("keda", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60001", "service": "keda-operator", "ddsource": "keda"}));
+        assert_eq!((log.message.as_str(), log.status.as_str(), log.get("logger.name")), ("error resolving auth params", "error", Some(json!("scale_handler"))));
+        assert_eq!((log.get("name"), log.get("namespace"), log.get("error")), (Some(json!("order-worker")), Some(json!("checkout")), Some(json!("secret redis-auth not found"))));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_000));
+        let line = r#"I1110 09:15:02.261024       1 main.go:112] "msg"="Connecting Metrics Service gRPC client to the server" "address"="keda-operator.keda.svc.cluster.local:9666" "logger"="keda_metrics_adapter""#;
+        let log = agent_log("keda", json!({"message": line, "service": "keda-operator-metrics-apiserver", "ddsource": "keda-metrics-apiserver"}));
+        assert_eq!((log.get("address"), log.get("logger"), log.status.as_str()), (Some(json!("keda-operator.keda.svc.cluster.local:9666")), Some(json!("keda_metrics_adapter")), "info"), "quoted keys");
+        assert!(log.message.contains("Connecting Metrics Service gRPC client"), "{}", log.message);
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};
