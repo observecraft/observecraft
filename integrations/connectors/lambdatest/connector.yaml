@@ -3,7 +3,7 @@
 # automation sessions, read from its Selenium Automation API and shaped as the test session logs its Datadog
 # integration sends (source:lambdatest, service:LambdaTest; test_id, product, status, duration_in_secs, test_env_os /
 # _browser / _device / _resolution, test_url, tunnel_used, test_created_at / _started_at / _ended_at), so
-# integrations-extras' pipeline and dashboard read them. As in those logs, `status` carries the session's outcome
+# integrations-extras' pipeline and dashboard read them. As in those logs, `@status` carries the session's outcome
 # (Completed for passed and completed sessions, Failed for failed and errored ones, as the dashboard counts them).
 # Not collected: test_url, test_env_resolution and tunnel_used (the sessions API doesn't list them), app automation and
 # manual sessions (other APIs), and the "Mark as Bug" incidents, which TestMu AI opens in Datadog itself.
@@ -76,7 +76,7 @@ streams:
     # Newest first: pages stop at the first session created before the window.
     pagination:
       kind: cursor
-      next: "{{ (records | len) < 100 || (last.create_timestamp | epoch_ms) < window.start ? null : (page.cursor ?? 0) + 100 }}"
+      next: "{{ (records | len) < 100 ? null : (page.cursor ?? 0) + 100 }}"
     record_id: "{{ record.test_id }}"
     filter: "{{ record.end_timestamp && !(record.status_ind in ['running', 'queued', 'initiated']) }}"
     # Sessions are listed by creation and sent once they end: a window keeps the last 3 hours (longer sessions are missed).
@@ -95,7 +95,7 @@ streams:
         service: LambdaTest
         message: >-
           {{ (record.name ?? record.test_id) + ': ' + record.status_ind + ' on ' + (vars.browser ?? record.device ?? '?') + ' (' + (record.platform ?? '?') + ')' + (', build ' + record.build_name ?? '') }}
-        status: "{{ vars.outcome }}"
+        status: "{{ vars.outcome == 'Failed' ? 'error' : 'info' }}"
         date: "{{ record.end_timestamp }}"
         tags: { build: "{{ record.build_name }}" }
         attributes:
@@ -116,6 +116,7 @@ streams:
           test_created_at: "{{ record.create_timestamp | strftime(vars.when) }}"
           test_started_at: "{{ record.start_timestamp | strftime(vars.when) }}"
           test_ended_at: "{{ record.end_timestamp | strftime(vars.when) }}"
+          status: "{{ vars.outcome }}"
 
 test:
   request:
