@@ -31,7 +31,7 @@
       },
       "host": "0b1c2d3e-0000-4000-8000-000000000001",
       "message": "Bitwarden event 1000 by Jane Doe",
-      "service": "bitwarden",
+      "service": "event-logs",
       "status": "info"
     },
     {
@@ -63,7 +63,7 @@
       },
       "host": "0b1c2d3e-0000-4000-8000-000000000001",
       "message": "Bitwarden event 1300 by Sam Lee",
-      "service": "bitwarden",
+      "service": "event-logs",
       "status": "info"
     },
     {
@@ -100,7 +100,7 @@
       },
       "host": "0b1c2d3e-0000-4000-8000-000000000001",
       "message": "Bitwarden event 1500 by Jane Doe",
-      "service": "bitwarden",
+      "service": "event-logs",
       "status": "info"
     },
     {
@@ -135,7 +135,7 @@
       },
       "host": "0b1c2d3e-0000-4000-8000-000000000001",
       "message": "Bitwarden event 1400 by Jane Doe",
-      "service": "bitwarden",
+      "service": "event-logs",
       "status": "info"
     }
   ],

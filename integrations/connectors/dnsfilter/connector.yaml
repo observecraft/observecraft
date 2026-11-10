@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../connector.schema.json
 # DNSFilter (https://api.dnsfilter.com/docs.json, GET /v1/traffic_reports/query_logs): DNS query logs, as the logs
-# Datadog's integration sends (source:dnsfilter, the query log row as DNSFilter answers it: fqdn, result, threat,
+# Datadog's integration sends (source:dnsfilter, service:traffic-logs, the query log row as DNSFilter answers it: fqdn, result, threat,
 # categories_names, policy_name, agentname, local_user_name, code, question_type, …). integrations-core's log
 # pipeline, its two dashboards and its SERVFAIL monitor for the tile read them as they are.
 schema_version: 1
@@ -76,6 +76,7 @@ streams:
       max_window: 1h
     output:
       logs:
+        service: traffic-logs
         message: "{{ (record.question_type ?? 'A') + ' ' + record.fqdn + ' ' + record.result + (record.threat ? ' (threat)' : '') }}"
         status: "{{ record.threat ? 'warn' : 'info' }}"
         date: "{{ record.time | epoch_ms('UTC') }}"

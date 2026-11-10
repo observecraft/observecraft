@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../connector.schema.json
 # Bitwarden (https://bitwarden.com/help/public-api/): an organization's event log, as the logs Datadog's integration
-# sends (source:bitwarden): {event: <the event as Bitwarden answers it>, enrichment_details: {actingUser, member,
+# sends (source:bitwarden, service:event-logs): {event: <the event as Bitwarden answers it>, enrichment_details: {actingUser, member,
 # group: their name, email and type}}. integrations-core's log pipeline (event type and device codes to names, user
 # types, usr.*, network.client.ip) and its three dashboards for the tile read them as they are.
 schema_version: 1
@@ -116,6 +116,7 @@ streams:
       settle: 1m
     output:
       logs:
+        service: event-logs
         message: "{{ 'Bitwarden event ' + (record.type | str) + (' by ' + lookups.users[record.actingUserId].name ?? '') }}"
         date: "{{ record.date }}"
         attributes:

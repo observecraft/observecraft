@@ -36,7 +36,7 @@
         "name": "Jane Doe",
         "resource_type": "user"
       },
-      "service": "asana",
+      "service": "audit-logs",
       "status": "info"
     },
     {
@@ -74,7 +74,7 @@
         "name": "Sam Lee",
         "resource_type": "user"
       },
-      "service": "asana",
+      "service": "audit-logs",
       "status": "info"
     },
     {
@@ -109,7 +109,7 @@
         "name": "Checkout redesign",
         "resource_type": "project"
       },
-      "service": "asana",
+      "service": "audit-logs",
       "status": "info"
     },
     {
@@ -143,7 +143,7 @@
         "name": "Alex Kim",
         "resource_type": "user"
       },
-      "service": "asana",
+      "service": "audit-logs",
       "status": "info"
     }
   ],

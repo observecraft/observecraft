@@ -54,7 +54,7 @@
       "server_address": "10.0.0.2",
       "server_id": 212800,
       "server_name": "anycast-iad",
-      "service": "dnsfilter",
+      "service": "traffic-logs",
       "status": "info",
       "threat": false,
       "time": "2026-11-10 11:50:24.085"
@@ -96,7 +96,7 @@
       "result": "blocked",
       "server_address": "10.0.0.2",
       "server_id": 212800,
-      "service": "dnsfilter",
+      "service": "traffic-logs",
       "status": "warn",
       "threat": true,
       "time": "2026-11-10 11:48:02.511"
@@ -132,7 +132,7 @@
       "result": "allowed",
       "server_address": "10.0.0.3",
       "server_id": 212801,
-      "service": "dnsfilter",
+      "service": "traffic-logs",
       "status": "info",
       "threat": false,
       "time": "2026-11-10 11:40:00.002"

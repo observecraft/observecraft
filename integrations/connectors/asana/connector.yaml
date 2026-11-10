@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../connector.schema.json
 # Asana (https://developers.asana.com/reference/getauditlogevents): a workspace's audit log, as the logs Datadog's
-# integration sends (source:asana, the event as it comes: gid, event_type, event_category, actor, resource, details,
+# integration sends (source:asana, service:audit-logs, the event as it comes: gid, event_type, event_category, actor, resource, details,
 # context). integrations-core's log pipeline and "Asana - Audit Logs" dashboard for the tile read them as they are.
 schema_version: 1
 id: asana
@@ -79,6 +79,7 @@ streams:
       settle: 1m
     output:
       logs:
+        service: audit-logs
         message: "{{ record.event_type + (' by ' + (record.actor.name ?? record.actor.email ?? record.actor.actor_type) ?? '') }}"
         date: "{{ record.created_at }}"
         attributes: "{{ record }}"
