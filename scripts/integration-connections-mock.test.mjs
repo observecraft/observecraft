@@ -54,15 +54,6 @@ const CASES = {
       }),
     remove: () => web.googleWorkspace.deleteGoogleWorkspace(),
   },
-  // Connector packages, through the generic connectors mock.
-  netbird: {
-    connect: () => web.connectors.createConnection('netbird', { name: '', config: { base_url: 'https://api.netbird.io' }, secrets: { token } }),
-    remove: async () => Promise.all((await web.connectors.getConnector('netbird')).connections.map((c) => web.connectors.deleteConnection('netbird', c.id))),
-  },
-  'have-i-been-pwned': {
-    connect: () => web.connectors.createConnection('have-i-been-pwned', { name: '', config: {}, secrets: { api_key: token } }),
-    remove: async () => Promise.all((await web.connectors.getConnector('have-i-been-pwned')).connections.map((c) => web.connectors.deleteConnection('have-i-been-pwned', c.id))),
-  },
   aws: { remove: async () => Promise.all((await web.aws.listAwsAccounts()).map((a) => web.aws.deleteAwsAccount(a.id))) },
   // Before azure: removing its app registrations removes their Entra ID logs too.
   'azure-active-directory': { remove: () => web.entra.saveEntraLogs('3c2b1a09-8f7e-4d6c-9b5a-4f3e2d1c0b9a', { enabled: false }) },
@@ -70,6 +61,16 @@ const CASES = {
   'google-cloud': { remove: async () => Promise.all((await web.gcp.listGcpAccounts()).map((a) => web.gcp.deleteGcpAccount(a.id))) },
   slack: { remove: async () => Promise.all((await web.slack.getSlackOverview()).accounts.map((a) => web.slack.disconnectSlackAccount(a.id))) },
 };
+
+// Every bundled connector package, through the generic connectors mock, with its own mock connection.
+const PACKAGES = JSON.parse(readFileSync(new URL('../web/src/api/connectors/packages.generated.json', import.meta.url), 'utf8'));
+for (const { entry, mock } of PACKAGES) {
+  if (entry.push) continue;
+  CASES[entry.id] = {
+    connect: () => web.connectors.createConnection(entry.id, { name: '', config: mock?.config ?? {}, secrets: Object.fromEntries((mock?.secrets ?? []).map((k) => [k, token])) }),
+    remove: async () => Promise.all((await web.connectors.getConnector(entry.id)).connections.map((c) => web.connectors.deleteConnection(entry.id, c.id))),
+  };
+}
 
 test('every connection the server counts as installed is covered here', async () => {
   const rust = readFileSync(new URL('../server/crates/oc-api/src/routes/integration_installs.rs', import.meta.url), 'utf8');
