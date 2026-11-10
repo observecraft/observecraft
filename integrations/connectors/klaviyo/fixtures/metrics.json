@@ -1,0 +1,8 @@
+{
+  "data": [
+    { "type": "metric", "id": "RcvEm1", "attributes": { "name": "Received Email", "created": "2025-01-10T10:00:00+00:00", "updated": "2025-01-10T10:00:00+00:00", "integration": { "object": "integration", "id": "0rG4eQ", "name": "Klaviyo", "category": "Internal" } }, "links": { "self": "https://a.klaviyo.com/api/metrics/RcvEm1/" } },
+    { "type": "metric", "id": "OpnEm2", "attributes": { "name": "Opened Email", "created": "2025-01-10T10:00:00+00:00", "updated": "2025-01-10T10:00:00+00:00", "integration": { "object": "integration", "id": "0rG4eQ", "name": "Klaviyo", "category": "Internal" } }, "links": { "self": "https://a.klaviyo.com/api/metrics/OpnEm2/" } },
+    { "type": "metric", "id": "PlcOr3", "attributes": { "name": "Placed Order", "created": "2025-01-12T10:00:00+00:00", "updated": "2025-01-12T10:00:00+00:00", "integration": { "object": "integration", "id": "7FtS4J", "name": "Shopify", "category": "eCommerce" } }, "links": { "self": "https://a.klaviyo.com/api/metrics/PlcOr3/" } }
+  ],
+  "links": { "self": "https://a.klaviyo.com/api/metrics/", "next": null, "prev": null }
+}
