@@ -74,3 +74,10 @@ test('boolean tag filters read as our filters: AND as a comma, OR and IN between
 test('an OR between different tags is not one of our filters', () => {
   assert.equal(parseMetricQuery('avg:system.load.1{env:prod OR service:billing}'), null);
 });
+
+test('a search reads `$name.value` as the variable’s value, `*` while it is unset (Postgres’ log stream)', () => {
+  const vars = [{ name: 'host', prefix: 'host', default: '*' }];
+  const query = 'source:postgresql (host:$host.value OR hostname:$host.value)';
+  assert.equal(resolveSearchQuery(query, vars, {}), 'source:postgresql (host:* OR hostname:*)');
+  assert.equal(resolveSearchQuery(query, vars, { host: 'i-0a1b2c3d4e5f60001' }), 'source:postgresql (host:i-0a1b2c3d4e5f60001 OR hostname:i-0a1b2c3d4e5f60001)');
+});

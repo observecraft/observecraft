@@ -190,8 +190,12 @@ export function resolveSearchQuery(query: string, tvs: TemplateVariable[], value
     if (!value || value === '*') return '';
     return tv.prefix ? `${tv.prefix}:${quote(value)}` : value;
   };
+  // `$name.value`: the value alone (`host:$host.value`), `*` while unset.
+  const valueOf = names.length ? new RegExp(`\\$(${names.join('|')})\\.value\\b`, 'g') : null;
+  const byValue = !!valueOf?.test(query);
+  if (valueOf) query = query.replace(valueOf, (_, name: string) => quote(values[name] ?? byName.get(name)!.default ?? '*') || '*');
   const reference = names.length ? new RegExp(`\\$(${names.join('|')})(?![\\w.])`, 'g') : null;
-  const named = !!reference?.test(query);
+  const named = !!reference?.test(query) || byValue;
   const resolved = named ? query.replace(reference!, (_, name: string) => term(byName.get(name)!)) : appendUnnamed ? [query, ...tvs.map(term)].join(' ') : query;
   return resolved.replace(/\s+/g, ' ').trim();
 }

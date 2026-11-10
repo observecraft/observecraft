@@ -6,7 +6,7 @@ import { searchSignals } from '../security/client';
 import { checkStatusQuery } from './checkStatus';
 import { signalFacet, signalSeries, type SignalPanelQuery } from './signals';
 import { logRequest, logSeries, throughputs, type LogPanelQuery } from './logs';
-import { aggregate, formula, normalizeRequest, preparePanelQuery, serverAggregator, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
+import { aggregate, formula, formulaUnit, normalizeRequest, preparePanelQuery, serverAggregator, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
 
 export interface PanelSeries extends MetricSeries {
   column?: string;
@@ -16,6 +16,9 @@ export interface PanelSeries extends MetricSeries {
   /** The request's palette name (dog_classic, cool, warm, purple, …). */
   palette?: string;
 }
+
+/** Formula functions of a series over time: a scalar panel evaluates them on the points, then reduces the result. */
+const OVER_TIME = /\b(?:derivative|rate|dt|diff|monotonic_diff|cumsum|autosmooth|ewma_\d+|per_second|per_minute|per_hour)\(/;
 
 export async function queryIntegrationPanel(
   def: IntegrationWidgetDefinition,
@@ -52,6 +55,8 @@ export async function queryIntegrationPanel(
         const formulas: IntegrationFormula[] = (requestFormulas ?? queries.map((q) => ({ formula: q.name }))).map((f) => ({ ...f, formula: throughputs(timeShifts(f.formula).text).text }));
         const shifts = (requestFormulas ?? []).flatMap((f) => timeShifts(f.formula).shifts);
         const perSecond = [...new Set((requestFormulas ?? []).flatMap((f) => throughputs(f.formula).names))];
+        const overTime = scalar && formulas.some((f) => OVER_TIME.test(f.formula));
+        const aggregatorOf = (name: string) => queries.find((q) => q.name === name)?.aggregator ?? request.aggregator ?? 'avg';
         const inputs: Record<string, MetricSeries[]> = {};
         // A query over `range` moved back by `seconds`, its points moved onto `range` (time comparisons).
         // The dashboard's shared stream only has the current range, so earlier ranges are fetched directly.
@@ -76,7 +81,7 @@ export async function queryIntegrationPanel(
           try {
             // A scalar panel's query arrives as one value per series from the dashboard stream (the
             // aggregate below leaves it as it is); other sources send the points.
-            const aggregator = scalar ? serverAggregator(plan.operations, query.aggregator ?? request.aggregator) : undefined;
+            const aggregator = scalar && !overTime ? serverAggregator(plan.operations, query.aggregator ?? request.aggregator) : undefined;
             series = await source.timeseries({ queries: [text], range, points, ...(aggregator ? { aggregator } : {}) });
           } catch (error) {
             if (error instanceof Error && error.message.startsWith('Unknown metric:')) series = [];
@@ -139,7 +144,7 @@ export async function queryIntegrationPanel(
           }));
         }
         // Scalar requests aggregate each named query before evaluating its formulas.
-        if (scalar) {
+        if (scalar && !overTime) {
           for (const [name, series] of Object.entries(inputs)) {
             const query = queries.find((q) => q.name === name.split('__')[0]);
             inputs[name] = series.flatMap((s) => {
@@ -151,9 +156,23 @@ export async function queryIntegrationPanel(
             });
           }
         }
+        const evaluated = (f: IntegrationFormula) => {
+          const result = formula(f.formula, inputs);
+          if (!overTime) return result;
+          // Reduced with the aggregator of the formula's first query, as its scalar value.
+          const method = aggregatorOf(queries.find((q) => new RegExp(`\\b${q.name}\\b`).test(f.formula))?.name ?? '');
+          return result.flatMap((s) => {
+            const value = aggregate(
+              s.points.map((p) => p[1]),
+              method,
+            );
+            return value === undefined ? [] : [{ ...s, points: [[range.to, value]] as [number, number][] }];
+          });
+        };
         return formulas.flatMap((f) =>
-          formula(f.formula, inputs).map((s) => ({
+          evaluated(f).map((s) => ({
             ...s,
+            unit: formulaUnit(f) ?? s.unit,
             column: f.alias ?? f.formula,
             group: s.name,
             name: f.alias ? `${f.alias}${s.name === '*' ? '' : ` · ${s.name}`}` : s.name === '*' ? f.formula : s.name,

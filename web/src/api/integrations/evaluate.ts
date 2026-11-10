@@ -22,6 +22,18 @@ interface TableColumn {
 export interface IntegrationFormula {
   formula: string;
   alias?: string;
+  /** The unit its values show in: a canonical unit (`byte_in_decimal_bytes_family` per `second`) or a label of its own. */
+  number_format?: { unit?: { type?: string; unit_name?: string; per_unit_name?: string; label?: string } };
+}
+
+/** A formula's number_format unit as a metric unit (`byte/second`), or undefined when it names none. */
+export function formulaUnit(f: IntegrationFormula): string | undefined {
+  const u = f.number_format?.unit;
+  if (u?.type === 'custom_unit_label') return u.label || undefined;
+  if (!u?.unit_name) return undefined;
+  // `byte_in_decimal_bytes_family`, `second_in_time_family`: the unit before its family.
+  const name = (n: string) => n.replace(/_in_\w+_family$/, '');
+  return u.per_unit_name ? `${name(u.unit_name)}/${name(u.per_unit_name)}` : name(u.unit_name);
 }
 export interface IntegrationRequest {
   query?: { query_string: string; data_source: string };

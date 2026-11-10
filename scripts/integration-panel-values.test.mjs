@@ -35,3 +35,68 @@ test('panel formulas keep raw CPU values and units, and remove non-Job groups be
   assert.equal(result[0].points[0][1], 0);
   assert.equal(result[0].group, 'kube_job:inventory-reconcile');
 });
+
+test('a scalar panel applies a function over time (derivative) to the series, then reduces with the query aggregator', async () => {
+  const def = {
+    type: 'query_value',
+    requests: [
+      {
+        queries: [{ name: 'query1', query: 'avg:clickhouse.events.LogError.total{*}', data_source: 'metrics', aggregator: 'last' }],
+        formulas: [{ formula: 'derivative(query1)' }],
+        response_format: 'scalar',
+      },
+    ],
+  };
+  const asked = [];
+  const result = await queryIntegrationPanel(
+    def,
+    (q) => q,
+    { from: 0, to: 180_000 },
+    {
+      catalog: async () => [{ name: 'clickhouse.events.LogError.total', kind: 'gauge', description: '', tags: [] }],
+      timeseries: async (req) => (
+        asked.push(req),
+        [
+          {
+            name: '*',
+            points: [
+              [0, 100],
+              [60_000, 160],
+              [120_000, 400],
+              [180_000, 460],
+            ],
+          },
+        ]
+      ),
+    },
+  );
+  assert.equal(asked[0].aggregator, undefined, 'every point, not one value per series');
+  assert.equal(result.length, 1);
+  assert.deepEqual(result[0].points, [[180_000, 1]], 'the last change per second');
+});
+
+test('a formula’s number_format unit is the unit its values show in (ClickHouse’s bytes, bytes per second, percent)', async () => {
+  const unit = async (number_format) =>
+    (
+      await queryIntegrationPanel(
+        {
+          type: 'query_value',
+          requests: [
+            {
+              queries: [{ name: 'query1', query: 'avg:clickhouse.asynchronous_metrics.TotalBytesOfMergeTreeTables{*}', data_source: 'metrics', aggregator: 'avg' }],
+              formulas: [{ formula: 'query1', number_format }],
+              response_format: 'scalar',
+            },
+          ],
+        },
+        (q) => q,
+        { from: 0, to: 60_000 },
+        { catalog: async () => [], timeseries: async () => [{ name: '*', points: [[60_000, 7.8e11]] }] },
+      )
+    )[0].unit;
+  assert.equal(await unit({ unit: { type: 'canonical_unit', unit_name: 'byte_in_decimal_bytes_family' } }), 'byte');
+  assert.equal(await unit({ unit: { type: 'canonical_unit', unit_name: 'byte_in_decimal_bytes_family', per_unit_name: 'second' } }), 'byte/second');
+  assert.equal(await unit({ unit: { type: 'canonical_unit', unit_name: 'percent' } }), 'percent');
+  assert.equal(await unit({ unit: { type: 'custom_unit_label', label: 'cores' } }), 'cores');
+  assert.equal(await unit({ unit: { type: 'canonical_unit' } }), undefined, 'no unit named: the metric’s');
+});
