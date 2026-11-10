@@ -91,7 +91,8 @@ function build(dirs) {
     const out = entries.map((e) => {
       const dir = join(BUNDLED, e.entry.id);
       const dist = join(dir, 'dist/dashboards.json');
-      return { ...e, dashboards: existsSync(dist) ? JSON.parse(readFileSync(dist, 'utf8')) : [] };
+      // Read from their directories, but bundled: not third-party.
+      return { ...e, entry: { ...e.entry, thirdParty: false }, dashboards: existsSync(dist) ? JSON.parse(readFileSync(dist, 'utf8')) : [] };
     });
     const target = join(ROOT, 'web/src/api/connectors/packages.generated.json');
     mkdirSync(join(ROOT, 'web/src/api/connectors'), { recursive: true });

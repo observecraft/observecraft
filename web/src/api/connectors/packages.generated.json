@@ -83,7 +83,7 @@
         }
       ],
       "testable": true,
-      "thirdParty": true,
+      "thirdParty": false,
       "tiles": [
         "have-i-been-pwned"
       ],
@@ -282,7 +282,7 @@
         }
       ],
       "testable": true,
-      "thirdParty": true,
+      "thirdParty": false,
       "tiles": [
         "netbird"
       ],
