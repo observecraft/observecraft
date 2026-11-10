@@ -1,0 +1,4 @@
+[
+  { "domainEntityId": 4101, "domain": "shop.example.com", "status": "VERIFIED", "createdAt": "2026-01-09T10:00:00Z", "modifiedAt": "2026-01-09T12:00:00Z" },
+  { "domainEntityId": 4102, "domain": "www.shop.example.com", "status": "VERIFIED", "createdAt": "2026-01-09T10:00:00Z", "modifiedAt": "2026-01-09T12:00:00Z" }
+]
