@@ -404,6 +404,23 @@ mod tests {
         assert_eq!((log.message.as_str(), log.timestamp_ms), ("# CPU blocks: 7281", Some(1_718_139_721_000)));
     }
 
+    /// Argo Workflows' controller logs (logrus key-values), as integrations-core's `argo_workflows_tests.yaml`
+    /// expects: unquoted numbers as numbers, `msg` as the message when nothing follows it.
+    #[test]
+    fn argo_workflows_controller_logs() {
+        use serde_json::json;
+        let line = r#"time="2026-11-10T09:15:02.258Z" level=info duration="144.502µs" method=GET path=index.html size=487 status=0"#;
+        let log = agent_log("argo_workflows", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60002", "service": "argo-workflows", "ddsource": "argo_workflows"}));
+        assert_eq!((log.get("size"), log.get("status"), log.get("duration")), (Some(json!(487)), Some(json!(0)), Some(json!("144.502µs"))));
+        assert_eq!((log.status.as_str(), log.timestamp_ms), ("info", Some(1_794_302_102_258)));
+        // Fields after the message: the fallback rule reads them, the line stays the message and `msg` an attribute.
+        let line = r#"time="2026-11-10T09:15:03.000Z" level=warning msg="Mark error node" namespace=data workflow=invoice-batch"#;
+        let log = agent_log("argo_workflows", json!({"message": line, "service": "argo-workflows", "ddsource": "argo_workflows"}));
+        assert_eq!((log.status.as_str(), log.get("workflow"), log.get("msg")), ("warn", Some(json!("invoice-batch")), Some(json!("Mark error node"))));
+        let line = r#"time="2026-11-10T09:15:04.000Z" level=info msg="Processing workflow""#;
+        assert_eq!(agent_log("argo_workflows", json!({"message": line, "service": "argo-workflows", "ddsource": "argo_workflows"})).message, "Processing workflow");
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};

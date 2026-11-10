@@ -77,7 +77,73 @@ const vllmLine = (status: LogStatus, at: string, text: (r: Rand) => string, weig
   weight,
 });
 
+/** A logrus line (`level=info msg="…" key=value`) of the Argo controllers as their pipelines leave it. With fields after
+ * `msg` (`full`), Argo Workflows' pipeline keeps the line as the message and `msg` as an attribute. */
+const logrusLine = (status: LogStatus, msg: (r: Rand) => string, extra: (r: Rand) => Record<string, JsonValue> = () => ({}), weight = 1, full = false): Line => {
+  const level = status === 'warn' ? 'warning' : status;
+  let fields: Record<string, JsonValue> = {};
+  return {
+    status,
+    message: (r) => {
+      const text = msg(r);
+      fields = extra(r);
+      if (!full) return text;
+      fields = { msg: text, ...fields };
+      return `level=${level} ${Object.entries(fields)
+        .map(([k, v]) => `${k}=${typeof v === 'string' && /\s/.test(v) ? JSON.stringify(v) : v}`)
+        .join(' ')}`;
+    },
+    attributes: () => ({ level, ...fields }),
+    weight,
+  };
+};
+const WORKFLOWS = ['nightly-order-export', 'catalog-reindex', 'invoice-batch', 'image-thumbnails'];
+
 const SOURCES: Source[] = [
+  {
+    source: 'argo_workflows',
+    service: 'argo-workflows',
+    namespace: 'argo',
+    pod: (i) => `argo-workflows-workflow-controller-7d9c6b5f4-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+    count: 200,
+    lines: [
+      logrusLine(
+        'info',
+        () => 'Processing workflow',
+        (r) => ({ namespace: 'data', workflow: `${pick(r, WORKFLOWS)}-${Math.floor(r() * 46656).toString(36)}` }),
+        6,
+        true,
+      ),
+      logrusLine(
+        'info',
+        () => 'Created pod',
+        (r) => ({ namespace: 'data', workflow: pick(r, WORKFLOWS), podName: `${pick(r, WORKFLOWS)}-main-${Math.floor(r() * 1e9)}` }),
+        3,
+        true,
+      ),
+      logrusLine(
+        'info',
+        () => 'Workflow update successful',
+        (r) => ({ namespace: 'data', workflow: pick(r, WORKFLOWS), phase: pick(r, ['Running', 'Succeeded', 'Succeeded', 'Failed']) }),
+        3,
+        true,
+      ),
+      logrusLine(
+        'warn',
+        () => 'Non-transient error: exceeded quota: data-quota',
+        () => ({ namespace: 'data', workflow: 'invoice-batch' }),
+        1,
+        true,
+      ),
+      logrusLine(
+        'error',
+        () => 'Mark error node',
+        (r) => ({ namespace: 'data', workflow: pick(r, WORKFLOWS), error: 'failed to save outputs: timed out waiting for the condition' }),
+        1,
+        true,
+      ),
+    ],
+  },
   {
     source: 'vllm',
     service: 'vllm',

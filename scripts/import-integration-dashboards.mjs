@@ -348,6 +348,7 @@ const MOCK_INTEGRATIONS = [
   'temporal',
   'vllm',
   'dcgm',
+  'argo-workflows',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */

@@ -525,6 +525,20 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
     ],
   },
   {
+    check: 'argo_workflows',
+    variants: [
+      {
+        label: 'Argo Workflows Helm chart (argo/argo-workflows)',
+        text: 'The workflow controller serves its metrics on port 9090 (`controller.metricsConfig.enabled: true`). Put the annotations in the chart’s `controller.podAnnotations` (the container is `controller`); recent Agents also find the controller by its image by themselves. The logs annotation names the `argo_workflows` source the integration’s pipeline reads (otherwise `workflow-controller`).',
+        filename: POD_ANNOTATIONS,
+        code: [
+          checkAnnotation('controller', 'argo_workflows', { instances: [{ openmetrics_endpoint: 'http://%%host%%:9090/metrics' }] }),
+          logsAnnotation('controller', 'argo_workflows', 'argo-workflows'),
+        ].join('\n'),
+      },
+    ],
+  },
+  {
     check: 'coredns',
     variants: [
       {
