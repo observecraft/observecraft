@@ -132,6 +132,15 @@ or SDK features.
   `percentiles`), user labels as tags; late one-minute metrics are read over a window moved back by their ingest delay,
   coarser ones re-read and published once per series and failed reads retried (Postgres `gcp_metric_state`);
   `region_filter_configs` apply.
+- **Microsoft Entra ID** (the Azure page's "Entra ID Logs" tab per app registration, `routes/entra_logs.rs`; the
+  `azure-active-directory` tile opens it): the server reads the tenant's sign-ins, directory audits and Identity
+  Protection risk detections from Microsoft Graph (`oc-api/src/entra/`, `azure::api::Rest::graph_get`; AuditLog.Read.All,
+  Directory.Read.All, IdentityRiskEvent.Read.All; sign-ins need Entra ID P1, risk P2) on the cloud crawlers' jobs
+  (provider `entra`, scopes `signins`, `audits`, `risk`; Postgres `entra_log_settings`, `entra_log_state`) and sends
+  them to `oc.logs.json` shaped as Azure's diagnostic settings export them (`source:azure.activedirectory`, `category`
+  SignInLogs / AuditLogs / UserRiskEvents, the Graph object under `properties`), so integrations-core's pipeline reads
+  them unchanged. Graph lists sign-ins newest first only: a run reads a closed window whole before moving the cursor,
+  re-reads a 15-minute overlap and sends each id once. Its dashboard is ours (`scripts/entra-id-dashboard.mjs`).
 - **Cloud Cost → Recommendations** (`routes/cloud_cost_recommendations.rs`, `GET /api/v1/cloud-cost/recommendations`):
   our own rules over 14 days of the AWS / Azure crawlers' metrics (idle EC2 instances and Azure VMs, downsizing, RDS
   without connections, idle EBS volumes and managed disks, unused NAT gateways, idle load balancers, unused public IPs);
@@ -358,6 +367,9 @@ or SDK features.
   webhooks get the intake URL to paste, push-site senders only when they take a custom URL (`customEndpoint`).
 - **Still missing:**
   - Cloud Network Monitoring's network paths;
+  - Entra ID's non-interactive, service principal and managed identity sign-ins (Graph v1.0 lists interactive ones),
+    its provisioning and Graph activity logs, and Okta (Datadog's Okta integration is its own crawler; only Okta
+    Workflows is in the catalog);
   - Logs: forwarding to Microsoft Sentinel (needs Azure credentials), Azure Blob archives, archive readers (roles), the
     pipeline processors the engine doesn't run yet (array, decoder, schema, span id remapper: stored and skipped);
   - the profiler's Thread Timeline and Call Graph views, and Event Management's saved work item states, intelligent (learned) correlation, projects and event pipelines (correlators, maintenance windows and work item attributes exist);
