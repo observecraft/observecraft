@@ -420,6 +420,73 @@ pub const PACKS: &[ContentPack] = &[
         ],
     },
     ContentPack {
+        id: "google-workspace",
+        name: "Google Workspace",
+        category: "Collaboration",
+        platform: "SaaS",
+        logo: "google-workspace",
+        description: "Watch who gets into your Google Workspace and what they open up: failed and suspicious logins, administrator roles granted, 2-step verification turned off and Drive files made public.",
+        query: "source:gsuite",
+        setup: "Connect Google Workspace in Integrations → Google Workspace: ObserveCraft reads its Reports API activities with source `gsuite`.",
+        rules: &[
+            DefaultRule {
+                id: "def-gws-001",
+                version: 1,
+                name: "Google Workspace logins failing for one user",
+                message: "Logins to Google Workspace failed again and again for one user: someone guessing a password. Check the client addresses and countries, and whether a login finally succeeded.",
+                query: "source:gsuite service:login @evt.name:login_failure",
+                group_by: &["@usr.email"],
+                cases: &[("a > 10", "high", ""), ("a > 4", "medium", "")],
+                window: 900,
+                tags: BRUTE_FORCE,
+            },
+            DefaultRule {
+                id: "def-gws-002",
+                version: 1,
+                name: "Google Workspace suspicious login",
+                message: "Google flagged a login as suspicious (an unusual place or device, a less secure app, a programmatic login). Confirm with the user that it was them, and reset their password and sessions if not.",
+                query: "source:gsuite service:login @evt.name:(suspicious_login OR suspicious_login_less_secure_app OR suspicious_programmatic_login)",
+                group_by: &["@usr.email"],
+                cases: &[("a > 0", "high", "")],
+                window: 300,
+                tags: &["tactic:TA0001-initial-access", "technique:T1078-valid-accounts"],
+            },
+            DefaultRule {
+                id: "def-gws-003",
+                version: 1,
+                name: "Google Workspace user granted an administrator role",
+                message: "A user was granted an administrator role or privilege in the Admin console. Check that the change was planned and that the role is no broader than needed.",
+                query: "source:gsuite service:admin @evt.name:(ASSIGN_ROLE OR GRANT_ADMIN_PRIVILEGE OR ADD_PRIVILEGE)",
+                group_by: &["@event.parameters.USER_EMAIL"],
+                cases: &[("a > 0", "medium", "")],
+                window: 300,
+                tags: &["tactic:TA0004-privilege-escalation", "technique:T1098-account-manipulation"],
+            },
+            DefaultRule {
+                id: "def-gws-004",
+                version: 1,
+                name: "Google Drive file shared publicly",
+                message: "A Drive file became readable by anyone with its link, or public on the web. Check that it holds nothing internal.",
+                query: "source:gsuite service:drive @evt.name:change_document_visibility @event.parameters.visibility:(people_with_link OR public_on_the_web)",
+                group_by: &["@usr.email"],
+                cases: &[("a > 5", "high", ""), ("a > 0", "medium", "")],
+                window: 900,
+                tags: &["tactic:TA0010-exfiltration", "technique:T1567-exfiltration-over-web-service"],
+            },
+            DefaultRule {
+                id: "def-gws-005",
+                version: 1,
+                name: "Google Workspace user turned off 2-step verification",
+                message: "A user turned off 2-step verification: their account is protected by its password alone. Check that it was them and why.",
+                query: "source:gsuite service:user_accounts @evt.name:2sv_disable",
+                group_by: &["@usr.email"],
+                cases: &[("a > 0", "medium", "")],
+                window: 300,
+                tags: &["tactic:TA0005-defense-evasion", "technique:T1556-modify-authentication-process"],
+            },
+        ],
+    },
+    ContentPack {
         id: "slack-audit",
         name: "Slack Audit Logs",
         category: "Collaboration",
@@ -492,6 +559,36 @@ mod tests {
         let public = fixtures::event(3, "project_visibility_level_updated", "2026-11-06T10:00:00Z", serde_json::json!({ "change": "visibility", "from": "Private", "to": "Public" }));
         assert!(matches("def-glb-002", public));
         assert!(!matches("def-glb-002", fixtures::changed(4, "2026-11-06T10:00:00Z")), "made internal");
+    }
+
+    /// The Google Workspace rules match the Google Workspace poller's logs.
+    #[test]
+    fn google_workspace_rules_match_the_pollers_logs() {
+        use crate::google_workspace::{fixtures, logs::logs_of};
+        use crate::pipelines::{Filter, Log};
+        let pack = PACKS.iter().find(|p| p.id == "google-workspace").expect("the Google Workspace pack");
+        assert_eq!(pack.query, "source:gsuite");
+        let matches = |rule: &str, activity: serde_json::Value| {
+            let mut log = logs_of(&activity).remove(0);
+            let (status, service) = (log["status"].clone(), log["service"].clone());
+            for k in ["date", "message", "status", "service", "ddsource", "_oc_ingest"] {
+                log.as_object_mut().unwrap().remove(k);
+            }
+            let row = serde_json::json!({"status": status, "service": service, "source": "gsuite", "message": "", "attributes": log.to_string()});
+            let query = pack.rules.iter().find(|r| r.id == rule).unwrap().query;
+            Log::from_row(&row).matches(&Filter::parse(query))
+        };
+        let at = "2026-11-06T10:00:00Z";
+        assert!(matches("def-gws-001", fixtures::login_failure("1", at, "sam.lee@example.com")));
+        assert!(!matches("def-gws-001", fixtures::login_success("2", at)));
+        assert!(matches("def-gws-002", fixtures::suspicious_login("3", at)));
+        assert!(!matches("def-gws-002", fixtures::login_failure("4", at, "sam.lee@example.com")));
+        assert!(matches("def-gws-003", fixtures::role_assigned("5", at)));
+        assert!(!matches("def-gws-003", fixtures::activity("admin", "6", at, "admin@example.com", "USER_SETTINGS", "CREATE_USER", &[])));
+        assert!(matches("def-gws-004", fixtures::shared_publicly("7", at, "people_with_link")));
+        assert!(matches("def-gws-004", fixtures::shared_publicly("8", at, "public_on_the_web")));
+        assert!(!matches("def-gws-004", fixtures::shared_publicly("9", at, "people_within_domain_with_link")), "shared within the domain");
+        assert!(matches("def-gws-005", fixtures::activity("user_accounts", "10", at, "sam.lee@example.com", "2sv_change", "2sv_disable", &[])));
     }
 
     #[test]
