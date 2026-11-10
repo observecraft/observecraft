@@ -1,0 +1,54 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c501-ec40-74c6-af9b-41302bed2e1d"
+      },
+      "audit_log_id": "10bfd8f2-0000-4000-8000-000000000002",
+      "audit_log_type": "Policy",
+      "audit_log_user": "admin@example.com",
+      "created_at": "2026-11-10T10:30:00Z",
+      "date": "2026-11-10T10:30:00Z",
+      "ddsource": "cisco-secure-endpoint",
+      "event": "update",
+      "host": "api.amp.cisco.com",
+      "item": "Workstations - Protect",
+      "message": "update Policy Workstations - Protect",
+      "new_attributes": {
+        "file_scan_level": "high"
+      },
+      "old_attributes": {
+        "file_scan_level": "medium"
+      },
+      "service": "audit",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f5-70f0-7313-ac37-29a39bfc8aaa"
+      },
+      "audit_log_id": "10bfd8f2-0000-4000-8000-000000000001",
+      "audit_log_type": "User",
+      "audit_log_user": "admin@example.com",
+      "created_at": "2026-11-10T10:16:22Z",
+      "date": "2026-11-10T10:16:22Z",
+      "ddsource": "cisco-secure-endpoint",
+      "event": "sso_login",
+      "host": "api.amp.cisco.com",
+      "item": "admin@example.com",
+      "message": "SSO login",
+      "service": "audit",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}

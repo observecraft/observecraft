@@ -1,0 +1,157 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Cisco Secure Endpoint (https://developer.cisco.com/docs/secure-endpoint/, API v1): events and the console's audit
+# log, as the logs Datadog's integration sends (source:cisco-secure-endpoint): service:event is {event: <the event>,
+# endpoint_details: <its computer>}, service:audit the audit record as it is. integrations-core's log pipeline and
+# its two dashboards for the tile read them as they are.
+schema_version: 1
+id: cisco-secure-endpoint
+name: Cisco Secure Endpoint
+publisher: ObserveCraft
+vendor: Cisco
+description: >-
+  Cisco Secure Endpoint's events (threat detections, quarantines, isolations, scans) with the endpoint's details,
+  and its console audit log, read every few minutes from the Secure Endpoint API.
+tiles: [cisco-secure-endpoint]
+categories: [Log Collection, Security, Cloud, SIEM]
+source: cisco-secure-endpoint
+docs_url: https://developer.cisco.com/docs/secure-endpoint/
+setup: |
+  1. In the Secure Endpoint console, open **Administration → API Credentials** and **New API Credential**.
+  2. Name it (e.g. `observecraft`), keep the scope **Read-only**, and create it; copy the 3rd party API client id
+     and the API key (shown once).
+instance: "{{ config.api_host }}"
+
+config:
+  - key: api_host
+    label: API host
+    type: select
+    required: true
+    default: api.amp.cisco.com
+    options:
+      - { value: api.amp.cisco.com, label: North America (api.amp.cisco.com) }
+      - { value: api.eu.amp.cisco.com, label: Europe (api.eu.amp.cisco.com) }
+      - { value: api.apjc.amp.cisco.com, label: "Asia Pacific, Japan and China (api.apjc.amp.cisco.com)" }
+  - key: client_id
+    label: 3rd party API client id
+    type: string
+    required: true
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+  - key: endpoint_details
+    label: Add the endpoint's details to events
+    type: boolean
+    default: true
+    help: Reads the computers list once an hour (one request per 500 computers).
+
+auth:
+  kind: basic
+  username: "{{ config.client_id }}"
+  password: "{{ secrets.api_key }}"
+
+# Secure Endpoint allows 18,000 requests an hour per organization.
+rate_limit: { requests_per_minute: 120 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Cisco Secure Endpoint refused the API client id and key
+  - status: [403]
+    kind: access_denied
+    message: The API credential can't read events or the audit log
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Cisco Secure Endpoint (resets in {{ headers['x-ratelimit-reset'] ?? '?' }}s)"
+
+streams:
+  - id: events
+    name: Events
+    description: >-
+      Every event (threat detected or quarantined, isolation, scans, policy updates) as a log (source:cisco-secure-endpoint,
+      service:event): event is Cisco's record; endpoint_details the computer it happened on (operating system,
+      isolation, policy, compromise state).
+    interval: 5m
+    lookups:
+      - name: computers
+        request:
+          url: "https://{{ config.api_host }}/v1/computers"
+          query: { limit: 500 }
+        records: "{{ config.endpoint_details ? response.data : [] }}"
+        pagination: { kind: next_url, next: "{{ response.metadata.links.next }}" }
+        key: "{{ record.connector_guid }}"
+        value: >-
+          {{ {is_compromised: record.is_compromised, operating_system: record.operating_system, connector_version: record.connector_version,
+              internal_ips: record.internal_ips, external_ip: record.external_ip, isolation: record.isolation, policy: record.policy,
+              group_guid: record.group_guid, last_seen: record.last_seen, faults: record.faults} }}
+        ttl: 1h
+    request:
+      url: "https://{{ config.api_host }}/v1/events"
+      query:
+        start_date: "{{ window.start | rfc3339_s }}"
+        limit: 500
+    records: "{{ response.data }}"
+    pagination: { kind: next_url, next: "{{ response.metadata.links.next }}" }
+    record_id: "{{ record.id | str }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.date }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 5m
+      settle: 1m
+    output:
+      logs:
+        service: event
+        message: "{{ record.event_type + (' on ' + record.computer.hostname ?? '') + (': ' + (record.detection ?? record.file.file_name) ?? '') }}"
+        date: "{{ record.date }}"
+        attributes:
+          event: "{{ record }}"
+          endpoint_details: "{{ lookups.computers[record.connector_guid] }}"
+
+  - id: audit_logs
+    name: Audit log
+    description: Every audit log record of the console (logins, policy, group and computer changes) as a log (service:audit).
+    interval: 5m
+    request:
+      url: "https://{{ config.api_host }}/v1/audit_logs"
+      query:
+        start_time: "{{ window.start | rfc3339_s }}"
+        end_time: "{{ window.end | rfc3339_s }}"
+        limit: 500
+    records: "{{ response.data }}"
+    pagination: { kind: next_url, next: "{{ response.metadata.links.next }}" }
+    record_id: "{{ record.audit_log_id ?? null }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.created_at }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 5m
+      settle: 1m
+    output:
+      logs:
+        service: audit
+        message: "{{ record.message ?? (record.event + ' ' + record.audit_log_type + (' ' + record.item ?? '')) }}"
+        date: "{{ record.created_at }}"
+        attributes: "{{ record }}"
+
+test:
+  request: { url: "https://{{ config.api_host }}/v1/version" }
+  message: "Connected to {{ config.api_host }} (API {{ response.version }})"
+
+mock:
+  config: { api_host: api.amp.cisco.com, client_id: 0a1b2c3d4e5f60718293, endpoint_details: true }
+  secrets: { api_key: 00000000-0000-4000-8000-0000000000aa }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.amp.cisco.com/v1/computers", file: fixtures/computers.json }
+    - { url: "https://api.amp.cisco.com/v1/events", query: { offset: "2" }, file: fixtures/events-2.json }
+    - { url: "https://api.amp.cisco.com/v1/events", file: fixtures/events-1.json }
+    - { url: "https://api.amp.cisco.com/v1/audit_logs", file: fixtures/audit_logs.json }
+    - { url: "https://api.amp.cisco.com/v1/version", body: { version: v1.2.0, metadata: { links: { self: "https://api.amp.cisco.com/v1/version" } }, data: {} } }
+  expect:
+    events: { records: 3, logs: 3, rerun: 0, golden: fixtures/events.expected.json }
+    audit_logs: { records: 2, logs: 2, rerun: 0, golden: fixtures/audit_logs.expected.json }
+    test: { ok: true, message: "Connected to api.amp.cisco.com" }
