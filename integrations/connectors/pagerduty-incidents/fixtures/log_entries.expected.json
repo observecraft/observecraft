@@ -1,0 +1,74 @@
+{
+  "costs": [],
+  "events": [
+    {
+      "aggregation_key": "Q1ABCD2EFGH3IJ",
+      "alert_type": "success",
+      "host": "",
+      "priority": "normal",
+      "source_type_name": "pagerduty",
+      "tags": [
+        "action:resolve",
+        "agent:Jordan Patel",
+        "incident:Q1ABCD2EFGH3IJ",
+        "incident_number:4821",
+        "service:order-service",
+        "team:Checkout",
+        "urgency:high",
+        "source:pagerduty"
+      ],
+      "text": "Resolved by Jordan Patel\n\nhttps://example.pagerduty.com/incidents/Q1ABCD2EFGH3IJ",
+      "time_ms": 1794309940000,
+      "title": "[#4821] High error rate on order-service: resolve"
+    },
+    {
+      "aggregation_key": "Q1ABCD2EFGH3IJ",
+      "alert_type": "warning",
+      "host": "",
+      "priority": "normal",
+      "source_type_name": "pagerduty",
+      "tags": [
+        "action:acknowledge",
+        "agent:Jordan Patel",
+        "incident:Q1ABCD2EFGH3IJ",
+        "incident_number:4821",
+        "service:order-service",
+        "team:Checkout",
+        "urgency:high",
+        "source:pagerduty"
+      ],
+      "text": "Acknowledged by Jordan Patel\n\nhttps://example.pagerduty.com/incidents/Q1ABCD2EFGH3IJ",
+      "time_ms": 1794308592000,
+      "title": "[#4821] High error rate on order-service: acknowledge"
+    },
+    {
+      "aggregation_key": "Q1ABCD2EFGH3IJ",
+      "alert_type": "error",
+      "host": "",
+      "priority": "normal",
+      "source_type_name": "pagerduty",
+      "tags": [
+        "action:trigger",
+        "agent:order-service",
+        "incident:Q1ABCD2EFGH3IJ",
+        "incident_number:4821",
+        "service:order-service",
+        "team:Checkout",
+        "urgency:high",
+        "source:pagerduty"
+      ],
+      "text": "Triggered through the website\n\nhttps://example.pagerduty.com/incidents/Q1ABCD2EFGH3IJ",
+      "time_ms": 1794308412000,
+      "title": "[#4821] High error rate on order-service: trigger"
+    }
+  ],
+  "logs": [],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

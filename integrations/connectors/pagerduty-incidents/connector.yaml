@@ -1,0 +1,186 @@
+# yaml-language-server: $schema=../connector.schema.json
+# PagerDuty REST API v2 (https://developer.pagerduty.com/api-reference/): an account's incident timeline (log
+# entries: triggered, acknowledged, escalated, resolved) as the events Datadog's PagerDuty integration shows (source
+# pagerduty), and its open incidents as gauges. Its id isn't `pagerduty`: that tile is ObserveCraft's notification
+# channel (monitors' @pagerduty-<service>), which this package leaves alone. PagerDuty can push instead: a v3
+# webhook subscription, which the page can create (push below; the intake side of webhooks isn't built yet).
+schema_version: 1
+id: pagerduty-incidents
+name: PagerDuty Incidents
+publisher: ObserveCraft
+vendor: PagerDuty
+source: pagerduty
+description: >-
+  A PagerDuty account's incident timeline (triggered, acknowledged, escalated, reassigned, resolved) as events, and
+  its open incidents by service, urgency and status as metrics, read every minute from PagerDuty's REST API.
+logo: pagerduty
+categories: [Incidents, Alerting, Collaboration]
+docs_url: https://developer.pagerduty.com/api-reference/
+setup: |
+  1. In PagerDuty, open **Integrations → API Access Keys** and **Create New API Key**, e.g. `observecraft`, with
+     **Read-only API Key** checked. Copy it.
+  2. Accounts in PagerDuty's EU service region use https://api.eu.pagerduty.com.
+links:
+  - { label: API access keys, url: "https://{{ config.subdomain }}.pagerduty.com/api_keys" }
+instance: "{{ config.subdomain }}"
+
+config:
+  - { key: subdomain, label: Account subdomain, type: string, required: true, placeholder: example, pattern: "[a-z0-9-]+", help: "The part before .pagerduty.com in your account's address." }
+  - key: base_url
+    label: API URL
+    type: url
+    required: true
+    default: https://api.pagerduty.com
+    help: https://api.pagerduty.com, or https://api.eu.pagerduty.com for the EU service region.
+  - { key: token, label: API key, type: string, secret: true, required: true, help: A read-only REST API key (a full-access key to create the webhook). }
+  - { key: signing_secret, label: Webhook signing secret, type: string, secret: true, help: "For the push alternative only: the v3 webhook subscription's secret." }
+
+auth:
+  kind: api_key
+  name: Authorization
+  value: "Token token={{ secrets.token }}"
+
+headers:
+  Accept: application/vnd.pagerduty+json;version=2
+
+# 960 requests a minute per REST key.
+rate_limit: { requests_per_minute: 120 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: PagerDuty refused the API key
+  - status: [403]
+    kind: access_denied
+    message: "The API key can't read incidents ({{ response.error.message ?? 'forbidden' }})"
+  - status: [429]
+    kind: throttled
+    message: Rate limited by PagerDuty
+
+streams:
+  - id: log_entries
+    name: Incident timeline
+    description: >-
+      Every log entry of the account's incidents as an event (source pagerduty): triggers are errors,
+      acknowledgements and escalations warnings, resolutions successes; tagged service, incident, urgency and
+      team.
+    request:
+      url: "{{ config.base_url }}/log_entries"
+      query:
+        since: "{{ window.start | rfc3339 }}"
+        until: "{{ window.end | rfc3339 }}"
+        is_overview: "true"
+        "include[]": incidents
+        time_zone: UTC
+        limit: 100
+        offset: "{{ page.offset }}"
+    records: "{{ response.log_entries }}"
+    pagination: { kind: offset, size: 100, max: 9900 }
+    record_id: "{{ record.id }}"
+    incremental: { kind: time, record_time: "{{ record.created_at }}", order: newest_first, lookback: 1d, overlap: 2m }
+    vars:
+      verb: "{{ record.type | replace('_log_entry', '') }}"
+      incident: "{{ record.incident }}"
+    output:
+      events:
+        title: "[#{{ vars.incident.incident_number ?? vars.incident.id }}] {{ vars.incident.title ?? vars.incident.summary }}: {{ vars.verb }}"
+        text: "{{ record.summary }}{{ '\n\n' + vars.incident.html_url ?? '' }}"
+        alert_type: >-
+          {{ vars.verb == 'trigger' ? 'error'
+             : vars.verb in ['acknowledge', 'escalate', 'reach_ack_limit', 'reach_trigger_limit'] ? 'warning'
+             : vars.verb == 'resolve' ? 'success' : 'info' }}
+        priority: "{{ vars.verb in ['trigger', 'acknowledge', 'resolve', 'escalate'] ? 'normal' : 'low' }}"
+        aggregation_key: "{{ vars.incident.id }}"
+        date: "{{ record.created_at }}"
+        tags:
+          service: "{{ record.service.summary ?? vars.incident.service.summary }}"
+          incident: "{{ vars.incident.id }}"
+          incident_number: "{{ vars.incident.incident_number | str }}"
+          urgency: "{{ vars.incident.urgency }}"
+          action: "{{ vars.verb }}"
+          team: "{{ (record.teams | first).summary }}"
+          agent: "{{ record.agent.summary }}"
+
+  - id: open_incidents
+    name: Open incidents
+    description: >-
+      The open (triggered or acknowledged) incidents as gauges: pagerduty.incidents.open is 1 per incident, tagged
+      service, urgency, status and priority; summed, the open incidents.
+    request:
+      url: "{{ config.base_url }}/incidents"
+      query:
+        "statuses[]": [triggered, acknowledged]
+        time_zone: UTC
+        limit: 100
+        offset: "{{ page.offset }}"
+    records: "{{ response.incidents }}"
+    pagination: { kind: offset, size: 100, max: 9900 }
+    output:
+      metrics:
+        - name: pagerduty.incidents.open
+          value: "1"
+          description: 1 per open incident; summed, the open incidents (by service, urgency, status).
+          tags: &incident
+            service: "{{ record.service.summary }}"
+            urgency: "{{ record.urgency }}"
+            status: "{{ record.status }}"
+            priority: "{{ record.priority.summary }}"
+            incident_number: "{{ record.incident_number | str }}"
+        - name: pagerduty.incidents.open_age
+          value: "{{ ((minute - (record.created_at | epoch_ms)) / 1000) | floor | max(0) }}"
+          unit: second
+          description: Seconds since an open incident was created.
+          tags: *incident
+
+test:
+  request: { url: "{{ config.base_url }}/abilities" }
+  message: "Connected to {{ config.subdomain }}.pagerduty.com ({{ response.abilities | len }} abilities)"
+
+push:
+  kind: webhook
+  instructions: |
+    PagerDuty can send incident changes as they happen instead. In PagerDuty, open **Integrations → Generic Webhooks
+    (v3) → New Webhook**, set the **Webhook URL** to `{{ intake }}/intake/webhook/pagerduty?api_key={{ api_key }}`,
+    the scope to the account (or a service or team) and the incident events; save, then copy the subscription's
+    **signing secret** into the connection. Or let ObserveCraft create it with a full-access API key. Turn the
+    Incident timeline stream off once the webhook is on.
+  url: "{{ intake }}/intake/webhook/pagerduty?api_key={{ api_key }}"
+  signature: { header: X-PagerDuty-Signature, algorithm: pagerduty_v3, secret: signing_secret }
+  create:
+    request:
+      method: POST
+      url: "{{ config.base_url }}/webhook_subscriptions"
+      body:
+        webhook_subscription:
+          type: webhook_subscription
+          description: ObserveCraft
+          delivery_method: { type: http_delivery_method, url: "{{ push_url }}" }
+          events: [incident.triggered, incident.acknowledged, incident.unacknowledged, incident.escalated, incident.reassigned, incident.resolved, incident.reopened, incident.priority_updated, incident.annotated]
+          filter: { type: account_reference }
+    message: "Webhook subscription {{ response.webhook_subscription.id }} created: copy its signing secret ({{ response.webhook_subscription.delivery_method.secret ?? 'shown in PagerDuty' }}) into the connection"
+
+webhook:
+  name: pagerduty
+  records: "{{ body.event }}"
+  logs:
+    service: pagerduty
+    message: "[#{{ record.data.number }}] {{ record.data.title }}: {{ record.event_type }}"
+    status: "{{ record.event_type == 'incident.triggered' ? 'error' : record.event_type == 'incident.resolved' ? 'info' : 'warn' }}"
+    date: "{{ record.occurred_at }}"
+    attributes: "{{ record + {evt: {name: record.event_type}, usr: {name: record.agent.summary}} }}"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { subdomain: example, base_url: "https://api.pagerduty.com" }
+  secrets: { token: u+pdTestTokenExample0 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.pagerduty.com/log_entries", file: fixtures/log_entries.json }
+    - { url: "https://api.pagerduty.com/incidents", file: fixtures/incidents.json }
+    - { url: "https://api.pagerduty.com/abilities", body: { abilities: [teams, read_only_users, urgencies, service_support_hours] } }
+  expect:
+    log_entries: { records: 3, events: 3, rerun: 0, golden: fixtures/log_entries.expected.json }
+    open_incidents: { records: 2, metrics: 4, golden: fixtures/open_incidents.expected.json }
+    test: { ok: true, message: "4 abilities" }
