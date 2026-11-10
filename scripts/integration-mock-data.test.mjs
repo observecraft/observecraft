@@ -35,8 +35,6 @@ const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/coreDa
 const KNOWN = new Map([
   // Hosts tagged field:apps:argocd by their owner: a tag of the user's own, not one the integration sends.
   ['Host Reporting Argo CD Metrics by Cluster', 'user tag'],
-  // Signals counted by @evt.name: Vault's audit logs (and so its signals) carry no evt.name.
-  ['Security Signals by Events', 'no evt.name'],
 ]);
 
 const widgets = (items) => items.flatMap((w) => (w.definition.type === 'group' ? widgets(w.definition.widgets) : [w.definition]));

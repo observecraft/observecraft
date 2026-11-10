@@ -250,7 +250,7 @@ const PACKS: Pack[] = [
           ['a > 5', 'medium', ''],
         ],
         window: 900,
-        tags: ['tactic:TA0006-credential-access', 'technique:T1555-credentials-from-password-stores'],
+        tags: ['evt.name:permission_denied', 'tactic:TA0006-credential-access', 'technique:T1555-credentials-from-password-stores'],
       },
       {
         id: 'def-vlt-002',
@@ -260,7 +260,7 @@ const PACKS: Pack[] = [
         groupBy: ['@request.remote_address'],
         cases: [['a > 0', 'high', '']],
         window: 300,
-        tags: ['tactic:TA0004-privilege-escalation', 'technique:T1078-valid-accounts'],
+        tags: ['evt.name:root_token_used', 'tactic:TA0004-privilege-escalation', 'technique:T1078-valid-accounts'],
       },
       {
         id: 'def-vlt-003',
@@ -270,7 +270,7 @@ const PACKS: Pack[] = [
         groupBy: ['@auth.display_name', '@request.path'],
         cases: [['a > 0', 'medium', '']],
         window: 300,
-        tags: ['tactic:TA0005-defense-evasion', 'technique:T1562-impair-defenses'],
+        tags: ['evt.name:configuration_changed', 'tactic:TA0005-defense-evasion', 'technique:T1562-impair-defenses'],
       },
     ],
   },

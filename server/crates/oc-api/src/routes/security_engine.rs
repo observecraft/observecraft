@@ -462,4 +462,30 @@ mod tests {
         assert_eq!((p.status.as_str(), p.logs24h), ("active", 32));
         assert_eq!(packs.iter().find(|p| p.id == "github").unwrap().status, "available");
     }
+
+    /// Vault's signals carry the event their rule names (`@evt.name`, which Vault's audit logs lack), as its
+    /// dashboards' "Security Signals by Events" widget groups them.
+    #[tokio::test]
+    async fn vault_signals_name_their_event() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let ctx = crate::test_support::admin_of_new_org(st, "siem-vault").await;
+        let org = ctx.org_id.clone();
+        let now = chrono::Utc::now().timestamp_millis();
+        st.ch(&org)
+            .query(&format!(
+                "INSERT INTO oc.logs (org_id, timestamp, status, service, host, source, message, tags, attr, retention_days) \
+                 VALUES ('{org}', fromUnixTimestamp64Milli(toInt64({now} - 60000)), 'info', 'vault', '', 'vault', 'request', map(), \
+                         map('auth.display_name', 'root', 'request.remote_address', '10.0.16.9', 'request.operation', 'read'), 15)"
+            ))
+            .execute()
+            .await
+            .expect("insert logs");
+        let rules = load_rules(st, &org).await.unwrap();
+        let rule = rules.iter().find(|r| r.id == "def-vlt-002").unwrap();
+        assert_eq!(evaluate_rule(st, &org, &LogAccess::org_background(), rule, &[], now).await.expect("evaluate the Vault rule"), 1);
+        let signals = crate::routes::security_signals::signals_in(st, &org, TimeRange { from: now - 3_600_000, to: now + 60_000 }).await.unwrap();
+        let s = signals.iter().find(|s| s.rule_id == "def-vlt-002").expect("a root token signal");
+        assert!(crate::routes::security_signals::matches(s, &parse_query("source:vault @evt.name:root_token_used")), "{:?}", s.tags);
+    }
 }

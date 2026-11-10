@@ -255,36 +255,36 @@ pub const PACKS: &[ContentPack] = &[
         rules: &[
             DefaultRule {
                 id: "def-vlt-001",
-                version: 1,
+                version: 2,
                 name: "Vault requests denied for one client",
                 message: "Vault denied a client's requests again and again: a token probing for secrets it has no policy for.",
                 query: "source:vault @error:*permission*",
                 group_by: &["@auth.display_name"],
                 cases: &[("a > 20", "high", ""), ("a > 5", "medium", "")],
                 window: 900,
-                tags: &["tactic:TA0006-credential-access", "technique:T1555-credentials-from-password-stores"],
+                tags: &["evt.name:permission_denied", "tactic:TA0006-credential-access", "technique:T1555-credentials-from-password-stores"],
             },
             DefaultRule {
                 id: "def-vlt-002",
-                version: 1,
+                version: 2,
                 name: "Vault root token used",
                 message: "A request was made with a root token. Root tokens should be generated for an emergency and revoked right after.",
                 query: "source:vault @auth.display_name:root",
                 group_by: &["@request.remote_address"],
                 cases: &[("a > 0", "high", "")],
                 window: 300,
-                tags: &["tactic:TA0004-privilege-escalation", "technique:T1078-valid-accounts"],
+                tags: &["evt.name:root_token_used", "tactic:TA0004-privilege-escalation", "technique:T1078-valid-accounts"],
             },
             DefaultRule {
                 id: "def-vlt-003",
-                version: 1,
+                version: 2,
                 name: "Vault policy, auth method or audit device changed",
                 message: "Vault's own configuration changed (policies, auth methods or audit devices under sys/).",
                 query: "source:vault @request.path:sys/* @request.operation:(update OR delete)",
                 group_by: &["@auth.display_name", "@request.path"],
                 cases: &[("a > 0", "medium", "")],
                 window: 300,
-                tags: &["tactic:TA0005-defense-evasion", "technique:T1562-impair-defenses"],
+                tags: &["evt.name:configuration_changed", "tactic:TA0005-defense-evasion", "technique:T1562-impair-defenses"],
             },
         ],
     },
@@ -499,5 +499,10 @@ mod tests {
         let vault = PACKS.iter().find(|p| p.id == "hashicorp-vault").expect("the Vault pack");
         assert_eq!(vault.query, "source:vault");
         assert!(vault.rules.len() >= 3);
+        // Vault's audit logs carry no `evt.name` (nor does its integration pipeline): the rules name their event,
+        // so its dashboards' "Security Signals by Events" widget counts them; version 2 updates installed rules.
+        for r in vault.rules {
+            assert!(r.tags.iter().any(|t| t.starts_with("evt.name:")) && r.version >= 2, "{}", r.id);
+        }
     }
 }
