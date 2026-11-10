@@ -6,8 +6,8 @@
 # them as they are, so this package ships none: saving a connection installs the tile's. The web gateway's log types
 # are the Forcepoint Secure Web Gateway connector's.
 #
-# A record's `status` field (a file's sharing state: "Internal, Shared, DLP") can't stay at the top, where it is the
-# log's level: it is sent as `file_status`.
+# A record's `status` field (a file's sharing state: "Internal, Shared, DLP") stays `@status`, which the tile's pipeline
+# splits into a list and its dashboards filter on.
 schema_version: 1
 id: forcepoint-security-service-edge
 name: Forcepoint Security Service Edge
@@ -72,7 +72,7 @@ streams:
   - id: cloudsummary
     name: Cloud file summary
     description: >-
-      One log per file of a sanctioned SaaS application scanned in API mode (service:forcepoint-sse-cloudsummary): owner, filename, folder, application, patterns, sharedwith, action and file_status.
+      One log per file of a sanctioned SaaS application scanned in API mode (service:forcepoint-sse-cloudsummary): owner, filename, folder, application, patterns, sharedwith, action and status.
     interval: 10m
     budget: { requests: 290, per: day }
     max_pages: 10
@@ -96,12 +96,12 @@ streams:
         message: "{{ record.application }}: {{ record.filename }} ({{ record.owner }}){{ ': ' + (record.patterns | nonempty) ?? '' }}"
         status: "info"
         date: "{{ (record.time + ' +0000') | epoch_ms }}"
-        attributes: "{{ record + {file_status: record.status} }}"
+        attributes: "{{ record }}"
 
   - id: cloudaudit
     name: Cloud audit
     description: >-
-      One log per file activity in a sanctioned SaaS application read in API mode (service:forcepoint-sse-cloudaudit): actor, activity, action, filename, folder, sharedwith, patterns and file_status.
+      One log per file activity in a sanctioned SaaS application read in API mode (service:forcepoint-sse-cloudaudit): actor, activity, action, filename, folder, sharedwith, patterns and status.
     interval: 10m
     budget: { requests: 290, per: day }
     max_pages: 10
@@ -125,7 +125,7 @@ streams:
         message: "{{ record.application }}: {{ (record.activity | nonempty) ?? record.action }} {{ record.filename }} by {{ record.actor ?? record.owner }}"
         status: "info"
         date: "{{ (record.time + ' +0000') | epoch_ms }}"
-        attributes: "{{ record + {file_status: record.status} }}"
+        attributes: "{{ record }}"
 
   - id: access
     name: Access
@@ -154,7 +154,7 @@ streams:
         message: "{{ record.application }}: {{ record.activity }} by {{ record.email ?? record.user }} ({{ record.action }})"
         status: "{{ record.action | lower in ['deny', 'block', 'blocked'] ? 'warn' : 'info' }}"
         date: "{{ (record.time + ' +0000') | epoch_ms }}"
-        attributes: "{{ record + {file_status: record.status} }}"
+        attributes: "{{ record }}"
 
   - id: admin
     name: Admin
@@ -183,7 +183,7 @@ streams:
         message: "{{ record.activity }} by {{ record.email ?? record.user }}{{ ': ' + (record.action | nonempty) ?? '' }}"
         status: "info"
         date: "{{ (record.time + ' +0000') | epoch_ms }}"
-        attributes: "{{ record + {file_status: record.status} }}"
+        attributes: "{{ record }}"
 
   - id: healthproxy
     name: Proxy health
@@ -212,12 +212,12 @@ streams:
         message: "{{ record.activity }} {{ record.responsecode }} {{ record.url }}"
         status: "{{ (record.responsecode | int) >= 500 ? 'error' : 'warn' }}"
         date: "{{ (record.time + ' +0000') | epoch_ms }}"
-        attributes: "{{ record + {file_status: record.status} }}"
+        attributes: "{{ record }}"
 
   - id: healthapi
     name: API health
     description: >-
-      One log per error of an API-mode connector (service:forcepoint-sse-healthapi): activity, responsecode, application, filename and file_status.
+      One log per error of an API-mode connector (service:forcepoint-sse-healthapi): activity, responsecode, application, filename and status.
     interval: 10m
     budget: { requests: 290, per: day }
     max_pages: 10
@@ -241,7 +241,7 @@ streams:
         message: "{{ record.activity }} {{ record.responsecode }} {{ record.application }}"
         status: "{{ (record.responsecode | int) >= 500 ? 'error' : 'warn' }}"
         date: "{{ (record.time + ' +0000') | epoch_ms }}"
-        attributes: "{{ record + {file_status: record.status} }}"
+        attributes: "{{ record }}"
 
   - id: healthsystem
     name: System health
@@ -270,7 +270,7 @@ streams:
         message: "{{ record.activity }} {{ record.responsecode }} {{ record.url }}"
         status: "{{ (record.responsecode | int) >= 500 ? 'error' : 'warn' }}"
         date: "{{ (record.time + ' +0000') | epoch_ms }}"
-        attributes: "{{ record + {file_status: record.status} }}"
+        attributes: "{{ record }}"
 
 test:
   request:

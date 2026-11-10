@@ -13,7 +13,6 @@
       "ddsource": "forcepoint-security-service-edge",
       "dlpmatchlocations": "Sheet1!B2:B40",
       "enterprisename": "Example Shop",
-      "file_status": "Internal, Shared, DLP",
       "fileid": "1AbCdEfGh0000000000000000001",
       "filelink": "https://drive.example.com/file/1AbCdEfGh0000000000000000001",
       "filename": "q4-pricing.xlsx",
