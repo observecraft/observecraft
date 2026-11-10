@@ -581,6 +581,8 @@ export const MOCK_SERVICES = [
   'tile:azure-sql-servers-elasticpools',
   'tile:azure-storage-storageaccounts',
   'tile:azure-web-sites',
+  'tile:gcp-alloydb',
+  'tile:gcp-artifactregistry',
   'tile:gcp-cloudsql',
   'tile:gcp-gce',
   'tile:gcp-gcs',

@@ -58,6 +58,8 @@ test('every chart of the demo accounts’ AWS, Azure and Google Cloud service da
     'tile:gcp-cloudsql',
     'tile:gcp-gcs',
     'tile:gcp-pubsub',
+    'tile:gcp-alloydb',
+    'tile:gcp-artifactregistry',
   ]) {
     const d = mock.dashboards.find((x) => x.logo === logo);
     assert.ok(d, `${logo} is in the mock`);

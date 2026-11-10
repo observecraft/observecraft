@@ -1558,4 +1558,971 @@ export const GCP_LAYOUTS = {
       };
     },
   },
+
+  'alloydb.googleapis.com/': {
+    vars: ['location', 'cluster_id', 'instance_id'],
+    labels: ['cluster_id', 'instance_id', 'node_id', 'database', 'state', 'application_name', 'wait_event_type', 'replica_instance_id'],
+    monitor: 'google_cloud_alloydb',
+    note: 'AlloyDB for PostgreSQL clusters by instance: CPU and the memory left, connections against the limit, backends and transactions, the columnar cache, wait events, read pool replication lag and cluster storage.',
+    build: (q) => {
+      const { sum, avg, max, min } = on(q);
+      return {
+        kpis: [
+          reporting('Instances reporting', avg('instance.cpu.average_utilization', 'instance_id')),
+          qv('Avg CPU', avg('instance.cpu.average_utilization'), { precision: 2 }),
+          qv('Busiest instance CPU', max('instance.cpu.maximum_utilization'), { precision: 2 }),
+          qv('Connections', sum('instance.postgres.total_connections'), { agg: 'last' }),
+          qv('Deadlocks', sum('instance.postgresql.deadlock_count'), { bad: true }),
+          qv('Worst replica lag', max('instance.postgres.replication.maximum_lag'), { agg: 'max' }),
+        ],
+        groups: [
+          g('Instance CPU and memory', [
+            top('Busiest instances', max('instance.cpu.maximum_utilization', 'instance_id'), { agg: 'avg', w: 4, h: 4, palette: 'orange' }),
+            ts('Average CPU by instance', avg('instance.cpu.average_utilization', 'instance_id'), { w: 8 }),
+            ts('Least memory available', min('instance.memory.min_available_memory', 'instance_id'), { w: 4 }),
+            ts('vCPUs by instance', sum('instance.cpu.vcpus', 'instance_id'), { w: 4 }),
+          ]),
+          g('Connections and transactions', [
+            share('Connections used of the limit', sum('instance.postgres.total_connections', 'instance_id'), sum('instance.postgres.connections_limit', 'instance_id'), { w: 4 }),
+            ts('Backends by state', sum('instance.postgresql.backends_by_state', 'state'), { display: 'bars', w: 4 }),
+            top('Applications holding the most backends', sum('instance.postgresql.backends_for_top_applications', 'application_name'), { agg: 'avg', w: 4 }),
+            ts('Commits and aborts', [sum('instance.postgres.commit_count'), sum('instance.postgres.abort_count')], { alias: ['commits', 'aborts'] }),
+            ts('Rows written', [sum('instance.postgresql.inserted_tuples_count'), sum('instance.postgresql.updated_tuples_count'), sum('instance.postgresql.deleted_tuples_count')], {
+              alias: ['inserted', 'updated', 'deleted'],
+              display: 'bars',
+            }),
+          ]),
+          g('Cache and waits', [
+            ts('Columnar cache hit rate', avg('instance.postgres.ultrafastcache_hitrate', 'instance_id'), { w: 4 }),
+            ts('Blocks served from the buffer cache', [sum('instance.postgresql.blks_hit'), sum('instance.postgresql.blks_read')], { formulas: [['100 * query1 / (query1 + query2)', '%']], w: 4 }),
+            top('Most waits by event type', sum('instance.postgresql.wait_count', 'wait_event_type'), { w: 4 }),
+          ]),
+          g('Replication and storage', [
+            ts('Replication lag by read pool replica', max('instance.postgres.replication.maximum_lag', 'replica_instance_id'), { w: 4 }),
+            ts('Cluster storage', max('cluster.storage.usage', 'cluster_id'), { w: 4 }),
+            top('Transaction IDs used (wraparound)', max('database.postgresql.vacuum.transaction_id_utilization', 'instance_id'), { agg: 'last', w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'artifactregistry.googleapis.com/': {
+    vars: ['location', 'repository_id'],
+    labels: ['repository_id', 'method', 'response_code', 'status', 'type', 'version'],
+    monitor: 'google_cloud_artifact_registry',
+    note: 'Artifact Registry repositories: requests from clients pulling and pushing images and packages, Artifact Registry API calls and their latency, repository sizes and reads from remote upstreams against their quota.',
+    build: (q) => {
+      const { sum, avg, max } = on(q);
+      return {
+        kpis: [
+          reporting('Repositories reporting', max('repository.size', 'repository_id'), { agg: 'last' }),
+          qv('Requests', sum('repository.request_count')),
+          qv('API calls', sum('repository.api.request_count')),
+          qv('Avg request latency', avg('repository.request_latencies.avg'), { precision: 0 }),
+          qv('Largest repository', max('repository.size'), { agg: 'last' }),
+        ],
+        groups: [
+          g('Pulls and pushes', [
+            ts('Requests by repository', sum('repository.request_count', 'repository_id'), { display: 'bars', w: 8 }),
+            pie('By response code', sum('repository.request_count', 'response_code')),
+            ts('Requests by method', sum('repository.request_count', 'method'), { w: 4 }),
+            ts('API calls by method', sum('repository.api.request_count', 'method'), { w: 4 }),
+            top('Busiest repositories', sum('repository.request_count', 'repository_id'), { w: 4 }),
+          ]),
+          g('Request latency', [ts('Latency by method', avg('repository.request_latencies.avg', 'method')), ts('API latency by method', avg('repository.api.request_latencies.avg', 'method'))]),
+          g('Repository storage and upstreams', [
+            top('Largest repositories', max('repository.size', 'repository_id'), { agg: 'last', w: 4 }),
+            tree('Share of the stored bytes', max('repository.size', 'repository_id'), { agg: 'last', w: 4 }),
+            ts('Remote upstream reads against the regional quota', [sum('quota.region_upstream_host_reads.usage'), max('quota.region_upstream_host_reads.limit')], { alias: ['reads', 'limit'], w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'cloudbuild.googleapis.com/': {
+    vars: ['location'],
+    labels: ['limit_name', 'build_origin'],
+    monitor: 'google_cloud_build',
+    note: 'Cloud Build’s concurrent build CPU quotas per region: the CPUs builds use in the default pool and in private pools (E2, C3 and N2D machines) against their limits, and the builds held back for exceeding them. Build results and durations come from CI Visibility.',
+    build: (q) => {
+      const { sum, max } = on(q);
+      const pools = ['concurrent_private_pool_build_cpus', 'concurrent_private_pool_c3_build_cpus', 'concurrent_private_pool_n2d_build_cpus'];
+      return {
+        kpis: [
+          qv('Default pool CPUs in use', max('quota.concurrent_public_pool_build_cpus.usage'), { agg: 'max' }),
+          qv('Default pool CPU limit', max('quota.concurrent_public_pool_build_cpus.limit'), { agg: 'last' }),
+          qv(
+            'Private pool CPUs in use',
+            pools.map((p) => max(`quota.${p}.usage`)),
+            { formula: 'query1 + query2 + query3', agg: 'max' },
+          ),
+          qv('Builds over quota', [sum('quota.concurrent_public_pool_build_cpus.exceeded'), ...pools.map((p) => sum(`quota.${p}.exceeded`))], {
+            formula: 'query1 + query2 + query3 + query4',
+            bad: true,
+          }),
+        ],
+        groups: [
+          g('Default pool CPUs', [
+            ts('CPUs in use against the limit', [max('quota.concurrent_public_pool_build_cpus.usage'), max('quota.concurrent_public_pool_build_cpus.limit')], { alias: ['in use', 'limit'], w: 4 }),
+            share('Share of the limit in use', max('quota.concurrent_public_pool_build_cpus.usage'), max('quota.concurrent_public_pool_build_cpus.limit'), { w: 4 }),
+            ts('Over quota by build origin', sum('quota.concurrent_public_pool_build_cpus.exceeded', 'build_origin'), { display: 'bars', palette: 'warm', w: 4 }),
+          ]),
+          g('Private pool CPUs', [
+            ts(
+              'CPUs in use by machine family',
+              pools.map((p) => max(`quota.${p}.usage`)),
+              { alias: ['E2', 'C3', 'N2D'], display: 'area' },
+            ),
+            ts(
+              'Limits by machine family',
+              pools.map((p) => max(`quota.${p}.limit`)),
+              { alias: ['E2', 'C3', 'N2D'] },
+            ),
+            ts('Over quota by build origin, private pools', sum('quota.concurrent_private_pool_build_cpus.exceeded', 'build_origin'), { display: 'bars', palette: 'warm', w: 12 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'workflows.googleapis.com/': {
+    vars: ['location', 'workflow_id'],
+    labels: ['workflow_id', 'revision_id', 'status', 'io_result', 'io_step_type', 'event_type', 'result'],
+    monitor: 'google_cloud_workflows',
+    note: 'Workflows by workflow and revision: executions started and how they finish, how long they run and the backlog waiting to start, the steps and HTTP calls they make, callbacks and the events that trigger them.',
+    build: (q) => {
+      const { sum, avg, max } = on(q);
+      return {
+        kpis: [
+          qv('Executions started', sum('started_execution_count')),
+          qv('Executions finished', sum('finished_execution_count')),
+          qv('Internal errors', sum('internal_execution_error_count'), { bad: true }),
+          qv('Longest backlog', max('execution_backlog_size'), { agg: 'max' }),
+          qv('Avg execution time', avg('execution_times.avg'), { precision: 1 }),
+        ],
+        groups: [
+          g('Executions', [
+            ts('Started by workflow', sum('started_execution_count', 'workflow_id'), { display: 'bars', w: 4 }),
+            ts('Finished by status', sum('finished_execution_count', 'status'), { display: 'bars', palette: 'warm', w: 4 }),
+            pie('Outcomes', sum('finished_execution_count', 'status')),
+            top('Most executed workflows', sum('started_execution_count', 'workflow_id')),
+            ts('Internal errors by workflow', sum('internal_execution_error_count', 'workflow_id'), { display: 'bars', palette: 'warm' }),
+          ]),
+          g('Duration and backlog', [
+            ts('Execution time by workflow', avg('execution_times.avg', 'workflow_id'), { w: 4 }),
+            ts('Executions waiting to start', max('execution_backlog_size', 'workflow_id'), { w: 4 }),
+            ts('Pending HTTP and connector calls', max('pending_io_requests', 'workflow_id'), { w: 4 }),
+          ]),
+          g('Steps and calls', [
+            ts('Steps by kind', [sum('compute_step_count'), sum('io_step_count'), sum('internal_step_count'), sum('external_step_count')], {
+              alias: ['compute', 'calls', 'internal', 'external'],
+              display: 'bars',
+            }),
+            ts('Calls by result', sum('io_step_count', 'io_result'), { display: 'bars' }),
+            ts('Call latency by step type', avg('io_step_latencies.avg', 'io_step_type')),
+            ts('Compute step latency by workflow', avg('compute_step_latencies.avg', 'workflow_id')),
+          ]),
+          g('Callbacks and triggers', [
+            ts('Callback requests and timeouts', [sum('callback_requests_count'), sum('callback_timeout_count')], { alias: ['requests', 'timeouts'], w: 4 }),
+            ts('Event triggers by result', sum('event_trigger_count', 'result'), { display: 'bars', w: 4 }),
+            ts('Duplicate events by type', sum('duplicate_event_count', 'event_type'), { display: 'bars', palette: 'warm', w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'managedkafka.googleapis.com/': {
+    vars: ['location', 'cluster_id', 'topic_id'],
+    labels: ['cluster_id', 'topic_id', 'broker_index', 'request', 'consumer_group_id', 'partition_index', 'state'],
+    monitor: 'google_cloud_managed_kafka',
+    note: 'Managed Service for Apache Kafka clusters: bytes and messages in and out by cluster and topic, partitions that are offline or under-replicated, in-sync replica changes, broker memory and disk against their limits, requests and consumer group lag.',
+    build: (q) => {
+      const { sum, max } = on(q);
+      return {
+        kpis: [
+          qv('Bytes in', sum('cluster_byte_in_count')),
+          qv('Bytes out', sum('cluster_byte_out_count')),
+          qv('Messages in', sum('cluster_message_in_count')),
+          qv('Offline partitions', max('offline_partitions'), { agg: 'max', bad: true }),
+          qv('Under-replicated partitions', sum('broker.under_replicated_partitions'), { agg: 'max', bad: true }),
+          qv('Largest consumer lag', max('offset_lag'), { agg: 'max' }),
+        ],
+        groups: [
+          g('Cluster traffic', [
+            mirror('Bytes in and out', sum('cluster_byte_in_count'), sum('cluster_byte_out_count')),
+            ts('Messages in by cluster', sum('cluster_message_in_count', 'cluster_id'), { display: 'bars' }),
+            top('Topics receiving the most bytes', sum('byte_in_count', 'topic_id')),
+            top('Topics receiving the most messages', sum('message_in_count', 'topic_id')),
+          ]),
+          g('Partitions and replicas', [
+            ts('Under-replicated partitions by broker', max('broker.under_replicated_partitions', 'broker_index'), { palette: 'warm', w: 4 }),
+            ts('Partitions under min in-sync replicas', max('broker.under_min_isr_partitions', 'broker_index'), { palette: 'warm', w: 4 }),
+            ts('Offline partitions by cluster', max('offline_partitions', 'cluster_id'), { palette: 'warm', w: 4 }),
+            ts('In-sync replica set changes', [sum('broker.isr_shrink_count'), sum('broker.isr_expand_count'), sum('broker.failed_isr_update_count')], {
+              alias: ['shrinks', 'expansions', 'failed updates'],
+              display: 'bars',
+            }),
+            ts('Partitions by broker', max('partitions', 'broker_index')),
+          ]),
+          g('Brokers and requests', [
+            share('Memory used of the limit', sum('memory.usage', 'cluster_id'), sum('memory.limit', 'cluster_id'), { w: 4 }),
+            share('Disk used of the limit', sum('disk.used_bytes', 'cluster_id'), sum('disk.limit', 'cluster_id'), { w: 4 }),
+            ts('Long-term storage', max('storage.long_term_usage', 'cluster_id'), { w: 4 }),
+            ts('Requests by type', sum('request_count', 'request'), { display: 'bars' }),
+            ts('Request latency by type', max('request_latencies', 'request')),
+          ]),
+          g('Consumer groups', [
+            top('Most lagging consumer groups', max('offset_lag', 'consumer_group_id'), { agg: 'max', w: 4 }),
+            ts('Lag by topic', max('offset_lag', 'topic_id'), { w: 4 }),
+            ts('Consumer groups by state', max('consumer_groups', 'state'), { display: 'bars', w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'memcache.googleapis.com/': {
+    vars: ['location', 'instance_id'],
+    labels: ['instance_id', 'node_id', 'command', 'response_type'],
+    monitor: 'google_cloud_memcache',
+    note: 'Memorystore for Memcached instances by node: how often the cache answers from memory, operations by command and response, evictions and items, CPU, memory and connections per node, and network traffic.',
+    build: (q) => {
+      const { sum, avg, max } = on(q);
+      return {
+        kpis: [
+          reporting('Nodes reporting', avg('node.memory.utilization', 'node_id')),
+          qv('Hit ratio', avg('node.hit_ratio'), { precision: 2 }),
+          qv('Operations', sum('node.operation_count')),
+          qv('Evictions', sum('node.eviction_count'), { bad: true }),
+          qv('Fullest node memory', max('node.memory.utilization'), { precision: 2 }),
+          qv('Connections', sum('node.active_connections'), { agg: 'last' }),
+        ],
+        groups: [
+          g('Hits, operations and evictions', [
+            ts('Hit ratio by instance', avg('node.hit_ratio', 'instance_id'), { w: 4 }),
+            ts('Operations by command', sum('node.operation_count', 'command'), { display: 'bars', w: 4 }),
+            pie('Operations by response', sum('node.operation_count', 'response_type')),
+            ts('Evictions by node', sum('node.eviction_count', 'node_id'), { display: 'bars', palette: 'warm' }),
+            ts('Items by instance', max('node.items', 'instance_id')),
+          ]),
+          g('Memcached nodes', [
+            top('Fullest nodes', max('node.memory.utilization', 'node_id'), { agg: 'avg', w: 4, h: 4, palette: 'orange' }),
+            ts('CPU by node', avg('node.cpu.utilization', 'node_id'), { w: 8 }),
+            ts('Connections by node', max('node.active_connections', 'node_id'), { w: 4 }),
+            ts('Memory utilization by node', max('node.memory.utilization', 'node_id'), { w: 4 }),
+          ]),
+          g('Node traffic', [
+            mirror('Bytes in and out', sum('node.received_bytes_count'), sum('node.sent_bytes_count'), { w: 8 }),
+            top('Most traffic sent', sum('node.sent_bytes_count', 'node_id'), { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'iam.googleapis.com/': {
+    vars: ['location'],
+    labels: ['unique_id', 'key_id', 'pool_id', 'provider_id', 'result'],
+    monitor: 'google_cloud_iam',
+    note: 'Who authenticates to the project: service accounts and the keys they sign in with, token exchanges through workload identity federation and sign-ins through workforce identity federation, by pool, provider and result.',
+    build: (q) => {
+      const { sum } = on(q);
+      return {
+        kpis: [
+          qv('Service account authentications', sum('service_account.authn_events_count')),
+          qv('With a service account key', sum('service_account.key.authn_events_count')),
+          qv('Workload identity exchanges', sum('workload_identity_federation.count')),
+          qv('Workforce sign-ins', sum('workforce_identity_federation.count')),
+          reporting('Keys in use', sum('service_account.key.authn_events_count', 'key_id')),
+        ],
+        groups: [
+          g('Service accounts and keys', [
+            top('Most active service accounts', sum('service_account.authn_events_count', 'unique_id'), { w: 4 }),
+            ts('Authentications by service account', sum('service_account.authn_events_count', 'unique_id'), { display: 'bars', w: 8 }),
+            top('Keys used the most', sum('service_account.key.authn_events_count', 'key_id'), { w: 4 }),
+            ts('Key-based against all authentications', [sum('service_account.key.authn_events_count'), sum('service_account.authn_events_count')], { alias: ['with a key', 'all'], w: 8 }),
+          ]),
+          g('Identity federation', [
+            ts('Workload identity exchanges by result', sum('workload_identity_federation.count', 'result'), { display: 'bars', palette: 'warm', w: 4 }),
+            ts('Workload identity by provider', sum('workload_identity_federation.count', 'provider_id'), { w: 4 }),
+            ts('Workforce sign-ins by result', sum('workforce_identity_federation.count', 'result'), { display: 'bars', palette: 'warm', w: 4 }),
+            top('Busiest workload identity pools', sum('workload_identity_federation.count', 'pool_id')),
+            top('Busiest workforce pools', sum('workforce_identity_federation.count', 'pool_id')),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'backupdr.googleapis.com/': {
+    vars: ['location', 'backup_vault_id'],
+    labels: ['backup_vault_id', 'resource_type', 'backup_schedule_type', 'job_status', 'job_type', 'pool_name', 'backup_recovery_appliance_name'],
+    monitor: 'google_cloud_backup_dr',
+    note: 'Backup and DR: the bytes kept in each backup vault by workload and schedule, the protected resources, jobs reported by the management console, backup/recovery appliance pools and the vaults’ backup quotas.',
+    build: (q) => {
+      const { sum, max } = on(q);
+      return {
+        kpis: [
+          reporting('Vaults reporting', max('storage.stored_bytes', 'backup_vault_id'), { agg: 'last' }),
+          qv('Stored in vaults', sum('storage.stored_bytes'), { agg: 'last' }),
+          qv('Protected resources', sum('protected_data.resources'), { agg: 'last' }),
+          qv('Protected data', sum('protected_data.volume'), { agg: 'last' }),
+          qv('Fullest appliance pool', max('backup_recovery_appliance.storage_pool.utilization'), { agg: 'last', precision: 1 }),
+        ],
+        groups: [
+          g('Backup vaults', [
+            top('Largest vaults', max('storage.stored_bytes', 'backup_vault_id'), { agg: 'last', w: 4 }),
+            tree('Stored bytes by workload', sum('storage.stored_bytes', 'resource_type'), { agg: 'last', w: 4 }),
+            chg('Vault growth against last week', max('storage.stored_bytes', 'backup_vault_id'), { increaseGood: false, w: 4 }),
+            ts('Stored bytes by schedule', sum('storage.stored_bytes', 'backup_schedule_type'), { display: 'area', w: 12 }),
+          ]),
+          g('Jobs and protected data', [
+            ts('Jobs by status', sum('jobs.job_trend', 'job_status'), { display: 'bars', palette: 'warm', w: 4 }),
+            ts('Jobs by type', sum('jobs.job_trend', 'job_type'), { display: 'bars', w: 4 }),
+            pie('Protected resources by type', sum('protected_data.resources', 'resource_type'), { agg: 'last' }),
+          ]),
+          g('Appliance pools', [
+            top('Fullest storage pools', max('backup_recovery_appliance.storage_pool.utilization', 'pool_name'), { agg: 'last', w: 4 }),
+            ts('OnVault pool usage', max('onvault_pools.utilization', 'pool_name'), { w: 4 }),
+            ts('Virtual disks used by appliance', max('backup_recovery_appliance.v_disk_count.utilization', 'backup_recovery_appliance_name'), { w: 4 }),
+          ]),
+          g('Vault quotas', [
+            ts('Compute Engine backups against the limit', [max('quota.gce_backups_per_vault.usage'), max('quota.gce_backups_per_vault.limit')], { alias: ['backups', 'limit'], w: 4 }),
+            ts('Disk backups against the limit', [max('quota.disk_backups_per_vault.usage'), max('quota.disk_backups_per_vault.limit')], { alias: ['backups', 'limit'], w: 4 }),
+            ts('Over a vault quota', [sum('quota.gce_backups_per_vault.exceeded'), sum('quota.disk_backups_per_vault.exceeded'), sum('quota.cloud_sql_backups_per_vault.exceeded')], {
+              alias: ['Compute Engine', 'disks', 'Cloud SQL'],
+              display: 'bars',
+              palette: 'warm',
+              w: 4,
+            }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'certificatemanager.googleapis.com/': {
+    vars: ['location'],
+    labels: ['scope', 'type', 'is_active', 'authority_type', 'key_algorithm', 'certificate_map_id'],
+    monitor: 'google_cloud_certificate_manager',
+    note: 'Certificate Manager for the project: certificates by type, scope and issuing authority, how long they have left before they expire, how often certificates are served, and the entries of certificate maps.',
+    build: (q) => {
+      const { sum, avg } = on(q);
+      return {
+        kpis: [
+          qv('Certificates', sum('project.certificates'), { agg: 'last' }),
+          qv('Active certificates', sum('project.v2.active_certificates'), { agg: 'last', good: true }),
+          qv('Avg time to expiry (seconds)', avg('project.v2.certificate_expiration.avg'), { agg: 'min' }),
+          qv('Certificate map entries', sum('map.entries'), { agg: 'last' }),
+        ],
+        groups: [
+          g('Certificates in the project', [
+            ts('Certificates by type', sum('project.certificates', 'type'), { display: 'bars', w: 4 }),
+            pie('Active by issuing authority', sum('project.v2.active_certificates', 'authority_type'), { agg: 'last' }),
+            ts('Active by key algorithm', sum('project.v2.active_certificates', 'key_algorithm'), { w: 4 }),
+            ts('Certificates by scope', sum('project.certificates', 'scope'), { w: 6 }),
+            ts('Active against all certificates', [sum('project.v2.active_certificates'), sum('project.certificates')], { alias: ['active', 'all'], w: 6 }),
+          ]),
+          g('Expiry and use', [
+            ts('Average time until expiry', avg('project.v2.certificate_expiration.avg'), { w: 4 }),
+            ts('Certificates observed in use by authority', sum('project.v2.certificate_observance_event_count', 'authority_type'), { display: 'bars', w: 4 }),
+            top('Largest certificate maps', sum('map.entries', 'certificate_map_id'), { agg: 'last', w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'firewallinsights.googleapis.com/': {
+    vars: ['zone', 'instance_id'],
+    labels: ['instance_id', 'firewall_name', 'firewall_project_id', 'subnetwork_name', 'network_name', 'type', 'interface_name'],
+    monitor: 'google_cloud_firewall_insights',
+    note: 'Firewall Insights: how often each VPC firewall rule and policy rule matches traffic, on which instances and subnets, so unused and overly broad rules stand out. Rule hits are counted only where firewall rules logging is on.',
+    logs: [['Firewall rule logs', 'source:gcp.gce.subnetwork']],
+    build: (q) => {
+      const { sum } = on(q);
+      return {
+        kpis: [
+          qv('Rule hits on instances', sum('vm.firewall_hit_count')),
+          qv('Rule hits on subnets', sum('subnet.firewall_hit_count')),
+          reporting('Rules hit', sum('vm.firewall_hit_count', 'firewall_name')),
+          reporting('Instances hit', sum('vm.firewall_hit_count', 'instance_id')),
+        ],
+        groups: [
+          g('Firewall rules hit', [
+            top('Rules hit the most', sum('vm.firewall_hit_count', 'firewall_name'), { w: 4, h: 4 }),
+            ts('Hits by rule', sum('vm.firewall_hit_count', 'firewall_name'), { display: 'bars', w: 8 }),
+            tree('Share of the hits', sum('vm.firewall_hit_count', 'firewall_name'), { w: 4 }),
+            ts('Policy and VPC rule hits by kind', sum('vm.all.firewall_hit_count', 'type'), { display: 'bars', w: 4 }),
+          ]),
+          g('Instances and subnets', [
+            top('Instances hit the most', sum('vm.firewall_hit_count', 'instance_id'), { w: 4 }),
+            ts('Hits by subnet', sum('subnet.firewall_hit_count', 'subnetwork_name'), { display: 'bars', w: 4 }),
+            ts('Hits by network', sum('subnet.firewall_hit_count', 'network_name'), { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'datastream.googleapis.com/': {
+    vars: ['location', 'stream_id'],
+    labels: ['stream_id', 'object_name', 'read_method', 'event_type', 'error_code'],
+    monitor: 'google_cloud_datastream',
+    note: 'Datastream change data capture streams: events and bytes read from the source by read method (backfill or change stream), how fresh the destination is, the latency of each part of the trip, and events it can’t replicate.',
+    build: (q) => {
+      const { sum, avg, max } = on(q);
+      return {
+        kpis: [
+          qv('Events', sum('stream.event_count')),
+          qv('Bytes', sum('stream.bytes_count')),
+          qv('Worst freshness', max('stream.freshness'), { agg: 'max' }),
+          qv('Avg end-to-end latency', avg('stream.total_latencies.avg'), { precision: 1 }),
+          qv('Unsupported events', sum('stream.unsupported_event_count'), { bad: true }),
+        ],
+        groups: [
+          g('Replication throughput', [
+            ts('Events by stream', sum('stream.event_count', 'stream_id'), { display: 'bars', w: 4 }),
+            ts('Bytes by read method', sum('stream.bytes_count', 'read_method'), { w: 4 }),
+            top('Busiest source objects', sum('streamobject.event_count', 'object_name'), { w: 4 }),
+            ts('Replicated events by type', sum('streamobject.replicated_event_count', 'event_type'), { display: 'bars', w: 12 }),
+          ]),
+          g('Freshness and latency', [
+            ts('Freshness by stream', max('stream.freshness', 'stream_id')),
+            ts('Latency by stage', [avg('stream.latencies.avg'), avg('stream.system_latencies.avg'), avg('stream.total_latencies.avg')], {
+              alias: ['source to Datastream', 'within Datastream', 'end to end'],
+            }),
+          ]),
+          g('Events not replicated', [
+            ts('Unsupported events by error', sum('stream.unsupported_event_count', 'error_code'), { display: 'bars', palette: 'warm' }),
+            top('Objects with unsupported events', sum('stream.unsupported_event_count', 'object_name'), { palette: 'warm' }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'datafusion.googleapis.com/': {
+    vars: ['location', 'instance_id', 'pipeline_id'],
+    labels: ['instance_id', 'namespace', 'pipeline_id', 'complete_state', 'provisioner', 'stage_name', 'service', 'response_code'],
+    monitor: 'google_cloud_data_fusion',
+    note: 'Cloud Data Fusion pipelines and instances: runs by how they ended, their duration and start-up time, bytes and records moved per stage, BigQuery pushdown, and each instance’s running pipelines, API responses and service availability.',
+    build: (q) => {
+      const { sum, avg, max, min } = on(q);
+      return {
+        kpis: [
+          qv('Runs completed', sum('pipeline.v2.runs_completed_count.delta')),
+          qv('Pipelines running', sum('instance.v3.concurrent_pipelines_running'), { agg: 'last' }),
+          qv('Avg run duration', avg('pipeline.v2.pipeline_duration'), { precision: 0 }),
+          qv('Bytes read', sum('pipeline.v2.read_bytes_count.delta')),
+          qv('Services available (lowest)', min('instance.v3.service_available'), { agg: 'min', good: true }),
+        ],
+        groups: [
+          g('Pipeline runs', [
+            ts('Runs by end state', sum('pipeline.v2.runs_completed_count.delta', 'complete_state'), { display: 'bars', palette: 'warm', w: 4 }),
+            top('Pipelines run the most', sum('pipeline.v2.runs_completed_count.delta', 'pipeline_id'), { w: 4 }),
+            ts('Run duration by pipeline', max('pipeline.v2.pipeline_duration', 'pipeline_id'), { w: 4 }),
+            ts('Start-up time by provisioner', max('pipeline.v2.pipeline_start_latency', 'provisioner')),
+            ts('Dataproc provisioning time', max('pipeline.v2.dataproc.provisioning_latency', 'provisioner')),
+          ]),
+          g('Data moved', [
+            ts('Bytes read, written and shuffled', [sum('pipeline.v2.read_bytes_count.delta'), sum('pipeline.v2.write_bytes_count.delta'), sum('pipeline.v2.shuffle_bytes_count.delta')], {
+              alias: ['read', 'written', 'shuffled'],
+              w: 4,
+            }),
+            ts('Records into each stage', sum('pipeline.v2.plugin.incoming_records_count.delta', 'stage_name'), { display: 'bars', w: 4 }),
+            top('Stages emitting the most records', sum('pipeline.v2.plugin.outgoing_records_count.delta', 'stage_name'), { w: 4 }),
+            ts('BigQuery pushdown records', [sum('pipeline.v2.bqpushdown.records_pushed_count.delta'), sum('pipeline.v2.bqpushdown.records_pulled_count.delta')], { alias: ['pushed', 'pulled'] }),
+            ts('BigQuery pushdown bytes', [sum('pipeline.v2.bqpushdown.engine_bytes_processed_count.delta'), sum('pipeline.v2.bqpushdown.engine_bytes_billed_count.delta')], {
+              alias: ['processed', 'billed'],
+            }),
+          ]),
+          g('Data Fusion instances', [
+            ts('Pipelines launched and running', [sum('instance.v3.concurrent_pipelines_launched'), sum('instance.v3.concurrent_pipelines_running')], { alias: ['launched', 'running'], w: 4 }),
+            ts('Deployed and draft pipelines', [sum('instance.v3.pipelines'), sum('instance.v3.draft_pipelines')], { alias: ['deployed', 'drafts'], w: 4 }),
+            ts('API responses by code', sum('instance.v3.api_response_count.delta', 'response_code'), { display: 'bars', w: 4 }),
+            ts('Service availability by service', min('instance.v3.service_available', 'service'), { w: 12 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'dataplex.googleapis.com/': {
+    vars: ['location', 'lake_id', 'zone_id'],
+    labels: ['lake_id', 'zone_id', 'asset_id', 'resource_type', 'zone_type', 'type'],
+    monitor: 'google_cloud_dataplex',
+    note: 'Dataplex lakes, zones and assets: what discovery found (data items, tables, filesets and their size), which assets are active, and the lakes, zones and assets that need action or wait for BigQuery metadata and policy updates.',
+    build: (q) => {
+      const { sum, max } = on(q);
+      return {
+        kpis: [
+          qv('Active assets', sum('asset.active'), { agg: 'last', good: true }),
+          qv('Data size', sum('asset.data_size'), { agg: 'last' }),
+          qv('Tables', sum('asset.tables'), { agg: 'last' }),
+          qv('Assets needing action', sum('asset.requires_action'), { agg: 'last', bad: true }),
+          qv('Lakes needing action', sum('lake.requires_action'), { agg: 'last', bad: true }),
+        ],
+        groups: [
+          g('Discovered data', [
+            top('Largest assets', max('asset.data_size', 'asset_id'), { agg: 'last', w: 4 }),
+            tree('Data size by resource type', sum('asset.data_size', 'resource_type'), { agg: 'last', w: 4 }),
+            ts('Data items by zone type', sum('asset.data_items', 'zone_type'), { w: 4 }),
+            ts('Tables and filesets', [sum('asset.tables'), sum('asset.filesets')], { alias: ['tables', 'filesets'] }),
+            ts('Active assets by lake', sum('asset.active', 'lake_id')),
+          ]),
+          g('Needing attention', [
+            ts('Lakes, zones and assets needing action', [sum('lake.requires_action'), sum('zone.requires_action'), sum('asset.requires_action')], {
+              alias: ['lakes', 'zones', 'assets'],
+              palette: 'warm',
+              w: 4,
+            }),
+            ts('Entities waiting for BigQuery', [sum('asset.entities_pending_bigquery_metadata_updates'), sum('asset.entities_pending_bigquery_iampolicy_updates')], {
+              alias: ['metadata', 'IAM policy'],
+              w: 4,
+            }),
+            top('Zones needing action', sum('zone.requires_action', 'zone_id'), { agg: 'last', palette: 'warm', w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'bigquerystorage.googleapis.com/': {
+    vars: ['location'],
+    labels: ['result', 'job_name'],
+    monitor: 'google_cloud_bigquery_storage',
+    note: 'The BigQuery Storage API for the project: concurrent read streams, the Storage Write API’s connections, bytes and rows uploaded by result and their server-side and transcoding latency, and the writes Dataflow jobs make through it.',
+    build: (q) => {
+      const { sum, avg, max } = on(q);
+      return {
+        kpis: [
+          qv('Read streams', max('read.concurrent_streams'), { agg: 'max' }),
+          qv('Write connections', max('write.concurrent_connections'), { agg: 'max' }),
+          qv('Bytes uploaded', sum('write.uploaded_bytes_count')),
+          qv('Rows uploaded', sum('write.uploaded_row_count')),
+          qv('Avg server-side latency', avg('write.server_side_latencies.avg'), { precision: 1 }),
+        ],
+        groups: [
+          g('Streams and connections', [
+            ts('Concurrent read streams', max('read.concurrent_streams'), { w: 4 }),
+            ts('Concurrent write connections', max('write.concurrent_connections'), { w: 4 }),
+            ts('Connection results', sum('write.connection_results_count', 'result'), { display: 'bars', palette: 'warm', w: 4 }),
+          ]),
+          g('Storage Write API', [
+            ts('Bytes uploaded by result', sum('write.uploaded_bytes_count', 'result'), { display: 'bars', w: 4 }),
+            ts('Rows uploaded by result', sum('write.uploaded_row_count', 'result'), { w: 4 }),
+            ts('Server-side and transcoding latency', [avg('write.server_side_latencies.avg'), avg('write.transcoding_latencies.avg')], { alias: ['server side', 'transcoding'], w: 4 }),
+          ]),
+          g('Dataflow writes', [
+            ts('Requests by result', sum('dataflow_write.request_count', 'result'), { display: 'bars', w: 4 }),
+            top('Jobs uploading the most bytes', sum('dataflow_write.uploaded_bytes_count', 'job_name'), { w: 4 }),
+            ts('Rows uploaded by job', sum('dataflow_write.uploaded_row_count', 'job_name'), { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'bigquerydatatransfer.googleapis.com/': {
+    vars: ['location', 'config_id'],
+    labels: ['config_id', 'state', 'status', 'completion_state', 'run_cause', 'data_source_id'],
+    monitor: 'google_cloud_bigquery_data_transfer',
+    note: 'BigQuery Data Transfer Service configurations: runs in progress and how finished runs ended, by data source and what started them, how long runs take and the rows their last job loaded.',
+    logs: [['Transfer run logs', 'source:gcp.bigquery.dts.config']],
+    build: (q) => {
+      const { sum, avg, max } = on(q);
+      return {
+        kpis: [
+          qv('Runs in progress', sum('transfer_config.active_runs'), { agg: 'last' }),
+          qv('Runs completed', sum('transfer_config.completed_runs')),
+          qv('Avg run duration', avg('transfer_config.run_duration_seconds.avg'), { precision: 0 }),
+          qv('Rows in the last runs', sum('transfer_config.last_execution_job_rows'), { agg: 'last' }),
+        ],
+        groups: [
+          g('Transfer runs', [
+            ts('Completed runs by outcome', sum('transfer_config.completed_runs', 'completion_state'), { display: 'bars', palette: 'warm', w: 4 }),
+            ts('Completed runs by data source', sum('transfer_config.completed_runs', 'data_source_id'), { display: 'bars', w: 4 }),
+            pie('Runs by cause', sum('transfer_config.completed_runs', 'run_cause')),
+            ts('Runs in progress by state', sum('transfer_config.active_runs', 'state')),
+            top('Configurations run the most', sum('transfer_config.completed_runs', 'config_id')),
+          ]),
+          g('Duration and rows', [
+            ts('Run duration by configuration', avg('transfer_config.run_duration_seconds.avg', 'config_id'), { w: 4 }),
+            top('Slowest configurations', avg('transfer_config.run_duration_seconds.avg', 'config_id'), { w: 4 }),
+            top('Most rows in the last run', max('transfer_config.last_execution_job_rows', 'config_id'), { agg: 'last', w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'storagetransfer.googleapis.com/': {
+    vars: ['job_id'],
+    labels: ['job_id', 'status', 'code', 'origin', 'source_bucket', 'destination_bucket'],
+    monitor: 'google_cloud_storage_transfer',
+    note: 'Storage Transfer Service jobs: what they find at the source against what they copy, objects deleted and why, errors by code, cross-bucket replication and its latency, and the transfer agents for on-premises sources.',
+    logs: [['Transfer job logs', 'source:gcp.storage.transfer.job']],
+    build: (q) => {
+      const { sum, avg, min } = on(q);
+      return {
+        kpis: [
+          qv('Bytes copied', sum('transferjob.copied_bytes_count')),
+          qv('Objects copied', sum('transferjob.copied_objects_count')),
+          qv('Bytes found', sum('transferjob.found_bytes_count')),
+          qv('Errors', sum('transferjob.error_count'), { bad: true }),
+          qv('Agents connected (lowest)', min('agent.connected'), { agg: 'min', good: true }),
+        ],
+        groups: [
+          g('Copies by job', [
+            ts('Bytes copied by job', sum('transferjob.copied_bytes_count', 'job_id'), { display: 'bars', w: 4 }),
+            ts('Objects copied by status', sum('transferjob.copied_objects_count', 'status'), { w: 4 }),
+            top('Jobs copying the most', sum('transferjob.copied_bytes_count', 'job_id'), { w: 4 }),
+            ts('Found against copied', [sum('transferjob.found_bytes_count'), sum('transferjob.copied_bytes_count')], { alias: ['found', 'copied'] }),
+            ts('Bytes moved by agents', sum('agent.transferred_bytes_count'), { display: 'bars' }),
+          ]),
+          g('Errors and deletions', [
+            ts('Errors by code', sum('transferjob.error_count', 'code'), { display: 'bars', palette: 'warm', w: 4 }),
+            top('Jobs with the most errors', sum('transferjob.error_count', 'job_id'), { palette: 'warm', w: 4 }),
+            ts('Bytes deleted by side', sum('transferjob.deleted_bytes_count', 'origin'), { w: 4 }),
+          ]),
+          g('Bucket replication', [
+            ts('Objects replicated by status', sum('transferjob.object_replication_count', 'status'), { display: 'bars' }),
+            ts('Replication latency by source bucket', avg('transferjob.replication_latency.avg', 'source_bucket')),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'tpu.googleapis.com/': {
+    vars: ['location', 'worker_id'],
+    labels: ['worker_id', 'accelerator_id', 'node_id', 'container_name', 'interruption_type', 'collective_type'],
+    monitor: 'google_cloud_tpu',
+    note: 'Cloud TPU workers: how busy each accelerator and its TensorCores are, high-bandwidth memory used and its bandwidth, the host VM’s CPU, memory and network, multislice collective latency and interruptions.',
+    build: (q) => {
+      const { sum, avg, max } = on(q);
+      return {
+        kpis: [
+          reporting('Workers reporting', avg('accelerator.duty_cycle', 'worker_id')),
+          qv('Avg duty cycle', avg('accelerator.duty_cycle'), { precision: 1 }),
+          qv('Avg TensorCore utilization', avg('accelerator.tensorcore_utilization'), { precision: 1 }),
+          qv('HBM used', [sum('accelerator.memory_used'), sum('accelerator.memory_total')], { formula: '100 * query1 / query2', precision: 1, agg: 'avg' }),
+          qv('Interruptions', sum('instance.interruption_count'), { agg: 'max', bad: true }),
+        ],
+        groups: [
+          g('Accelerator use', [
+            top('Busiest workers', avg('accelerator.duty_cycle', 'worker_id'), { w: 4, h: 4, palette: 'orange' }),
+            ts('Duty cycle by worker', avg('accelerator.duty_cycle', 'worker_id'), { w: 8 }),
+            heat('Duty cycle spread', avg('accelerator.duty_cycle', 'accelerator_id'), { w: 4 }),
+            ts('TensorCore utilization by chip', avg('accelerator.tensorcore_utilization', 'accelerator_id'), { w: 4 }),
+          ]),
+          g('High-bandwidth memory', [
+            share('HBM used by worker', sum('accelerator.memory_used', 'worker_id'), sum('accelerator.memory_total', 'worker_id')),
+            ts('Memory bandwidth used by worker', avg('accelerator.memory_bandwidth_utilization', 'worker_id')),
+          ]),
+          g('Host VMs', [
+            ts('Host CPU by node', avg('cpu.utilization', 'node_id'), { w: 4 }),
+            ts('Host memory by node', max('memory.usage', 'node_id'), { w: 4 }),
+            mirror('Host network', sum('network.received_bytes_count'), sum('network.sent_bytes_count'), { w: 4 }),
+            ts('Matrix unit utilization by node', avg('tpu.mxu.utilization', 'node_id')),
+            ts('Container CPU', avg('container.cpu.utilization', 'container_name')),
+          ]),
+          g('Multislice and interruptions', [
+            ts('Collective latency by operation', avg('multislice.network.collective_end_to_end_latencies.avg', 'collective_type'), { w: 4 }),
+            ts('Data center network transfer latency', avg('multislice.network.dcn_transfer_latencies.avg'), { w: 4 }),
+            ts('Interruptions by type', sum('instance.interruption_count', 'interruption_type'), { display: 'bars', palette: 'warm', w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'pubsublite.googleapis.com/': {
+    vars: ['location', 'topic_id', 'subscription_id'],
+    labels: ['topic_id', 'subscription_id', 'partition', 'reservation_id', 'response_code', 'state', 'reason'],
+    monitor: 'google_cloud_pubsub_lite',
+    note: 'Pub/Sub Lite topics, subscriptions and reservations by partition: messages and bytes published and delivered, publish responses, backlog and the age of unacknowledged messages, and publish, subscribe, storage and reservation throughput against their capacity.',
+    build: (q) => {
+      const { sum, max } = on(q);
+      return {
+        kpis: [
+          qv('Messages published', sum('topic.publish_message_count')),
+          qv('Messages delivered', sum('subscription.sent_message_count')),
+          qv('Backlog', sum('subscription.backlog_message_count'), { agg: 'last' }),
+          qv('Oldest unacked message', max('subscription.oldest_unacked_message_age'), { agg: 'max' }),
+          qv('Fullest topic storage', max('topic.storage_quota_utilization'), { precision: 2 }),
+        ],
+        groups: [
+          g('Publishing to topics', [
+            ts('Messages published by topic', sum('topic.publish_message_count', 'topic_id'), { display: 'bars', w: 4 }),
+            ts('Publish requests by response', sum('topic.publish_request_count', 'response_code'), { display: 'bars', palette: 'warm', w: 4 }),
+            top('Topics publishing the most bytes', sum('topic.publish_raw_bytes', 'topic_id'), { w: 4 }),
+          ]),
+          g('Subscription delivery and backlog', [
+            ts('Messages delivered by subscription', sum('subscription.sent_message_count', 'subscription_id'), { display: 'bars', w: 4 }),
+            ts('Backlog by subscription', sum('subscription.backlog_message_count', 'subscription_id'), { w: 4 }),
+            top('Oldest unacked messages', max('subscription.oldest_unacked_message_age', 'subscription_id'), { agg: 'max', w: 4 }),
+            ts('Messages that can’t be exported, by reason', sum('subscription.unexportable_message_count', 'reason'), { display: 'bars', palette: 'warm', w: 12 }),
+          ]),
+          g('Throughput capacity', [
+            ts('Publish capacity used by topic', max('topic.publish_quota_utilization', 'topic_id'), { w: 4 }),
+            ts('Subscribe capacity used by topic', max('topic.subscribe_quota_utilization', 'topic_id'), { w: 4 }),
+            ts('Storage used by topic', max('topic.storage_quota_utilization', 'topic_id'), { w: 4 }),
+            ts('Reservation throughput used', max('reservation.throughput_capacity.utilization', 'reservation_id')),
+            ts('Flow control by state', max('subscription.flow_control_status', 'state')),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'privateca.googleapis.com/': {
+    vars: ['location', 'ca_pool_id'],
+    labels: ['ca_pool_id', 'certificate_authority_id', 'reason', 'state', 'status'],
+    monitor: 'google_cloud_private_ca',
+    note: 'Certificate Authority Service: certificates requested, issued and refused by CA pool, why issuance fails, when each CA’s own certificate and chain expire, the CAs’ state, and problems with their Cloud KMS keys and Cloud Storage buckets.',
+    build: (q) => {
+      const { sum, max, min } = on(q);
+      return {
+        kpis: [
+          qv('Certificates issued', sum('ca.cert.create_count')),
+          qv('Requests', sum('ca.cert.create_request_count')),
+          qv('Failed issuances', sum('ca.cert.create_failure_count'), { bad: true }),
+          qv('Soonest CA expiry (seconds)', min('ca.cert_expiration'), { agg: 'min' }),
+          qv('CAs with a key issue', max('kms.key_issue'), { agg: 'max', bad: true }),
+        ],
+        groups: [
+          g('Certificate issuance', [
+            ts('Requested and issued', [sum('ca.cert.create_request_count'), sum('ca.cert.create_count')], { alias: ['requested', 'issued'], w: 4 }),
+            ts('Issued by CA pool', sum('ca.cert.create_count', 'ca_pool_id'), { display: 'bars', w: 4 }),
+            ts('Failures by reason', sum('ca.cert.create_failure_count', 'reason'), { display: 'bars', palette: 'warm', w: 4 }),
+            top('Busiest certificate authorities', sum('ca.cert.create_count', 'certificate_authority_id')),
+            ts('CA certificates created', sum('ca.cert.ca_cert_creation', 'ca_pool_id'), { display: 'bars' }),
+          ]),
+          g('Certificate authority health', [
+            top('CAs expiring soonest', min('ca.cert_expiration', 'certificate_authority_id'), { order: 'asc', agg: 'min', w: 4 }),
+            ts('Chain expiry by CA', min('ca.cert_chain_expiration', 'certificate_authority_id'), { w: 4 }),
+            ts('CAs by state', max('ca.resource_state', 'state'), { display: 'bars', w: 4 }),
+            ts('Key and bucket issues', [max('kms.key_issue'), max('gcs.bucket_issue')], { alias: ['Cloud KMS key', 'Cloud Storage bucket'], palette: 'warm' }),
+            ts('Revoked CA certificates', max('ca.cert_revoked', 'certificate_authority_id'), { palette: 'warm' }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'recaptchaenterprise.googleapis.com/': {
+    vars: ['location', 'key_id'],
+    labels: ['key_id', 'action', 'platform', 'challenge', 'token_status', 'label', 'country_calling_code'],
+    monitor: 'google_cloud_recaptcha_enterprise',
+    note: 'reCAPTCHA keys: assessments by token status and action, the scores they return per action and platform, challenges solved, account defender labels and the SMS toll fraud risk by country calling code.',
+    build: (q) => {
+      const { sum, avg } = on(q);
+      return {
+        kpis: [
+          qv('Assessments', sum('assessment_count')),
+          qv('Avg score', avg('assessments.avg'), { precision: 2 }),
+          qv('Executions', sum('executes.samplecount')),
+          qv('Challenges solved', sum('solution_count')),
+          qv('Account defender assessments', sum('account_defender_assessment_count')),
+        ],
+        groups: [
+          g('Assessments by key', [
+            ts('Assessments by token status', sum('assessment_count', 'token_status'), { display: 'bars', palette: 'warm', w: 4 }),
+            ts('Scored assessments by action', sum('assessments.samplecount', 'action'), { display: 'bars', w: 4 }),
+            top('Keys assessed the most', sum('assessment_count', 'key_id'), { w: 4 }),
+          ]),
+          g('Scores and challenges', [
+            ts('Average score by action', avg('assessments.avg', 'action'), { w: 4 }),
+            ts('Average score by platform', avg('assessments.avg', 'platform'), { w: 4 }),
+            ts('Challenges solved by type', sum('solution_count', 'challenge'), { display: 'bars', w: 4 }),
+            ts('Executions by platform', sum('executes.samplecount', 'platform')),
+            ts('Express assessment score', avg('express_assessments.avg')),
+          ]),
+          g('Fraud signals', [
+            ts('Account defender labels', sum('account_defender_assessment_count', 'label'), { display: 'bars', palette: 'warm' }),
+            top('SMS toll fraud risk by calling code', avg('sms_toll_fraud_risks.avg', 'country_calling_code'), { palette: 'warm' }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'gkebackup.googleapis.com/': {
+    vars: ['location', 'backup_plan_id'],
+    labels: ['backup_plan_id', 'restore_plan_id', 'state', 'scheduled'],
+    monitor: 'google_cloud_backup_for_gke',
+    note: 'Backup for GKE plans: backups created (scheduled or on demand) and deleted, how long backups take and how they end, and the restores started from restore plans.',
+    build: (q) => {
+      const { sum, avg } = on(q);
+      return {
+        kpis: [
+          qv('Backups created', sum('backup_created_count')),
+          qv('Backups deleted', sum('backup_deleted_count')),
+          qv('Restores started', sum('restore_created_count')),
+          qv('Avg backup time', avg('backup_completion_times.avg'), { precision: 0 }),
+        ],
+        groups: [
+          g('Backups by plan', [
+            ts('Created by plan', sum('backup_created_count', 'backup_plan_id'), { display: 'bars', w: 4 }),
+            pie('Scheduled or on demand', sum('backup_created_count', 'scheduled')),
+            top('Plans backing up the most', sum('backup_created_count', 'backup_plan_id'), { w: 4 }),
+            ts('Deleted by plan', sum('backup_deleted_count', 'backup_plan_id'), { display: 'bars', w: 12 }),
+          ]),
+          g('Completion and restores', [
+            ts('Backup time by end state', avg('backup_completion_times.avg', 'state'), { w: 4 }),
+            ts('Backups finished by end state', sum('backup_completion_times.samplecount', 'state'), { display: 'bars', palette: 'warm', w: 4 }),
+            ts('Restores by restore plan', sum('restore_created_count', 'restore_plan_id'), { display: 'bars', w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'parallelstore.googleapis.com/': {
+    vars: ['location', 'instance_id'],
+    labels: ['instance_id', 'rank', 'target', 'operation_type'],
+    monitor: 'google_cloud_parallelstore',
+    note: 'Parallelstore instances: capacity used and left on each storage target, read and write throughput and operations, data imported from and exported to Cloud Storage, and instances in a failed state.',
+    build: (q) => {
+      const { sum, max } = on(q);
+      return {
+        kpis: [
+          qv('Capacity used', sum('instance.used_capacity_bytes'), { agg: 'last' }),
+          qv('Capacity left', sum('instance.available_capacity_bytes'), { agg: 'last' }),
+          qv('Read', sum('instance.read_bytes_count')),
+          qv('Written', sum('instance.write_bytes_count')),
+          qv('Failed instances', max('instance.instance_failure'), { agg: 'max', bad: true }),
+        ],
+        groups: [
+          g('Instance capacity', [
+            share('Capacity used by instance', sum('instance.used_capacity_bytes', 'instance_id'), sum('instance.total_capacity_bytes', 'instance_id'), { w: 4 }),
+            top('Fullest storage targets', [max('instance.used_capacity_bytes', 'target'), max('instance.total_capacity_bytes', 'target')], { formula: '100 * query1 / query2', agg: 'last', w: 4 }),
+            ts('Capacity left by instance', sum('instance.available_capacity_bytes', 'instance_id'), { w: 4 }),
+          ]),
+          g('Reads and writes', [
+            ts('Throughput', [sum('instance.read_bytes_count'), sum('instance.write_bytes_count')], { alias: ['read', 'written'], w: 4 }),
+            ts('Operations', [sum('instance.read_ops_count'), sum('instance.write_ops_count')], { alias: ['reads', 'writes'], w: 4 }),
+            top('Instances read the most', sum('instance.read_bytes_count', 'instance_id'), { w: 4 }),
+          ]),
+          g('Cloud Storage transfers', [
+            ts('Bytes imported and exported', [sum('instance.import_data_bytes_count'), sum('instance.export_data_bytes_count')], { alias: ['imported', 'exported'], display: 'bars', w: 4 }),
+            ts('Objects imported and exported', [sum('instance.import_data_objects_count'), sum('instance.export_data_objects_count')], { alias: ['imported', 'exported'], w: 4 }),
+            ts('Bytes transferred by operation', sum('instance.transferred_byte_count', 'operation_type'), { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'lustre.googleapis.com/': {
+    vars: ['location', 'instance_id'],
+    labels: ['instance_id', 'component', 'target', 'operation', 'job_id'],
+    monitor: 'google_cloud_managed_lustre',
+    note: 'Managed Lustre instances: space and inodes used on each target, connected clients, read and write throughput, metadata operations and I/O time, the read cache, and the jobs (clients) that read and write the most.',
+    build: (q) => {
+      const { sum, max } = on(q);
+      return {
+        kpis: [
+          qv('Space used', [sum('instance.capacity_bytes'), sum('instance.available_bytes')], { formula: 'query1 - query2', agg: 'last' }),
+          qv('Connected clients', max('instance.connected_clients'), { agg: 'last' }),
+          qv('Read', sum('instance.read_bytes_total')),
+          qv('Written', sum('instance.write_bytes_total')),
+          qv('Cache hit rate', [sum('cache.read_hits'), sum('cache.read_misses')], { formula: '100 * query1 / (query1 + query2)', precision: 1, agg: 'avg' }),
+        ],
+        groups: [
+          g('Space and inodes', [
+            ts('Space used by instance', [sum('instance.capacity_bytes', 'instance_id'), sum('instance.available_bytes', 'instance_id')], {
+              formulas: [['100 * (query1 - query2) / query1', '%']],
+              palette: 'warm',
+              w: 4,
+            }),
+            top('Fullest targets', [max('instance.capacity_bytes', 'target'), max('instance.available_bytes', 'target')], { formula: '100 * (query1 - query2) / query1', agg: 'last', w: 4 }),
+            ts('Inodes free and maximum', [sum('instance.inodes_free'), sum('instance.inodes_maximum')], { alias: ['free', 'maximum'], w: 4 }),
+          ]),
+          g('Lustre throughput', [
+            ts('Bytes read and written', [sum('instance.read_bytes_total'), sum('instance.write_bytes_total')], { alias: ['read', 'written'], w: 4 }),
+            ts('Metadata operations by type', sum('instance.metadata_operations_total', 'operation'), { display: 'bars', w: 4 }),
+            ts('I/O time by operation', sum('instance.io_time_milliseconds_total', 'operation'), { w: 4 }),
+            ts('Read cache hits and misses', [sum('cache.read_hits'), sum('cache.read_misses')], { alias: ['hits', 'misses'] }),
+            ts('Connected clients by instance', max('instance.connected_clients', 'instance_id')),
+          ]),
+          g('Busiest jobs', [
+            top('Jobs reading the most', sum('job.read_bytes_total', 'job_id'), { w: 4 }),
+            top('Jobs writing the most', sum('job.write_bytes_total', 'job_id'), { w: 4 }),
+            top('Jobs with the most metadata operations', sum('job.metadata_operations_total', 'job_id'), { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'firebasedatabase.googleapis.com/': {
+    vars: ['location', 'table_name'],
+    labels: ['table_name', 'type', 'operation_type', 'request_method', 'result'],
+    monitor: 'google_cloud_firebase',
+    note: 'Firebase Realtime Database instances: how loaded each database is, open connections, operations and security rule evaluations, bytes sent against the monthly download limit, and storage against its limit.',
+    build: (q) => {
+      const { sum, max } = on(q);
+      return {
+        kpis: [
+          qv('Highest load', max('io.database_load'), { precision: 2 }),
+          qv('Connections', sum('network.active_connections'), { agg: 'last' }),
+          qv('Bytes sent', sum('network.sent_bytes_count')),
+          qv('Storage used', sum('storage.total_bytes'), { agg: 'last' }),
+          qv('Disabled for overages', max('network.disabled_for_overages'), { agg: 'max', bad: true }),
+        ],
+        groups: [
+          g('Database load and connections', [
+            ts('Load by kind', max('io.database_load', 'type'), { w: 4 }),
+            ts('I/O utilization by database', max('io.utilization', 'table_name'), { w: 4 }),
+            ts('Connections by database', sum('network.active_connections', 'table_name'), { w: 4 }),
+          ]),
+          g('Operations and security rules', [
+            ts('API hits by operation', sum('network.api_hits_count', 'operation_type'), { display: 'bars', w: 4 }),
+            ts('Rule evaluations by result', sum('rules.evaluation_count', 'result'), { display: 'bars', palette: 'warm', w: 4 }),
+            ts('Responses sent', sum('io.sent_responses_count', 'table_name'), { w: 4 }),
+          ]),
+          g('Downloads and storage limits', [
+            share('Monthly downloads of the limit', max('network.monthly_sent', 'table_name'), max('network.monthly_sent_limit', 'table_name'), { w: 4 }),
+            share('Storage used of the limit', max('storage.total_bytes', 'table_name'), max('storage.limit', 'table_name'), { w: 4 }),
+            ts('Payload and protocol bytes sent', [sum('network.sent_payload_bytes_count'), sum('network.sent_payload_and_protocol_bytes_count')], { alias: ['payload', 'with protocol'], w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'firebasehosting.googleapis.com/': {
+    vars: ['site_name'],
+    labels: ['site_name', 'domain_name'],
+    monitor: 'google_cloud_firebase',
+    note: 'Firebase Hosting sites: bytes served by site and domain, this month’s downloads against the plan’s limit, and the storage the sites’ releases take against theirs.',
+    build: (q) => {
+      const { sum, max } = on(q);
+      return {
+        kpis: [
+          qv('Bytes served', sum('network.sent_bytes_count')),
+          qv('Served this month', sum('network.monthly_sent'), { agg: 'last' }),
+          qv('Of the monthly limit', [sum('network.monthly_sent'), sum('network.monthly_sent_limit')], { formula: '100 * query1 / query2', precision: 1, agg: 'last' }),
+          qv('Storage used', sum('storage.total_bytes'), { agg: 'last' }),
+        ],
+        groups: [
+          g('Bytes served by site', [
+            ts('Bytes served by site', sum('network.sent_bytes_count', 'site_name'), { display: 'bars', w: 4 }),
+            top('Busiest domains', sum('network.sent_bytes_count', 'domain_name'), { w: 4 }),
+            share('Monthly downloads used, by site', max('network.monthly_sent', 'site_name'), max('network.monthly_sent_limit', 'site_name'), { w: 4 }),
+          ]),
+          g('Release storage', [
+            share('Storage used of the limit, by site', max('storage.total_bytes', 'site_name'), max('storage.limit', 'site_name')),
+            top('Largest sites', max('storage.total_bytes', 'site_name'), { agg: 'last' }),
+          ]),
+        ],
+      };
+    },
+  },
 };

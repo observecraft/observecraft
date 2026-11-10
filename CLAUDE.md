@@ -322,8 +322,9 @@ or SDK features.
   Backup, OpenAI, … IoT Hub, Batch, NetApp Files) are designed the same way in `scripts/azure-service-layouts.mjs` (KPIs start with
   `azure.<type>.count` by Resource Health `status`; monitors `tag:(integration:azure_<svc>) OR azure.<type>.`); the
   generator also fails on a `by {tag}` that is neither a resource tag nor a dimension `azure/naming.rs` SPLITS (mirrored
-  as `AZURE_SPLITS`; the Rust test `every_azure_dashboard_charts_what_the_crawler_publishes` checks both). The most used
-  Google Cloud services (33: Compute Engine, GKE, Cloud Run, Cloud SQL, Pub/Sub, Cloud Storage, Load Balancing, …) are
+  as `AZURE_SPLITS`; the Rust test `every_azure_dashboard_charts_what_the_crawler_publishes` checks both). The Google
+  Cloud services worth one (58: Compute Engine, GKE, Cloud Run, Cloud SQL, Pub/Sub, Cloud Storage, Load Balancing, …
+  AlloyDB, Managed Kafka, Backup and DR, Firebase) are
   designed in `scripts/gcp-service-layouts.mjs` (monitors `tag:(integration:google_<svc>) OR gcp.<svc>.`; cumulative
   counters charted as `.delta`, distributions as `.avg` / `.p95` / `.p99`); the generator fails on an unpublished name, a
   cumulative counter's running total, or a split or filter on a label outside the layout's `labels` (Cloud Monitoring's

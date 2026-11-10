@@ -984,7 +984,7 @@ const AWS_SERVICES: Entry[] = awsCatalog.namespaces.map((n) => ({
 }));
 
 /** Google Cloud services the demo service account collects (mock mode). */
-const DEMO_GCP = new Set(['gce', 'cloudsql', 'storage', 'run', 'pubsub']);
+const DEMO_GCP = new Set(['gce', 'cloudsql', 'storage', 'run', 'pubsub', 'alloydb', 'artifactregistry']);
 
 /** One tile per service of the GCP integration's catalog (server/seeds/gcp_integration.json). */
 const GCP_SERVICES: Entry[] = gcpCatalog.services.map((s) => ({

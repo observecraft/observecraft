@@ -162,6 +162,18 @@ const GCP_VALUES: Record<string, string[]> = {
 };
 const GCP_LOGO_VALUES: Record<string, Record<string, string[]>> = {
   'tile:gcp-gcs': { response_code: ['OK', 'OK', 'NOT_FOUND', 'PERMISSION_DENIED'] },
+  'tile:gcp-alloydb': {
+    cluster_id: ['orders-cluster', 'orders-cluster', 'catalog-cluster', 'orders-cluster'],
+    instance_id: ['orders-primary', 'orders-read-pool', 'catalog-primary', 'orders-read-pool'],
+    replica_instance_id: ['orders-read-pool', 'orders-read-pool', 'catalog-read-pool', 'orders-read-pool'],
+    application_name: ['order-service', 'billing', 'catalog-service', 'inventory-service'],
+    wait_event_type: ['Lock', 'IO', 'LWLock', 'Client'],
+  },
+  'tile:gcp-artifactregistry': {
+    repository_id: ['storefront-images', 'storefront-images', 'npm-packages', 'base-images'],
+    method: ['DownloadArtifact', 'UploadArtifact', 'ListDockerImages', 'DownloadArtifact'],
+    response_code: ['200', '200', '404', '403'],
+  },
   'tile:gcp-pubsub': { response_code: ['success', 'success', 'unavailable', 'success'] },
 };
 const valuesOf = (logo: string, tag: string) =>

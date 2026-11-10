@@ -179,7 +179,7 @@ test('one dashboard per Azure resource type and Google Cloud service, named as t
   const gce = lines.find((l) => l.logo === 'tile:gcp-gce');
   assert.equal(gce.prefix, 'gcp.gce.');
   const memcache = lines.find((l) => l.logo === 'tile:gcp-memcache');
-  assert.match(JSON.stringify(memcache.dashboards[0].widgets), /avg:gcp\.memcache\.node\.memory\.utilization\{\$project_id,\$instance_id\} by \{instance_id\}/);
+  assert.match(JSON.stringify(memcache.dashboards[0].widgets), /max:gcp\.memcache\.node\.memory\.utilization\{\$project_id,\$location,\$instance_id\} by \{node_id\}/);
   assert.ok(lines.filter((l) => l.logo.startsWith('tile:azure-')).length >= 50);
   assert.ok(lines.filter((l) => l.logo.startsWith('tile:gcp-')).length >= 60);
   // Google Cloud: distributions are charted by their mean (.avg), cumulative counters by their change (.delta), as the crawler names them.
@@ -250,7 +250,7 @@ test('mock mode shows the dashboards of the services its demo account collects',
   const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/cloudServiceDashboards.generated.json', import.meta.url), 'utf8'));
   assert.deepEqual(mock.dashboards.map((d) => d.logo).sort(), [...MOCK_SERVICES].sort());
   assert.ok(MOCK_SERVICES.includes('tile:aws-sqs'));
-  for (const id of ['aws-autoscaling', 'aws-docdb', 'azure-sql-servers-elasticpools', 'azure-cdn-profiles']) assert.ok(MOCK_SERVICES.includes(`tile:${id}`), id);
+  for (const id of ['aws-autoscaling', 'aws-docdb', 'azure-sql-servers-elasticpools', 'azure-cdn-profiles', 'gcp-alloydb', 'gcp-artifactregistry']) assert.ok(MOCK_SERVICES.includes(`tile:${id}`), id);
   for (const id of ['gcp-gce', 'gcp-run', 'gcp-cloudsql', 'gcp-gcs', 'gcp-pubsub']) assert.ok(MOCK_SERVICES.includes(`tile:${id}`), id);
   assert.equal(mock.units['azure.vm.percentage_cpu'], 'percent');
 });
@@ -659,6 +659,31 @@ const DESIGNED_GCP = [
   'cloudkms.googleapis.com/',
   'eventarc.googleapis.com/',
   'monitoring.googleapis.com/',
+  'alloydb.googleapis.com/',
+  'artifactregistry.googleapis.com/',
+  'cloudbuild.googleapis.com/',
+  'workflows.googleapis.com/',
+  'managedkafka.googleapis.com/',
+  'memcache.googleapis.com/',
+  'iam.googleapis.com/',
+  'backupdr.googleapis.com/',
+  'certificatemanager.googleapis.com/',
+  'firewallinsights.googleapis.com/',
+  'datastream.googleapis.com/',
+  'datafusion.googleapis.com/',
+  'dataplex.googleapis.com/',
+  'bigquerystorage.googleapis.com/',
+  'bigquerydatatransfer.googleapis.com/',
+  'storagetransfer.googleapis.com/',
+  'tpu.googleapis.com/',
+  'pubsublite.googleapis.com/',
+  'privateca.googleapis.com/',
+  'recaptchaenterprise.googleapis.com/',
+  'gkebackup.googleapis.com/',
+  'parallelstore.googleapis.com/',
+  'lustre.googleapis.com/',
+  'firebasedatabase.googleapis.com/',
+  'firebasehosting.googleapis.com/',
 ];
 
 test('the most used Google Cloud services have a dashboard designed for them', () => {
