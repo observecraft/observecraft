@@ -3,8 +3,8 @@
 # targeting, segments, environments, members) as the events Datadog's LaunchDarkly integration creates (source
 # launchdarkly, tags env, project, kind, flag; integrations-extras/launchdarkly, whose catalog listing we leave
 # out), read every minute. LaunchDarkly can push the same entries instead: a webhook in its Integrations page,
-# signed with a secret (push below; the intake side of webhooks isn't built yet, docs/connectors.md). The Relay
-# Proxy's metrics come through the OpenTelemetry Collector, not this package.
+# signed with a secret, which the intake maps to the same events (push and webhook below). The Relay Proxy's metrics
+# come through the OpenTelemetry Collector, not this package.
 schema_version: 1
 id: launchdarkly
 name: LaunchDarkly
@@ -111,14 +111,22 @@ push:
   url: "{{ intake }}/intake/webhook/launchdarkly?api_key={{ api_key }}"
   signature: { header: X-LD-Signature, algorithm: hmac_sha256, secret: signing_secret }
 
-# The webhook's body is the audit log entry (only logs can come from a webhook: the same fields, as a log).
+# The webhook's body is the audit log entry: the same event as the Audit log stream gives.
 webhook:
   name: launchdarkly
-  logs:
-    service: launchdarkly
-    message: "{{ record.member.email ?? 'LaunchDarkly' }} {{ record.titleVerb ?? record.shortDescription }} {{ record.name }}"
+  record_id: "{{ record._id }}"
+  events:
+    title: "{{ record.member.email ?? record.member.firstName ?? 'LaunchDarkly' }} {{ record.titleVerb ?? record.shortDescription }} {{ record.name }}"
+    text: "{{ record.description ?? record.title ?? record.titleVerb ?? record.shortDescription }}{{ '\n\n' + record.comment ?? '' }}"
+    alert_type: "{{ ((record.titleVerb ?? record.shortDescription) | lower | matches('turned off|deleted|archived')) ? 'warning' : 'info' }}"
+    aggregation_key: "{{ record.kind + ':' + record.name }}"
     date: "{{ record.date | rfc3339 }}"
-    attributes: "{{ record + {evt: {name: record.kind + '.' + (record.accesses | first).action}, usr: {email: record.member.email}} }}"
+    tags:
+      kind: "{{ record.kind }}"
+      env: "{{ ((record.target.resources | first ?? '') | split(':env/'))[1] | split(':') | first }}"
+      project: "{{ ((record.target.resources | first ?? '') | split('proj/'))[1] | split(':') | first }}"
+      flag: "{{ ((record.target.resources | first ?? '') | split(':flag/'))[1] | split(';') | first }}"
+      member: "{{ record.member.email }}"
 
 assets:
   dashboards: [assets/dashboards/overview.json]
