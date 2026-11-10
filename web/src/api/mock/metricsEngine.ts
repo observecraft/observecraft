@@ -393,19 +393,21 @@ function stepFor(range: TimeRange, points: number): number {
 function matches(e: Tags, q: ParsedMetricQuery): boolean {
   return q.filters.every((f) => {
     const v = e[f.key];
-    const hit = f.value.includes('*')
-      ? v !== undefined &&
-        new RegExp(
-          `^${f.value
-            .split('*')
-            .map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-            .join('.*')}$`,
-          'i',
-        ).test(v)
-      : // Tag values match regardless of case, as on the server.
-        v?.toLowerCase() === f.value.toLowerCase();
+    // `tag:(a OR b*)`: any of the values.
+    const values = /^\(.*\)$/.test(f.value) ? f.value.slice(1, -1).split(' OR ') : [f.value];
+    const hit = values.some((value) => one(v, value));
     return hit !== f.negate;
   });
+}
+
+/** One value, with `*` wildcards (`kube_deployment:*` is any entity that has the tag), regardless of case as on the server. */
+function one(v: string | undefined, value: string): boolean {
+  if (!value.includes('*')) return v?.toLowerCase() === value.toLowerCase();
+  const pattern = value
+    .split('*')
+    .map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+    .join('.*');
+  return v !== undefined && new RegExp(`^${pattern}$`, 'i').test(v);
 }
 
 function combine(values: number[], agg: ParsedMetricQuery['aggregator']): number {

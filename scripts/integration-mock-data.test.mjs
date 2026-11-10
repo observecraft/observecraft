@@ -16,6 +16,7 @@ const { outputFiles } = require('esbuild').buildSync({
       "export { resolveQuery, resolveSearchQuery } from './lib/metricQuery';",
       "export { hostmapQuery } from './api/integrations/widgetData';",
       "export { checkStatusTiles } from './api/integrations/checkStatus';",
+      "export { evaluateGroups } from './api/mock/metricsEngine';",
     ].join('\n'),
     resolveDir: fileURLToPath(new URL('../web/src', import.meta.url)),
     loader: 'ts',
@@ -34,8 +35,6 @@ const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/coreDa
 const KNOWN = new Map([
   // Hosts tagged field:apps:argocd by their owner: a tag of the user's own, not one the integration sends.
   ['Host Reporting Argo CD Metrics by Cluster', 'user tag'],
-  // A boolean tag filter, `(status:400 OR s) AND $cluster_name`, which metric queries don't support yet.
-  ['ACME Request Errors', 'boolean filter'],
   // Signals counted by @evt.name: Vault's audit logs (and so its signals) carry no evt.name.
   ['Security Signals by Events', 'no evt.name'],
 ]);
@@ -88,4 +87,21 @@ test('a mock integration has as many instances of a metric as the tags its queri
   const controllers = widgets(d.widgets).find((w) => w.title === 'App Controllers').original;
   const [series] = await web.queryIntegrationPanel(controllers, resolve, range);
   assert.equal(series.points.at(-1)[1], 4, 'one application controller per host, not one per gRPC service the API server answers');
+});
+
+test('the mock reads a tag taking one of several values (code:(4* OR 5*)) as the server does', () => {
+  const range = { from: Date.now() - 3_600_000, to: Date.now() };
+  const codes = (q) =>
+    web
+      .evaluateGroups(q, range, 10)
+      .map((g) => g.tags.code)
+      .sort();
+  const all = codes('sum:traefik_mesh.entrypoint.requests.count{*} by {code}');
+  const errors = codes('sum:traefik_mesh.entrypoint.requests.count{code:(4* OR 5*)} by {code}');
+  assert.ok(errors.length > 0 && errors.length < all.length, `${errors} of ${all}`);
+  assert.ok(errors.every((c) => /^[45]/.test(c)));
+  assert.deepEqual(
+    codes('sum:traefik_mesh.entrypoint.requests.count{!code:(4* OR 5*)} by {code}'),
+    all.filter((c) => !/^[45]/.test(c)),
+  );
 });

@@ -292,16 +292,33 @@ pub fn metric_index_filter(filters: &[TagFilter]) -> Vec<IndexFilter> {
         .iter()
         .map(|f| {
             let (key, scope) = metric_tag(&f.key);
-            let (cmp, params) = if f.value.chars().all(|c| c == '*') {
-                ("Value != ''".to_string(), vec![])
-            } else if f.value.contains('*') {
-                ("Value ILIKE ?".to_string(), vec![Param::Str(like_pattern(&f.value))])
-            } else {
-                ("lowerUTF8(Value) = ?".to_string(), vec![Param::Str(f.value.to_lowercase())])
-            };
+            let (cmp, params) = any_value(&f.value, |value| {
+                if value.chars().all(|c| c == '*') {
+                    ("Value != ''".to_string(), vec![])
+                } else if value.contains('*') {
+                    ("Value ILIKE ?".to_string(), vec![Param::Str(like_pattern(value))])
+                } else {
+                    ("lowerUTF8(Value) = ?".to_string(), vec![Param::Str(value.to_lowercase())])
+                }
+            });
             IndexFilter { key, scope, negate: f.negate, cmp, params }
         })
         .collect()
+}
+
+/// A filter value's alternatives: `(a OR b*)` (Datadog's `tag:a OR tag:b*` and `tag IN (a, b*)`, as the UI writes them), else the value.
+fn alternatives(value: &str) -> Vec<&str> {
+    match value.strip_prefix('(').and_then(|v| v.strip_suffix(')')) {
+        Some(inner) => inner.split(" OR ").map(str::trim).filter(|v| !v.is_empty()).collect(),
+        None => vec![value],
+    }
+}
+
+/// The comparison of each alternative of `value`, ORed (in parentheses when there are several).
+fn any_value(value: &str, one: impl Fn(&str) -> (String, Vec<Param>)) -> (String, Vec<Param>) {
+    let (cmps, params): (Vec<String>, Vec<Vec<Param>>) = alternatives(value).into_iter().map(one).unzip();
+    let cmp = if cmps.len() == 1 { cmps.into_iter().next().unwrap_or_default() } else { format!("({})", cmps.join(" OR ")) };
+    (cmp, params.concat())
 }
 
 /// SQL expression for `key` on `otel.otel_traces` (span-derived `trace.*` metrics).
@@ -322,16 +339,20 @@ pub fn metric_filter(filters: &[TagFilter], field: fn(&str) -> (String, Vec<Para
     let mut params = Vec::new();
     for f in filters {
         let (expr, key_params) = field(&f.key);
-        params.extend(key_params);
-        let cmp = if f.value.chars().all(|c| c == '*') {
-            format!("notEmpty({expr})")
-        } else if f.value.contains('*') {
-            params.push(Param::Str(like_pattern(&f.value)));
-            format!("{expr} ILIKE ?")
-        } else {
-            params.push(Param::Str(f.value.to_lowercase()));
-            format!("lowerUTF8({expr}) = ?")
-        };
+        let (cmp, value_params) = any_value(&f.value, |value| {
+            let mut p = key_params.clone();
+            let cmp = if value.chars().all(|c| c == '*') {
+                format!("notEmpty({expr})")
+            } else if value.contains('*') {
+                p.push(Param::Str(like_pattern(value)));
+                format!("{expr} ILIKE ?")
+            } else {
+                p.push(Param::Str(value.to_lowercase()));
+                format!("lowerUTF8({expr}) = ?")
+            };
+            (cmp, p)
+        });
+        params.extend(value_params);
         parts.push(if f.negate { format!("NOT ({cmp})") } else { format!("({cmp})") });
     }
     SqlFilter { clause: if parts.is_empty() { "1".into() } else { parts.join(" AND ") }, params }
@@ -443,6 +464,21 @@ mod tests {
         assert!(f[1].negate);
         assert_eq!((f[2].cmp.as_str(), &f[2].params), ("Value ILIKE ?", &vec![Param::Str("run%".into())]));
         assert_eq!((f[3].cmp.as_str(), f[3].params.len()), ("Value != ''", 0));
+    }
+
+    #[test]
+    fn a_tag_may_take_one_of_several_values() {
+        // The UI writes Datadog's `code:4* OR code:5*` and `env IN (prod, qa)` as `tag:(a OR b)`.
+        let q = parse_metric_query("sum:m{code:(4* OR 5*),!env:(qa OR dev),host:a} by {code}").unwrap();
+        assert_eq!(q.filters.len(), 3);
+        let f = metric_index_filter(&q.filters);
+        assert_eq!((f[0].cmp.as_str(), &f[0].params), ("(Value ILIKE ? OR Value ILIKE ?)", &vec![Param::Str("4%".into()), Param::Str("5%".into())]));
+        assert!(f[1].negate);
+        assert_eq!((f[1].cmp.as_str(), f[1].params.len()), ("(lowerUTF8(Value) = ? OR lowerUTF8(Value) = ?)", 2));
+        let f = metric_filter(&q.filters[..1], metric_field);
+        assert_eq!(f.clause, "((if(mapContains(Attributes, ?), Attributes[?], ResourceAttributes[?]) ILIKE ? OR if(mapContains(Attributes, ?), Attributes[?], ResourceAttributes[?]) ILIKE ?))");
+        assert_eq!(f.params.len(), 8);
+        assert!(q.to_string().contains("code:(4* OR 5*)"), "{q}");
     }
 
     #[test]

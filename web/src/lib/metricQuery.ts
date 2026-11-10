@@ -39,12 +39,79 @@ export function formulaQueries(q: string): ParsedMetricQuery[] | null {
   return depth === 0 && !expectOperand ? (queries as ParsedMetricQuery[]) : null;
 }
 
+/** Splits on `separator` outside parentheses. */
+function splitTop(text: string, separator: RegExp): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '(') depth++;
+    else if (text[i] === ')') depth--;
+    else if (depth === 0) {
+      const m = separator.exec(text.slice(i));
+      if (m && m.index === 0) {
+        out.push(text.slice(start, i));
+        start = i + m[0].length;
+        i = start - 1;
+      }
+    }
+  }
+  out.push(text.slice(start));
+  return out.map((t) => t.trim()).filter(Boolean);
+}
+
+/**
+ * Datadog's boolean tag filters (`$host AND code:4* OR code:5*`, `env IN (prod, qa)`, `NOT service:billing`) as our
+ * comma-separated filters: AND is a comma, and values one tag may take are `tag:(a OR b)`; OR binds the values of
+ * one tag (it never joins different tags here). Null when an OR joins different tags.
+ */
+function booleanFilters(text: string): string | null {
+  const normalized = text
+    .replace(
+      /([\w.@-]+)\s+NOT\s+IN\s*\(([^()]*)\)/g,
+      (_, k: string, list: string) =>
+        `!${k}:(${list
+          .split(',')
+          .map((v) => v.trim())
+          .filter(Boolean)
+          .join(' OR ')})`,
+    )
+    .replace(
+      /([\w.@-]+)\s+IN\s*\(([^()]*)\)/g,
+      (_, k: string, list: string) =>
+        `${k}:(${list
+          .split(',')
+          .map((v) => v.trim())
+          .filter(Boolean)
+          .join(' OR ')})`,
+    )
+    .replace(/(^|[\s(,])(?:NOT\s+|-)(?=[\w.@$-]+:)/g, '$1!');
+  const out: string[] = [];
+  for (const term of splitTop(normalized, /^(?:\s+AND\s+|\s*,\s*)/)) {
+    const inner = /^\((.*)\)$/.test(term) && !/^[\w.@-]+:\(/.test(term) ? term.slice(1, -1) : term;
+    const operands = splitTop(inner, /^\s+OR\s+/);
+    if (operands.length === 1) {
+      out.push(operands[0]);
+      continue;
+    }
+    // A bare tag in an OR (`status:400 OR s`): no series is tagged that way, so it adds nothing.
+    const pairs = operands.filter((o) => o.includes(':')).map((o) => [o.slice(0, o.indexOf(':')), o.slice(o.indexOf(':') + 1)]);
+    if (!pairs.length || pairs.some(([k]) => k !== pairs[0][0] || k.startsWith('!'))) return null;
+    out.push(`${pairs[0][0]}:(${pairs.map(([, v]) => v.replace(/^\((.*)\)$/, '$1')).join(' OR ')})`);
+  }
+  return out.join(',');
+}
+
+const BOOLEAN = /\s(?:AND|OR|IN)\s|(?:^|[\s,])NOT\s|^\(|[\s,]\(/;
+
 export function parseMetricQuery(q: string): ParsedMetricQuery | null {
   const m = RE.exec(q);
   if (!m) return null;
+  const text = BOOLEAN.test(m[3]) ? booleanFilters(m[3]) : m[3];
+  if (text === null) return null;
   const filters: ParsedMetricQuery['filters'] = [];
   const vars: string[] = [];
-  for (const raw of m[3]
+  for (const raw of text
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)) {

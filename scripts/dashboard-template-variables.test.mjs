@@ -2,7 +2,7 @@
 // as Datadog applies them: each `$name` where it is written, `prefix:value`, dropped while it is `*`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { resolveQuery, resolveSearchQuery } from '../web/src/lib/metricQuery.ts';
+import { parseMetricQuery, resolveQuery, resolveSearchQuery } from '../web/src/lib/metricQuery.ts';
 
 const vault = [
   { name: 'vault_cluster', prefix: 'vault_cluster', default: '*' },
@@ -52,4 +52,25 @@ test('a log query handed to the metric resolver resolves as a search', () => {
 test('a metric query filters by the tag of a variable whose prefix is a log attribute (@host)', () => {
   const traefik = [{ name: 'host', prefix: '@host', default: '*' }];
   assert.equal(resolveQuery('avg:traefik_mesh.config.reloads.total{$host}', traefik, { host: 'i-0a1b2c3d4e5f60001' }), 'avg:traefik_mesh.config.reloads.total{host:i-0a1b2c3d4e5f60001}');
+});
+
+test('boolean tag filters read as our filters: AND as a comma, OR and IN between values of one tag', () => {
+  const traefik = [
+    { name: 'host', prefix: '@host', default: '*' },
+    { name: 'entrypoint', prefix: 'entrypoint', default: '*' },
+  ];
+  const q = 'sum:traefik_mesh.entrypoint.requests.count{$host AND $entrypoint AND code:4* OR code:5*} by {entrypoint,code}';
+  assert.equal(resolveQuery(q, traefik, {}), 'sum:traefik_mesh.entrypoint.requests.count{code:(4* OR 5*)} by {entrypoint,code}');
+  assert.equal(resolveQuery(q, traefik, { entrypoint: 'web' }), 'sum:traefik_mesh.entrypoint.requests.count{code:(4* OR 5*),entrypoint:web} by {entrypoint,code}');
+  assert.equal(resolveQuery('avg:system.load.1{env IN (prod, qa) AND NOT service:billing}', [], {}), 'avg:system.load.1{env:(prod OR qa),!service:billing}');
+  assert.equal(resolveQuery('avg:system.load.1{env NOT IN (qa)}', [], {}), 'avg:system.load.1{!env:(qa)}');
+  // A bare tag no series has (cert-manager's `(status:400 OR s)`) adds nothing to an OR.
+  assert.equal(
+    resolveQuery('sum:cert_manager.http_acme_client.request.count{(status:400 OR s) AND $cluster_name} by {status}', [{ name: 'cluster_name', prefix: 'cluster_name', default: '*' }], {}),
+    'sum:cert_manager.http_acme_client.request.count{status:(400)} by {status}',
+  );
+});
+
+test('an OR between different tags is not one of our filters', () => {
+  assert.equal(parseMetricQuery('avg:system.load.1{env:prod OR service:billing}'), null);
 });

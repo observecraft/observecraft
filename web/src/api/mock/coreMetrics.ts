@@ -105,6 +105,7 @@ Object.assign(LOGO_VALUES, {
     grpc_method: ['List', 'Get', 'Watch', 'Sync'],
     upper_bound: ['0.25', '1', '5', '+Inf'],
   },
+  'traefik-mesh': { code: ['200', '200', '404', '503'], method: ['GET', 'POST', 'GET', 'PUT'], protocol: ['http', 'http', 'http', 'grpc'] },
   'cert-manager': {
     cluster_name: CLUSTER,
     name: ['storefront-example-com', 'api-example-com', 'checkout-example-com', 'internal-example-com'],
