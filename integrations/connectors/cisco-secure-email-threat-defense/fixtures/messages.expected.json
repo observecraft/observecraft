@@ -1,0 +1,154 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e4-0fb8-72ee-b8fd-790f22c438f6"
+      },
+      "action": {
+        "folder": "quarantine",
+        "isAutoRemediated": true,
+        "timestamp": "2026-11-10T09:57:40Z",
+        "type": "move"
+      },
+      "clientIP": "192.0.2.25",
+      "date": "2026-11-10T09:57:23Z",
+      "ddsource": "cisco-secure-email-threat-defense",
+      "deliveredTo": [
+        "jane.doe@example.com"
+      ],
+      "direction": "incoming",
+      "domain": "example.com",
+      "envelopeTo": [
+        "jane.doe@example.com"
+      ],
+      "fromAddress": "billing@lookalike-pay.example",
+      "host": "api.us.etd.cisco.com",
+      "id": "6c1a0000-0000-4000-8000-000000000001",
+      "internetMessageId": "<20261110095723.0001@lookalike-pay.example>",
+      "mailboxes": [
+        "jane.doe@example.com"
+      ],
+      "message": "phishing message from billing@lookalike-pay.example: Overdue invoice #44812",
+      "returnPath": "bounce@lookalike-pay.example",
+      "senderName": "Billing",
+      "serverIP": "198.51.100.5",
+      "service": "message",
+      "status": "error",
+      "subject": "Overdue invoice #44812",
+      "timestamp": "2026-11-10T09:57:23Z",
+      "toAddresses": [
+        "jane.doe@example.com"
+      ],
+      "urls": [
+        "https://lookalike-pay.example/login"
+      ],
+      "verdict": {
+        "businessRisk": "",
+        "category": "",
+        "isManualVerdict": false,
+        "isRetroVerdict": false,
+        "latestVerdict": "phishing",
+        "originalVerdict": "phishing",
+        "techniques": [
+          {
+            "description": "https://lookalike-pay.example/login",
+            "severity": "high",
+            "type": "Malicious URL"
+          },
+          {
+            "description": "Sender address billing@lookalike-pay.example is rarely seen",
+            "severity": "medium",
+            "type": "Rare sender address"
+          }
+        ],
+        "timestamp": "2026-11-10T09:57:30Z"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f8-c480-713b-bb06-d4aa6fac45f5"
+      },
+      "action": null,
+      "clientIP": "203.0.113.90",
+      "date": "2026-11-10T10:20:00Z",
+      "ddsource": "cisco-secure-email-threat-defense",
+      "direction": "incoming",
+      "domain": "example.com",
+      "fromAddress": "deals@newsletter.example.net",
+      "host": "api.us.etd.cisco.com",
+      "id": "6c1a0000-0000-4000-8000-000000000002",
+      "message": "graymail message from deals@newsletter.example.net: 50% off this week only",
+      "senderName": "Weekly Deals",
+      "service": "message",
+      "status": "info",
+      "subject": "50% off this week only",
+      "timestamp": "2026-11-10T10:20:00Z",
+      "toAddresses": [
+        "sam.lee@example.com"
+      ],
+      "urls": [
+        "https://newsletter.example.net/u/1"
+      ],
+      "verdict": {
+        "isManualVerdict": false,
+        "isRetroVerdict": false,
+        "latestVerdict": "graymail",
+        "originalVerdict": "graymail",
+        "techniques": []
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c522-1e70-7f88-a383-d4d3a7310830"
+      },
+      "action": {
+        "folder": "trash",
+        "isAutoRemediated": true,
+        "timestamp": "2026-11-10T11:15:05Z",
+        "type": "move"
+      },
+      "clientIP": "192.0.2.77",
+      "date": "2026-11-10T11:05:10Z",
+      "ddsource": "cisco-secure-email-threat-defense",
+      "direction": "incoming",
+      "domain": "example.com",
+      "fromAddress": "ceo@examp1e.com",
+      "host": "api.us.etd.cisco.com",
+      "id": "6c1a0000-0000-4000-8000-000000000003",
+      "message": "bec message from ceo@examp1e.com: Urgent wire transfer",
+      "senderName": "Alex Kim",
+      "service": "message",
+      "status": "error",
+      "subject": "Urgent wire transfer",
+      "timestamp": "2026-11-10T11:05:10Z",
+      "toAddresses": [
+        "finance@example.com"
+      ],
+      "urls": [],
+      "verdict": {
+        "isManualVerdict": false,
+        "isRetroVerdict": true,
+        "latestVerdict": "bec",
+        "originalVerdict": "neutral",
+        "techniques": [
+          {
+            "description": "Display name Alex Kim matches an executive",
+            "severity": "high",
+            "type": "Display name impersonation"
+          }
+        ],
+        "timestamp": "2026-11-10T11:15:00Z"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794310200000
+      }
+    }
+  }
+}

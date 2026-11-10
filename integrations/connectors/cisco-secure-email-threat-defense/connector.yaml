@@ -1,0 +1,127 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Cisco Secure Email Threat Defense (https://developer.cisco.com/docs/message-search-api/): the Message Search API's
+# messages with a verdict other than clean, as the logs Datadog's integration sends (source:cisco-secure-email-threat-defense,
+# service:message, the message as Cisco answers it: fromAddress, toAddresses, subject, verdict, action, urls,
+# clientIP, direction). integrations-core's log pipeline and its dashboard for the tile read them as they are.
+# The answer's envelope (data.messages, nextPageToken) is written from Cisco's API guide; check it against a tenant.
+schema_version: 1
+id: cisco-secure-email-threat-defense
+name: Cisco Secure Email Threat Defense
+publisher: ObserveCraft
+vendor: Cisco
+description: >-
+  The messages Cisco Secure Email Threat Defense judged scam, malicious, phishing, BEC, spam, graymail or neutral,
+  with their verdicts, techniques and remediation, read from the Message Search API once their verdicts settle.
+tiles: [cisco-secure-email-threat-defense]
+categories: [Log Collection, Security, Cloud, SIEM]
+source: cisco-secure-email-threat-defense
+docs_url: https://developer.cisco.com/docs/message-search-api/
+setup: |
+  1. In Secure Email Threat Defense, open **Administration → API Clients** and copy the **API Key**.
+  2. **Add New Client**, name it (e.g. `observecraft`) and copy its client id and password.
+  3. Pick the API host of your region (the one your console's URL names).
+instance: "{{ config.api_host }}"
+
+config:
+  - key: api_host
+    label: API host
+    type: select
+    required: true
+    default: api.us.etd.cisco.com
+    options:
+      - { value: api.us.etd.cisco.com, label: Americas (api.us.etd.cisco.com) }
+      - { value: api.de.etd.cisco.com, label: Europe (api.de.etd.cisco.com) }
+      - { value: api.au.etd.cisco.com, label: Australia (api.au.etd.cisco.com) }
+      - { value: api.in.etd.cisco.com, label: India (api.in.etd.cisco.com) }
+      - { value: api.ae.etd.cisco.com, label: UAE (api.ae.etd.cisco.com) }
+  - key: client_id
+    label: Client id
+    type: string
+    required: true
+  - key: client_password
+    label: Client password
+    type: string
+    secret: true
+    required: true
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: token_exchange
+  request:
+    method: POST
+    url: "https://{{ config.api_host }}/v1/oauth/token"
+    headers:
+      Authorization: "{{ 'Basic ' + ((config.client_id + ':' + secrets.client_password) | base64) }}"
+      x-api-key: "{{ secrets.api_key }}"
+  capture: { token: "{{ response.accessToken }}" }
+  ttl: 30m
+  headers:
+    Authorization: "Bearer {{ auth.token }}"
+    x-api-key: "{{ secrets.api_key }}"
+
+# 2 requests a second per tenant and 10,000 a day per API key.
+rate_limit: { requests_per_minute: 100 }
+budget: { requests: 9000, per: day }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Secure Email Threat Defense refused the API client (client id, password or API key)
+  - status: [403]
+    kind: access_denied
+    message: The API client can't search messages
+
+streams:
+  - id: messages
+    name: Messages
+    description: >-
+      Every message with a verdict other than clean as a log (service:message): fromAddress, toAddresses, subject,
+      verdict.latestVerdict / originalVerdict / techniques, action, urls, clientIP, direction. Windows are read 30
+      minutes after they close, so retrospective verdicts are in.
+    interval: 10m
+    request:
+      method: POST
+      url: "https://{{ config.api_host }}/v1/messages/search"
+      body:
+        timestamp: ["{{ window.start | rfc3339 }}", "{{ window.end | rfc3339 }}"]
+        verdicts: [scam, malicious, phishing, bec, spam, graymail, neutral]
+        pageSize: 100
+        pageToken: "{{ page.cursor }}"
+    records: "{{ response.data.messages }}"
+    pagination: { kind: cursor, next: "{{ response.nextPageToken ?? response.data.nextPageToken }}" }
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.timestamp }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+      settle: 30m
+      max_window: 1d
+    output:
+      logs:
+        service: message
+        message: "{{ record.verdict.latestVerdict + ' message from ' + record.fromAddress + (': ' + record.subject ?? '') }}"
+        status: "{{ record.verdict.latestVerdict in ['malicious', 'phishing', 'bec', 'scam'] ? 'error' : (record.verdict.latestVerdict == 'spam' ? 'warn' : 'info') }}"
+        date: "{{ record.timestamp }}"
+        attributes: "{{ record }}"
+
+test:
+  stream: messages
+  message: "Connected to {{ config.api_host }}: messages are searchable"
+
+mock:
+  config: { api_host: api.us.etd.cisco.com, client_id: 1f2e3d4c-0000-4000-8000-000000000001 }
+  secrets: { client_password: test-client-password, api_key: test-etd-api-key }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://api.us.etd.cisco.com/v1/oauth/token", body: { accessToken: test-access-token } }
+    - { method: POST, url: "https://api.us.etd.cisco.com/v1/messages/search", body_contains: "1794306000000:6c1a", file: fixtures/messages-2.json }
+    - { method: POST, url: "https://api.us.etd.cisco.com/v1/messages/search", file: fixtures/messages-1.json }
+  expect:
+    messages: { records: 3, logs: 3, rerun: 0, golden: fixtures/messages.expected.json }
+    test: { ok: true, message: "messages are searchable" }

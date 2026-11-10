@@ -1,0 +1,29 @@
+{
+  "data": {
+    "messages": [
+      {
+        "id": "6c1a0000-0000-4000-8000-000000000001", "timestamp": "2026-11-10T09:57:23Z", "direction": "incoming", "domain": "example.com",
+        "fromAddress": "billing@lookalike-pay.example", "senderName": "Billing", "returnPath": "bounce@lookalike-pay.example",
+        "toAddresses": ["jane.doe@example.com"], "envelopeTo": ["jane.doe@example.com"], "deliveredTo": ["jane.doe@example.com"], "mailboxes": ["jane.doe@example.com"],
+        "subject": "Overdue invoice #44812", "internetMessageId": "<20261110095723.0001@lookalike-pay.example>",
+        "clientIP": "192.0.2.25", "serverIP": "198.51.100.5", "urls": ["https://lookalike-pay.example/login"],
+        "verdict": {
+          "latestVerdict": "phishing", "originalVerdict": "phishing", "isRetroVerdict": false, "isManualVerdict": false, "category": "", "businessRisk": "", "timestamp": "2026-11-10T09:57:30Z",
+          "techniques": [
+            { "type": "Malicious URL", "severity": "high", "description": "https://lookalike-pay.example/login" },
+            { "type": "Rare sender address", "severity": "medium", "description": "Sender address billing@lookalike-pay.example is rarely seen" }
+          ]
+        },
+        "action": { "type": "move", "folder": "quarantine", "isAutoRemediated": true, "timestamp": "2026-11-10T09:57:40Z" }
+      },
+      {
+        "id": "6c1a0000-0000-4000-8000-000000000002", "timestamp": "2026-11-10T10:20:00Z", "direction": "incoming", "domain": "example.com",
+        "fromAddress": "deals@newsletter.example.net", "senderName": "Weekly Deals",
+        "toAddresses": ["sam.lee@example.com"], "subject": "50% off this week only", "clientIP": "203.0.113.90", "urls": ["https://newsletter.example.net/u/1"],
+        "verdict": { "latestVerdict": "graymail", "originalVerdict": "graymail", "isRetroVerdict": false, "isManualVerdict": false, "techniques": [] },
+        "action": null
+      }
+    ]
+  },
+  "nextPageToken": "1794306000000:6c1a0000-0000-4000-8000-000000000002"
+}
