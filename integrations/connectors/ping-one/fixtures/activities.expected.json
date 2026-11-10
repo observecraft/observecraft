@@ -1,0 +1,230 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_links": {
+        "self": {
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/activities/9f0c0000-0000-4000-8000-00000000a001"
+        }
+      },
+      "_oc_ingest": {
+        "id": "01a1c4bc-618f-74bf-96d1-3a8a70a9f832"
+      },
+      "action": {
+        "description": "Password Check Succeeded",
+        "type": "PASSWORD.CHECK_SUCCEEDED"
+      },
+      "actors": {
+        "client": {
+          "environment": {
+            "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+          },
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/applications/5a6b7c8d-0000-4000-8000-0000000c2002",
+          "id": "5a6b7c8d-0000-4000-8000-0000000c2002",
+          "name": "PingOne Admin Console",
+          "type": "CLIENT"
+        },
+        "user": {
+          "environment": {
+            "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+          },
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000101",
+          "id": "9c6a0000-0000-4000-8000-000000000101",
+          "name": "jane.doe@example.com",
+          "population": {
+            "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+          },
+          "type": "USER"
+        }
+      },
+      "correlationId": "c0c0c0c0-0000-4000-8000-000000000001",
+      "createdAt": "2026-11-10T09:14:02.511Z",
+      "date": "2026-11-10T09:14:02.511Z",
+      "ddsource": "ping-one",
+      "host": "0e1f2a3b-0000-4000-8000-00000000e001",
+      "id": "9f0c0000-0000-4000-8000-00000000a001",
+      "internalCorrelation": {
+        "transactionId": "7a7a7a7a-0000-4000-8000-000000000001"
+      },
+      "message": "Password Check Succeeded",
+      "recordedAt": "2026-11-10T09:14:02.511Z",
+      "resources": [
+        {
+          "environment": {
+            "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+          },
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000101",
+          "id": "9c6a0000-0000-4000-8000-000000000101",
+          "name": "jane.doe@example.com",
+          "population": {
+            "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+          },
+          "type": "USER"
+        }
+      ],
+      "result": {
+        "description": "Password Check Succeeded",
+        "status": "SUCCESS"
+      },
+      "service": "audit",
+      "source": {
+        "ipAddress": "198.51.100.23",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+      },
+      "status": "info"
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/activities/9f0c0000-0000-4000-8000-00000000a002"
+        }
+      },
+      "_oc_ingest": {
+        "id": "01a1c50c-8efc-7672-af48-a19b3d83aa6f"
+      },
+      "action": {
+        "description": "Password Check Failed",
+        "type": "PASSWORD.CHECK_FAILED"
+      },
+      "actors": {
+        "client": {
+          "environment": {
+            "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+          },
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/applications/5a6b7c8d-0000-4000-8000-0000000c2002",
+          "id": "5a6b7c8d-0000-4000-8000-0000000c2002",
+          "name": "PingOne Admin Console",
+          "type": "CLIENT"
+        },
+        "user": {
+          "environment": {
+            "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+          },
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000102",
+          "id": "9c6a0000-0000-4000-8000-000000000102",
+          "name": "sam.lee@example.com",
+          "population": {
+            "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+          },
+          "type": "USER"
+        }
+      },
+      "correlationId": "c0c0c0c0-0000-4000-8000-000000000002",
+      "createdAt": "2026-11-10T10:41:37.020Z",
+      "date": "2026-11-10T10:41:37.020Z",
+      "ddsource": "ping-one",
+      "host": "0e1f2a3b-0000-4000-8000-00000000e001",
+      "id": "9f0c0000-0000-4000-8000-00000000a002",
+      "internalCorrelation": {
+        "transactionId": "7a7a7a7a-0000-4000-8000-000000000002"
+      },
+      "message": "Invalid password",
+      "recordedAt": "2026-11-10T10:41:37.020Z",
+      "resources": [
+        {
+          "environment": {
+            "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+          },
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000102",
+          "id": "9c6a0000-0000-4000-8000-000000000102",
+          "name": "sam.lee@example.com",
+          "population": {
+            "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+          },
+          "type": "USER"
+        }
+      ],
+      "result": {
+        "description": "Invalid password",
+        "status": "FAILED"
+      },
+      "service": "audit",
+      "source": {
+        "ipAddress": "203.0.113.77",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+      },
+      "status": "warn"
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/activities/9f0c0000-0000-4000-8000-00000000a003"
+        }
+      },
+      "_oc_ingest": {
+        "id": "01a1c539-b520-7825-abc8-f348cfb98250"
+      },
+      "action": {
+        "description": "User Access Allowed",
+        "type": "USER.ACCESS_ALLOWED"
+      },
+      "actors": {
+        "client": {
+          "environment": {
+            "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+          },
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/applications/5a6b7c8d-0000-4000-8000-0000000c2002",
+          "id": "5a6b7c8d-0000-4000-8000-0000000c2002",
+          "name": "PingOne Admin Console",
+          "type": "CLIENT"
+        },
+        "user": {
+          "environment": {
+            "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+          },
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000101",
+          "id": "9c6a0000-0000-4000-8000-000000000101",
+          "name": "jane.doe@example.com",
+          "population": {
+            "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+          },
+          "type": "USER"
+        }
+      },
+      "correlationId": "c0c0c0c0-0000-4000-8000-000000000003",
+      "createdAt": "2026-11-10T11:30:55.904Z",
+      "date": "2026-11-10T11:30:55.904Z",
+      "ddsource": "ping-one",
+      "host": "0e1f2a3b-0000-4000-8000-00000000e001",
+      "id": "9f0c0000-0000-4000-8000-00000000a003",
+      "internalCorrelation": {
+        "transactionId": "7a7a7a7a-0000-4000-8000-000000000003"
+      },
+      "message": "Passed role access control",
+      "recordedAt": "2026-11-10T11:30:55.904Z",
+      "resources": [
+        {
+          "environment": {
+            "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+          },
+          "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000101",
+          "id": "9c6a0000-0000-4000-8000-000000000101",
+          "name": "jane.doe@example.com",
+          "population": {
+            "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+          },
+          "type": "USER"
+        }
+      ],
+      "result": {
+        "description": "Passed role access control",
+        "status": "SUCCESS"
+      },
+      "service": "audit",
+      "source": {
+        "ipAddress": "198.51.100.23",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+      },
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}
