@@ -210,6 +210,51 @@ pub const PACKS: &[ContentPack] = &[
         ],
     },
     ContentPack {
+        id: "hashicorp-vault",
+        name: "HashiCorp Vault",
+        category: "Secrets",
+        platform: "Kubernetes",
+        logo: "vault",
+        description: "Watch who reads your secrets: denied requests, root tokens and changes to Vault's own configuration.",
+        query: "source:vault",
+        setup: "Enable a Vault audit device (file or socket) and collect it with the Datadog Agent's Vault integration, with source `vault`.",
+        rules: &[
+            DefaultRule {
+                id: "def-vlt-001",
+                version: 1,
+                name: "Vault requests denied for one client",
+                message: "Vault denied a client's requests again and again: a token probing for secrets it has no policy for.",
+                query: "source:vault @error:*permission*",
+                group_by: &["@auth.display_name"],
+                cases: &[("a > 20", "high", ""), ("a > 5", "medium", "")],
+                window: 900,
+                tags: &["tactic:TA0006-credential-access", "technique:T1555-credentials-from-password-stores"],
+            },
+            DefaultRule {
+                id: "def-vlt-002",
+                version: 1,
+                name: "Vault root token used",
+                message: "A request was made with a root token. Root tokens should be generated for an emergency and revoked right after.",
+                query: "source:vault @auth.display_name:root",
+                group_by: &["@request.remote_address"],
+                cases: &[("a > 0", "high", "")],
+                window: 300,
+                tags: &["tactic:TA0004-privilege-escalation", "technique:T1078-valid-accounts"],
+            },
+            DefaultRule {
+                id: "def-vlt-003",
+                version: 1,
+                name: "Vault policy, auth method or audit device changed",
+                message: "Vault's own configuration changed (policies, auth methods or audit devices under sys/).",
+                query: "source:vault @request.path:sys/* @request.operation:(update OR delete)",
+                group_by: &["@auth.display_name", "@request.path"],
+                cases: &[("a > 0", "medium", "")],
+                window: 300,
+                tags: &["tactic:TA0005-defense-evasion", "technique:T1562-impair-defenses"],
+            },
+        ],
+    },
+    ContentPack {
         id: "web-attacks",
         name: "Web Server Attacks",
         category: "Web",
@@ -391,5 +436,12 @@ mod tests {
         }
         let packs: HashSet<_> = PACKS.iter().map(|p| p.id).collect();
         assert_eq!(packs.len(), PACKS.len());
+    }
+
+    #[test]
+    fn vault_audit_logs_have_a_pack() {
+        let vault = PACKS.iter().find(|p| p.id == "hashicorp-vault").expect("the Vault pack");
+        assert_eq!(vault.query, "source:vault");
+        assert!(vault.rules.len() >= 3);
     }
 }
