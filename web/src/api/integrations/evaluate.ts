@@ -177,6 +177,9 @@ export function metricPlan(text: string) {
 }
 
 type Vector = MetricSeries[];
+
+/** Time units (as metadata.csv names them) in seconds. */
+const TIME_UNITS: Record<string, number> = { nanosecond: 1e-9, microsecond: 1e-6, millisecond: 1e-3, second: 1, minute: 60, hour: 3600, day: 86_400, week: 604_800 };
 const key = (s: MetricSeries) => (s.name.includes(':') ? s.name : '*');
 
 function binary(a: Vector, b: Vector, fn: (a: number, b: number) => number, op?: string): Vector {
@@ -205,6 +208,12 @@ function binary(a: Vector, b: Vector, fn: (a: number, b: number) => number, op?:
         if (op === '/' && lc) unit = undefined;
         if ((quantity.unit === 'n{core}' || quantity.unit === 'nanocore') && ((op === '/' && rc && constant === 1e9) || (op === '*' && constant === 1e-9))) unit = '{core}';
         if ((quantity.unit === '{core}' || quantity.unit === 'core') && op === '*' && constant === 1e9) unit = 'n{core}';
+        // A duration scaled into another time unit (seconds / 3600 / 24) reads in that unit; scaled otherwise, its unit is unknown.
+        const time = quantity.unit ? TIME_UNITS[quantity.unit] : undefined;
+        if (time !== undefined && (op === '/' ? rc : op === '*')) {
+          const seconds = op === '/' ? time * constant : time / constant;
+          unit = Object.keys(TIME_UNITS).find((u) => Math.abs(TIME_UNITS[u] - seconds) < seconds * 1e-9);
+        }
       } else if (left.unit === right.unit) {
         if (op === '+' || op === '-') unit = left.unit;
         if (op === '/') unit = '1';

@@ -163,6 +163,18 @@ test('CPU formula conversions carry units without modifying the original input',
   assert.equal(q[0].points[0][1], 2600000000);
 });
 
+test('a duration divided or multiplied into another time unit reads in it (cert-manager’s days to expiration)', () => {
+  const seconds = [{ name: 'name:storefront', unit: 'second', points: [[0, 6307200]] }];
+  const days = formula('seconds / 3600 / 24', { seconds });
+  assert.equal(days[0].unit, 'day');
+  assert.equal(days[0].points[0][1], 73);
+  assert.equal(formatMetricValue(73, 'day'), '73 days');
+  assert.equal(formula('ms / 1000', { ms: [{ name: '*', unit: 'millisecond', points: [[0, 1500]] }] })[0].unit, 'second');
+  assert.equal(formula('h * 60', { h: [{ name: '*', unit: 'hour', points: [[0, 2]] }] })[0].unit, 'minute');
+  // Not another time unit: the value is a different quantity, its unit unknown.
+  assert.equal(formula('s / 7', { s: seconds })[0].unit, undefined);
+});
+
 test('metric units come from metadata.csv, quoted descriptions included', () => {
   const csv = [
     'metric_name,metric_type,interval,unit_name,per_unit_name,description,orientation,integration,short_name,curated_metric',
