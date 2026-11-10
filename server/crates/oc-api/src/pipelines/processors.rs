@@ -329,9 +329,11 @@ pub fn apply(step: &Step, log: &mut Log, now_ms: i64) {
         Step::Message(sources) => {
             if let Some((source, v)) = sources.iter().find_map(|s| log.get(s).map(|v| (s, v))) {
                 log.message = text(&v);
-                // A parsed `message` attribute became the message.
+                // A parsed `message` attribute became the message; another source goes, as Datadog's remapper removes it.
                 if source == "message" {
                     log.remove_attr("message");
+                } else {
+                    log.remove(source);
                 }
             }
         }
@@ -712,8 +714,8 @@ mod tests {
         assert_eq!((out.status.as_str(), out.service.as_str(), out.message.as_str()), ("warn", "billing", "card declined"));
         assert_eq!(out.timestamp_ms, Some(1_792_933_200_123));
         assert_eq!(out.trace_id, "000000000000000000000000000000ff");
-        // Sources stay; a date that doesn't parse leaves the date alone.
-        assert_eq!(out.get("level"), Some(json!("WARN")));
+        // Sources stay, but the message's (as Datadog's message remapper does); a date that doesn't parse leaves the date alone.
+        assert_eq!((out.get("level"), out.get("app"), out.get("msg")), (Some(json!("WARN")), Some(json!("billing")), None));
         let out = run(json!([{"type": "date-remapper", "sources": ["ts"]}]), log("m", json!({"ts": "soon"})));
         assert_eq!(out.timestamp_ms, None);
     }
