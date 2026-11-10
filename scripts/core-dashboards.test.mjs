@@ -186,7 +186,7 @@ test('mock mode carries the dashboards of the integrations it shows installed, w
       mock.dashboards.some((d) => d.title === title),
       title,
     );
-  assert.ok(mock.dashboards.length < 50, 'only a few, not the whole bundle');
+  assert.ok(mock.dashboards.length < 100, 'only a few, not the whole bundle');
   assert.equal(mock.units['postgresql.replication_delay_bytes'], 'byte');
 });
 

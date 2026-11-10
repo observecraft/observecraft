@@ -20,7 +20,7 @@ const CORE: &str = "1e7420ec635aafdd33db6a1e69586de7d2e24c21";
 const EXTRAS: &str = "20d3ceeaf342b8c9f6211dc9df9ea3d382dbb692";
 
 /// Samples that pass today: the test fails when fewer do (raise it as the engine catches up).
-const PASSING: usize = 1299;
+const PASSING: usize = 1301;
 
 /// Pipelines that must give upstream's result for every one of their samples: the datastores ObserveCraft runs on
 /// (PostgreSQL, PgBouncer, Redis and Valkey, ClickHouse) and Kafka with Confluent Platform and Strimzi.
