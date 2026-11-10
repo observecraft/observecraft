@@ -179,7 +179,8 @@ pub fn classify(status: u16, body: &str) -> GcpError {
             let permission = message.split("Permission '").nth(1).or_else(|| message.split("permission '").nth(1)).and_then(|s| s.split('\'').next()).map(str::to_string);
             GcpError::Forbidden { permission, message }
         }
-        429 => GcpError::Throttled(message),
+        // 503: a busy backend, retried as throttling.
+        429 | 503 => GcpError::Throttled(message),
         _ => GcpError::Other(format!("HTTP {status}: {message}")),
     }
 }
@@ -370,6 +371,7 @@ mod tests {
         );
         assert!(matches!(classify(403, r#"{"error":{"message":"Cloud Monitoring API has not been used in project 123 before or it is disabled.","details":[{"reason":"SERVICE_DISABLED"}]}}"#), GcpError::Disabled(_)));
         assert!(matches!(classify(429, "{}"), GcpError::Throttled(_)));
+        assert!(matches!(classify(503, "{}"), GcpError::Throttled(_)));
         let d = |kind: &str, value: &str| Descriptor { metric_type: "x".into(), kind: kind.into(), value_type: value.into(), ..Default::default() };
         assert_eq!(aligner(&d("GAUGE", "DOUBLE")), Some("ALIGN_MEAN"));
         assert_eq!(aligner(&d("DELTA", "INT64")), Some("ALIGN_SUM"));

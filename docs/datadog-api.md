@@ -206,7 +206,7 @@ as their running total and `.delta`, distributions as `.avg`, `.samplecount`, `.
 Monitoring's metadata, not Cloud Asset Inventory), `instance-type` and a zone's `region`. `region_filter_configs`
 (regions keep their zones) and `is_global_location_enabled` filter the series; `metric_namespace_configs` turns
 services off, and turns on the user-defined domains (`custom`, `workload`, `prometheus`), which are off by default.
-`automute`, `is_per_project_quota_enabled` and resource collection are stored but not applied yet.
+Reads Cloud Monitoring throttles or fails are retried on the next runs, for up to a day. `automute`, `is_per_project_quota_enabled` and resource collection are stored but not applied yet.
 
 ## Slack integration
 

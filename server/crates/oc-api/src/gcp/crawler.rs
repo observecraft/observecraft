@@ -19,8 +19,11 @@
 //!   `naming::stats`), tagged with the project, the resource's and the metric's labels, the resource's
 //!   user labels (Cloud Monitoring's metadata), an instance's type, a zone's region and the account's
 //!   tags; instances are the `host`. OTLP JSON to Kafka, the watermark advancing after the acknowledgement.
+//! - **Failed reads** (throttling, server errors) don't drop the run: what was read is published, the failed
+//!   one-minute reads are kept (`gcp_metric_state.pending`, a day at most) and retried on the next runs, and
+//!   the run's warning says so. A run whose every read failed is the account's issue (backoff).
 //! - **Failures** are the account's issues: it can't be impersonated (Service Account Token Creator), a
-//!   missing permission (named), the Cloud Monitoring API disabled in a project (retried daily), throttling.
+//!   missing permission (named), the Cloud Monitoring API disabled in a project (retried daily).
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
@@ -46,6 +49,9 @@ const MAX_WINDOW_MS: i64 = 3 * HOUR_MS;
 const MAX_SHIFT_MS: i64 = 6 * HOUR_MS;
 /// Marks older than this are dropped (their series are gone).
 const MARKS_KEEP_MS: i64 = 4 * DAY_MS;
+/// Failed reads kept for the next runs: at most this many, for at most a day.
+const MAX_PENDING: usize = 200;
+const PENDING_MAX_AGE_MS: i64 = DAY_MS;
 /// Metric types read at a time within a project.
 const PARALLEL: usize = 8;
 const POINTS_PER_RECORD: usize = 10_000;
@@ -66,12 +72,23 @@ fn split_tag(t: &str) -> (String, String) {
     (k.to_string(), v.to_string())
 }
 
-/// A project job's state beside its watermark (Postgres `gcp_metric_state`): the latest published point
-/// of each coarse series ([`mark_key`] → epoch ms).
+/// A one-minute metric's read that failed, retried on the next runs: its interval and what is published from it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Pending {
+    pub metric_type: String,
+    pub from: i64,
+    pub to: i64,
+    pub after: Option<i64>,
+}
+
+/// A project job's state beside its watermark (Postgres `gcp_metric_state`).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct State {
+    /// The latest published point of each coarse series ([`mark_key`] → epoch ms).
     #[serde(default)]
     pub marks: HashMap<String, i64>,
+    #[serde(default)]
+    pub pending: Vec<Pending>,
 }
 
 /// A run's outcome and, when it collected, the state to keep.
@@ -219,45 +236,75 @@ pub async fn crawl(api: &dyn GcpApi, sink: &dyn MetricSink, headers: &[(String, 
     };
     let account_tags: Vec<(String, String)> = config["account_tags"].as_array().map(|a| a.iter().filter_map(Value::as_str).map(split_tag).collect()).unwrap_or_default();
     let hourly = collected_until.is_none() || start / HOUR_MS != end / HOUR_MS;
-    let reads: Vec<Read> = descriptors.iter().filter_map(|d| plan(d, start, end, hourly)).collect();
+    // The failed reads of earlier runs (still within a day, of metrics still collected) first.
+    let by_type: HashMap<&str, &Descriptor> = descriptors.iter().map(|d| (d.metric_type.as_str(), d)).collect();
+    let retried = state.pending.iter().filter(|p| p.to > end - PENDING_MAX_AGE_MS).filter_map(|p| by_type.get(p.metric_type.as_str()).map(|d| Read { d, from: p.from, to: p.to, after: p.after }));
+    let reads: Vec<Read> = retried.chain(descriptors.iter().filter_map(|d| plan(d, start, end, hourly))).collect();
     // The calls are built first: a stream combinator's closure over borrowed descriptors isn't Send-general.
     let calls: Vec<_> = reads.iter().enumerate().map(|(i, r)| async move { (i, api.time_series(service_account, project, r.d, r.from, r.to).await) }).collect();
     let results: Vec<(usize, Result<Vec<Series>, GcpError>)> = stream::iter(calls).buffer_unordered(PARALLEL).collect().await;
     let mut marks: HashMap<String, i64> = state.marks.iter().filter(|(_, &at)| at >= end - MARKS_KEEP_MS).map(|(k, v)| (k.clone(), *v)).collect();
-    let (mut points, mut metrics) = (vec![], 0);
+    let (mut points, mut metrics, mut ok, mut failure, mut pending) = (vec![], 0, 0, None, vec![]);
     for (i, result) in results {
         match result {
-            Ok(series) => metrics += to_points(&reads[i], project, &account_tags, config, series, &mut marks, &mut points),
-            Err(e) => return Outcome::Failed(issue(&e)).into(),
+            Ok(series) => {
+                ok += 1;
+                metrics += to_points(&reads[i], project, &account_tags, config, series, &mut marks, &mut points);
+            }
+            Err(e @ (GcpError::Auth(_) | GcpError::Forbidden { .. } | GcpError::Disabled(_))) => return Outcome::Failed(issue(&e)).into(),
+            Err(e) => {
+                failure.get_or_insert_with(|| issue(&e));
+                // Coarse metrics are re-read over their last intervals anyway.
+                let r = &reads[i];
+                if !coarse(r.d) {
+                    pending.push((i, Pending { metric_type: r.d.metric_type.clone(), from: r.from, to: r.to, after: r.after }));
+                }
+            }
         }
+    }
+    let failed = reads.len() - ok;
+    if ok == 0 && failed > 0 {
+        // Nothing was read: the watermark stays and the next run reads the window again.
+        return Outcome::Failed(failure.unwrap_or_else(|| issue(&GcpError::Other("every read failed".into())))).into();
     }
     for record in points.chunks(POINTS_PER_RECORD) {
         if let Err(e) = sink.publish(org, headers, otlp_json(PROVIDER, record)).await {
             return Outcome::Failed(Issue { kind: "other", message: format!("publishing to Kafka failed: {e}"), missing_action: None, backoff: Backoff::Exponential }).into();
         }
     }
-    Crawl { outcome: Outcome::Collected { end_ms: end, metrics, points: points.len(), warning: None }, state: Some(State { marks }) }
+    let warning = failure.map(|f| Issue { message: format!("{failed} of {} Cloud Monitoring reads failed and are retried on the next runs: {}", reads.len(), f.message), ..f });
+    // In the order read, the oldest dropped first.
+    pending.sort_by_key(|(i, _)| *i);
+    let mut pending: Vec<Pending> = pending.into_iter().map(|(_, p)| p).collect();
+    if pending.len() > MAX_PENDING {
+        pending.drain(..pending.len() - MAX_PENDING);
+    }
+    Crawl { outcome: Outcome::Collected { end_ms: end, metrics, points: points.len(), warning }, state: Some(State { marks, pending }) }
 }
 
 async fn load_state(st: &AppState, key: &JobKey) -> Result<State, sqlx::Error> {
-    let row: Option<(Value,)> = sqlx::query_as("SELECT marks FROM gcp_metric_state WHERE org_id = $1 AND account_id = $2::uuid AND project = $3")
+    let row: Option<(Value, Value)> = sqlx::query_as("SELECT marks, pending FROM gcp_metric_state WHERE org_id = $1 AND account_id = $2::uuid AND project = $3")
         .bind(&key.org_id)
         .bind(&key.account_id)
         .bind(&key.scope)
         .fetch_optional(&st.postgres)
         .await?;
-    Ok(row.map(|(marks,)| State { marks: serde_json::from_value(marks).unwrap_or_default() }).unwrap_or_default())
+    Ok(row.map(|(marks, pending)| State { marks: serde_json::from_value(marks).unwrap_or_default(), pending: serde_json::from_value(pending).unwrap_or_default() }).unwrap_or_default())
 }
 
 /// Keeps a project job's state (once its points are published).
 async fn save_state(st: &AppState, key: &JobKey, state: &State) -> Result<(), sqlx::Error> {
-    sqlx::query("INSERT INTO gcp_metric_state (org_id, account_id, project, marks) VALUES ($1, $2::uuid, $3, $4) ON CONFLICT (org_id, account_id, project) DO UPDATE SET marks = EXCLUDED.marks, updated_at = now()")
-        .bind(&key.org_id)
-        .bind(&key.account_id)
-        .bind(&key.scope)
-        .bind(serde_json::to_value(&state.marks).unwrap_or_default())
-        .execute(&st.postgres)
-        .await?;
+    sqlx::query(
+        "INSERT INTO gcp_metric_state (org_id, account_id, project, marks, pending) VALUES ($1, $2::uuid, $3, $4, $5) \
+         ON CONFLICT (org_id, account_id, project) DO UPDATE SET marks = EXCLUDED.marks, pending = EXCLUDED.pending, updated_at = now()",
+    )
+    .bind(&key.org_id)
+    .bind(&key.account_id)
+    .bind(&key.scope)
+    .bind(serde_json::to_value(&state.marks).unwrap_or_default())
+    .bind(serde_json::to_value(&state.pending).unwrap_or_default())
+    .execute(&st.postgres)
+    .await?;
     Ok(())
 }
 
@@ -314,6 +361,8 @@ mod tests {
         /// Each metric type's series; their points are returned within the asked interval.
         series: HashMap<String, Vec<Series>>,
         fail: Option<GcpError>,
+        /// Metric types whose reads fail with this error.
+        failing: StdMutex<HashMap<String, GcpError>>,
         /// The intervals asked for: metric type, start, end.
         calls: StdMutex<Vec<(String, i64, i64)>>,
     }
@@ -327,8 +376,8 @@ mod tests {
             Ok(self.descriptors.clone())
         }
         async fn time_series(&self, _sa: &str, _p: &str, d: &Descriptor, start: i64, end: i64) -> Result<Vec<Series>, GcpError> {
-            if let Some(e) = &self.fail {
-                return Err(e.clone());
+            if let Some(e) = self.fail.clone().or_else(|| self.failing.lock().unwrap().get(&d.metric_type).cloned()) {
+                return Err(e);
             }
             self.calls.lock().unwrap().push((d.metric_type.clone(), start, end));
             Ok(self.series.get(&d.metric_type).cloned().unwrap_or_default().into_iter().map(|mut s| {
@@ -519,6 +568,54 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn throttled_reads_publish_the_rest_and_are_retried_on_the_next_runs() {
+        let gcp = FakeGcp { descriptors: vec![d(CPU, "GAUGE", "DOUBLE"), d(SQL, "GAUGE", "DOUBLE")], series: HashMap::from([(CPU.to_string(), vec![instance("111", "prod")]), (SQL.to_string(), vec![Series { resource_type: "cloudsql_database".into(), points: minutes(0.2), ..Default::default() }])]), ..Default::default() };
+        gcp.failing.lock().unwrap().insert(SQL.into(), GcpError::Throttled("Quota exceeded for quota metric 'Time series queries'".into()));
+        let start = END - 600_000;
+        let (crawl, sink) = run(&gcp, &json!({}), Some(start), &State::default(), NOW).await;
+        let Outcome::Collected { end_ms, warning: Some(w), .. } = &crawl.outcome else { panic!("{:?}", crawl.outcome) };
+        assert_eq!((*end_ms, w.kind), (END, "throttled"));
+        assert!(w.message.contains("1 of 2 Cloud Monitoring reads failed and are retried on the next runs"), "{}", w.message);
+        let names: HashSet<String> = published(&sink).into_iter().map(|p| p.0).collect();
+        assert_eq!(names, HashSet::from(["gcp.gce.instance.cpu.utilization".to_string()]));
+        let state = crawl.state.unwrap();
+        assert_eq!(state.pending, [Pending { metric_type: SQL.into(), from: start, to: END, after: Some(start) }]);
+
+        // The next run reads the failed window as well as its own.
+        gcp.failing.lock().unwrap().clear();
+        gcp.calls.lock().unwrap().clear();
+        let later = NOW + 600_000;
+        let (crawl, sink) = run(&gcp, &json!({}), Some(END), &state, later).await;
+        assert!(matches!(crawl.outcome, Outcome::Collected { warning: None, .. }), "{:?}", crawl.outcome);
+        assert!(crawl.state.unwrap().pending.is_empty());
+        let mut sql_windows: Vec<(i64, i64)> = gcp.calls.lock().unwrap().iter().filter(|c| c.0 == SQL).map(|c| (c.1, c.2)).collect();
+        sql_windows.sort();
+        assert_eq!(sql_windows, [(start, END), (END, END + 600_000)]);
+        assert_eq!(published(&sink).iter().filter(|p| p.0 == "gcp.cloudsql.database.cpu.utilization").count(), 10);
+
+        // A pending read older than a day is dropped; one of a metric no longer collected too.
+        let stale = State { pending: vec![Pending { metric_type: SQL.into(), from: END - 2 * DAY_MS, to: END - 2 * DAY_MS + 600_000, after: None }, Pending { metric_type: "gone.googleapis.com/x".into(), from: start, to: END, after: Some(start) }], ..Default::default() };
+        gcp.calls.lock().unwrap().clear();
+        run(&gcp, &json!({}), Some(END), &stale, later).await;
+        assert_eq!(gcp.calls.lock().unwrap().len(), 2);
+
+        // Every read throttled: the run fails and the watermark stays.
+        gcp.failing.lock().unwrap().extend([(CPU.to_string(), GcpError::Throttled("busy".into())), (SQL.to_string(), GcpError::Throttled("busy".into()))]);
+        let (crawl, sink) = run(&gcp, &json!({}), Some(END), &state, later).await;
+        assert!(matches!(crawl.outcome, Outcome::Failed(Issue { kind: "throttled", .. })), "{:?}", crawl.outcome);
+        assert_eq!(crawl.state, None);
+        assert!(sink.records.lock().unwrap().is_empty());
+
+        // A missing permission still fails the run, whatever else was read.
+        gcp.failing.lock().unwrap().clear();
+        let denied = GcpError::Forbidden { permission: Some("monitoring.timeSeries.list".into()), message: "denied".into() };
+        gcp.failing.lock().unwrap().insert(SQL.into(), denied.clone());
+        let (crawl, sink) = run(&gcp, &json!({}), Some(END), &State::default(), later).await;
+        assert_eq!(crawl, Crawl { outcome: Outcome::Failed(issue(&denied)), state: None });
+        assert!(sink.records.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
     async fn discovery_lists_the_projects_of_each_service_account_and_runs_keep_their_marks() {
         let Some((_, states)) = crate::test_support::replicas(1).await else { return };
         let st = &states[0];
@@ -530,7 +627,7 @@ mod tests {
         assert_eq!(crawler.run(st, &key, NOW).await.unwrap(), Outcome::Discovered(vec!["example-storefront".into()]));
         let project = JobKey { scope: "example-storefront".into(), ..key };
         assert_eq!(load_state(st, &project).await.unwrap(), State::default());
-        let state = State { marks: HashMap::from([("k".to_string(), 1)]) };
+        let state = State { marks: HashMap::from([("k".to_string(), 1)]), pending: vec![Pending { metric_type: CPU.into(), from: 1, to: 2, after: Some(1) }] };
         save_state(st, &project, &state).await.unwrap();
         assert_eq!(load_state(st, &project).await.unwrap(), state);
     }

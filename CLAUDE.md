@@ -130,7 +130,8 @@ or SDK features.
   GCP metrics follow Datadog's too (`gcp/naming.rs` `stats`): `gcp.<domain>.*` (`gce`, `gae`, `gke` aside), cumulative
   counters' total and `.delta`, distributions' `.avg` / `.samplecount` / `.sumsqdev` (`.p95` / `.p99` for the catalog's
   `percentiles`), user labels as tags; late one-minute metrics are read over a window moved back by their ingest delay,
-  coarser ones re-read and published once per series (Postgres `gcp_metric_state`); `region_filter_configs` apply.
+  coarser ones re-read and published once per series and failed reads retried (Postgres `gcp_metric_state`);
+  `region_filter_configs` apply.
 - **Cloud Cost → Recommendations** (`routes/cloud_cost_recommendations.rs`, `GET /api/v1/cloud-cost/recommendations`):
   our own rules over 14 days of the AWS / Azure crawlers' metrics (idle EC2 instances and Azure VMs, downsizing, RDS
   without connections, idle EBS volumes and managed disks, unused NAT gateways, idle load balancers, unused public IPs);
