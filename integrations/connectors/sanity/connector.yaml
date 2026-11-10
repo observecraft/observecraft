@@ -23,23 +23,7 @@ setup: |
   1. In [sanity.io/manage](https://www.sanity.io/manage), open the project, then **API → Tokens → Add API token**
      with the **Viewer** permission (the log shows only the activity the token's user can see; an organization
      admin's token sees the organization's events too).
-  2. Document changes: in **API → Webhooks**, create a webhook to ObserveCraft's intake
-     (`https://<intake>/intake/webhook/sanity?dd-api-key=<ingest key>`), trigger on **Create, Update, Delete**, filter
-     empty for every document, HTTP method POST, API version `v2021-03-25` or later, **Drafts** off, and this
-     projection:
-
-     ```groq
-     {
-       "documentId": _id,
-       "documentType": _type,
-       "projectId": sanity::projectId(),
-       "datasetName": sanity::dataset(),
-       "action": "document." + delta::operation(),
-       "beforeValues": before(),
-       "afterValues": after(),
-       "timestamp": now()
-     }
-     ```
+  2. Document changes come by a Sanity webhook: see **Or let Sanity push to ObserveCraft** below.
 links:
   - { label: Manage your projects, url: "https://www.sanity.io/manage" }
 instance: sanity
@@ -101,6 +85,28 @@ streams:
         status: "{{ record.action | matches('\\.(delete|remove)$') ? 'warn' : 'info' }}"
         date: "{{ record.timestamp }}"
         attributes: "{{ record }}"
+
+push:
+  kind: webhook
+  instructions: |
+    Document changes (creates, updates, deletes) come by a webhook. In [sanity.io/manage](https://www.sanity.io/manage),
+    open the project's **API → Webhooks**, create a webhook to the URL below, trigger on **Create, Update, Delete**,
+    filter empty for every document, HTTP method POST, API version `v2021-03-25` or later, **Drafts** off, and this
+    projection:
+
+    ```groq
+    {
+      "documentId": _id,
+      "documentType": _type,
+      "projectId": sanity::projectId(),
+      "datasetName": sanity::dataset(),
+      "action": "document." + delta::operation(),
+      "beforeValues": before(),
+      "afterValues": after(),
+      "timestamp": now()
+    }
+    ```
+  url: "{{ intake }}/intake/webhook/sanity?dd-api-key={{ api_key }}"
 
 webhook:
   name: sanity

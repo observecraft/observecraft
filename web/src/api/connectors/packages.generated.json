@@ -24630,8 +24630,18 @@
       "page": null,
       "pipeline": null,
       "publisher": "ObserveCraft",
-      "push": null,
-      "setup": "1. In [sanity.io/manage](https://www.sanity.io/manage), open the project, then **API → Tokens → Add API token**\n   with the **Viewer** permission (the log shows only the activity the token's user can see; an organization\n   admin's token sees the organization's events too).\n2. Document changes: in **API → Webhooks**, create a webhook to ObserveCraft's intake\n   (`https://<intake>/intake/webhook/sanity?dd-api-key=<ingest key>`), trigger on **Create, Update, Delete**, filter\n   empty for every document, HTTP method POST, API version `v2021-03-25` or later, **Drafts** off, and this\n   projection:\n\n   ```groq\n   {\n     \"documentId\": _id,\n     \"documentType\": _type,\n     \"projectId\": sanity::projectId(),\n     \"datasetName\": sanity::dataset(),\n     \"action\": \"document.\" + delta::operation(),\n     \"beforeValues\": before(),\n     \"afterValues\": after(),\n     \"timestamp\": now()\n   }\n   ```\n",
+      "push": {
+        "canCreate": false,
+        "endpoints": [],
+        "headers": {},
+        "instructions": "Document changes (creates, updates, deletes) come by a webhook. In [sanity.io/manage](https://www.sanity.io/manage),\nopen the project's **API → Webhooks**, create a webhook to the URL below, trigger on **Create, Update, Delete**,\nfilter empty for every document, HTTP method POST, API version `v2021-03-25` or later, **Drafts** off, and this\nprojection:\n\n```groq\n{\n  \"documentId\": _id,\n  \"documentType\": _type,\n  \"projectId\": sanity::projectId(),\n  \"datasetName\": sanity::dataset(),\n  \"action\": \"document.\" + delta::operation(),\n  \"beforeValues\": before(),\n  \"afterValues\": after(),\n  \"timestamp\": now()\n}\n```\n",
+        "kind": "webhook",
+        "signatureHeader": null,
+        "signatureSecret": null,
+        "url": "{{ intake }}/intake/webhook/sanity?dd-api-key={{ api_key }}",
+        "webhook": "sanity"
+      },
+      "setup": "1. In [sanity.io/manage](https://www.sanity.io/manage), open the project, then **API → Tokens → Add API token**\n   with the **Viewer** permission (the log shows only the activity the token's user can see; an organization\n   admin's token sees the organization's events too).\n2. Document changes come by a Sanity webhook: see **Or let Sanity push to ObserveCraft** below.\n",
       "source": "sanity",
       "streams": [
         {

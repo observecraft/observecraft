@@ -433,7 +433,8 @@ push:
 ```
 
 They appear in the catalog as available and are installed from their tile (the tile's pipeline and dashboards); the
-page shows the URL and headers, and with `create` a form (the package's `config`) that runs the request once
+page shows the URL and headers (a polled package with a `push` too, such as Stripe or Cloudflare, shows them after its
+connection steps, as the alternative), and with `create` a form (the package's `config`) that runs the request once
 (`POST /api/v1/connectors/{id}/push`, nothing stored).
 
 `push.endpoints` lists more endpoints the vendor sends to (`{label: Traces, kind: otlp, url: …, headers, instructions}`),

@@ -1,6 +1,7 @@
 // Integrations → a connector (docs/connectors.md): one page for every connector package, drawn from its manifest. The
 // setup form comes from its config fields (secrets masked, kept when left empty), the streams can be turned on and
-// off, and each connection shows its streams' last runs. Push-only packages show where to point the vendor instead.
+// off, and each connection shows its streams' last runs. Push-only packages show where to point the vendor instead;
+// polled packages that can push too (webhooks, log streams) show both.
 // Native connectors have their own pages: this one sends there.
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
@@ -102,7 +103,16 @@ export function ConnectorPage() {
           </button>
         ))}
       </nav>
-      {tab === 'data' ? <DataCollected c={c} /> : c.kind === 'push' ? <Push c={c} connections={detail.data.connections} /> : <Configure c={c} connections={detail.data.connections} />}
+      {tab === 'data' ? (
+        <DataCollected c={c} />
+      ) : c.kind === 'push' ? (
+        <Push c={c} connections={detail.data.connections} />
+      ) : (
+        <>
+          <Configure c={c} connections={detail.data.connections} />
+          {c.push && <Push c={c} connections={detail.data.connections} first={5} />}
+        </>
+      )}
     </div>
   );
 }
@@ -472,9 +482,14 @@ function defaultPushUrl(kind: string, webhook: string): string {
   return '{{ intake }}/api/v2/logs?ddsource={{ source }}&dd-api-key={{ api_key }}';
 }
 
-function Push({ c, connections }: { c: ConnectorEntry; connections: ConnectionView[] }) {
+/** Where to point the vendor: the whole page of a push-only package, or steps from `first` after a polled package's. */
+function Push({ c, connections, first = 1 }: { c: ConnectorEntry; connections: ConnectionView[]; first?: number }) {
   const { isAdmin } = useAccess();
   const p = c.push!;
+  // Beside polling, the signing secret is a field of the connection form above.
+  const alongside = first > 1;
+  const secretField = c.config.find((f) => f.key === p.signatureSecret);
+  const signingStep = p.signatureSecret && !alongside;
   const vars = { intake: intakeUrl(), source: c.source, api_key: '<INGEST_API_KEY>' };
   const url = fill(p.url ?? defaultPushUrl(p.kind, p.webhook ?? c.id), vars);
   const [form, setForm] = useState<Form>(() => emptyForm(c));
@@ -488,7 +503,7 @@ function Push({ c, connections }: { c: ConnectorEntry; connections: ConnectionVi
   );
   return (
     <div className="ci-setup">
-      <Step n={1} title={`Point ${c.vendor} at ObserveCraft`} open onToggle={() => {}}>
+      <Step n={first} title={alongside ? `Or let ${c.vendor} push to ObserveCraft` : `Point ${c.vendor} at ObserveCraft`} open onToggle={() => {}}>
         <div className="muted">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{fill(p.instructions, vars)}</ReactMarkdown>
         </div>
@@ -516,13 +531,14 @@ function Push({ c, connections }: { c: ConnectorEntry; connections: ConnectionVi
         ))}
         {p.signatureHeader && (
           <p className="muted">
-            ObserveCraft checks the {p.signatureHeader} signature of every request with the signing secret {c.vendor} gives you.
+            ObserveCraft checks the {p.signatureHeader} signature of every request with the signing secret {c.vendor} gives you
+            {alongside && secretField ? `, saved as ${secretField.label} in the connection above` : ''}.
           </p>
         )}
       </Step>
-      {p.signatureSecret && <SigningSecret c={c} n={2} connections={connections} />}
+      {signingStep && <SigningSecret c={c} n={first + 1} connections={connections} />}
       {p.canCreate && (
-        <Step n={p.signatureSecret ? 3 : 2} title={`Or create it from here`} open onToggle={() => {}}>
+        <Step n={first + (signingStep ? 2 : 1)} title={alongside ? `Create the ${c.vendor} push from here` : 'Or create it from here'} open onToggle={() => {}}>
           {c.config
             .filter((f) => f.key !== p.signatureSecret)
             .map((f) => (
