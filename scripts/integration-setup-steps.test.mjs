@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { coreSteps } from '../web/src/api/integrations/setupSteps.ts';
 
 const catalog = JSON.parse(readFileSync(new URL('../web/src/api/integrations/catalog.generated.json', import.meta.url), 'utf8')).integrations;
@@ -63,4 +65,53 @@ test('ClickHouse: the HTTP interface and the system tables, no Database Monitori
 test('PgBouncer: the admin console with a stats user', () => {
   assert.match(stepsOf('pgbouncer'), /stats_users/);
   assert.match(stepsOf('pgbouncer'), /database_url|pgbouncer database/);
+});
+
+test('JMX checks (Kafka, Confluent Platform, …) say the Agent needs its JMX image and the JVM its JMX port', () => {
+  const specs = new URL('../web/src/api/integrations/agentSpecs/', import.meta.url);
+  const jmx = catalog.filter(
+    (c) =>
+      c.collection === 'agent' &&
+      /"name":"is_jmx"/.test(
+        (() => {
+          try {
+            return readFileSync(new URL(`${c.check}.json`, specs), 'utf8');
+          } catch {
+            return '';
+          }
+        })(),
+      ),
+  );
+  assert.ok(jmx.some((c) => c.id === 'kafka') && jmx.some((c) => c.id === 'confluent-platform'), 'kafka and confluent_platform are JMX checks');
+  for (const c of jmx) assert.match(coreSteps(c).join('\n'), /JMX image/, c.id);
+  assert.doesNotMatch(stepsOf('kafka-consumer'), /JMX image/, 'kafka_consumer reads the brokers over the Kafka protocol');
+});
+
+// The tiles' details as the UI builds them (live and mock mode): bundled, as the web build does.
+const require = createRequire(new URL('../web/package.json', import.meta.url));
+const { outputFiles } = require('esbuild').buildSync({
+  stdin: { contents: "export { integrationMetadata, getIntegration } from './api/mock/integrations';", resolveDir: fileURLToPath(new URL('../web/src', import.meta.url)), loader: 'ts' },
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  write: false,
+  // Vite's lazy imports (agent specs, details) aren't needed here.
+  define: { 'import.meta.env': '{}', 'import.meta.glob': 'globalThis.__noGlob' },
+  logLevel: 'error',
+});
+globalThis.__noGlob = () => ({});
+const { integrationMetadata, getIntegration } = await import(`data:text/javascript;base64,${Buffer.from(outputFiles[0].text).toString('base64')}`);
+
+test('a curated OpenTelemetry tile linked to an Agent check (Kafka) gives the Agent steps first, then the Collector alternative', async () => {
+  for (const steps of [integrationMetadata('kafka').setupSteps, (await getIntegration('kafka')).setupSteps].map((s) => s.join('\n'))) {
+    assert.match(steps, /dd_url/);
+    assert.match(steps, /conf\.d\/kafka\.d\/conf\.yaml/);
+    assert.match(steps, /JMX image/);
+    assert.match(steps, /OpenTelemetry Collector/);
+    assert.match(steps, /kafkametrics/);
+  }
+});
+
+test('no tile promises a fleet manager deploying collector configuration (there is none)', async () => {
+  for (const id of ['kafka', 'mongodb', 'rabbitmq']) assert.doesNotMatch((await getIntegration(id)).setupSteps.join('\n'), /fleet manager/i, id);
 });

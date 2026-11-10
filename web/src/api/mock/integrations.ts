@@ -1216,6 +1216,24 @@ function hostsFor(e: Entry, status: IntegrationStatus): IntegrationHost[] {
   }));
 }
 
+/**
+ * The steps of a tile collected by the OpenTelemetry Collector (or a Prometheus scrape). A tile that is also an
+ * integrations-core Agent check (Kafka, MongoDB, …) gives the Agent's steps first: its dashboards read the check's metrics.
+ */
+function collectorSteps(e: Entry): string[] {
+  const collector = [
+    'Apply the configuration template to your own collector and supply the required endpoints and credentials.',
+    'Add the receiver to the appropriate collector service pipeline and configure an exporter to the ObserveCraft intake with your organization ingest key.',
+    'Restart or reload the collector. Detection is based on matching metrics received during the last 24 hours.',
+  ];
+  if (e.core?.collection !== 'agent') return collector;
+  const receiver = e.collect.kind === 'otel' ? `its ${e.collect.receiver} receiver` : 'the scrape below';
+  return [
+    ...coreSteps(e.core),
+    `Or, with the OpenTelemetry Collector only, use ${receiver}: its metrics have the Collector's names, which the ${e.name} dashboards don't chart. ${collector.join(' ')}`,
+  ];
+}
+
 function detail(e: Entry): IntegrationDetail {
   const s = summary(e);
   const c = e.collect;
@@ -1255,17 +1273,7 @@ function detail(e: Entry): IntegrationDetail {
             ? coreSteps(e.core!)
             : c.kind === 'cloud'
               ? CLOUDS[c.cloud].steps
-              : c.kind === 'otel' && e.core?.collection === 'agent'
-                ? // The Datadog Agent's check is the way Datadog collects it; the Collector's receiver is the alternative.
-                  [
-                    ...coreSteps(e.core),
-                    `Or, without the Datadog Agent: click Install and the fleet manager adds the OpenTelemetry Collector's ${c.receiver} receiver below to collectors on matching hosts. Its metrics carry OpenTelemetry's names, which the integration's dashboards and monitors don't read.`,
-                  ]
-                : [
-                    `Click Install. The fleet manager adds the configuration below to collectors on matching hosts.`,
-                    'Set any referenced environment variables (credentials, endpoints) via your secret store.',
-                    `Data appears within a few minutes under the "${e.id}" source.`,
-                  ];
+              : collectorSteps(e);
   return {
     ...s,
     overview:
@@ -1380,16 +1388,7 @@ export function integrationMetadata(id: string): IntegrationDetail {
           ? CLOUDS[e.collect.cloud].steps
           : e.collect.kind === 'notify'
             ? ['Configure a supported notification channel in Organization Settings. This catalog does not provision provider connections.']
-            : e.collect.kind === 'otel' && e.core?.collection === 'agent'
-              ? [
-                  ...coreSteps(e.core),
-                  `Or, without the Datadog Agent: apply the OpenTelemetry Collector's ${e.collect.receiver} receiver template below to your own collector, exporting to the ObserveCraft intake with your ingest key. Its metrics carry OpenTelemetry's names, which the integration's dashboards and monitors don't read.`,
-                ]
-              : [
-                  'Apply the configuration template to your own collector and supply the required endpoints and credentials.',
-                  'Add the receiver to the appropriate collector service pipeline and configure an exporter to the ObserveCraft intake with your organization ingest key.',
-                  'Restart or reload the collector. Detection is based on matching metrics received during the last 24 hours.',
-                ],
+            : collectorSteps(e),
   };
 }
 

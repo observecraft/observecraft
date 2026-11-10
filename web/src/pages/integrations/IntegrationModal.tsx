@@ -264,7 +264,7 @@ function Overview({ d, docs, onCategory }: { d: IntegrationDetail; docs: Integra
   );
 }
 
-/** Running the check on Kubernetes: the Agent's Autodiscovery annotations on the workload's pods. */
+/** Running the check on Kubernetes: the Agent's Autodiscovery annotations on the workload's pods, or a cluster check. */
 function KubernetesHintSection({ check }: { check: string }) {
   const hint = kubernetesHint(check);
   if (!hint) return null;
@@ -273,15 +273,14 @@ function KubernetesHintSection({ check }: { check: string }) {
       <h3>On Kubernetes</h3>
       <p>
         With the Datadog Agent deployed by its Helm chart or the Datadog Operator (see <Link to="/integrations/kubernetes">Kubernetes</Link>), no configuration file is needed: annotate the pods and
-        the Agent on their node runs the check against them (Autodiscovery). <code>%%host%%</code> is the pod&apos;s address. A database outside the cluster runs as a cluster check on the chart&apos;s
-        cluster checks runners.
+        the Agent on their node runs the check against them (Autodiscovery). <code>%%host%%</code> is the pod&apos;s address. Checks that read a whole cluster run once, as a cluster check of the
+        Cluster Agent; a database outside the cluster runs as a cluster check on the chart&apos;s cluster checks runners.
       </p>
       {hint.variants.map((v) => (
         <div key={v.label}>
           <h4>{v.label}</h4>
           <ReadmeMarkdown source={v.text} />
-          {v.annotations && <CodeBlock code={v.annotations} filename="Pod annotations" />}
-          {v.values && <CodeBlock code={v.values} filename="Datadog Helm chart values" />}
+          <CodeBlock code={v.code} filename={v.filename} />
         </div>
       ))}
     </div>

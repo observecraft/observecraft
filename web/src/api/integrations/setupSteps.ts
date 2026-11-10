@@ -9,6 +9,15 @@ type Core = Pick<CoreIntegration, 'id' | 'check' | 'name' | 'collection' | 'cust
 const AGENT =
   'Install the Datadog Agent and point it at ObserveCraft in datadog.yaml: your ingest key as api_key, dd_url set to the intake, and for logs logs_enabled: true with logs_config.logs_dd_url (the intake as host:port) and logs_config.force_use_http: true.';
 
+/** The checks the Agent runs with JMXFetch (`is_jmx` in their configuration spec, agentSpecs/). */
+const JMX_CHECKS = new Set(
+  'activemq cassandra confluent_platform flume hazelcast hbase_master hbase_regionserver hive hivemq hudi ignite jboss_wildfly kafka presto resin solr sonarqube tomcat trino weblogic'.split(' '),
+);
+
+/** What a JMX check needs on both ends. */
+const JMX =
+  'This check reads the JVM over JMX: use the Agent’s JMX image (datadog/agent:7-jmx, or Java installed next to the Agent on a host) and start the JVM with remote JMX on a port the Agent can reach (com.sun.management.jmxremote.port and .rmi.port, java.rmi.server.hostname set to an address of the host or pod).';
+
 /** Tools that send their logs to the local Agent, by catalog id. */
 const AGENT_LOG_SENDERS: Record<string, string[]> = {
   'supply-chain-firewall': [
@@ -69,6 +78,7 @@ export function coreSteps(c: Core): string[] {
     default:
       return [
         AGENT,
+        ...(JMX_CHECKS.has(c.check) ? [JMX] : []),
         c.configurable
           ? `Fill in the settings below and save the result as conf.d/${c.check}.d/conf.yaml in the Agent's configuration directory.`
           : `Configure the ${c.name} integration as its integrations-core documentation describes.`,
