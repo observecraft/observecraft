@@ -1,0 +1,130 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "ClientIP": "198.51.100.44",
+      "CreationTime": "2026-11-10T07:58:12",
+      "Id": "a1b2c3d4-e5f6-4071-8293-a4b5c6d7e8f9",
+      "ObjectId": "https://example-my.sharepoint.com/personal/jordan_patel_example_com/Documents/q4-pricing.xlsx",
+      "Operation": "FileDownloaded",
+      "OrganizationId": "11111111-2222-3333-4444-555555555555",
+      "RecordType": 6,
+      "SiteUrl": "https://example-my.sharepoint.com/personal/jordan_patel_example_com/",
+      "SourceFileName": "q4-pricing.xlsx",
+      "UserAgent": "Mozilla/5.0 (Macintosh) Edg/141.0",
+      "UserId": "jordan.patel@example.com",
+      "UserKey": "i:0h.f|membership|10037ffe8a1b2c3d@live.com",
+      "UserType": 0,
+      "Workload": "OneDrive",
+      "_oc_ingest": {
+        "id": "01a1c476-f220-7205-8c65-168f451c4b92"
+      },
+      "date": "2026-11-10T07:58:12.000Z",
+      "ddsource": "microsoft-365",
+      "ddtags": "content_type:Audit.SharePoint",
+      "evt": {
+        "name": "FileDownloaded",
+        "outcome": null
+      },
+      "host": "11111111-2222-3333-4444-555555555555",
+      "message": "FileDownloaded by jordan.patel@example.com on https://example-my.sharepoint.com/personal/jordan_patel_example_com/Documents/q4-pricing.xlsx",
+      "network": {
+        "client": {
+          "ip": "198.51.100.44"
+        }
+      },
+      "service": "OneDrive",
+      "status": "info",
+      "usr": {
+        "id": "jordan.patel@example.com",
+        "name": "i:0h.f|membership|10037ffe8a1b2c3d@live.com"
+      }
+    },
+    {
+      "ClientIP": "203.0.113.20",
+      "CreationTime": "2026-11-10T08:01:40",
+      "Id": "b2c3d4e5-f607-4182-93a4-b5c6d7e8f901",
+      "ObjectId": "https://example.sharepoint.com/sites/storefront/Shared Documents/roadmap.docx",
+      "Operation": "SharingSet",
+      "OrganizationId": "11111111-2222-3333-4444-555555555555",
+      "RecordType": 14,
+      "TargetUserOrGroupName": "partner@example.net",
+      "TargetUserOrGroupType": "Guest",
+      "UserId": "sam.lee@example.com",
+      "UserKey": "i:0h.f|membership|10037ffe8a1b2c3e@live.com",
+      "UserType": 0,
+      "Workload": "SharePoint",
+      "_oc_ingest": {
+        "id": "01a1c47a-1ea0-7752-b14e-e9e8d3769393"
+      },
+      "date": "2026-11-10T08:01:40.000Z",
+      "ddsource": "microsoft-365",
+      "ddtags": "content_type:Audit.SharePoint",
+      "evt": {
+        "name": "SharingSet",
+        "outcome": null
+      },
+      "host": "11111111-2222-3333-4444-555555555555",
+      "message": "SharingSet by sam.lee@example.com on https://example.sharepoint.com/sites/storefront/Shared Documents/roadmap.docx",
+      "network": {
+        "client": {
+          "ip": "203.0.113.20"
+        }
+      },
+      "service": "SharePoint",
+      "status": "info",
+      "usr": {
+        "id": "sam.lee@example.com",
+        "name": "i:0h.f|membership|10037ffe8a1b2c3e@live.com"
+      }
+    },
+    {
+      "ClientIP": "203.0.113.20",
+      "CreationTime": "2026-11-10T08:02:05",
+      "Id": "c3d4e5f6-0718-4293-a4b5-c6d7e8f90a12",
+      "ObjectId": "https://example.sharepoint.com/sites/storefront/Shared Documents/old-prices.csv",
+      "Operation": "FileDeleted",
+      "OrganizationId": "11111111-2222-3333-4444-555555555555",
+      "RecordType": 6,
+      "ResultStatus": "Failed",
+      "UserId": "sam.lee@example.com",
+      "UserType": 0,
+      "Workload": "SharePoint",
+      "_oc_ingest": {
+        "id": "01a1c47a-8048-75e7-8f0f-1d91c84afa88"
+      },
+      "date": "2026-11-10T08:02:05.000Z",
+      "ddsource": "microsoft-365",
+      "ddtags": "content_type:Audit.SharePoint",
+      "evt": {
+        "name": "FileDeleted",
+        "outcome": "Failed"
+      },
+      "host": "11111111-2222-3333-4444-555555555555",
+      "message": "FileDeleted by sam.lee@example.com on https://example.sharepoint.com/sites/storefront/Shared Documents/old-prices.csv",
+      "network": {
+        "client": {
+          "ip": "203.0.113.20"
+        }
+      },
+      "service": "SharePoint",
+      "status": "warn",
+      "usr": {
+        "id": "sam.lee@example.com",
+        "name": null
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "Audit.AzureActiveDirectory": {
+        "cursor": 1794312000000
+      },
+      "Audit.SharePoint": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}
