@@ -227,7 +227,19 @@ function base(unit: string | undefined): Pick<CoreMetricDef, 'base' | 'max' | 'i
   return { base: (_e, r) => 1 + Math.pow(r(), 2) * 900, integer: true };
 }
 
-type Dashboard = { logo: string; templateVariables: { prefix?: string }[]; widgets: unknown };
+/** The terms of a query's tag filter, joined by commas or by AND / OR (`{$host AND (phase:completed OR phase:paused)}`). */
+const filterTerms = (filters: string) =>
+  filters
+    .split(/,| AND | OR /)
+    .map((f) =>
+      f
+        .trim()
+        .replace(/^NOT /, '!')
+        .replace(/^\(+|\)+$/g, ''),
+    )
+    .filter(Boolean);
+
+type Dashboard = { logo: string; templateVariables: { prefix?: string; default?: string }[]; widgets: unknown };
 
 export const CORE_SETS: Record<string, Tags[]> = {};
 export const CORE_METRICS: Record<string, CoreMetricDef> = {};
@@ -241,14 +253,16 @@ for (const d of dashboards) {
   const tags = tagsOf.get(d.logo) ?? new Set(['host']);
   const filtered = filteredOf.get(d.logo) ?? new Map<string, Set<string>>();
   for (const v of d.templateVariables) if (v.prefix) tags.add(v.prefix);
+  // A variable's default (Istio's `short_image:pilot`, `short_image:proxyv2`) is a value its queries filter on.
+  for (const v of d.templateVariables) if (v.prefix && v.default && !/[*$]/.test(v.default)) filtered.set(v.prefix, (filtered.get(v.prefix) ?? new Set()).add(v.default));
   // The tags its queries split by or keep (`by {rule}`, `rule:ALL`), so those charts have data too.
   const text = JSON.stringify(d.widgets);
   for (const [, keys] of text.matchAll(/ by \{([a-z0-9_.,]+)\}/g)) for (const k of keys.split(',')) tags.add(k);
   // Check status widgets split by their group_by tags.
   for (const [, keys] of text.matchAll(/"group_by":\[((?:"[a-z0-9_.]+",?)+)\]/g)) for (const k of keys.split(',')) tags.add(k.slice(1, -1));
   for (const [, filters] of text.matchAll(/:[a-z][a-z0-9_.]*\{([^}]*)\}/g))
-    for (const f of filters.split(',')) {
-      const m = /^!?([a-z][a-z0-9_]*):([^*$\s]+)$/.exec(f.trim());
+    for (const f of filterTerms(filters)) {
+      const m = /^!?([a-z][a-z0-9_]*):([^*$\s]+)$/.exec(f);
       if (!m) continue;
       tags.add(m[1]);
       filtered.set(m[1], (filtered.get(m[1]) ?? new Set()).add(m[2]));
@@ -311,7 +325,7 @@ const keysOf = new Map<string, Set<string>>();
 for (const d of dashboards)
   for (const { metric, filters, by } of queried(d)) {
     const keys = keysOf.get(metric) ?? new Set(['host', ...d.templateVariables.flatMap((v) => (v.prefix ? [v.prefix] : []))]);
-    for (const f of filters.split(',')) if (/^!?[a-z][a-z0-9_]*:/.test(f.trim())) keys.add(f.trim().replace(/^!/, '').split(':')[0]);
+    for (const f of filterTerms(filters)) if (/^!?[a-z][a-z0-9_]*:/.test(f)) keys.add(f.replace(/^!/, '').split(':')[0]);
     for (const k of by?.split(',') ?? []) keys.add(k);
     keysOf.set(metric, keys);
   }
