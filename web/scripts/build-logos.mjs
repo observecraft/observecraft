@@ -168,6 +168,10 @@ const MAP = {
   bamboo: 'bamboo',
   box: 'box',
   zoom: 'zoom-icon',
+  // Connector packages' own tiles (integrations/connectors/*/connector.yaml `logo`)
+  '1password': 'si:1password',
+  akamai: 'akamai',
+  'microsoft-365': 'microsoft-icon',
   // Simple Icons (one colour, in the brand's colour)
   authentik: 'si:authentik',
   backstage: 'si:backstage',
