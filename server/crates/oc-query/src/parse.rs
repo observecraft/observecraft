@@ -9,14 +9,20 @@ pub enum Term {
     Any { alternatives: Vec<Vec<Term>>, negate: bool },
 }
 
-/// Splits on whitespace, keeping quoted strings and parenthesised groups intact.
+/// Splits on whitespace, keeping quoted strings, parenthesised groups and escaped spaces (`\ `) intact.
 pub fn tokenize(q: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
     let mut depth = 0usize;
     let mut quoted = false;
-    for ch in q.chars() {
+    let mut chars = q.chars().peekable();
+    while let Some(ch) = chars.next() {
         match ch {
+            '\\' if !quoted && chars.peek().is_some_and(|c| c.is_whitespace()) => {
+                cur.push(ch);
+                cur.extend(chars.next());
+                continue;
+            }
             '"' => quoted = !quoted,
             '(' if !quoted => depth += 1,
             ')' if !quoted => depth = depth.saturating_sub(1),
@@ -36,11 +42,12 @@ pub fn tokenize(q: &str) -> Vec<String> {
     out
 }
 
+/// A value as written: without its quotes, or with its escaped spaces (`\ `) as spaces.
 fn unquote(s: &str) -> String {
     if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
         s[1..s.len() - 1].to_string()
     } else {
-        s.to_string()
+        s.replace("\\ ", " ")
     }
 }
 
@@ -133,6 +140,21 @@ mod tests {
             ]
         );
         assert_eq!(parse_query("(timeout)"), vec![Term::Any { alternatives: vec![vec![Term::Text { text: "timeout".into(), negate: false }]], negate: false }]);
+    }
+
+    #[test]
+    fn escaped_spaces_stay_in_values() {
+        // Datadog's syntax (its integration pipelines use it): `\ ` is a space inside a value.
+        let t = parse_query(r"@evt.name:Add\ *member\ to\ role* -@role:*Global\ Administrator* timeout");
+        assert_eq!(
+            t,
+            vec![
+                Term::Tag { key: "@evt.name".into(), values: vec!["Add *member to role*".into()], negate: false },
+                Term::Tag { key: "@role".into(), values: vec!["*Global Administrator*".into()], negate: true },
+                Term::Text { text: "timeout".into(), negate: false },
+            ]
+        );
+        assert_eq!(parse_query(r"@a:(x\ y OR z)"), vec![Term::Tag { key: "@a".into(), values: vec!["x y".into(), "z".into()], negate: false }]);
     }
 
     #[test]
