@@ -1149,6 +1149,10 @@ async fn export(cx: &mut Cx<'_>, stream: &Stream, x: &AsyncExport, emit: &Emit<'
     }
     let ex = part.export.clone().expect("export");
     s.insert("export".into(), json!({ "id": ex.id }));
+    // The export's own window, also in the runs after the one that created it.
+    if let (Some(start), Some(end)) = (ex.start, ex.end) {
+        s.insert("window".into(), json!({ "start": start, "end": end }));
+    }
     let req = cx.build(&x.status, &s)?;
     let resp = cx.send(&req, &stream.errors, &s).await?;
     let mut ss = s.clone();

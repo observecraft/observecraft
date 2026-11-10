@@ -448,6 +448,24 @@ async fn async_exports_are_created_polled_and_read_across_runs() {
 }
 
 #[tokio::test]
+async fn an_export_read_in_a_later_run_keeps_its_window() {
+    // Zscaler's admin audit export: created in one run, read in the next, rows filtered by the export's window.
+    let f = fixture(&format!(
+        "{}{}",
+        "streams:\n  - id: audit\n    name: Audit\n    description: Exported.\n    pagination:\n      kind: async_export\n      create: { method: POST, url: '{{ config.base_url }}/audit/export', body: { start: '{{ window.start }}' } }\n      id: '{{ window.start | str }}'\n      status: { url: '{{ config.base_url }}/audit/export' }\n      ready: \"{{ response.status == 'COMPLETE' }}\"\n      chunks: \"{{ ['download'] }}\"\n      chunk: { url: '{{ config.base_url }}/audit/export/download' }\n    filter: '{{ record.t >= window.start && record.t < window.end }}'\n    record_id: '{{ record.id }}'\n    incremental: { kind: time, record_time: '{{ record.t }}', lookback: 1d }\n    output:\n      logs: { message: '{{ record.id }}' }\n",
+        mock(&format!(
+            "    - {{ method: POST, url: 'https://api.example.com/audit/export', body: {{}} }}\n    - {{ url: 'https://api.example.com/audit/export', body: {{ status: EXECUTING }} }}\n    - {{ url: 'https://api.example.com/audit/export', body: {{ status: COMPLETE }} }}\n    - {{ url: 'https://api.example.com/audit/export/download', body: [{{ id: in, t: {inside} }}, {{ id: later, t: {later} }}] }}",
+            inside = NOW - HOUR,
+            later = NOW + MIN
+        ))
+    ));
+    let first = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(first.records, 0, "still running");
+    let second = f.run(first.state, NOW + 5 * MIN).await.unwrap();
+    assert_eq!(ids(&second), ["in"]);
+}
+
+#[tokio::test]
 async fn prometheus_samples_become_metrics_with_their_labels() {
     let f = fixture(&format!(
         "{}{}",
