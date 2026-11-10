@@ -176,6 +176,40 @@ pub const PACKS: &[ContentPack] = &[
         ],
     },
     ContentPack {
+        id: "gitlab-audit-events",
+        name: "GitLab",
+        category: "Collaboration",
+        platform: "SaaS",
+        logo: "gitlab",
+        description: "Watch who gets into your GitLab: logins failing again and again for one user, and projects made public.",
+        query: "source:gitlab-audit-events",
+        setup: "Connect GitLab in Integrations → GitLab Audit Events: ObserveCraft reads its audit events (Premium or Ultimate) with source `gitlab-audit-events`.",
+        rules: &[
+            DefaultRule {
+                id: "def-glb-001",
+                version: 1,
+                name: "GitLab logins failing for one user",
+                message: "Logins to GitLab failed again and again for one user: someone guessing a password or a one-time code. Check the client addresses and whether a login finally succeeded.",
+                query: "source:gitlab-audit-events @evt.name:*login_failed*",
+                group_by: &["@usr.name"],
+                cases: &[("a > 10", "high", ""), ("a > 4", "medium", "")],
+                window: 900,
+                tags: BRUTE_FORCE,
+            },
+            DefaultRule {
+                id: "def-glb-002",
+                version: 1,
+                name: "GitLab project made public",
+                message: "A GitLab project became public: anyone can read its code. Check that no secrets or internal code are exposed.",
+                query: "source:gitlab-audit-events @evt.name:project_visibility_level_updated @gitlab.details.to:(Public OR public)",
+                group_by: &["@gitlab.entity_path"],
+                cases: &[("a > 0", "high", "")],
+                window: 300,
+                tags: &["tactic:TA0010-exfiltration", "technique:T1567-exfiltration-over-web-service"],
+            },
+        ],
+    },
+    ContentPack {
         id: "kubernetes-audit",
         name: "Kubernetes Audit",
         category: "Containers",
@@ -436,6 +470,28 @@ mod tests {
         }
         let packs: HashSet<_> = PACKS.iter().map(|p| p.id).collect();
         assert_eq!(packs.len(), PACKS.len());
+    }
+
+    /// The GitLab rules match the GitLab Audit Events poller's logs.
+    #[test]
+    fn gitlab_audit_event_rules_match_the_pollers_logs() {
+        use crate::gitlab_audit::{fixtures, logs::log_of};
+        use crate::pipelines::{Filter, Log};
+        let pack = PACKS.iter().find(|p| p.id == "gitlab-audit-events").expect("the GitLab pack");
+        let matches = |rule: &str, event: serde_json::Value| {
+            let mut attrs = log_of(&event, "gitlab.example.com");
+            for k in ["date", "message", "status", "service", "ddsource", "host", "_oc_ingest"] {
+                attrs.as_object_mut().unwrap().remove(k);
+            }
+            let row = serde_json::json!({"status": "error", "service": "gitlab", "source": "gitlab-audit-events", "message": "", "attributes": attrs.to_string()});
+            let query = pack.rules.iter().find(|r| r.id == rule).unwrap().query;
+            Log::from_row(&row).matches(&Filter::parse(query))
+        };
+        assert!(matches("def-glb-001", fixtures::failed_login(1, "2026-11-06T10:00:00Z", "root")));
+        assert!(!matches("def-glb-001", fixtures::changed(2, "2026-11-06T10:00:00Z")));
+        let public = fixtures::event(3, "project_visibility_level_updated", "2026-11-06T10:00:00Z", serde_json::json!({ "change": "visibility", "from": "Private", "to": "Public" }));
+        assert!(matches("def-glb-002", public));
+        assert!(!matches("def-glb-002", fixtures::changed(4, "2026-11-06T10:00:00Z")), "made internal");
     }
 
     #[test]
