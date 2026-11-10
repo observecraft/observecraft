@@ -1,7 +1,8 @@
-// An integrations-core README section (BSD-3-Clause, shown as it is): GitHub-flavoured Markdown rendered as
+// An integrations-core README section (BSD-3-Clause, shown as it is but for Datadog's app links and steps, `forObserveCraft`): GitHub-flavoured Markdown rendered as
 // React elements (raw HTML is not rendered), code blocks with a copy button, Host / Docker / Kubernetes tabs.
 import { useState, type ReactNode } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
+import { Link } from 'react-router-dom';
 import remarkGfm from 'remark-gfm';
 import { CodeBlock } from '../../components/code/CodeBlock';
 import { readmeSegments } from './readme';
@@ -15,6 +16,9 @@ const COMPONENTS: Components = {
       <a href={href} target="_blank" rel="noreferrer noopener">
         {children}
       </a>
+    ) : href && /^\/(?!\/)/.test(href) ? (
+      // One of our pages, in place of Datadog's app (forObserveCraft).
+      <Link to={href}>{children}</Link>
     ) : (
       <>{children}</>
     ),
