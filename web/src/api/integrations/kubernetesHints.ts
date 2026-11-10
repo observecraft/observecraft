@@ -514,6 +514,17 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
     ],
   },
   {
+    check: 'dcgm',
+    variants: [
+      {
+        label: 'NVIDIA DCGM Exporter Helm chart (nvidia/dcgm-exporter)',
+        text: 'The check reads NVIDIA’s DCGM Exporter, a DaemonSet on the GPU nodes serving metrics on port 9400; the NVIDIA device plugin alone doesn’t expose them. Install the exporter’s chart (or turn on `dcgmExporter` in the GPU Operator) with tolerations for the GPU nodes’ taint, and put the annotations in its `podAnnotations` value (the container is `exporter`). This check is Datadog’s legacy one: newer Agents also have GPU Monitoring, which needs no exporter.',
+        filename: POD_ANNOTATIONS,
+        code: checkAnnotation('exporter', 'dcgm', { instances: [{ openmetrics_endpoint: 'http://%%host%%:9400/metrics' }] }),
+      },
+    ],
+  },
+  {
     check: 'coredns',
     variants: [
       {

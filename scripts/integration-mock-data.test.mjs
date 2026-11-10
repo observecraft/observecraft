@@ -88,6 +88,7 @@ for (const title of [
   'Karpenter Overview',
   'Temporal Server Overview',
   'vLLM Overview',
+  'LEGACY - DCGM Exporter (Nvidia GPU Monitoring) Overview',
 ]) {
   test(`every widget of ${title} has data in mock mode`, async () => {
     const d = mock.dashboards.find((x) => x.title === title);

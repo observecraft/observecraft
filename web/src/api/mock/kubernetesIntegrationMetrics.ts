@@ -143,6 +143,12 @@ export const INFRA_VALUES: Record<string, Record<string, string[]>> = {
     process: ['1', '1', '1', '1'],
     generation: ['0', '1', '2', '0'],
   },
+  dcgm: {
+    service: ['vllm', 'vllm', 'vllm', 'recommendations-trainer'],
+    dcgm_fi_driver_version: ['550.127.08', '550.127.08', '550.127.08', '550.127.08'],
+    hostname: ['ip-10-0-4-21.eu-west-1.compute.internal', 'ip-10-0-4-37.eu-west-1.compute.internal', 'ip-10-0-5-12.eu-west-1.compute.internal', 'ip-10-0-5-40.eu-west-1.compute.internal'],
+    dcgm_fi_process_name: ['/usr/bin/python3', '/usr/bin/python3', '/usr/bin/python3', '/opt/conda/bin/python'],
+  },
 };
 
 export const INFRA_OVERRIDES: Record<string, Override> = {
@@ -304,6 +310,18 @@ export const INFRA_OVERRIDES: Record<string, Override> = {
   'vllm.process.cpu_seconds.count': between(0.6, 2.4, 0.3),
   'vllm.python.gc.collections.count': byTag('generation', { '0': 40, '1': 4, '2': 0.4 }, 0.4),
   'vllm.python.gc.objects.uncollectable.count': fixed(0),
+  // An H100 serving models: busy, warm, under its power limit; framebuffer in MiB.
+  'dcgm.vgpu_license_status': fixed(0),
+  'dcgm.temperature': between(48, 72, 0.05),
+  'dcgm.gpu_utilization': between(35, 95, 0.2, true),
+  'dcgm.mem.copy_utilization': between(5, 45, 0.3, true),
+  'dcgm.power_usage': between(180, 520, 0.15),
+  'dcgm.fb_used': between(52000, 78000, 0.02, true),
+  'dcgm.fb_free': between(2000, 28000, 0.05, true),
+  'dcgm.pcie_tx_throughput': between(2e4, 4e5, 0.4),
+  'dcgm.pcie_rx_throughput': between(2e4, 6e5, 0.4),
+  'dcgm.mem.clock': fixed(2619),
+  'dcgm.sm_clock': between(1590, 1980, 0.05, true),
   'kube_apiserver.registered_watchers': between(5, 180, 0.05, true),
   'kube_apiserver.process_virtual_memory_bytes': between(1.6e9, 2.1e9, 0.01),
   'kube_apiserver.process_resident_memory_bytes': between(650e6, 1.2e9, 0.03),

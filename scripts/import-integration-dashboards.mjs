@@ -347,6 +347,7 @@ const MOCK_INTEGRATIONS = [
   'karpenter',
   'temporal',
   'vllm',
+  'dcgm',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */
