@@ -34,7 +34,12 @@ API integrations: adding one should be a package, not code, and operators should
      first-sync lookback, late-data overlap, settle delay, optional slicing into sub-windows, oldest-first or
      newest-first order with a lossless backlog; `token`: an opaque since-token), rate limits, and the output (`logs`,
      `metrics` (gauge or count), `events`),
-   - the connection test (one request, a success condition and messages per error).
+   - the connection test (one request, a success condition and messages per error),
+   - more shapes the research over the 76 tiles and popular Datadog-only integrations asked for: lookups and
+     discovery requests cached across runs, `for_each` fan-out (child streams), index-then-download (`expand`),
+     asynchronous exports, CSV / NDJSON / Prometheus answers, request quotas per connection and per stream,
+     one-off setup calls (`on_connect`), push-only packages with their intake URL, headers, signature and an optional
+     request creating the push job on the vendor's side, and packages that add their own catalog tile.
 2. **Templates and expressions** are one small, documented language (`{{ expr }}` in strings; a string that is a
    single `{{ expr }}` keeps the value's type): paths (`record.a.b[0]`), literals, `?? + - * / % == != < <= > >= in
    && || ! ?:`, and filters (`| lower`, `| split('.')`, `| rfc3339`, …). It has no loops, I/O or side effects, so a
@@ -51,7 +56,7 @@ API integrations: adding one should be a package, not code, and operators should
    can't be overridden. Connections are generic: Postgres `connector_connections` (org, connector, name, config,
    sealed secrets, enabled streams) and `connector_stream_state` (cursor, token, backlog, seen ids), polled on the
    cloud crawlers' jobs (`cloud_crawl_jobs`, provider = connector id, account = connection id, scope = stream id;
-   partition `stream/item` for `for_each`), records published to Kafka with the org's headers (`oc.logs.json`,
+   `for_each` items share the stream's job, each with its own state), records published to Kafka with the org's headers (`oc.logs.json`,
    `oc.otlp-json.metrics`, `oc.otlp-json.logs` for events) before the state moves. Generic routes
    (`/api/v1/connectors…`) list packages, save, test, sync and delete connections and show each stream's status;
    writes are admins', audited.
@@ -76,5 +81,8 @@ API integrations: adding one should be a package, not code, and operators should
   environment.
 - The schema is a contract for package authors: changes are additive (new optional fields, kinds and filters);
   `schema_version` in the manifest guards future breaking changes.
+- Push-only vendors' intake side (webhook mappings and signature checks read from packages, Fastly's challenge, a
+  Splunk HEC endpoint) and long-lived streams (WebSockets, SQS) are extension points: the intake can load the same
+  packages, and `native` names a connector compiled into the server.
 - `oauth` tiles need an OAuth app per install (client id and secret from the operator, redirect to ObserveCraft);
   until the authorization-code flow lands, their packages take a refresh token or an API key the user creates.
