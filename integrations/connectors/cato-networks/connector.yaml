@@ -59,6 +59,20 @@ errors:
   - status: [429]
     kind: throttled
     message: Cato's API rate limit for this query was reached
+  # GraphQL answers its errors (rate limits and permissions included) with HTTP 200.
+  - status: [200]
+    when: "{{ response.errors | len > 0 && ((response.errors | first).message | lower | contains('rate limit')) }}"
+    kind: throttled
+    message: "Cato's API rate limit for this query was reached ({{ (response.errors | first).message }})"
+  - status: [200]
+    when: >-
+      {{ response.errors | len > 0 && ((response.errors | first).message | lower | matches('permission|unauthori[sz]ed|not authori[sz]ed|forbidden')) }}
+    kind: access_denied
+    message: "Cato refused the query ({{ (response.errors | first).message }}): the API key needs View permission on account {{ config.account_id }}"
+  - status: [200]
+    when: "{{ response.errors | len > 0 }}"
+    kind: other
+    message: "Cato's GraphQL API answered: {{ (response.errors | first).message }}"
 
 streams:
   - id: events
