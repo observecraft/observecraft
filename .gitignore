@@ -3,6 +3,8 @@ node_modules/
 web/dist/
 server/target/
 dist/
+# Connector packages' converted dashboards are committed (compiled into the server, read by its tests).
+!integrations/connectors/*/dist/
 # local env
 .oc-data/
 .env
