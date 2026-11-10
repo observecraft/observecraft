@@ -8944,7 +8944,7 @@
         {
           "costs": false,
           "defaultEnabled": true,
-          "description": "Every audit event as a log (source:genesys, service:audit): serviceName, action, entityType, entity, level, status (SUCCESS → info, FAILURE → error, WARNING → warn), user (usr.id, usr.name), remoteIp, propertyChanges. One query per audit service; the realtime query reaches 14 days back.",
+          "description": "Every audit event as a log (source:genesys, service:audit): serviceName, action, entityType, entity, level as audit_level, status (SUCCESS → info, FAILURE → error, WARNING → warn), user (usr.id, usr.name), remoteIp, propertyChanges. One query per audit service; the realtime query reaches 14 days back.",
           "events": false,
           "id": "audits",
           "incremental": "time",

@@ -7,11 +7,7 @@
         "id": "01a1c4bb-2ee0-7576-9371-02865dcbc6c8"
       },
       "action": "Save",
-      "application": "",
-      "audit_message": null,
-      "client": {
-        "id": ""
-      },
+      "audit_level": "USER",
       "context": {
         "flowType": "inboundcall",
         "version": "1.0"
@@ -26,14 +22,13 @@
       "eventDate": "2026-11-10T09:12:44Z",
       "host": "6a1b0c2d-0000-4000-8000-000000000001@mypurecloud.ie",
       "id": "2d59394e-0000-4000-8000-000000000001",
-      "level": "USER",
-      "message": "Architect Save Flow Inbound Order Support Flow by Jane Doe",
+      "level": "info",
+      "message": "{\"message\":\"Architect Save Flow Inbound Order Support Flow by Jane Doe\",\"status\":\"SUCCESS\"}",
       "remoteIp": [
         "203.0.113.24"
       ],
       "service": "audit",
       "serviceName": "Architect",
-      "status": "info",
       "transactionInitiator": false,
       "user": {
         "id": "d1e4ddd6-0000-4000-8000-000000000011",
@@ -51,13 +46,10 @@
         "id": "01a1c4bd-49f0-73c3-b7ba-d3a70ec5d60b"
       },
       "action": "Publish",
-      "application": "",
+      "audit_level": "USER",
       "audit_message": {
         "localizableMessageCode": "FLOW_VALIDATION_FAILED",
         "message": "The flow has validation errors"
-      },
-      "client": {
-        "id": ""
       },
       "context": {
         "flowType": "inboundcall",
@@ -73,14 +65,13 @@
       "eventDate": "2026-11-10T09:15:02Z",
       "host": "6a1b0c2d-0000-4000-8000-000000000001@mypurecloud.ie",
       "id": "2d59394e-0000-4000-8000-000000000002",
-      "level": "USER",
-      "message": "Architect Publish Flow Inbound Order Support Flow by Jane Doe",
+      "level": "error",
+      "message": "{\"message\":\"Architect Publish Flow Inbound Order Support Flow by Jane Doe\",\"status\":\"FAILURE\"}",
       "remoteIp": [
         "203.0.113.24"
       ],
       "service": "audit",
       "serviceName": "Architect",
-      "status": "error",
       "transactionInitiator": true,
       "user": {
         "id": "d1e4ddd6-0000-4000-8000-000000000011",
@@ -98,8 +89,7 @@
         "id": "01a1c51f-5f50-7834-b911-6b192c02c68a"
       },
       "action": "Update",
-      "application": "",
-      "audit_message": null,
+      "audit_level": "USER",
       "client": {
         "id": "6a1b0c2d-0000-4000-8000-000000000002"
       },
@@ -113,8 +103,8 @@
       "eventDate": "2026-11-10T11:02:10Z",
       "host": "6a1b0c2d-0000-4000-8000-000000000001@mypurecloud.ie",
       "id": "7b10c2aa-0000-4000-8000-000000000003",
-      "level": "USER",
-      "message": "Directory Update User Alex Kim by Sam Rivera",
+      "level": "info",
+      "message": "{\"message\":\"Directory Update User Alex Kim by Sam Rivera\",\"status\":\"SUCCESS\"}",
       "propertyChanges": [
         {
           "newValues": [
@@ -131,7 +121,6 @@
       ],
       "service": "audit",
       "serviceName": "Directory",
-      "status": "info",
       "transactionInitiator": false,
       "user": {
         "id": "d1e4ddd6-0000-4000-8000-000000000012",

@@ -173,8 +173,9 @@ streams:
   - id: audits
     name: Audit events
     description: >-
-      Every audit event as a log (source:genesys, service:audit): serviceName, action, entityType, entity, level,
-      status (SUCCESS → info, FAILURE → error, WARNING → warn), user (usr.id, usr.name), remoteIp, propertyChanges.
+      Every audit event as a log (source:genesys, service:audit): serviceName, action, entityType, entity, level as
+      audit_level, status (SUCCESS → info, FAILURE → error, WARNING → warn), user (usr.id, usr.name), remoteIp,
+      propertyChanges.
       One query per audit service; the realtime query reaches 14 days back.
     interval: 5m
     for_each: "{{ discovery.services }}"
@@ -204,7 +205,7 @@ streams:
           {{ record.serviceName }} {{ record.action }} {{ record.entityType }}{{ (' ' + record.entity.name) ?? '' }}{{ (' by ' + record.user.name) ?? '' }}
         status: "{{ record.status == 'FAILURE' ? 'error' : record.status == 'WARNING' ? 'warn' : 'info' }}"
         date: "{{ record.eventDate }}"
-        attributes: "{{ record + {usr: {id: record.user.id, name: record.user.name}, audit_message: record.message} }}"
+        attributes: "{{ record + {usr: {id: record.user.id, name: record.user.name}, audit_message: record.message, audit_level: record.level} }}"
 
   - id: conversations
     name: Conversation metrics
