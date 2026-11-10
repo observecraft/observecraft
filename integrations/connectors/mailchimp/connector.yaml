@@ -1,0 +1,121 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Mailchimp (https://mailchimp.com/developer/marketing/api/): campaign reports and audiences, as the metrics
+# Datadog's integration sends (mailchimp.campaigns.* tagged campaign_id, campaign_title, campaign_type,
+# campaign_list_id, campaign_list_name; mailchimp.lists.* tagged list_id, list_name; names and types from
+# integrations-core's metadata.csv). Its "Mailchimp - Campaign" and "Mailchimp - Audience" dashboards read them.
+schema_version: 1
+id: mailchimp
+name: Mailchimp
+publisher: ObserveCraft
+vendor: Intuit Mailchimp
+description: >-
+  The reports of the campaigns sent in the last 90 days (sends, opens, clicks, bounces, unsubscribes, abuse
+  reports) and every audience's members, unsubscribes and rates, as metrics read hourly from Mailchimp's Marketing
+  API.
+tiles: [mailchimp]
+categories: [Metrics]
+docs_url: https://mailchimp.com/developer/marketing/api/
+setup: |
+  1. In Mailchimp, open **Profile → Extras → API keys** and **Create A Key**; copy it.
+  2. The data center is the key's suffix after the dash (`…-us13` is `us13`).
+instance: "{{ config.server_prefix }}"
+
+config:
+  - key: server_prefix
+    label: Data center
+    type: string
+    required: true
+    pattern: "[a-z]+[0-9]+"
+    placeholder: us13
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+    placeholder: examplekey-us13
+
+auth:
+  kind: basic
+  username: observecraft
+  password: "{{ secrets.api_key }}"
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Mailchimp refused the API key, or it belongs to another data center
+  - status: [403]
+    kind: access_denied
+    message: The API key's user can't read reports or audiences
+
+streams:
+  - id: campaigns
+    name: Campaign reports
+    description: >-
+      Every campaign sent in the last 90 days as gauges (mailchimp.campaigns.emails_sent, opens_total,
+      unique_opens, open_rate, clicks_total, unique_clicks, unique_subscriber_clicks, click_rate, hard_bounces,
+      soft_bounces, syntax_errors, unsubscribed, abuse_reports, count). Reports keep growing for days after a send.
+    interval: 1h
+    request:
+      url: "https://{{ config.server_prefix }}.api.mailchimp.com/3.0/reports"
+      query:
+        count: 1000
+        offset: "{{ page.offset }}"
+        since_send_time: "{{ (now - 7776000000) | rfc3339_s }}"
+    records: "{{ response.reports }}"
+    pagination: { kind: offset, size: 1000, total: "{{ response.total_items }}" }
+    output:
+      metrics:
+        - { name: mailchimp.campaigns.count, value: "1", description: "1 per campaign; summed, the campaigns.", tags: &campaign { campaign_id: "{{ record.id }}", campaign_title: "{{ record.campaign_title }}", campaign_type: "{{ record.type }}", campaign_list_id: "{{ record.list_id }}", campaign_list_name: "{{ record.list_name }}" } }
+        - { name: mailchimp.campaigns.emails_sent, value: "{{ record.emails_sent }}", description: Emails sent., tags: *campaign }
+        - { name: mailchimp.campaigns.abuse_reports, value: "{{ record.abuse_reports }}", description: Abuse reports., tags: *campaign }
+        - { name: mailchimp.campaigns.unsubscribed, value: "{{ record.unsubscribed }}", description: Unsubscribes., tags: *campaign }
+        - { name: mailchimp.campaigns.hard_bounces, value: "{{ record.bounces.hard_bounces }}", description: Hard bounces., tags: *campaign }
+        - { name: mailchimp.campaigns.soft_bounces, value: "{{ record.bounces.soft_bounces }}", description: Soft bounces., tags: *campaign }
+        - { name: mailchimp.campaigns.syntax_errors, value: "{{ record.bounces.syntax_errors }}", description: Bounces for malformed addresses., tags: *campaign }
+        - { name: mailchimp.campaigns.opens_total, value: "{{ record.opens.opens_total }}", description: Opens., tags: *campaign }
+        - { name: mailchimp.campaigns.unique_opens, value: "{{ record.opens.unique_opens }}", description: Recipients who opened., tags: *campaign }
+        - { name: mailchimp.campaigns.open_rate, value: "{{ record.opens.open_rate }}", description: Unique opens divided by successful deliveries., tags: *campaign }
+        - { name: mailchimp.campaigns.clicks_total, value: "{{ record.clicks.clicks_total }}", description: Clicks., tags: *campaign }
+        - { name: mailchimp.campaigns.unique_clicks, value: "{{ record.clicks.unique_clicks }}", description: Unique links clicked., tags: *campaign }
+        - { name: mailchimp.campaigns.unique_subscriber_clicks, value: "{{ record.clicks.unique_subscriber_clicks }}", description: Recipients who clicked., tags: *campaign }
+        - { name: mailchimp.campaigns.click_rate, value: "{{ record.clicks.click_rate }}", description: Unique clicks divided by successful deliveries., tags: *campaign }
+
+  - id: lists
+    name: Audiences
+    description: >-
+      Every audience as gauges (mailchimp.lists.member_count, total_contacts, unsubscribe_count, campaign_count,
+      open_rate, click_rate, list_rating, count).
+    interval: 1h
+    request:
+      url: "https://{{ config.server_prefix }}.api.mailchimp.com/3.0/lists"
+      query: { count: 1000, offset: "{{ page.offset }}" }
+    records: "{{ response.lists }}"
+    pagination: { kind: offset, size: 1000, total: "{{ response.total_items }}" }
+    output:
+      metrics:
+        - { name: mailchimp.lists.count, value: "1", description: "1 per audience; summed, the audiences.", tags: &list { list_id: "{{ record.id }}", list_name: "{{ record.name }}" } }
+        - { name: mailchimp.lists.member_count, value: "{{ record.stats.member_count }}", description: Active members., tags: *list }
+        - { name: mailchimp.lists.total_contacts, value: "{{ record.stats.total_contacts }}", description: Contacts (subscribed or not)., tags: *list }
+        - { name: mailchimp.lists.unsubscribe_count, value: "{{ record.stats.unsubscribe_count }}", description: Members who unsubscribed., tags: *list }
+        - { name: mailchimp.lists.campaign_count, value: "{{ record.stats.campaign_count }}", description: Campaigns using the audience., tags: *list }
+        - { name: mailchimp.lists.open_rate, value: "{{ record.stats.open_rate }}", unit: percent, description: Average open rate per campaign., tags: *list }
+        - { name: mailchimp.lists.click_rate, value: "{{ record.stats.click_rate }}", unit: percent, description: Average click rate per campaign., tags: *list }
+        - { name: mailchimp.lists.list_rating, value: "{{ record.list_rating }}", description: Mailchimp's activity score of the audience (0-5)., tags: *list }
+
+test:
+  request: { url: "https://{{ config.server_prefix }}.api.mailchimp.com/3.0/ping" }
+  success: "{{ response.health_status }}"
+  message: "Connected to Mailchimp ({{ config.server_prefix }})"
+
+mock:
+  config: { server_prefix: us13 }
+  secrets: { api_key: examplekey-us13 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://us13.api.mailchimp.com/3.0/reports", file: fixtures/reports.json }
+    - { url: "https://us13.api.mailchimp.com/3.0/lists", file: fixtures/lists.json }
+    - { url: "https://us13.api.mailchimp.com/3.0/ping", body: { health_status: "Everything's Chimpy!" } }
+  expect:
+    campaigns: { records: 2, metrics: 28, golden: fixtures/campaigns.expected.json }
+    lists: { records: 2, metrics: 16, golden: fixtures/lists.expected.json }
+    test: { ok: true, message: "Connected to Mailchimp (us13)" }

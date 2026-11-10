@@ -1,0 +1,284 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.count",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000001"
+        ],
+        [
+          "list_name",
+          "Customers"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.member_count",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000001"
+        ],
+        [
+          "list_name",
+          "Customers"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 12000.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.total_contacts",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000001"
+        ],
+        [
+          "list_name",
+          "Customers"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 12500.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.unsubscribe_count",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000001"
+        ],
+        [
+          "list_name",
+          "Customers"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 300.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.campaign_count",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000001"
+        ],
+        [
+          "list_name",
+          "Customers"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 40.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.open_rate",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000001"
+        ],
+        [
+          "list_name",
+          "Customers"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 36.5
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.click_rate",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000001"
+        ],
+        [
+          "list_name",
+          "Customers"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 4.1
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.list_rating",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000001"
+        ],
+        [
+          "list_name",
+          "Customers"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 4.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.count",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000002"
+        ],
+        [
+          "list_name",
+          "Newsletter"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.member_count",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000002"
+        ],
+        [
+          "list_name",
+          "Newsletter"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 4300.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.total_contacts",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000002"
+        ],
+        [
+          "list_name",
+          "Newsletter"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 4410.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.unsubscribe_count",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000002"
+        ],
+        [
+          "list_name",
+          "Newsletter"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 95.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.campaign_count",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000002"
+        ],
+        [
+          "list_name",
+          "Newsletter"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 18.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.open_rate",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000002"
+        ],
+        [
+          "list_name",
+          "Newsletter"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 41.2
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.click_rate",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000002"
+        ],
+        [
+          "list_name",
+          "Newsletter"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 6.3
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.lists.list_rating",
+      "tags": [
+        [
+          "list_id",
+          "l1a0000002"
+        ],
+        [
+          "list_name",
+          "Newsletter"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 3.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

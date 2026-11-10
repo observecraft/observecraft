@@ -1,0 +1,20 @@
+{
+  "reports": [
+    {
+      "id": "c42a000001", "campaign_title": "Autumn catalog 2026", "type": "regular", "list_id": "l1a0000001", "list_is_active": true, "list_name": "Customers",
+      "subject_line": "Our autumn catalog is here", "preview_text": "", "emails_sent": 5000, "abuse_reports": 1, "unsubscribed": 12, "send_time": "2026-11-05T15:00:00+00:00",
+      "bounces": { "hard_bounces": 3, "soft_bounces": 9, "syntax_errors": 0 },
+      "forwards": { "forwards_count": 4, "forwards_opens": 2 },
+      "opens": { "opens_total": 2400, "proxy_excluded_opens": 1700, "unique_opens": 1900, "proxy_excluded_unique_opens": 1300, "open_rate": 0.38, "proxy_excluded_open_rate": 0.26, "last_open": "2026-11-10T09:14:00+00:00" },
+      "clicks": { "clicks_total": 600, "unique_clicks": 450, "unique_subscriber_clicks": 420, "click_rate": 0.084, "last_click": "2026-11-10T08:02:00+00:00" }
+    },
+    {
+      "id": "c42a000002", "campaign_title": "Abandoned cart reminder", "type": "automation", "list_id": "l1a0000002", "list_is_active": true, "list_name": "Newsletter",
+      "subject_line": "You left something behind", "emails_sent": 830, "abuse_reports": 0, "unsubscribed": 2, "send_time": "2026-11-09T10:00:00+00:00",
+      "bounces": { "hard_bounces": 0, "soft_bounces": 4, "syntax_errors": 1 },
+      "opens": { "opens_total": 512, "unique_opens": 401, "open_rate": 0.483, "last_open": "2026-11-10T07:40:00+00:00" },
+      "clicks": { "clicks_total": 120, "unique_clicks": 88, "unique_subscriber_clicks": 81, "click_rate": 0.098, "last_click": "2026-11-10T07:41:00+00:00" }
+    }
+  ],
+  "total_items": 2
+}

@@ -1,0 +1,824 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.count",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.emails_sent",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 5000.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.abuse_reports",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.unsubscribed",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 12.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.hard_bounces",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 3.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.soft_bounces",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 9.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.syntax_errors",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.opens_total",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 2400.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.unique_opens",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1900.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.open_rate",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.38
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.clicks_total",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 600.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.unique_clicks",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 450.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.unique_subscriber_clicks",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 420.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.click_rate",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000001"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000001"
+        ],
+        [
+          "campaign_list_name",
+          "Customers"
+        ],
+        [
+          "campaign_title",
+          "Autumn catalog 2026"
+        ],
+        [
+          "campaign_type",
+          "regular"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.084
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.count",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.emails_sent",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 830.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.abuse_reports",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.unsubscribed",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 2.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.hard_bounces",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.soft_bounces",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 4.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.syntax_errors",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.opens_total",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 512.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.unique_opens",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 401.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.open_rate",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.483
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.clicks_total",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 120.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.unique_clicks",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 88.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.unique_subscriber_clicks",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 81.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mailchimp.campaigns.click_rate",
+      "tags": [
+        [
+          "campaign_id",
+          "c42a000002"
+        ],
+        [
+          "campaign_list_id",
+          "l1a0000002"
+        ],
+        [
+          "campaign_list_name",
+          "Newsletter"
+        ],
+        [
+          "campaign_title",
+          "Abandoned cart reminder"
+        ],
+        [
+          "campaign_type",
+          "automation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.098
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}
