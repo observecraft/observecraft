@@ -405,6 +405,15 @@ kafka:
   retentionHours: 72
   liveRetentionMinutes: 60
   heapOpts: "-Xms1g -Xmx1g"
+  # The brokers' metrics for the Datadog Agent's kafka check (Integrations → Kafka Broker): remote JMX on each
+  # broker, without authentication, and the Autodiscovery annotation that runs the check. The Agent must be its JMX
+  # image (Datadog chart: agents.image.tagSuffix: jmx). Consumer lag is the kafka_consumer check, as a cluster check
+  # against <release>-observecraft-kafka:9092.
+  jmx:
+    enabled: false
+    port: 9999
+    # -- Pods allowed to reach the JMX port with networkPolicy.enabled (e.g. the Datadog Agent's namespace). Empty: any pod.
+    allowFrom: []
   persistence:
     size: 50Gi
   resources:

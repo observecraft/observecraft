@@ -1,7 +1,8 @@
 {{- if .Values.networkPolicy.enabled }}
 {{- $fullname := include "oc.fullname" . -}}
 {{- /* component → list of [port, [allowed components]]; "*" = anyone (the intake authenticates
-     every request), "ingress" = networkPolicy.ingressFrom (anyone when empty). Egress is open:
+     every request), "ingress" = networkPolicy.ingressFrom (anyone when empty), "kafka-jmx" =
+     kafka.jmx.allowFrom (anyone when empty: the Datadog Agent's namespace). Egress is open:
      archives (S3), notifications (SMTP, webhooks) and SSO reach outside the cluster. */ -}}
 {{- $rules := dict
   "server" (list (list 8080 (list "ingress")) (list 8090 (list "vector" "intake" "scanner")))
@@ -22,6 +23,9 @@
 {{- end }}
 {{- if .Values.kafka.enabled }}
 {{- $_ := set $rules "kafka" (list (list 9092 (list "intake" "server" "collector" "vector" "kafka" "kafka-topics")) (list 9093 (list "kafka"))) }}
+{{- if .Values.kafka.jmx.enabled }}
+{{- $_ := set $rules "kafka" (append $rules.kafka (list (int .Values.kafka.jmx.port) (list "kafka-jmx"))) }}
+{{- end }}
 {{- end }}
 {{- range $component, $ports := $rules }}
 ---
@@ -43,6 +47,11 @@ spec:
       {{- if has "*" $from }}
       {{- else if has "ingress" $from }}
       {{- with $.Values.networkPolicy.ingressFrom }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- else if has "kafka-jmx" $from }}
+      {{- with $.Values.kafka.jmx.allowFrom }}
       from:
         {{- toYaml . | nindent 8 }}
       {{- end }}

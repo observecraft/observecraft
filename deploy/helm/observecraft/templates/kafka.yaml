@@ -24,6 +24,13 @@ spec:
     metadata:
       labels:
         {{- include "oc.selector" (list . "kafka") | nindent 8 }}
+      {{- if .Values.kafka.jmx.enabled }}
+      {{- $port := toString .Values.kafka.jmx.port }}
+      {{- $check := dict "init_config" (dict "is_jmx" true "collect_default_metrics" true) "instances" (list (dict "host" "%%host%%" "port" $port "tags" (list (printf "kafka_cluster:%s-kafka" $fullname)))) }}
+      annotations:
+        # The Datadog Agent's kafka check (Autodiscovery; the Agent's JMX image) reads each broker's JMX port.
+        ad.datadoghq.com/kafka.checks: {{ dict "kafka" $check | toJson | squote }}
+      {{- end }}
     spec:
       automountServiceAccountToken: false
       {{- include "oc.pullSecrets" . | nindent 6 }}
@@ -98,10 +105,17 @@ spec:
             - { name: KAFKA_HEAP_OPTS, value: {{ .Values.kafka.heapOpts | quote }} }
             # The root filesystem is read-only: the broker's own logs (and GC log) go to the /tmp volume.
             - { name: LOG_DIR, value: /tmp/kafka-logs }
+            {{- if .Values.kafka.jmx.enabled }}
+            # Remote JMX without authentication; the image advertises the pod's IP (KAFKA_JMX_HOSTNAME).
+            - { name: KAFKA_JMX_PORT, value: {{ .Values.kafka.jmx.port | quote }} }
+            {{- end }}
           {{- include "oc.containerSecurity" . | nindent 10 }}
           ports:
             - { name: kafka, containerPort: 9092 }
             - { name: controller, containerPort: 9093 }
+            {{- if .Values.kafka.jmx.enabled }}
+            - { name: jmx, containerPort: {{ .Values.kafka.jmx.port }} }
+            {{- end }}
           readinessProbe:
             tcpSocket: { port: kafka }
             periodSeconds: 10
