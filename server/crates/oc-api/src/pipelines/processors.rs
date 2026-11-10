@@ -60,6 +60,8 @@ pub enum ArrayOp {
     /// The value of `source` appended to the array `target`.
     Append { source: String, target: String, preserve_source: bool },
     Length { source: String, target: String },
+    /// Each element's `key` and `value` as an attribute, at the root or under `target`.
+    KeyValue { source: String, target: Option<String>, key: String, value: String, override_on_conflict: bool },
 }
 
 pub struct Remap {
@@ -271,13 +273,25 @@ struct ArrayOpDef {
     #[serde(rename = "type")]
     kind: String,
     source: String,
-    target: String,
+    #[serde(default)]
+    target: Option<String>,
     #[serde(default)]
     filter: Option<String>,
     #[serde(default, alias = "value_to_extract")]
     value_to_extract: Option<String>,
+    #[serde(default, alias = "key_to_extract")]
+    key_to_extract: Option<String>,
     #[serde(default, alias = "preserve_source")]
     preserve_source: Option<bool>,
+    #[serde(default, alias = "override_on_conflict")]
+    override_on_conflict: Option<bool>,
+}
+
+impl ArrayOpDef {
+    /// The target the select, append and length operations need.
+    fn target(&mut self) -> Result<String, String> {
+        self.target.take().filter(|t| !t.is_empty()).ok_or_else(|| format!("A {} operation needs a target", self.kind))
+    }
 }
 
 #[derive(Deserialize)]
@@ -405,12 +419,17 @@ pub fn compile(def: &Value, depth: usize) -> Result<Option<Step>, String> {
             Step::UserAgent { sources, target: d.target.filter(|t| !t.is_empty()).unwrap_or_else(|| "http.useragent_details".into()), encoded: d.encoded }
         }
         "array-processor" => {
-            let ArrayDef { operation: o } = de(def)?;
+            let ArrayDef { operation: mut o } = de(def)?;
             Step::Array(match o.kind.as_str() {
                 "select" => Step::select(o)?,
-                "append" => ArrayOp::Append { source: o.source, target: o.target, preserve_source: o.preserve_source.unwrap_or(true) },
-                "length" => ArrayOp::Length { source: o.source, target: o.target },
-                k => return Err(format!("Unknown array operation '{k}' (select, append or length)")),
+                "append" => ArrayOp::Append { target: o.target()?, source: o.source, preserve_source: o.preserve_source.unwrap_or(true) },
+                "length" => ArrayOp::Length { target: o.target()?, source: o.source },
+                "key-value" => {
+                    let key = o.key_to_extract.filter(|k| !k.is_empty()).ok_or("A key-value operation needs a key to extract")?;
+                    let value = o.value_to_extract.filter(|v| !v.is_empty()).ok_or("A key-value operation needs a value to extract")?;
+                    ArrayOp::KeyValue { source: o.source, target: o.target.filter(|t| !t.is_empty()), key, value, override_on_conflict: o.override_on_conflict.unwrap_or(false) }
+                }
+                k => return Err(format!("Unknown array operation '{k}' (select, append, length or key-value)")),
             })
         }
         "pipeline" => {
@@ -529,9 +548,10 @@ pub fn apply(step: &Step, log: &mut Log, now_ms: i64) {
 }
 
 impl Step {
-    fn select(o: ArrayOpDef) -> Result<ArrayOp, String> {
+    fn select(mut o: ArrayOpDef) -> Result<ArrayOp, String> {
+        let target = o.target()?;
         let value = o.value_to_extract.filter(|v| !v.is_empty()).ok_or("A select operation needs a value to extract")?;
-        Ok(ArrayOp::Select { source: o.source, target: o.target, filter: Filter::parse(o.filter.as_deref().unwrap_or("").trim()), value })
+        Ok(ArrayOp::Select { source: o.source, target, filter: Filter::parse(o.filter.as_deref().unwrap_or("").trim()), value })
     }
 }
 
@@ -629,6 +649,16 @@ impl ArrayOp {
             ArrayOp::Length { source, target } => {
                 if let Some(Value::Array(a)) = log.get(source) {
                     log.set(target, Value::from(a.len()));
+                }
+            }
+            ArrayOp::KeyValue { source, target, key, value, override_on_conflict } => {
+                let Some(Value::Array(items)) = log.get(source) else { return };
+                for item in items {
+                    let (Some(k), Some(v)) = (item.get(key).filter(|k| !k.is_null()).map(text), item.get(value)) else { continue };
+                    let path = target.as_ref().map_or_else(|| k.clone(), |t| format!("{t}.{k}"));
+                    if *override_on_conflict || log.peek(&path).is_none() {
+                        log.set(&path, v.clone());
+                    }
                 }
             }
         }
@@ -1153,6 +1183,20 @@ mod tests {
         assert_eq!((out.get("outcome"), out.get("count")), (Some(json!("ok")), Some(json!(2))));
         assert_eq!((out.get("tags_list"), out.get("extra")), (Some(json!(["a", "b"])), None));
         assert_eq!((out.get("fresh"), out.get("single")), (Some(json!(["x"])), Some(json!("x"))));
+    }
+
+    /// Datadog's key-value operation (its API's `key_to_extract` / `value_to_extract`): each element's key and value
+    /// become an attribute, at the root or under `target`; an attribute already there stays unless overridden.
+    #[test]
+    fn array_processor_turns_key_value_elements_into_attributes() {
+        let tags = json!({"tags": [{"name": "team", "value": "payments"}, {"name": "env", "value": "prod"}, {"value": "no key"}], "env": "staging"});
+        let p = json!([{"type": "array-processor", "operation": {"type": "key-value", "source": "tags", "key_to_extract": "name", "value_to_extract": "value"}}]);
+        let out = run(p, log("m", tags.clone()));
+        assert_eq!((out.get("team"), out.get("env")), (Some(json!("payments")), Some(json!("staging"))), "kept without override_on_conflict");
+        let p = json!([{"type": "array-processor", "operation": {"type": "key-value", "source": "tags", "target": "extracted", "key_to_extract": "name", "value_to_extract": "value", "override_on_conflict": true}}]);
+        assert_eq!(run(p.clone(), log("m", tags.clone())).get("extracted"), Some(json!({"team": "payments", "env": "prod"})));
+        let p = json!([{"type": "array-processor", "operation": {"type": "key-value", "source": "tags", "key_to_extract": "name", "value_to_extract": "value", "override_on_conflict": true}}]);
+        assert_eq!(run(p, log("m", tags)).get("env"), Some(json!("prod")));
     }
 
     #[test]

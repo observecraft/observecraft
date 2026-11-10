@@ -834,7 +834,19 @@ function compileStep(p: Processor, depth: number): Step | null {
           const v = log.get(op.source);
           if (Array.isArray(v)) log.set(op.target, v.length);
         };
-      throw new Error(`Unknown array operation '${(op as { type: string }).type}' (select, append or length)`);
+      if (op.type === 'key-value') {
+        if (!op.keyToExtract || !op.valueToExtract) throw new Error('A key-value operation needs a key and a value to extract');
+        return (log) => {
+          const items = log.get(op.source);
+          if (!Array.isArray(items)) return;
+          for (const item of items) {
+            if (!isObj(item) || item[op.keyToExtract] == null || item[op.valueToExtract] === undefined) continue;
+            const path = op.target ? `${op.target}.${text(item[op.keyToExtract])}` : text(item[op.keyToExtract]);
+            if (op.overrideOnConflict || log.get(path) === undefined) log.set(path, item[op.valueToExtract]);
+          }
+        };
+      }
+      throw new Error(`Unknown array operation '${(op as { type: string }).type}' (select, append, length or key-value)`);
     }
     case 'pipeline': {
       if (depth >= 1) throw new Error('Pipelines nest one level deep');

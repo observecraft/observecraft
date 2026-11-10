@@ -289,17 +289,24 @@ function Fields({ draft, onChange }: { draft: Processor; onChange: (p: Processor
                 onChange({
                   ...draft,
                   operation:
-                    type === 'select' ? { type, source, target, filter: '', valueToExtract: '' } : type === 'append' ? { type, source, target, preserveSource: true } : { type, source, target },
+                    type === 'select'
+                      ? { type, source, target, filter: '', valueToExtract: '' }
+                      : type === 'append'
+                        ? { type, source, target, preserveSource: true }
+                        : type === 'key-value'
+                          ? { type, source, target, keyToExtract: '', valueToExtract: '', overrideOnConflict: false }
+                          : { type, source, target },
                 });
               }}
             >
               <option value="select">Select a value from the first matching element</option>
               <option value="append">Append a value to an array</option>
               <option value="length">Count the elements</option>
+              <option value="key-value">Turn key-value elements into attributes</option>
             </select>
           </label>
           {input(op.type === 'append' ? 'Attribute to append' : 'Array attribute', op.source, (source) => setOp({ source }), 'entries')}
-          {input('Target attribute', op.target, (target) => setOp({ target }), op.type === 'length' ? 'entries_count' : 'outcome')}
+          {input('Target attribute', op.target, (target) => setOp({ target }), op.type === 'length' ? 'entries_count' : op.type === 'key-value' ? 'empty: at the root' : 'outcome')}
           {op.type === 'select' && (
             <>
               {input('Filter — on the element’s fields', op.filter, (filter) => setOp({ filter }), 'name:login')}
@@ -307,6 +314,13 @@ function Fields({ draft, onChange }: { draft: Processor; onChange: (p: Processor
             </>
           )}
           {op.type === 'append' && check('Keep the source attribute', op.preserveSource !== false, (preserveSource) => setOp({ preserveSource }))}
+          {op.type === 'key-value' && (
+            <>
+              {input('Key to extract', op.keyToExtract, (keyToExtract) => setOp({ keyToExtract }), 'name')}
+              {input('Value to extract', op.valueToExtract, (valueToExtract) => setOp({ valueToExtract }), 'value')}
+              {check('Override existing attributes', op.overrideOnConflict === true, (overrideOnConflict) => setOp({ overrideOnConflict }))}
+            </>
+          )}
         </>
       );
     }

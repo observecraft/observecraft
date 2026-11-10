@@ -106,6 +106,15 @@ test('test endpoint: a parsed message stays an attribute until remapped; GeoIP a
   assert.deepEqual(url.log.attributes.d, { scheme: 'https', host: 'shop.example.com', port: 8443, path: '/cart', queryString: { q: 'red%20shoes' }, hash: 'top' });
 });
 
+test('test endpoint: the array processor turns key-value elements into attributes, as the server', () => {
+  const tags = { tags: [{ name: 'team', value: 'payments' }, { name: 'env', value: 'prod' }, { value: 'no key' }], env: 'staging' };
+  const op = { type: 'key-value', source: 'tags', target: '', keyToExtract: 'name', valueToExtract: 'value' };
+  const kept = mock.testPipeline({ processors: [{ type: 'array-processor', operation: op }], log: sample('m', tags) });
+  assert.deepEqual([kept.log.attributes.team, kept.log.attributes.env], ['payments', 'staging']);
+  const under = mock.testPipeline({ processors: [{ type: 'array-processor', operation: { ...op, target: 'extracted', overrideOnConflict: true } }], log: sample('m', tags) });
+  assert.deepEqual(under.log.attributes.extracted, { team: 'payments', env: 'prod' });
+});
+
 test('mock pipelines: deterministic demo seed, CRUD, reorder and read-only integration pipelines', async () => {
   const first = await mock.listPipelines();
   assert.ok(first.length >= 4);

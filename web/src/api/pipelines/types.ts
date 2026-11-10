@@ -90,7 +90,9 @@ export interface ArrayProcessor extends Base {
   operation:
     | { type: 'select'; source: string; target: string; filter: string; valueToExtract: string }
     | { type: 'append'; source: string; target: string; preserveSource?: boolean }
-    | { type: 'length'; source: string; target: string };
+    | { type: 'length'; source: string; target: string }
+    /** Each element's `keyToExtract` and `valueToExtract` as an attribute, under `target` (or at the root when empty). */
+    | { type: 'key-value'; source: string; target: string; keyToExtract: string; valueToExtract: string; overrideOnConflict?: boolean };
 }
 
 /** An OCSF sub-pipeline's mapping onto an event class (integration pipelines); runs, edited through the API only. */
