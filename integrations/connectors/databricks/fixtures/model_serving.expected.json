@@ -1,0 +1,271 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "databricks.model_serving.cpu_usage_percentage",
+      "tags": [
+        [
+          "endpoint_name",
+          "product-recs"
+        ],
+        [
+          "served_entity_name",
+          "product-recs-7"
+        ],
+        [
+          "workspace_id",
+          "1234567890123456"
+        ],
+        [
+          "workspace_name",
+          "shop-analytics"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 23.5
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "databricks.model_serving.mem_usage_percentage",
+      "tags": [
+        [
+          "endpoint_name",
+          "product-recs"
+        ],
+        [
+          "served_entity_name",
+          "product-recs-7"
+        ],
+        [
+          "workspace_id",
+          "1234567890123456"
+        ],
+        [
+          "workspace_name",
+          "shop-analytics"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 41.2
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "databricks.model_serving.provisioned_concurrent_requests_total",
+      "tags": [
+        [
+          "endpoint_name",
+          "product-recs"
+        ],
+        [
+          "served_entity_name",
+          "product-recs-7"
+        ],
+        [
+          "workspace_id",
+          "1234567890123456"
+        ],
+        [
+          "workspace_name",
+          "shop-analytics"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 8.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "databricks.model_serving.request_count_total",
+      "tags": [
+        [
+          "endpoint_name",
+          "product-recs"
+        ],
+        [
+          "served_entity_name",
+          "product-recs-7"
+        ],
+        [
+          "workspace_id",
+          "1234567890123456"
+        ],
+        [
+          "workspace_name",
+          "shop-analytics"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1840.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "databricks.model_serving.request_4xx_count_total",
+      "tags": [
+        [
+          "endpoint_name",
+          "product-recs"
+        ],
+        [
+          "served_entity_name",
+          "product-recs-7"
+        ],
+        [
+          "workspace_id",
+          "1234567890123456"
+        ],
+        [
+          "workspace_name",
+          "shop-analytics"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 12.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "databricks.model_serving.request_5xx_count_total",
+      "tags": [
+        [
+          "endpoint_name",
+          "product-recs"
+        ],
+        [
+          "served_entity_name",
+          "product-recs-7"
+        ],
+        [
+          "workspace_id",
+          "1234567890123456"
+        ],
+        [
+          "workspace_name",
+          "shop-analytics"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "databricks.model_serving.cpu_usage_percentage",
+      "tags": [
+        [
+          "endpoint_name",
+          "support-assistant"
+        ],
+        [
+          "served_entity_name",
+          "support-assistant-2"
+        ],
+        [
+          "workspace_id",
+          "1234567890123456"
+        ],
+        [
+          "workspace_name",
+          "shop-analytics"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 8.25
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "databricks.model_serving.mem_usage_percentage",
+      "tags": [
+        [
+          "endpoint_name",
+          "support-assistant"
+        ],
+        [
+          "served_entity_name",
+          "support-assistant-2"
+        ],
+        [
+          "workspace_id",
+          "1234567890123456"
+        ],
+        [
+          "workspace_name",
+          "shop-analytics"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 62.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "databricks.model_serving.gpu_usage_percentage.avg",
+      "tags": [
+        [
+          "endpoint_name",
+          "support-assistant"
+        ],
+        [
+          "gpu",
+          "gpu0"
+        ],
+        [
+          "served_entity_name",
+          "support-assistant-2"
+        ],
+        [
+          "workspace_id",
+          "1234567890123456"
+        ],
+        [
+          "workspace_name",
+          "shop-analytics"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 71.5
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "databricks.model_serving.gpu_mem_usage_percentage.avg",
+      "tags": [
+        [
+          "endpoint_name",
+          "support-assistant"
+        ],
+        [
+          "gpu",
+          "gpu0"
+        ],
+        [
+          "served_entity_name",
+          "support-assistant-2"
+        ],
+        [
+          "workspace_id",
+          "1234567890123456"
+        ],
+        [
+          "workspace_name",
+          "shop-analytics"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 80.25
+    }
+  ],
+  "state": {
+    "partitions": {
+      "product-recs": {},
+      "support-assistant": {}
+    }
+  }
+}

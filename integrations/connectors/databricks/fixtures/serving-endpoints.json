@@ -1,0 +1,23 @@
+{
+  "endpoints": [
+    {
+      "name": "product-recs",
+      "id": "4a1b2c3d4e5f60718293a4b5c6d7e8f9",
+      "creator": "ml-platform@example.com",
+      "creation_timestamp": 1790000000000,
+      "last_updated_timestamp": 1794000000000,
+      "state": { "ready": "READY", "config_update": "NOT_UPDATING" },
+      "config": { "served_entities": [ { "name": "product-recs-7", "entity_name": "shop.ml.product_recs", "entity_version": "7" } ] },
+      "task": "llm/v1/chat"
+    },
+    {
+      "name": "support-assistant",
+      "id": "5b2c3d4e5f60718293a4b5c6d7e8f90a",
+      "creator": "ml-platform@example.com",
+      "creation_timestamp": 1791000000000,
+      "last_updated_timestamp": 1794100000000,
+      "state": { "ready": "READY", "config_update": "NOT_UPDATING" },
+      "config": { "served_entities": [ { "name": "support-assistant-2", "entity_name": "shop.ml.support_assistant", "entity_version": "2" } ] }
+    }
+  ]
+}
