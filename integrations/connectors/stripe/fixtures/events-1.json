@@ -1,0 +1,12 @@
+{
+  "object": "list", "url": "/v1/events", "has_more": true,
+  "data": [
+    { "id": "evt_1QBcDeFgHiJkLmN1", "object": "event", "api_version": "2026-10-29.acacia", "created": 1794311400, "livemode": false, "pending_webhooks": 0, "type": "charge.failed",
+      "data": { "object": { "id": "ch_3QBcDeFgHiJkLmN1", "object": "charge", "amount": 4999, "currency": "eur", "status": "failed", "failure_code": "card_declined",
+        "failure_message": "Your card was declined.", "customer": "cus_RaBcDeFgHi0001", "payment_intent": "pi_3QBcDeFgHiJkLmN1", "outcome": { "network_status": "declined_by_network", "reason": "generic_decline", "risk_level": "normal", "type": "issuer_declined" } } },
+      "request": { "id": "req_AbCdEf123456", "idempotency_key": "3f0e8f1c-1a2b-4c3d-9e8f-0a1b2c3d4e5f" } },
+    { "id": "evt_1QBcDeFgHiJkLmN2", "object": "event", "api_version": "2026-10-29.acacia", "created": 1794307800, "livemode": false, "pending_webhooks": 0, "type": "invoice.paid",
+      "data": { "object": { "id": "in_1QBcDeFgHiJkLmN2", "object": "invoice", "amount_paid": 2900, "currency": "eur", "customer": "cus_RaBcDeFgHi0002", "status": "paid", "subscription": "sub_1QBcDeFgHiJkLmN2" } },
+      "request": { "id": null, "idempotency_key": null } }
+  ]
+}

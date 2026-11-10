@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Stripe (https://docs.stripe.com/api/events): an account's events (charges, payment intents, invoices, payouts,
+# disputes, customers, subscriptions) as the logs Datadog's Stripe integration makes of Stripe's webhook events
+# (source:stripe, the event object at the top level). Datadog receives them by webhook; this package polls the
+# Events API (30 days kept) and offers the webhook as the push alternative, which the page can create (the intake
+# side of webhooks isn't built yet, docs/connectors.md). Datadog has no integrations-core tile for it, so the package
+# adds its own tile and dashboard.
+schema_version: 1
+id: stripe
+name: Stripe
+publisher: ObserveCraft
+vendor: Stripe
+description: >-
+  A Stripe account's events (payments succeeded and failed, refunds, disputes, invoices, payouts, subscriptions,
+  customers) as logs, read every minute from Stripe's Events API or received by webhook.
+logo: stripe
+categories: [Developer Tools, Log Collection]
+docs_url: https://docs.stripe.com/api/events
+setup: |
+  1. In the Stripe Dashboard, open **Developers → API keys** and **Create restricted key**, e.g. `observecraft`, with
+     **Events: Read** (and **Webhook Endpoints: Write** to let ObserveCraft create the webhook). Copy it (`rk_live_…`).
+  2. Use a test-mode key (`rk_test_…`) to read the test mode's events.
+links:
+  - { label: API keys, url: "https://dashboard.stripe.com/apikeys" }
+instance: "{{ config.account }}"
+
+config:
+  - { key: account, label: Account name, type: string, required: true, placeholder: example-shop, help: A name for the Stripe account (the logs' host). }
+  - { key: api_key, label: Restricted API key, type: string, secret: true, required: true, placeholder: rk_live_…, help: A restricted key with Events read. }
+  - key: types
+    label: Event types
+    type: list
+    placeholder: charge.failed
+    help: Only these event types (wildcards like charge.* work); empty for every event.
+  - { key: signing_secret, label: Webhook signing secret, type: string, secret: true, placeholder: whsec_…, help: "For the push alternative only: the webhook endpoint's signing secret." }
+
+auth:
+  kind: bearer
+  token: "{{ secrets.api_key }}"
+
+# 100 read requests a second in live mode (25 in test mode); list calls weigh more.
+rate_limit: { requests_per_minute: 120 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: "Stripe refused the API key ({{ response.error.message ?? 'invalid key' }})"
+  - status: [403]
+    kind: access_denied
+    message: "The restricted key can't read events: give it Events read ({{ response.error.message ?? 'forbidden' }})"
+  - status: [429]
+    kind: throttled
+    message: Rate limited by Stripe
+
+streams:
+  - id: events
+    name: Events
+    description: >-
+      Every event as a log (service:stripe): evt.name is the event type, with the event's object under data.object.
+      Failures (charge.failed, payment_intent.payment_failed, invoice.payment_failed, payout.failed) are errors,
+      disputes and refunds warnings.
+    # Newest first; starting_after the last event of a page reads the next one.
+    request:
+      url: https://api.stripe.com/v1/events
+      query:
+        "created[gte]": "{{ window.start | epoch_s }}"
+        "created[lt]": "{{ window.end | epoch_s }}"
+        limit: 100
+        starting_after: "{{ page.cursor }}"
+        "types[]": "{{ config.types }}"
+    records: "{{ response.data }}"
+    pagination: { kind: cursor, next: "{{ response.has_more ? last.id : null }}" }
+    max_pages: 50
+    record_id: "{{ record.id }}"
+    incremental: { kind: time, record_time: "{{ record.created }}", order: newest_first, lookback: 1d, overlap: 1m }
+    vars:
+      object: "{{ record.data.object }}"
+    output:
+      logs:
+        service: stripe
+        message: "{{ record.type }} {{ vars.object.id }}{{ ' (' + vars.object.failure_message + ')' ?? '' }}"
+        status: >-
+          {{ (record.type | matches('(failed|payment_failed)$')) ? 'error'
+             : (record.type | matches('^(charge\\.dispute|charge\\.refund|radar\\.early_fraud_warning|review\\.opened)')) ? 'warn'
+             : 'info' }}
+        date: "{{ record.created | rfc3339 }}"
+        attributes: "{{ record + {evt: {name: record.type, outcome: (record.type | matches('failed$')) ? 'failure' : 'success'}} }}"
+
+test:
+  request: { url: https://api.stripe.com/v1/events, query: { limit: 1 } }
+  message: "Connected: the key reads {{ (response.data | first).livemode == false ? 'test mode' : 'live' }} events"
+
+push:
+  kind: webhook
+  instructions: |
+    Stripe can send each event as it happens instead. In the Stripe Dashboard, open **Developers → Webhooks → Add
+    destination**, choose the events, and set the **Endpoint URL** to
+    `{{ intake }}/intake/webhook/stripe?api_key={{ api_key }}`; copy the endpoint's **Signing secret** (`whsec_…`) into
+    the connection. Or let ObserveCraft create it with a key allowed to write webhook endpoints. Turn the Events stream
+    off once the webhook is on.
+  url: "{{ intake }}/intake/webhook/stripe?api_key={{ api_key }}"
+  signature: { header: Stripe-Signature, algorithm: stripe, secret: signing_secret }
+  create:
+    request:
+      method: POST
+      url: https://api.stripe.com/v1/webhook_endpoints
+      form: { url: "{{ push_url }}", "enabled_events[]": "*", description: ObserveCraft }
+    message: "Webhook endpoint {{ response.id }} created: copy its signing secret ({{ response.secret }}) into the connection"
+
+webhook:
+  name: stripe
+  logs:
+    service: stripe
+    message: "{{ record.type }} {{ record.data.object.id }}"
+    status: "{{ (record.type | matches('failed$')) ? 'error' : 'info' }}"
+    date: "{{ record.created | rfc3339 }}"
+    attributes: "{{ record + {evt: {name: record.type}} }}"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { account: example-shop }
+  secrets: { api_key: rk_test_0000000000000000000000000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.stripe.com/v1/events", query: { limit: "1" }, body: { object: list, data: [ { id: evt_test, livemode: false } ], has_more: true } }
+    - { url: "https://api.stripe.com/v1/events", query: { starting_after: evt_1QBcDeFgHiJkLmN2 }, file: fixtures/events-2.json }
+    - { url: "https://api.stripe.com/v1/events", file: fixtures/events-1.json }
+  expect:
+    events: { records: 3, logs: 3, rerun: 0, golden: fixtures/events.expected.json }
+    test: { ok: true, message: "test mode" }
