@@ -212,15 +212,17 @@ mod tests {
 
     #[test]
     fn integrations_datadog_collects_itself_are_not_installable() {
-        assert_eq!(collected_by_datadog("asana"), Some("crawler"));
+        assert_eq!(collected_by_datadog("anomali-threatstream"), Some("crawler"));
         assert_eq!(collected_by_datadog("vercel"), Some("oauth"));
         assert_eq!(collected_by_datadog("gke"), Some("docs"));
         for id in ["redis", "supply-chain-firewall", "adyen", "otel", "no-such-integration"] {
             assert_eq!(collected_by_datadog(id), None, "{id}");
         }
-        let Err(ApiError::BadRequest(message)) = installable("asana".into()) else { panic!("asana is collected by Datadog's own service") };
-        // A tile a connector makes available is installed by connecting it.
+        let Err(ApiError::BadRequest(message)) = installable("anomali-threatstream".into()) else { panic!("anomali-threatstream is collected by Datadog's own service") };
+        // A tile a connector makes available is installed by connecting it, also one Datadog collects itself.
         assert!(matches!(installable("have-i-been-pwned".into()), Err(ApiError::BadRequest(m)) if m.contains("/integrations/connectors/have-i-been-pwned")));
+        assert_eq!(collected_by_datadog("asana"), Some("crawler"));
+        assert!(matches!(installable("asana".into()), Err(ApiError::BadRequest(m)) if m.contains("/integrations/connectors/asana")));
         assert!(message.contains("calling") && message.contains("API"), "{message}");
         assert!(matches!(installable("gke".into()), Err(ApiError::BadRequest(m)) if m.contains("documentation")));
         assert_eq!(installable("redis".into()).unwrap(), "redis");
