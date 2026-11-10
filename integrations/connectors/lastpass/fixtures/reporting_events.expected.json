@@ -1,0 +1,71 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "Action": "Edit policy",
+      "Data": "Require multifactor authentication",
+      "IP_Address": "203.0.113.12",
+      "Time": "2026-11-10 04:16:17",
+      "Username": "jane.doe@example.com",
+      "_oc_ingest": {
+        "id": "01a1c4be-6ee8-7b90-a1b3-03064554d659"
+      },
+      "date": 1794302177000,
+      "ddsource": "lastpass",
+      "host": "8771312",
+      "message": "Edit policy by jane.doe@example.com: Require multifactor authentication",
+      "service": "reporting-events",
+      "status": "info",
+      "timestamp": 1794302177000
+    },
+    {
+      "Action": "Failed Login Attempt",
+      "Data": "",
+      "IP_Address": "198.51.100.23",
+      "Time": "2026-11-10 05:31:47",
+      "Username": "sam.lee@example.com",
+      "_oc_ingest": {
+        "id": "01a1c503-8e38-7aa3-9970-9ff595b90486"
+      },
+      "date": 1794306707000,
+      "ddsource": "lastpass",
+      "host": "8771312",
+      "message": "Failed Login Attempt by sam.lee@example.com",
+      "service": "reporting-events",
+      "status": "info",
+      "timestamp": 1794306707000
+    },
+    {
+      "Action": "Remove from group",
+      "Data": "'Storefront admins' 'alex.kim@example.com'",
+      "IP_Address": "203.0.113.12",
+      "Time": "2026-11-10 06:48:02",
+      "Username": "jane.doe@example.com",
+      "_oc_ingest": {
+        "id": "01a1c549-5d50-7d19-8e67-0792300fe310"
+      },
+      "date": 1794311282000,
+      "ddsource": "lastpass",
+      "host": "8771312",
+      "message": "Remove from group by jane.doe@example.com: 'Storefront admins' 'alex.kim@example.com'",
+      "service": "reporting-events",
+      "status": "info",
+      "timestamp": 1794311282000
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311880000,
+        "seen": [
+          {
+            "id": "22cdb6e4ced55680",
+            "t": 1794311282000
+          }
+        ]
+      }
+    }
+  }
+}
