@@ -477,7 +477,9 @@ ingest key's), so the operator's packages work there too.
 **Splunk HEC and Fastly.** Vendors that only stream to Splunk (GitHub Enterprise's audit log streaming) send to the
 intake's HEC-compatible endpoint: `https://<intake>/services/collector` with the org's ingest key as the HEC token
 (`Authorization: Splunk <key>`, `/services/collector/raw` for lines); events become JSON logs (`sourcetype` as
-`ddsource` unless `?ddsource=` says otherwise, `fields` as tags). Fastly's HTTPS logging endpoints check
+`ddsource` unless the request names a source, `fields` as tags). A request names it with `?ddsource=` or, for senders
+that set only a host and a token (GitHub: no path, no query, no source of its own), in the token after the key:
+`<ingest key>:<source>` (`ocik_…:github`); an event's own `ddsource` wins over both. Fastly's HTTPS logging endpoints check
 `/.well-known/fastly/logging/challenge` first: the intake answers `*`, or the SHA-256 of each service id in
 `OC_INTAKE_FASTLY_SERVICES`. A package's `push.url` points there:
 `{{ intake }}/services/collector?ddsource={{ source }}`.

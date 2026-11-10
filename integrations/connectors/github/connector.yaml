@@ -233,12 +233,14 @@ push:
 
     - **Domain**: the intake's host name (`{{ intake }}` without `https://`)
     - **Port**: `443`
-    - **Token**: the ingest API key `{{ api_key }}`
+    - **Token**: the ingest API key followed by `:{{ source }}`, `{{ api_key }}:{{ source }}`
     - **Enable SSL verification**: on
 
     GitHub checks and sends to `<Domain>:<Port>/services/collector`, below. Its audit fields (action, actor, repo, …)
-    are the logs' attributes, as the polled ones; GitHub's `sourcetype` is their source (the domain can't carry
-    `?ddsource=`). Turn the **Enterprise audit log** stream off when streaming: one of the two is enough.
+    are the logs' attributes, as the polled ones. The domain can't carry `?ddsource=` and GitHub sets no source of
+    its own, so the token's `:{{ source }}` makes them `source:{{ source }}`, as the polled ones, and the GitHub
+    pipeline and dashboard read them. Turn the **Enterprise audit log** stream off when streaming: one of the two is
+    enough.
   url: "{{ intake }}/services/collector"
 
 assets:

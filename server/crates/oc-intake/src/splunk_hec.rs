@@ -10,7 +10,10 @@
 //! - `POST /services/collector/raw[/1.0]`: one log per line; `?host=&source=&sourcetype=` apply to each.
 //! - `GET /services/collector/health`.
 //!
-//! `?ddsource=&service=&hostname=&ddtags=` apply as on `/api/v2/logs` (`log_query`). Answers are HEC's
+//! `?ddsource=&service=&hostname=&ddtags=` apply as on `/api/v2/logs` (`log_query`). Senders that set only a host and
+//! a token (GitHub's audit log stream: no path, no query, and a sourcetype of its own choosing at most) name the source
+//! in the token instead: `<ingest key>:<source>` (`ocik_…:github`). A named source wins over the `sourcetype`, an
+//! event's own `ddsource` over both. Answers are HEC's
 //! (`{"text":"Success","code":0}`; 400 with code 5 or 6, 401/403 with code 2 or 4, 503 with code 9).
 
 use axum::body::Bytes;
@@ -47,8 +50,23 @@ fn metadata(source: Option<String>, sourcetype: Option<String>, index: Option<St
     (!m.is_empty()).then_some(Value::Object(m))
 }
 
-/// One HEC event as a JSON log.
-fn event_log(e: &Map<String, Value>) -> Result<Value, &'static str> {
+/// `Authorization: Splunk <ingest key>:<source>`: the source after the key (lowercase letters, digits, `-_.`), taken
+/// off so the header carries the key alone. Ingest keys are URL-safe base64 after `ocik_`, never a `:`.
+pub fn token_source(headers: &mut HeaderMap) -> Option<String> {
+    let auth = headers.get(header::AUTHORIZATION)?.to_str().ok()?.trim();
+    let (key, source) = auth.strip_prefix("Splunk ")?.trim().split_once(':')?;
+    let valid = !source.is_empty() && source.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '-' | '_' | '.'));
+    if !valid || !key.starts_with("ocik_") {
+        return None;
+    }
+    let value = HeaderValue::from_str(&format!("Splunk {key}")).ok()?;
+    let source = source.to_string();
+    headers.insert(header::AUTHORIZATION, value);
+    Some(source)
+}
+
+/// One HEC event as a JSON log; `source` (the request's) before its `sourcetype` as the log's `ddsource`.
+fn event_log(e: &Map<String, Value>, source: Option<&str>) -> Result<Value, &'static str> {
     let event = e.get("event").filter(|v| !v.is_null()).ok_or("Event field is required")?;
     let mut log = match event {
         Value::Object(o) => o.clone(),
@@ -66,8 +84,8 @@ fn event_log(e: &Map<String, Value>) -> Result<Value, &'static str> {
         log.entry("hostname").or_insert(Value::String(h));
     }
     let sourcetype = e.get("sourcetype").and_then(text);
-    if let Some(st) = &sourcetype {
-        log.entry("ddsource").or_insert(Value::String(st.clone()));
+    if let Some(st) = source.map(str::to_string).or_else(|| sourcetype.clone()) {
+        log.entry("ddsource").or_insert(Value::String(st));
     }
     if let Some(Value::Object(fields)) = e.get("fields") {
         let tags: Vec<String> = fields.iter().filter_map(|(k, v)| Some(format!("{k}:{}", text(v)?))).collect();
@@ -82,11 +100,11 @@ fn event_log(e: &Map<String, Value>) -> Result<Value, &'static str> {
 }
 
 /// The logs of a `/services/collector/event` body: concatenated JSON events.
-pub fn events(body: &[u8]) -> Result<Vec<Value>, (u32, &'static str)> {
+pub fn events(body: &[u8], source: Option<&str>) -> Result<Vec<Value>, (u32, &'static str)> {
     let mut out = Vec::new();
     for item in serde_json::Deserializer::from_slice(body).into_iter::<Value>() {
         let Ok(Value::Object(e)) = item else { return Err((6, "Invalid data format")) };
-        out.push(event_log(&e).map_err(|m| (if m.contains("required") { 12 } else { 13 }, m))?);
+        out.push(event_log(&e, source).map_err(|m| (if m.contains("required") { 12 } else { 13 }, m))?);
     }
     if out.is_empty() {
         return Err((5, "No data"));
@@ -94,8 +112,9 @@ pub fn events(body: &[u8]) -> Result<Vec<Value>, (u32, &'static str)> {
     Ok(out)
 }
 
-/// The logs of a `/services/collector/raw` body: a line each, with the query's `host`, `source`, `sourcetype`.
-pub fn raw_lines(body: &[u8], query: Option<&str>) -> Result<Vec<Value>, (u32, &'static str)> {
+/// The logs of a `/services/collector/raw` body: a line each, with the query's `host`, `source`, `sourcetype`
+/// (`ddsource` the request's `source`, else the `sourcetype`).
+pub fn raw_lines(body: &[u8], query: Option<&str>, ddsource: Option<&str>) -> Result<Vec<Value>, (u32, &'static str)> {
     let mut host = None;
     let mut source = None;
     let mut sourcetype = None;
@@ -119,8 +138,8 @@ pub fn raw_lines(body: &[u8], query: Option<&str>) -> Result<Vec<Value>, (u32, &
             if let Some(h) = &host {
                 log.insert("hostname".into(), Value::String(h.clone()));
             }
-            if let Some(st) = &sourcetype {
-                log.insert("ddsource".into(), Value::String(st.clone()));
+            if let Some(st) = ddsource.map(str::to_string).or_else(|| sourcetype.clone()) {
+                log.insert("ddsource".into(), Value::String(st));
             }
             if let Some(meta) = metadata(source.clone(), sourcetype.clone(), None) {
                 log.insert("splunk".into(), meta);
@@ -134,7 +153,12 @@ pub fn raw_lines(body: &[u8], query: Option<&str>) -> Result<Vec<Value>, (u32, &
     Ok(out)
 }
 
-async fn post(st: Shared, query: Option<String>, headers: HeaderMap, body: Bytes, parse: impl FnOnce(&[u8], Option<&str>) -> Result<Vec<Value>, (u32, &'static str)>) -> Response {
+type Parse = fn(&[u8], Option<&str>, Option<&str>) -> Result<Vec<Value>, (u32, &'static str)>;
+
+async fn post(st: Shared, query: Option<String>, mut headers: HeaderMap, body: Bytes, parse: Parse) -> Response {
+    let named = token_source(&mut headers);
+    let mut defaults = LogDefaults::from_query(query.as_deref());
+    defaults.ddsource = defaults.ddsource.or(named);
     let org = match admit(&st, &headers, body.len()).await {
         Ok(org) => org,
         Err(r) if r.status == StatusCode::UNAUTHORIZED && crate::api_key(&headers).is_none() => return answer(StatusCode::UNAUTHORIZED, "Token is required", 2),
@@ -143,12 +167,11 @@ async fn post(st: Shared, query: Option<String>, headers: HeaderMap, body: Bytes
         Err(r) => return r.into_response(),
     };
     let Ok(raw) = datadog::inflate(&headers, &body) else { return answer(StatusCode::BAD_REQUEST, "Invalid data format", 6) };
-    let logs = match parse(&raw, query.as_deref()) {
+    let logs = match parse(&raw, query.as_deref(), defaults.ddsource.as_deref()) {
         Ok(l) => l,
         Err((code, text)) => return answer(StatusCode::BAD_REQUEST, text, code),
     };
     let encoded = serde_json::to_vec(&logs).unwrap_or_default();
-    let defaults = LogDefaults::from_query(query.as_deref());
     let encoded = if defaults.is_empty() {
         encoded
     } else {
@@ -169,7 +192,7 @@ async fn post(st: Shared, query: Option<String>, headers: HeaderMap, body: Bytes
 
 /// `POST /services/collector[/event[/1.0]]`.
 pub async fn event(State(st): State<Shared>, RawQuery(query): RawQuery, headers: HeaderMap, body: Bytes) -> Response {
-    post(st, query, headers, body, |b, _| events(b)).await
+    post(st, query, headers, body, |b, _, source| events(b, source)).await
 }
 
 /// `POST /services/collector/raw[/1.0]`.
@@ -195,22 +218,39 @@ mod tests {
     fn hec_events_are_logs() {
         let body = br#"{"time": 1794312000.25, "host": "ghes-01", "source": "github", "sourcetype": "github_audit", "index": "main", "event": {"action": "repo.create", "actor": "dev@example.com", "message": "created example-org/storefront"}, "fields": {"env": "prod"}}
 {"event": "plain text line", "time": "1794312001"}"#;
-        let logs = events(body).unwrap();
+        let logs = events(body, None).unwrap();
         assert_eq!(logs.len(), 2);
         assert_eq!((&logs[0]["action"], &logs[0]["message"], &logs[0]["date"], &logs[0]["hostname"]), (&json!("repo.create"), &json!("created example-org/storefront"), &json!(1_794_312_000_250i64), &json!("ghes-01")));
         assert_eq!((&logs[0]["ddsource"], &logs[0]["ddtags"], &logs[0]["splunk"]["index"]), (&json!("github_audit"), &json!("env:prod"), &json!("main")));
         assert_eq!((&logs[1]["message"], &logs[1]["date"]), (&json!("plain text line"), &json!(1_794_312_001_000i64)));
-        assert_eq!(events(br#"{"time": 1}{"event": "concatenated"}"#).err(), Some((12, "Event field is required")));
-        assert_eq!(events(b"").err(), Some((5, "No data")));
-        assert_eq!(events(b"not json").err(), Some((6, "Invalid data format")));
+        assert_eq!(events(br#"{"time": 1}{"event": "concatenated"}"#, None).err(), Some((12, "Event field is required")));
+        assert_eq!(events(b"", None).err(), Some((5, "No data")));
+        assert_eq!(events(b"not json", None).err(), Some((6, "Invalid data format")));
+        let named = events(br#"{"sourcetype": "httpevent", "event": {"action": "repo.create"}}{"sourcetype": "x", "event": {"ddsource": "own"}}"#, Some("github")).unwrap();
+        assert_eq!((&named[0]["ddsource"], &named[0]["splunk"]["sourcetype"], &named[1]["ddsource"]), (&json!("github"), &json!("httpevent"), &json!("own")), "a named source wins over the sourcetype");
+    }
+
+    #[test]
+    fn the_token_may_name_a_source_after_the_key() {
+        let split = |auth: &'static str| {
+            let mut h = HeaderMap::new();
+            h.insert(header::AUTHORIZATION, HeaderValue::from_static(auth));
+            let source = token_source(&mut h);
+            (h[header::AUTHORIZATION].to_str().unwrap().to_string(), source)
+        };
+        assert_eq!(split("Splunk ocik_abc-_9:github"), ("Splunk ocik_abc-_9".into(), Some("github".into())));
+        assert_eq!(split("Splunk ocik_abc"), ("Splunk ocik_abc".into(), None));
+        assert_eq!(split("Splunk ocik_abc:Not a source"), ("Splunk ocik_abc:Not a source".into(), None));
+        assert_eq!(split("Bearer ocik_abc:github"), ("Bearer ocik_abc:github".into(), None));
     }
 
     #[test]
     fn raw_bodies_are_a_log_per_line() {
-        let logs = raw_lines(b"first line\r\n\nsecond line\n", Some("host=web-01&sourcetype=nginx&channel=x")).unwrap();
+        let logs = raw_lines(b"first line\r\n\nsecond line\n", Some("host=web-01&sourcetype=nginx&channel=x"), None).unwrap();
         assert_eq!(logs.len(), 2);
         assert_eq!((&logs[0]["message"], &logs[0]["hostname"], &logs[0]["ddsource"], &logs[1]["message"]), (&json!("first line"), &json!("web-01"), &json!("nginx"), &json!("second line")));
-        assert_eq!(raw_lines(b"\n\n", None).err(), Some((5, "No data")));
+        assert_eq!(raw_lines(b"\n\n", None, None).err(), Some((5, "No data")));
+        assert_eq!(raw_lines(b"line", Some("sourcetype=generic"), Some("github")).unwrap()[0]["ddsource"], "github");
     }
 
     /// The HEC token is the ingest key (`Authorization: Splunk …`); the logs reach the pipeline with the query's
@@ -247,6 +287,13 @@ mod tests {
         let logs = got.lock().unwrap().clone();
         assert_eq!((&logs[0]["action"], &logs[0]["service"], &logs[0]["ddsource"]), (&json!("org.update"), &json!("github"), &json!("github_audit")));
         assert!(logs[0]["_oc_ingest"]["id"].is_string());
+        // GitHub's stream sets no source of its own: the token names it after the key, or the query does.
+        for (auth, query, want) in [("Splunk ocik_hec_test:github", None, "github"), ("Splunk ocik_hec_test", Some("ddsource=github"), "github"), ("Splunk ocik_hec_test:github", Some("ddsource=other"), "other")] {
+            got.lock().unwrap().clear();
+            let (status, _) = call(Some(auth), query, br#"{"event": {"action": "org.update"}, "sourcetype": "httpevent"}"#).await;
+            assert_eq!((status, &got.lock().unwrap()[0]["ddsource"]), (StatusCode::OK, &json!(want)), "{auth} {query:?}");
+        }
+        assert_eq!(call(Some("Splunk ocik_unknown:github"), None, b"{}").await.0, StatusCode::FORBIDDEN);
         assert_eq!(call(None, None, b"{}").await, (StatusCode::UNAUTHORIZED, json!({ "text": "Token is required", "code": 2 })));
         assert_eq!(call(Some("Splunk ocik_unknown"), None, b"{}").await.0, StatusCode::FORBIDDEN);
         assert_eq!(call(Some("Splunk ocik_hec_test"), None, b"").await, (StatusCode::BAD_REQUEST, json!({ "text": "No data", "code": 5 })));

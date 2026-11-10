@@ -33,7 +33,7 @@
 //! - `POST /api/v2/rum`                          RUM events of the browser and mobile SDKs (client token `pub…`) → otel.otel_rum
 //! - `POST /api/v2/replay`                       Session Replay segments of the browser SDK (multipart) → otel.otel_rum_replay
 //! - `POST /api/v2/service_checks`               the Agent's service checks (as `/api/v1/check_run`)
-//! - `POST /services/collector[/event|/raw]`     Splunk HEC-compatible logs (`Authorization: Splunk <ingest key>`:
+//! - `POST /services/collector[/event|/raw]`     Splunk HEC-compatible logs (`Authorization: Splunk <ingest key>[:<source>]`:
 //!   GitHub's audit log streaming, see `splunk_hec`)
 //! - `GET /.well-known/fastly/logging/challenge` Fastly logging endpoints' check (OC_INTAKE_FASTLY_SERVICES, else `*`)
 //! - `POST /ofrep/v1/evaluate/flags[/{key}]`     feature flag evaluation for OpenFeature SDKs (OFREP, see `ofrep`)

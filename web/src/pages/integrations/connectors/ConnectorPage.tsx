@@ -494,7 +494,7 @@ function Push({ c, connections }: { c: ConnectorEntry; connections: ConnectionVi
         </div>
         <CodeBlock code={url} />
         {headers && <CodeBlock code={headers} />}
-        {p.kind === 'splunk_hec' && <CodeBlock code={`Authorization: Splunk ${vars.api_key}`} />}
+        {p.kind === 'splunk_hec' && <CodeBlock code={`Authorization: Splunk ${vars.api_key}:${c.source}`} />}
         {p.endpoints.map((e) => (
           <div key={e.label}>
             <h4>{e.label}</h4>
@@ -504,7 +504,7 @@ function Push({ c, connections }: { c: ConnectorEntry; connections: ConnectionVi
               </div>
             )}
             <CodeBlock code={fill(e.url ?? defaultPushUrl(e.kind, p.webhook ?? c.id), vars)} />
-            {e.kind === 'splunk_hec' && <CodeBlock code={`Authorization: Splunk ${vars.api_key}`} />}
+            {e.kind === 'splunk_hec' && <CodeBlock code={`Authorization: Splunk ${vars.api_key}:${c.source}`} />}
             {Object.keys(e.headers).length > 0 && (
               <CodeBlock
                 code={Object.entries(e.headers)
