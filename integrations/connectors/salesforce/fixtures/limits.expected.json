@@ -1,0 +1,114 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "salesforce.limits.max",
+      "tags": [
+        [
+          "limit_name",
+          "DailyApiRequests"
+        ],
+        [
+          "salesforce_org",
+          "example.my.salesforce.com"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 150000.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "salesforce.limits.remaining",
+      "tags": [
+        [
+          "limit_name",
+          "DailyApiRequests"
+        ],
+        [
+          "salesforce_org",
+          "example.my.salesforce.com"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 148221.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "salesforce.limits.max",
+      "tags": [
+        [
+          "limit_name",
+          "DataStorageMB"
+        ],
+        [
+          "salesforce_org",
+          "example.my.salesforce.com"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 5120.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "salesforce.limits.remaining",
+      "tags": [
+        [
+          "limit_name",
+          "DataStorageMB"
+        ],
+        [
+          "salesforce_org",
+          "example.my.salesforce.com"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 4800.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "salesforce.limits.max",
+      "tags": [
+        [
+          "limit_name",
+          "FileStorageMB"
+        ],
+        [
+          "salesforce_org",
+          "example.my.salesforce.com"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 20480.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "salesforce.limits.remaining",
+      "tags": [
+        [
+          "limit_name",
+          "FileStorageMB"
+        ],
+        [
+          "salesforce_org",
+          "example.my.salesforce.com"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 19950.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

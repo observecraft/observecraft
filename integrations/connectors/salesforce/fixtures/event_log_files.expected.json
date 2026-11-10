@@ -1,0 +1,199 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "API_TYPE": "",
+      "API_VERSION": "",
+      "AUTHENTICATION_METHOD_REFERENCE": "",
+      "BROWSER_TYPE": "Chrome",
+      "CIPHER_SUITE": "TLS_AES_128_GCM_SHA256",
+      "CLIENT_IP": "198.51.100.30",
+      "CPU_TIME": "34",
+      "DB_TOTAL_TIME": "12345678",
+      "EVENT_TYPE": "Login",
+      "LOGIN_KEY": "aBcDeF012345",
+      "LOGIN_STATUS": "LOGIN_NO_ERROR",
+      "LOGIN_TYPE": "Application",
+      "ORGANIZATION_ID": "00D5e000000AbCd",
+      "REQUEST_ID": "4exLFFQZ1234567890",
+      "REQUEST_STATUS": "",
+      "RUN_TIME": "82",
+      "SESSION_KEY": "",
+      "SOURCE_IP": "198.51.100.30",
+      "TIMESTAMP": "20261110051233.123",
+      "TIMESTAMP_DERIVED": "2026-11-10T05:12:33.123Z",
+      "TLS_PROTOCOL": "TLSv1.3",
+      "URI": "/index.jsp",
+      "URI_ID_DERIVED": "",
+      "USER_ID": "0055e000001AbCd",
+      "USER_ID_DERIVED": "0055e000001AbCdAAA",
+      "USER_NAME": "jordan.patel@example.com",
+      "USER_TYPE": "Standard",
+      "_oc_ingest": {
+        "id": "01a1c3df-4a63-72d6-a2e7-2c3656c13609"
+      },
+      "date": "2026-11-10T05:12:33.123Z",
+      "ddsource": "salesforce",
+      "ddtags": "event_type:Login",
+      "event_log_file": {
+        "id": "0AT5e00000AbCdEFG",
+        "interval": "Hourly",
+        "log_date": "2026-11-10T05:00:00.000+0000",
+        "sequence": 1
+      },
+      "evt": {
+        "name": "Login"
+      },
+      "host": "example.my.salesforce.com",
+      "message": "Login /index.jsp by jordan.patel@example.com",
+      "network": {
+        "client": {
+          "ip": "198.51.100.30"
+        }
+      },
+      "service": "salesforce",
+      "status": "info",
+      "usr": {
+        "id": "0055e000001AbCdAAA",
+        "name": "jordan.patel@example.com"
+      }
+    },
+    {
+      "API_TYPE": "",
+      "API_VERSION": "",
+      "AUTHENTICATION_METHOD_REFERENCE": "",
+      "BROWSER_TYPE": "Firefox",
+      "CIPHER_SUITE": "TLS_AES_128_GCM_SHA256",
+      "CLIENT_IP": "203.0.113.77",
+      "CPU_TIME": "20",
+      "DB_TOTAL_TIME": "9876543",
+      "EVENT_TYPE": "Login",
+      "LOGIN_KEY": "",
+      "LOGIN_STATUS": "LOGIN_ERROR_INVALID_PASSWORD",
+      "LOGIN_TYPE": "Application",
+      "ORGANIZATION_ID": "00D5e000000AbCd",
+      "REQUEST_ID": "4exLFFQZ1234567891",
+      "REQUEST_STATUS": "",
+      "RUN_TIME": "64",
+      "SESSION_KEY": "",
+      "SOURCE_IP": "203.0.113.77",
+      "TIMESTAMP": "20261110053010.456",
+      "TIMESTAMP_DERIVED": "2026-11-10T05:30:10.456Z",
+      "TLS_PROTOCOL": "TLSv1.3",
+      "URI": "/index.jsp",
+      "URI_ID_DERIVED": "",
+      "USER_ID": "0055e000001AbCe",
+      "USER_ID_DERIVED": "0055e000001AbCeAAA",
+      "USER_NAME": "sam.lee@example.com",
+      "USER_TYPE": "Standard",
+      "_oc_ingest": {
+        "id": "01a1c3ef-6c98-73ab-92d0-df016276db48"
+      },
+      "date": "2026-11-10T05:30:10.456Z",
+      "ddsource": "salesforce",
+      "ddtags": "event_type:Login",
+      "event_log_file": {
+        "id": "0AT5e00000AbCdEFG",
+        "interval": "Hourly",
+        "log_date": "2026-11-10T05:00:00.000+0000",
+        "sequence": 1
+      },
+      "evt": {
+        "name": "Login"
+      },
+      "host": "example.my.salesforce.com",
+      "message": "Login /index.jsp by sam.lee@example.com",
+      "network": {
+        "client": {
+          "ip": "203.0.113.77"
+        }
+      },
+      "service": "salesforce",
+      "status": "warn",
+      "usr": {
+        "id": "0055e000001AbCeAAA",
+        "name": "sam.lee@example.com"
+      }
+    },
+    {
+      "AVERAGE_ROW_SIZE": "310",
+      "CLIENT_IP": "198.51.100.31",
+      "CPU_TIME": "610",
+      "DB_BLOCKS": "2100",
+      "DB_CPU_TIME": "600",
+      "DB_TOTAL_TIME": "1200000",
+      "DISPLAY_TYPE": "D",
+      "ENTITY_NAME": "Opportunity",
+      "EVENT_TYPE": "Report",
+      "LOGIN_KEY": "lKey01",
+      "NUMBER_BUCKETS": "0",
+      "NUMBER_COLUMNS": "12",
+      "NUMBER_EXCEPTION_FILTERS": "0",
+      "ORGANIZATION_ID": "00D5e000000AbCd",
+      "ORIGIN": "ReportExported",
+      "RENDERING_TYPE": "W",
+      "REPORT_ID": "00O5e000006AbCd",
+      "REPORT_ID_DERIVED": "00O5e000006AbCdEAG",
+      "REQUEST_ID": "4exLGGRA9876543210",
+      "REQUEST_STATUS": "S",
+      "ROW_COUNT": "48210",
+      "RUN_TIME": "1520",
+      "SESSION_KEY": "sKey01",
+      "SORT": "",
+      "TIMESTAMP": "20261110061502.001",
+      "TIMESTAMP_DERIVED": "2026-11-10T06:15:02.001Z",
+      "URI": "/00O5e000006AbCd",
+      "URI_ID_DERIVED": "00O5e000006AbCdEAG",
+      "USER_ID": "0055e000001AbCf",
+      "USER_ID_DERIVED": "0055e000001AbCfAAA",
+      "_oc_ingest": {
+        "id": "01a1c418-7e71-7640-863a-8a440e478d4b"
+      },
+      "date": "2026-11-10T06:15:02.001Z",
+      "ddsource": "salesforce",
+      "ddtags": "event_type:Report",
+      "event_log_file": {
+        "id": "0AT5e00000AbCdEFH",
+        "interval": "Hourly",
+        "log_date": "2026-11-10T06:00:00.000+0000",
+        "sequence": 1
+      },
+      "evt": {
+        "name": "Report"
+      },
+      "host": "example.my.salesforce.com",
+      "message": "Report /00O5e000006AbCd by 0055e000001AbCfAAA",
+      "network": {
+        "client": {
+          "ip": "198.51.100.31"
+        }
+      },
+      "service": "salesforce",
+      "status": "info",
+      "usr": {
+        "id": "0055e000001AbCfAAA",
+        "name": null
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000,
+        "seen": [
+          {
+            "id": "ac39fbeb48d45874"
+          },
+          {
+            "id": "59b593e3f6ed77e5"
+          },
+          {
+            "id": "a20f0961dc4e3c2e"
+          }
+        ]
+      }
+    }
+  }
+}
