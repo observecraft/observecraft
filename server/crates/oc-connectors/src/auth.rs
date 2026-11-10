@@ -469,6 +469,12 @@ fn sign(signer: Signer, params: &BTreeMap<String, String>, req: &mut HttpRequest
         }
         Signer::CortexXdrAdvanced => {
             let (key_id, key) = (param(params, "key_id", "Cortex XDR")?, param(params, "key", "Cortex XDR")?);
+            // `level: standard`: a Standard key goes as it is, without the nonce and hash.
+            if params.get("level").is_some_and(|l| l.eq_ignore_ascii_case("standard")) {
+                req.set_header("x-xdr-auth-id", key_id.to_string());
+                req.set_header("Authorization", key.to_string());
+                return Ok(());
+            }
             let mut raw = [0u8; 48];
             ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut raw).map_err(|_| "no randomness".to_string())?;
             let nonce: String = raw.iter().map(|b| (b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")[(*b as usize) % 62] as char).collect::<String>() + &"0".repeat(16);
@@ -701,6 +707,14 @@ mod tests {
         let claims: Value = serde_json::from_slice(&base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(jwt.split('.').nth(1).unwrap()).unwrap()).unwrap();
         assert_eq!((claims["appid"].as_str(), claims["version"].as_str(), claims["iat"].as_i64()), (Some("app-1"), Some("V1"), Some(1_794_301_079)));
         assert!(sign(Signer::CortexXdrAdvanced, &BTreeMap::new(), &mut req("https://x.example.com"), 0).unwrap_err().contains("key_id"));
+    }
+
+    #[test]
+    fn cortex_standard_keys_are_sent_as_they_are() {
+        let params: BTreeMap<String, String> = [("key_id".to_string(), "7".to_string()), ("key".to_string(), "secret-key".to_string()), ("level".to_string(), "standard".to_string())].into();
+        let mut r = req("https://api-shop.xdr.us.paloaltonetworks.com/public_api/v1/incidents/get_incidents/");
+        sign(Signer::CortexXdrAdvanced, &params, &mut r, 1_794_301_079_641).unwrap();
+        assert_eq!((r.header("authorization"), r.header("x-xdr-auth-id"), r.header("x-xdr-nonce")), (Some("secret-key"), Some("7"), None));
     }
 
     #[test]

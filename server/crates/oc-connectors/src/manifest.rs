@@ -249,8 +249,9 @@ pub enum Auth {
     /// `trend_micro_apex_central`, `akamai_edgegrid`.
     Signer {
         signer: Signer,
-        /// The signer's inputs (templates): Duo `ikey`, `skey`; Cortex XDR `key_id`, `key`; Apex Central
-        /// `application_id`, `api_key`; EdgeGrid `client_token`, `client_secret`, `access_token`.
+        /// The signer's inputs (templates): Duo `ikey`, `skey`; Cortex XDR `key_id`, `key`, `level` (`advanced`,
+        /// the default, or `standard`); Apex Central `application_id`, `api_key`; EdgeGrid `client_token`,
+        /// `client_secret`, `access_token`.
         params: BTreeMap<String, String>,
     },
 }
@@ -292,7 +293,8 @@ pub enum Signer {
     DuoHmacV2,
     /// Duo Admin API, HMAC-SHA512 (v5: with the body's SHA-512 and the `X-Duo-Date` header).
     DuoHmacV5,
-    /// Palo Alto Cortex XDR "Advanced" keys: SHA-256 of key, nonce and timestamp in `Authorization`.
+    /// Palo Alto Cortex XDR "Advanced" keys: SHA-256 of key, nonce and timestamp in `Authorization` (`level:
+    /// standard`: a Standard key, sent as it is).
     CortexXdrAdvanced,
     /// Trend Micro Apex Central: an HS256 JWT per request with the request's SHA-256 checksum.
     TrendMicroApexCentral,

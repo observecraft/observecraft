@@ -705,7 +705,7 @@
               "additionalProperties": {
                 "type": "string"
               },
-              "description": "The signer's inputs (templates): Duo `ikey`, `skey`; Cortex XDR `key_id`, `key`; Apex Central\n`application_id`, `api_key`; EdgeGrid `client_token`, `client_secret`, `access_token`.",
+              "description": "The signer's inputs (templates): Duo `ikey`, `skey`; Cortex XDR `key_id`, `key`, `level` (`advanced`,\nthe default, or `standard`); Apex Central `application_id`, `api_key`; EdgeGrid `client_token`,\n`client_secret`, `access_token`.",
               "propertyNames": {
                 "type": "string"
               },
