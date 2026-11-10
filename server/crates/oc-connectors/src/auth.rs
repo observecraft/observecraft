@@ -11,7 +11,7 @@ use sha2::Digest;
 
 use crate::expr::text;
 use crate::http::{HttpRequest, HttpResponse, Transport};
-use crate::manifest::{duration_ms, Auth, ClientAuth, JwtSpec, KeyIn, Method, Signer};
+use crate::manifest::{duration_ms, Auth, ClientAuth, JwtSpec, KeyIn, Method, OAuthCode, Signer, OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN};
 use crate::template::{Template, Tree};
 
 /// Tokens and other cached values, by key (connection and credentials), with their expiry (epoch ms).
@@ -108,10 +108,26 @@ fn bearer(token: &str) -> Vec<(String, String)> {
 /// connection (and the stream's own auth when it has one).
 pub async fn prepare(auth: &Auth, scope: &Map<String, Value>, cache_key: &str, transport: &dyn Transport, cache: &Cache, now_ms: i64) -> Result<Prepared, String> {
     let mut out = Prepared::default();
+    // An authorization code connection: its refresh token's grant, else the access token the callback stored.
+    let converted;
+    let auth = match auth {
+        Auth::Oauth2AuthorizationCode(c) => {
+            let has = |k: &str| scope.get("secrets").and_then(|s| s.get(k)).and_then(Value::as_str).is_some_and(|v| !v.is_empty());
+            converted = if has(OAUTH_REFRESH_TOKEN) {
+                Auth::Oauth2RefreshToken(c.refresh())
+            } else if has(OAUTH_ACCESS_TOKEN) {
+                Auth::Bearer { token: format!("{{{{ secrets.{OAUTH_ACCESS_TOKEN} }}}}") }
+            } else {
+                return Err("the account isn't connected yet: use Connect on the connector's page".into());
+            };
+            &converted
+        }
+        other => other,
+    };
     match auth {
         Auth::None => {}
-        // Resolved before (`Auth::chosen`).
-        Auth::Choice { .. } => return Err("the connection's authentication method is not chosen".into()),
+        // Resolved before (`Auth::chosen`, above).
+        Auth::Choice { .. } | Auth::Oauth2AuthorizationCode(_) => return Err("the connection's authentication method is not chosen".into()),
         Auth::ApiKey { location, name, value } => {
             let v = render(value, scope)?;
             match location {
@@ -540,6 +556,71 @@ pub fn rs256(header: &Value, claims: &Value, pem: &str) -> Result<String, String
     let mut sig = vec![0u8; key.public().modulus_len()];
     key.sign(&ring::signature::RSA_PKCS1_SHA256, &ring::rand::SystemRandom::new(), signed.as_bytes(), &mut sig).map_err(|_| "signing the assertion failed".to_string())?;
     Ok(format!("{signed}.{}", b64url(&sig)))
+}
+
+/// A PKCE pair: the verifier (kept by the server) and its S256 challenge (sent to the consent page).
+pub fn pkce() -> (String, String) {
+    let mut bytes = [0u8; 32];
+    ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut bytes).expect("system randomness");
+    let verifier = b64url(&bytes);
+    let challenge = b64url(ring::digest::digest(&ring::digest::SHA256, verifier.as_bytes()).as_ref());
+    (verifier, challenge)
+}
+
+/// The client of an authorization code flow: the connection's own app (templates) or the one in `secrets`
+/// (`oauth_client_id`, the operator's).
+pub fn oauth_client(c: &OAuthCode, scope: &Map<String, Value>) -> Result<(String, String), String> {
+    let r = c.refresh();
+    let id = render(&r.client_id, scope)?;
+    let secret = render(r.client_secret.as_deref().unwrap_or_default(), scope)?;
+    if id.trim().is_empty() {
+        return Err("no OAuth app: the operator registers one for this connector (OC_OAUTH_<ID>_CLIENT_ID and _CLIENT_SECRET)".into());
+    }
+    Ok((id, secret))
+}
+
+/// The consent page's URL (`scope` has `config` and `secrets`).
+pub fn authorize_url(c: &OAuthCode, scope: &Map<String, Value>, redirect_uri: &str, state: &str, challenge: Option<&str>) -> Result<String, String> {
+    let (id, _) = oauth_client(c, scope)?;
+    let mut url = url::Url::parse(&render(&c.authorize_url, scope)?).map_err(|e| format!("the consent page's URL is not valid: {e}"))?;
+    {
+        let mut q = url.query_pairs_mut();
+        q.append_pair("response_type", "code").append_pair("client_id", &id).append_pair("redirect_uri", redirect_uri).append_pair("state", state);
+        if !c.scopes.is_empty() {
+            q.append_pair("scope", &c.scopes.join(c.scope_separator.as_deref().unwrap_or(" ")));
+        }
+        if let Some(ch) = challenge {
+            q.append_pair("code_challenge", ch).append_pair("code_challenge_method", "S256");
+        }
+        for (k, v) in &c.authorize_params {
+            q.append_pair(k, &render(v, scope)?);
+        }
+    }
+    Ok(url.into())
+}
+
+/// Exchanges the callback's code for tokens: the token endpoint's answer (`access_token`, maybe `refresh_token`).
+pub async fn exchange_code(c: &OAuthCode, scope: &Map<String, Value>, code: &str, redirect_uri: &str, verifier: Option<&str>, transport: &dyn Transport) -> Result<Value, String> {
+    let (id, secret) = oauth_client(c, scope)?;
+    let url = render(&c.token_url, scope)?;
+    let mut pairs = vec![("grant_type".to_string(), "authorization_code".to_string()), ("code".to_string(), code.to_string()), ("redirect_uri".to_string(), redirect_uri.to_string())];
+    if let Some(v) = verifier {
+        pairs.push(("code_verifier".into(), v.to_string()));
+    }
+    for (k, v) in &c.params {
+        pairs.push((k.clone(), render(v, scope)?));
+    }
+    let basic = match (c.client_auth, secret.is_empty()) {
+        (ClientAuth::Basic, false) => Some((id.as_str(), secret.as_str())),
+        _ => {
+            pairs.push(("client_id".into(), id.clone()));
+            if !secret.is_empty() {
+                pairs.push(("client_secret".into(), secret.clone()));
+            }
+            None
+        }
+    };
+    token_answer(&post_form(transport, &url, &pairs, basic).await?, "the authorization code exchange")
 }
 
 #[cfg(test)]

@@ -14,6 +14,7 @@ import {
   createPush,
   deleteConnection,
   getConnector,
+  startOAuth,
   syncConnection,
   testConnection,
   updateConnection,
@@ -207,6 +208,13 @@ function Configure({ c, connections }: { c: ConnectorEntry; connections: Connect
     },
   });
   const remove = useMutation({ mutationFn: (id: string) => deleteConnection(c.id, id), onSuccess: () => (select(null), refresh()) });
+  // OAuth: the vendor's consent page, then back here with ?oauth=<connection> or ?oauth_error=<why>.
+  const connect = useMutation({ mutationFn: () => startOAuth(c.id, input), onSuccess: ({ url }) => window.location.assign(url) });
+  const [params] = useSearchParams();
+  const oauthDone = params.get('oauth');
+  const oauthError = params.get('oauth_error');
+  const oauthReady = !c.oauth || c.oauth.ownApp || c.oauth.appConfigured;
+  const oauthMissing = c.config.filter((f) => f.required && !f.secret && f.default === null && !String(form.config[f.key] ?? '').trim());
   const sync = useMutation({ mutationFn: (id: string) => syncConnection(c.id, id), onSuccess: refresh });
   const dashboards = useDashboardLinks(c);
   const set = (patch: Partial<Form>) => {
@@ -299,15 +307,45 @@ function Configure({ c, connections }: { c: ConnectorEntry; connections: Connect
           </p>
         ))}
         {save.isSuccess && !save.isPending && <p className="muted">Saved. The first sync starts within a minute.</p>}
+        {c.oauth && (
+          <>
+            {oauthDone && (
+              <div className="rt-note">
+                <CircleCheck size={16} />
+                <div>Connected {oauthDone}. The first sync starts within a minute.</div>
+              </div>
+            )}
+            {oauthError && (
+              <div className="rt-warning">
+                <AlertTriangle size={16} />
+                <div>{oauthError}</div>
+              </div>
+            )}
+            {!oauthReady && (
+              <p className="muted">
+                This install has no {c.vendor} OAuth app yet: the operator registers one with {c.vendor} (redirect URI <code>/api/v1/public/connectors/oauth/callback</code> on this install&apos;s
+                address) and sets <code>OC_OAUTH_{c.id.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_CLIENT_ID</code> and <code>_CLIENT_SECRET</code>.
+              </p>
+            )}
+            {connect.error && <p className="form-error">{(connect.error as Error).message}</p>}
+            <div className="rt-create-actions">
+              <button type="button" className="btn btn-primary" disabled={!isAdmin || !oauthReady || oauthMissing.length > 0 || connect.isPending} onClick={() => connect.mutate()}>
+                {connect.isPending ? 'Opening…' : current ? `Reconnect with ${c.vendor}` : `Connect with ${c.vendor}`}
+              </button>
+            </div>
+          </>
+        )}
         <div className="rt-create-actions">
-          {c.testable && (
+          {c.testable && (!c.oauth || current) && (
             <button type="button" className="btn" disabled={!isAdmin || !ready || test.isPending} onClick={() => test.mutate()}>
               {test.isPending ? 'Testing…' : 'Test connection'}
             </button>
           )}
-          <button type="button" className="btn btn-primary" disabled={!isAdmin || !ready || save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? 'Saving…' : current ? 'Save changes' : 'Save and start syncing'}
-          </button>
+          {(!c.oauth || current) && (
+            <button type="button" className="btn btn-primary" disabled={!isAdmin || !ready || save.isPending} onClick={() => save.mutate()}>
+              {save.isPending ? 'Saving…' : current ? 'Save changes' : 'Save and start syncing'}
+            </button>
+          )}
           {current && (
             <button
               type="button"

@@ -205,6 +205,17 @@ impl<'a> Checker<'a> {
                 }
                 self.map(&format!("{at}.params"), params, x);
             }
+            Auth::Oauth2AuthorizationCode(c) => {
+                self.template(&format!("{at}.authorize_url"), &c.authorize_url, &[]);
+                self.template(&format!("{at}.token_url"), &c.token_url, &[]);
+                self.map(&format!("{at}.authorize_params"), &c.authorize_params, &[]);
+                self.map(&format!("{at}.params"), &c.params, x);
+                self.opt(&format!("{at}.client_id"), &c.client_id, x);
+                self.opt(&format!("{at}.client_secret"), &c.client_secret, x);
+                if c.client_secret.is_some() && c.client_id.is_none() {
+                    self.problem(&format!("{at}.client_secret"), "a connection's own client secret goes with its client_id");
+                }
+            }
             Auth::Choice { field, options } => {
                 match self.m.config.iter().find(|f| &f.key == field) {
                     None => self.problem(&format!("{at}.field"), format!("{field} is not a config field")),

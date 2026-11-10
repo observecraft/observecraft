@@ -768,3 +768,64 @@ async fn revised_buckets_are_sent_again_at_their_time() {
     let second = f.run(first.state, NOW + MIN).await.unwrap();
     assert_eq!(second.mapped.points.iter().map(|p| (p.time_ms, p.value)).collect::<Vec<_>>(), [(NOW - HOUR, 7.0)], "the late data of its bucket");
 }
+
+// ---------------------------------------------------------------- OAuth authorization code
+
+const CODE_AUTH: &str = "auth: { kind: oauth2_authorization_code, authorize_url: 'https://login.example.com/oauth/authorize', token_url: 'https://login.example.com/oauth/token', scopes: [audit.read, offline_access], authorize_params: { prompt: consent } }\n";
+
+#[tokio::test]
+async fn authorization_code_connections_refresh_their_stored_token() {
+    let pkg = package(&format!(
+        "{CODE_AUTH}{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events' }\n"),
+        mock("    - { method: POST, url: 'https://login.example.com/oauth/token', body: { access_token: at-1, refresh_token: rt-2, expires_in: 3600 } }\n    - { url: 'https://api.example.com/v1/events', body: [{ id: a }] }")
+    ));
+    let transport = Arc::new(MockTransport::new(&pkg, pkg.manifest.mock.as_ref().unwrap()));
+    let rt = Runtime::new(transport.clone(), false);
+    let mut c = conn(&pkg);
+    let stream = &pkg.manifest.streams[0];
+    let issue = engine::run(&pkg.manifest, stream, &c, StreamState::default(), NOW, &rt, None).await.unwrap_err();
+    assert_eq!(issue.kind, IssueKind::Auth, "{}", issue.message);
+    assert!(issue.message.contains("Connect"), "{}", issue.message);
+    for (k, v) in [("oauth_refresh_token", "rt-1"), ("oauth_client_id", "ocapp"), ("oauth_client_secret", "ocapp-secret")] {
+        c.secrets.insert(k.into(), json!(v));
+    }
+    let run = engine::run(&pkg.manifest, stream, &c, StreamState::default(), NOW, &rt, None).await.unwrap();
+    assert_eq!(run.rotated, [("oauth_refresh_token".to_string(), "rt-2".to_string())], "a rotated refresh token is saved");
+    let reqs = std::mem::take(&mut *transport.requests.lock().unwrap());
+    assert_eq!(String::from_utf8(reqs[0].body.clone().unwrap()).unwrap(), "grant_type=refresh_token&refresh_token=rt-1");
+    assert_eq!(reqs[0].header("authorization"), Some(format!("Basic {}", base64::engine::general_purpose::STANDARD.encode("ocapp:ocapp-secret")).as_str()));
+    assert_eq!(reqs[1].header("authorization"), Some("Bearer at-1"));
+    // A vendor without refresh tokens: the stored access token.
+    let mut c = conn(&pkg);
+    c.secrets.insert("oauth_access_token".into(), json!("long-lived"));
+    engine::run(&pkg.manifest, stream, &c, StreamState::default(), NOW, &Runtime::new(transport.clone(), false), None).await.unwrap();
+    assert_eq!(transport.requests.lock().unwrap().last().unwrap().header("authorization"), Some("Bearer long-lived"));
+}
+
+#[tokio::test]
+async fn the_consent_page_and_the_code_exchange_carry_pkce() {
+    use oc_connectors::auth;
+    use oc_connectors::manifest::Auth;
+    let pkg = package(&format!("{CODE_AUTH}{}{}", stream("    request: { url: '{{ config.base_url }}/v1/events' }\n"), mock("    - { method: POST, url: 'https://login.example.com/oauth/token', body: { access_token: at-1, refresh_token: rt-1 } }")));
+    let Auth::Oauth2AuthorizationCode(code) = &pkg.manifest.auth else { panic!() };
+    let mut scope = serde_json::Map::new();
+    scope.insert("config".into(), json!({}));
+    scope.insert("secrets".into(), json!({}));
+    assert!(auth::authorize_url(code, &scope, "https://oc.example.com/cb", "st", None).unwrap_err().contains("OC_OAUTH_"), "no app: says how to register one");
+    scope.insert("secrets".into(), json!({ "oauth_client_id": "ocapp", "oauth_client_secret": "s3" }));
+    let (verifier, challenge) = auth::pkce();
+    assert_eq!((verifier.len(), challenge.len()), (43, 43));
+    assert_ne!(auth::pkce().0, verifier);
+    let url = url::Url::parse(&auth::authorize_url(code, &scope, "https://oc.example.com/cb", "ocoa_state", Some(&challenge)).unwrap()).unwrap();
+    let q: std::collections::BTreeMap<String, String> = url.query_pairs().into_owned().collect();
+    assert_eq!(url.path(), "/oauth/authorize");
+    for (k, v) in [("response_type", "code"), ("client_id", "ocapp"), ("redirect_uri", "https://oc.example.com/cb"), ("state", "ocoa_state"), ("scope", "audit.read offline_access"), ("code_challenge", challenge.as_str()), ("code_challenge_method", "S256"), ("prompt", "consent")] {
+        assert_eq!(q.get(k).map(String::as_str), Some(v), "{k}");
+    }
+    let transport = MockTransport::new(&pkg, pkg.manifest.mock.as_ref().unwrap());
+    let answer = auth::exchange_code(code, &scope, "the-code", "https://oc.example.com/cb", Some(&verifier), &transport).await.unwrap();
+    assert_eq!(answer["refresh_token"], "rt-1");
+    let req = transport.requests.lock().unwrap()[0].clone();
+    assert_eq!(String::from_utf8(req.body.unwrap()).unwrap(), format!("grant_type=authorization_code&code=the-code&redirect_uri=https%3A%2F%2Foc.example.com%2Fcb&code_verifier={verifier}"));
+}

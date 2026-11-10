@@ -86,5 +86,7 @@ API integrations: adding one should be a package, not code, and operators should
   push definitions and an org's signing secrets (cached a minute, org from the ingest key), checks signatures and maps
   webhooks with `oc-connectors::push`, and publishes through Kafka. Long-lived streams (WebSockets, SQS) remain an
   extension point: `native` names a connector compiled into the server.
-- `oauth` tiles need an OAuth app per install (client id and secret from the operator, redirect to ObserveCraft);
-  until the authorization-code flow lands, their packages take a refresh token or an API key the user creates.
+- `oauth` tiles use `oauth2_authorization_code`: the operator registers an OAuth app per vendor and install
+  (`OC_OAUTH_<ID>_CLIENT_ID` / `_CLIENT_SECRET`, redirect to `/api/v1/public/connectors/oauth/callback`), or a package
+  lets each connection bring its own; the page's "Connect" runs the flow with PKCE and a single-use state
+  (`connector_oauth_states`) and stores the tokens sealed in the connection.

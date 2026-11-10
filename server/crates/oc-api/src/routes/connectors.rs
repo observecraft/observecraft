@@ -279,6 +279,7 @@ fn engine_connection(st: &AppState, m: &Manifest, id: String, checked: &Checked,
         let saved = store::unseal(st, &store::Saved { secrets: checked.kept.clone(), ..prev.clone() }).map_err(ApiError::BadRequest)?;
         conn.secrets.extend(saved.secrets);
     }
+    super::connector_oauth::with_app(m, &mut conn);
     Ok(conn)
 }
 
@@ -378,13 +379,21 @@ pub async fn install_assets(st: &AppState, org: &str, user: Option<&str>, p: &Pa
     Ok(())
 }
 
+/// Whether the operator registered this install's OAuth app for the connector.
+fn with_oauth_app(mut e: ConnectorEntry) -> ConnectorEntry {
+    if let Some(o) = e.oauth.as_mut() {
+        o.app_configured = super::connector_oauth::operator_app(&e.id).is_some();
+    }
+    e
+}
+
 /// Every connector of this server: bundled and operator packages, native connectors.
 #[utoipa::path(get, path = "/api/v1/connectors", operation_id = "list_connectors", responses((status = 200, body = ConnectorCatalog)), tag = "integrations")]
 pub async fn list_connectors(ctx: crate::auth::AuthContext) -> ApiResult<ConnectorCatalog> {
     let r = registry();
     let admin = ctx.access >= crate::auth::Access::Admin;
     Ok(Json(ConnectorCatalog {
-        connectors: r.connectors.iter().map(|c| c.entry().clone()).collect(),
+        connectors: r.connectors.iter().map(|c| with_oauth_app(c.entry().clone())).collect(),
         invalid: if admin { r.invalid.iter().map(|(dir, problems)| InvalidPackage { dir: dir.clone(), problems: problems.clone() }).collect() } else { vec![] },
     }))
 }
@@ -394,7 +403,7 @@ pub async fn list_connectors(ctx: crate::auth::AuthContext) -> ApiResult<Connect
     responses((status = 200, body = ConnectorDetail), (status = 404, body = crate::error::ErrorBody)), tag = "integrations")]
 pub async fn get_connector(State(st): State<AppState>, OrgId(org): OrgId, Path(id): Path<String>) -> ApiResult<ConnectorDetail> {
     let c = registry().get(&id).ok_or_else(|| ApiError::NotFound(format!("No connector {id}")))?;
-    Ok(Json(ConnectorDetail { connector: c.entry().clone(), connections: connections_of(&st, &org, &id).await? }))
+    Ok(Json(ConnectorDetail { connector: with_oauth_app(c.entry().clone()), connections: connections_of(&st, &org, &id).await? }))
 }
 
 /// The org's connections of a connector.
@@ -405,8 +414,25 @@ pub async fn list_connections(State(st): State<AppState>, OrgId(org): OrgId, Pat
 }
 
 async fn save(st: &AppState, ctx: &crate::auth::AuthContext, p: &PackageConnector, previous: Option<&store::Saved>, input: &ConnectionInput) -> Result<ConnectionView, ApiError> {
+    save_with_tokens(st, ctx, p, previous, input, &Map::new()).await
+}
+
+/// Saves a connection; `tokens`: an OAuth sign-in's (`connector_oauth`), else the saved ones are kept while its URLs
+/// stay the same.
+pub async fn save_with_tokens(st: &AppState, ctx: &crate::auth::AuthContext, p: &PackageConnector, previous: Option<&store::Saved>, input: &ConnectionInput, tokens: &Map<String, Value>) -> Result<ConnectionView, ApiError> {
     let m = &p.package.manifest;
-    let checked = check(m, input, previous, st.config.portal_allow_private).map_err(ApiError::BadRequest)?;
+    let mut checked = check(m, input, previous, st.config.portal_allow_private).map_err(ApiError::BadRequest)?;
+    if tokens.is_empty() {
+        if let (Some(prev), false) = (previous, checked.url_changed) {
+            for k in [oc_connectors::manifest::OAUTH_REFRESH_TOKEN, oc_connectors::manifest::OAUTH_ACCESS_TOKEN] {
+                if let Some(v) = prev.secrets.get(k) {
+                    checked.kept.insert(k.into(), v.clone());
+                }
+            }
+        }
+    } else {
+        checked.secrets.extend(tokens.iter().map(|(k, v)| (k.clone(), v.clone())));
+    }
     // The package's setup calls (starting a subscription) before anything is saved: one failing saves nothing.
     if !m.on_connect.is_empty() {
         let conn = engine_connection(st, m, previous.map_or_else(|| format!("new-{}", ctx.org_id), |p| p.id.clone()), &checked, previous)?;
@@ -539,7 +565,14 @@ pub async fn test_connection(State(st): State<AppState>, Admin(ctx): Admin, Path
         Some(cid) => Some(store::get(&st, &ctx.org_id, &id, cid).await?.ok_or_else(|| ApiError::NotFound("No such connection".into()))?),
         None => None,
     };
-    let checked = check(m, &input, previous.as_ref(), st.config.portal_allow_private).map_err(ApiError::BadRequest)?;
+    let mut checked = check(m, &input, previous.as_ref(), st.config.portal_allow_private).map_err(ApiError::BadRequest)?;
+    if let (Some(prev), false) = (&previous, checked.url_changed) {
+        for k in [oc_connectors::manifest::OAUTH_REFRESH_TOKEN, oc_connectors::manifest::OAUTH_ACCESS_TOKEN] {
+            if let Some(v) = prev.secrets.get(k) {
+                checked.kept.insert(k.into(), v.clone());
+            }
+        }
+    }
     let conn = engine_connection(&st, m, previous.as_ref().map_or_else(|| format!("test-{}", ctx.org_id), |p| p.id.clone()), &checked, previous.as_ref())?;
     let rt = fresh_runtime(&st);
     let t = engine::test(m, &conn, chrono::Utc::now().timestamp_millis(), &rt).await;

@@ -220,6 +220,11 @@ pub enum Auth {
     /// OAuth 2.0 refresh token grant (a token the user created or consented to). A rotated refresh token is saved
     /// into the `rotate` secret.
     Oauth2RefreshToken(OAuthRefresh),
+    /// OAuth 2.0 authorization code (with PKCE): the page's "Connect" sends the admin to the vendor's consent page;
+    /// ObserveCraft's callback stores the tokens (sealed, `oauth_refresh_token` / `oauth_access_token`), and runs
+    /// refresh the access token like `oauth2_refresh_token`. The client is the operator's OAuth app for this
+    /// package (`OC_OAUTH_<ID>_CLIENT_ID` / `_CLIENT_SECRET`) unless `client_id` names the connection's own.
+    Oauth2AuthorizationCode(OAuthCode),
     /// An RS256 JWT assertion exchanged for a token (Google service accounts, customer-registered OAuth apps).
     JwtBearer(JwtBearer),
     /// A JWT signed with the connection's key and sent as the bearer token, renewed before it expires (Snowflake key
@@ -255,6 +260,15 @@ impl Auth {
                 options.get(value).ok_or_else(|| format!("{field}: choose one of {}", options.keys().cloned().collect::<Vec<_>>().join(", ")))?.chosen(config)
             }
             other => Ok(other),
+        }
+    }
+
+    /// The authorization code flow of this auth, or of any of its choices.
+    pub fn authorization_code(&self) -> Option<&OAuthCode> {
+        match self {
+            Auth::Oauth2AuthorizationCode(c) => Some(c),
+            Auth::Choice { options, .. } => options.values().find_map(Auth::authorization_code),
+            _ => None,
         }
     }
 }
@@ -323,6 +337,62 @@ pub struct OAuthRefresh {
     #[serde(default)]
     pub rotate: Option<String>,
 }
+
+#[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct OAuthCode {
+    /// Template over `config` (a tenant's host): the consent page.
+    pub authorize_url: String,
+    /// Template over `config`.
+    pub token_url: String,
+    #[serde(default)]
+    pub scopes: Vec<String>,
+    /// How scopes are joined (default a space; Slack and others take `,`).
+    #[serde(default)]
+    pub scope_separator: Option<String>,
+    /// How the client authenticates to the token endpoint.
+    #[serde(default)]
+    pub client_auth: ClientAuth,
+    /// More query parameters of the consent page (`access_type: offline`, `prompt: consent`, `audience`; templates
+    /// over `config`).
+    #[serde(default)]
+    pub authorize_params: BTreeMap<String, String>,
+    /// More form parameters of the token requests (templates).
+    #[serde(default)]
+    pub params: BTreeMap<String, String>,
+    /// PKCE (S256), default on; off for vendors refusing it.
+    #[serde(default = "yes")]
+    pub pkce: bool,
+    /// Template: the connection's own OAuth app (`{{ config.client_id }}`) instead of the operator's.
+    #[serde(default)]
+    pub client_id: Option<String>,
+    /// Template (`{{ secrets.client_secret }}`), with `client_id`.
+    #[serde(default)]
+    pub client_secret: Option<String>,
+}
+
+impl OAuthCode {
+    /// The refresh grant runs use (the stored refresh token, rotated in place).
+    pub fn refresh(&self) -> OAuthRefresh {
+        OAuthRefresh {
+            token_url: self.token_url.clone(),
+            client_id: self.client_id.clone().unwrap_or_else(|| format!("{{{{ secrets.{OAUTH_CLIENT_ID} }}}}")),
+            client_secret: Some(self.client_secret.clone().unwrap_or_else(|| format!("{{{{ secrets.{OAUTH_CLIENT_SECRET} }}}}"))),
+            refresh_token: format!("{{{{ secrets.{OAUTH_REFRESH_TOKEN} }}}}"),
+            scopes: vec![],
+            client_auth: self.client_auth,
+            params: self.params.clone(),
+            rotate: Some(OAUTH_REFRESH_TOKEN.into()),
+        }
+    }
+}
+
+/// The secrets an authorization code connection holds besides its fields: the tokens the callback stored, and the
+/// operator's OAuth app the server adds for a run.
+pub const OAUTH_REFRESH_TOKEN: &str = "oauth_refresh_token";
+pub const OAUTH_ACCESS_TOKEN: &str = "oauth_access_token";
+pub const OAUTH_CLIENT_ID: &str = "oauth_client_id";
+pub const OAUTH_CLIENT_SECRET: &str = "oauth_client_secret";
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

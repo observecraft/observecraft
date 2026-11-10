@@ -2462,6 +2462,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/connectors/{id}/oauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Starts "Connect" (admins): checks what was entered (`connectionId` reconnects a saved connection) and answers the
+         *     vendor's consent page.
+         */
+        post: operations["start_connector_oauth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/connectors/{id}/push": {
         parameters: {
             query?: never;
@@ -7863,6 +7883,26 @@ export interface paths {
         put?: never;
         /** Profiles in the range, newest first (Profile List). */
         post: operations["search_profiles"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/connectors/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The vendor sends the browser back here after its consent page; the state names the org, the admin and the
+         *     connection.
+         */
+        get: operations["connector_oauth_callback"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -13669,6 +13709,7 @@ export interface components {
             /** @description Names of its recommended monitors. */
             monitors: string[];
             name: string;
+            oauth?: components["schemas"]["ConnectorOAuth"] | null;
             /** @description A native connector's own page. */
             page?: string | null;
             /** @description The log pipeline installed with a connection. */
@@ -13721,6 +13762,18 @@ export interface components {
             /** @description gauge | count */
             type: string;
             unit?: string | null;
+        };
+        /** @description A package connected with the vendor's consent page (OAuth authorization code). */
+        ConnectorOAuth: {
+            /** @description The operator registered this install's app (`OC_OAUTH_<ID>_CLIENT_ID`), filled in by the server. */
+            appConfigured: boolean;
+            /** @description The connection brings its own OAuth app (client id and secret fields); else the operator's. */
+            ownApp: boolean;
+        };
+        /** @description The vendor's consent page. */
+        ConnectorOAuthStart: {
+            /** @description Open it in the browser: the vendor sends it back to ObserveCraft. */
+            url: string;
         };
         ConnectorOption: {
             label: string;
@@ -30176,6 +30229,39 @@ export interface operations {
             };
         };
     };
+    start_connector_oauth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorOAuthStart"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     create_connector_push: {
         parameters: {
             query?: never;
@@ -41665,6 +41751,27 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProfileList"];
                 };
+            };
+        };
+    };
+    connector_oauth_callback: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

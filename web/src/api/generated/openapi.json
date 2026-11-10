@@ -5531,6 +5531,55 @@
         }
       }
     },
+    "/api/v1/connectors/{id}/oauth": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Starts \"Connect\" (admins): checks what was entered (`connectionId` reconnects a saved connection) and answers the\nvendor's consent page.",
+        "operationId": "start_connector_oauth",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorOAuthStart"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/connectors/{id}/push": {
       "post": {
         "tags": [
@@ -20185,6 +20234,44 @@
               }
             }
           }
+        }
+      }
+    },
+    "/api/v1/public/connectors/oauth/callback": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The vendor sends the browser back here after its consent page; the state names the org, the admin and the\nconnection.",
+        "operationId": "connector_oauth_callback",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {}
         }
       }
     },
@@ -40386,6 +40473,17 @@
           "name": {
             "type": "string"
           },
+          "oauth": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorOAuth",
+                "description": "Connected through the vendor's consent page (\"Connect\")."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "page": {
             "type": [
               "string",
@@ -40567,6 +40665,37 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "ConnectorOAuth": {
+        "type": "object",
+        "description": "A package connected with the vendor's consent page (OAuth authorization code).",
+        "required": [
+          "ownApp",
+          "appConfigured"
+        ],
+        "properties": {
+          "appConfigured": {
+            "type": "boolean",
+            "description": "The operator registered this install's app (`OC_OAUTH_<ID>_CLIENT_ID`), filled in by the server."
+          },
+          "ownApp": {
+            "type": "boolean",
+            "description": "The connection brings its own OAuth app (client id and secret fields); else the operator's."
+          }
+        }
+      },
+      "ConnectorOAuthStart": {
+        "type": "object",
+        "description": "The vendor's consent page.",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Open it in the browser: the vendor sends it back to ObserveCraft."
           }
         }
       },

@@ -91,6 +91,7 @@ pub async fn run_job(st: &AppState, runner: &Runner, pkg: &PackageConnector, job
         Err(e) => return Ok(Outcome::Failed(jobs::Issue { kind: "auth", message: e, missing_action: None, backoff: Backoff::Interval })),
     };
     conn.config = engine::effective_config(m, &conn.config);
+    crate::routes::connector_oauth::with_app(m, &mut conn);
     let state = store::state(st, &job.org_id, &saved.id, &stream.id).await?;
     let mut left: Option<u32> = None;
     for (scope, budget) in [("", &m.budget), (stream.id.as_str(), &stream.budget)] {

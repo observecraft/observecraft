@@ -1,6 +1,7 @@
 pub mod apm;
 pub mod apm_settings;
 pub mod authentik_integration;
+pub mod connector_oauth;
 pub mod connectors;
 pub mod fleetdm_integration;
 pub mod gitlab_audit_integration;
@@ -885,6 +886,8 @@ use crate::state::AppState;
         connectors::test_connection,
         connectors::sync_connection,
         connectors::create_push,
+        connector_oauth::start,
+        connector_oauth::callback,
         fleetdm_integration::get_fleetdm,
         fleetdm_integration::put_fleetdm,
         fleetdm_integration::delete_fleetdm,
@@ -1693,6 +1696,8 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/connectors/{id}/connections/{connection}/sync", axum::routing::post(connectors::sync_connection))
         .route("/api/v1/connectors/{id}/test", axum::routing::post(connectors::test_connection))
         .route("/api/v1/connectors/{id}/push", axum::routing::post(connectors::create_push))
+        .route("/api/v1/connectors/{id}/oauth", axum::routing::post(connector_oauth::start))
+        .route("/api/v1/public/connectors/oauth/callback", get(connector_oauth::callback))
         .route("/api/v1/integrations/fleetdm", get(fleetdm_integration::get_fleetdm).put(fleetdm_integration::put_fleetdm).delete(fleetdm_integration::delete_fleetdm))
         .route("/api/v1/integrations/fleetdm/test", axum::routing::post(fleetdm_integration::test_fleetdm))
         .route("/api/v1/integrations/fleetdm/sync", axum::routing::post(fleetdm_integration::sync_fleetdm))

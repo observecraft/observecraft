@@ -329,6 +329,87 @@
         },
         {
           "additionalProperties": false,
+          "description": "OAuth 2.0 authorization code (with PKCE): the page's \"Connect\" sends the admin to the vendor's consent page;\nObserveCraft's callback stores the tokens (sealed, `oauth_refresh_token` / `oauth_access_token`), and runs\nrefresh the access token like `oauth2_refresh_token`. The client is the operator's OAuth app for this\npackage (`OC_OAUTH_<ID>_CLIENT_ID` / `_CLIENT_SECRET`) unless `client_id` names the connection's own.",
+          "properties": {
+            "authorize_params": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "More query parameters of the consent page (`access_type: offline`, `prompt: consent`, `audience`; templates\nover `config`).",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "authorize_url": {
+              "description": "Template over `config` (a tenant's host): the consent page.",
+              "type": "string"
+            },
+            "client_auth": {
+              "$ref": "#/$defs/ClientAuth",
+              "description": "How the client authenticates to the token endpoint."
+            },
+            "client_id": {
+              "description": "Template: the connection's own OAuth app (`{{ config.client_id }}`) instead of the operator's.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "client_secret": {
+              "description": "Template (`{{ secrets.client_secret }}`), with `client_id`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "oauth2_authorization_code"
+              ],
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "More form parameters of the token requests (templates).",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "pkce": {
+              "description": "PKCE (S256), default on; off for vendors refusing it.",
+              "type": "boolean"
+            },
+            "scope_separator": {
+              "description": "How scopes are joined (default a space; Slack and others take `,`).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scopes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "token_url": {
+              "description": "Template over `config`.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "authorize_url",
+            "token_url",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "An RS256 JWT assertion exchanged for a token (Google service accounts, customer-registered OAuth apps).",
           "properties": {
             "claims": {
@@ -1959,6 +2040,79 @@
         "token_url",
         "client_id",
         "client_secret"
+      ],
+      "type": "object"
+    },
+    "OAuthCode": {
+      "additionalProperties": false,
+      "properties": {
+        "authorize_params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "More query parameters of the consent page (`access_type: offline`, `prompt: consent`, `audience`; templates\nover `config`).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "authorize_url": {
+          "description": "Template over `config` (a tenant's host): the consent page.",
+          "type": "string"
+        },
+        "client_auth": {
+          "$ref": "#/$defs/ClientAuth",
+          "description": "How the client authenticates to the token endpoint."
+        },
+        "client_id": {
+          "description": "Template: the connection's own OAuth app (`{{ config.client_id }}`) instead of the operator's.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "client_secret": {
+          "description": "Template (`{{ secrets.client_secret }}`), with `client_id`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "More form parameters of the token requests (templates).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "pkce": {
+          "description": "PKCE (S256), default on; off for vendors refusing it.",
+          "type": "boolean"
+        },
+        "scope_separator": {
+          "description": "How scopes are joined (default a space; Slack and others take `,`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scopes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "token_url": {
+          "description": "Template over `config`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "authorize_url",
+        "token_url"
       ],
       "type": "object"
     },

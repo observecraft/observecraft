@@ -53,6 +53,7 @@ fn native(id: &str, name: &str, vendor: &str, description: &str, categories: &[&
             config: vec![],
             streams: vec![],
             push: None,
+            oauth: None,
             dashboards: vec![],
             pipeline: None,
             monitors: vec![],

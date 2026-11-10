@@ -122,6 +122,16 @@ pub struct ConnectorPushEndpoint {
     pub instructions: Option<String>,
 }
 
+/// A package connected with the vendor's consent page (OAuth authorization code).
+#[derive(Serialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectorOAuth {
+    /// The connection brings its own OAuth app (client id and secret fields); else the operator's.
+    pub own_app: bool,
+    /// The operator registered this install's app (`OC_OAUTH_<ID>_CLIENT_ID`), filled in by the server.
+    pub app_configured: bool,
+}
+
 /// A connector: its package's catalog entry, or a native connector's.
 #[derive(Serialize, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -150,6 +160,8 @@ pub struct ConnectorEntry {
     pub config: Vec<ConnectorField>,
     pub streams: Vec<ConnectorStream>,
     pub push: Option<ConnectorPush>,
+    /// Connected through the vendor's consent page ("Connect").
+    pub oauth: Option<ConnectorOAuth>,
     /// Titles of the dashboards it brings (listed once connected).
     pub dashboards: Vec<String>,
     /// The log pipeline installed with a connection.
@@ -280,6 +292,7 @@ pub fn entry_of(p: &Package) -> ConnectorEntry {
                 .into(),
             })
             .collect(),
+        oauth: m.auth.authorization_code().map(|c| ConnectorOAuth { own_app: c.client_id.is_some(), app_configured: false }),
         push: m.push.as_ref().map(|p| ConnectorPush {
             kind: push_kind(p.kind).into(),
             instructions: p.instructions.clone(),

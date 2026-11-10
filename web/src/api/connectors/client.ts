@@ -8,6 +8,7 @@
 //   POST   /api/v1/connectors/{id}/connections/{connection}/sync  syncConnection (admins)
 //   POST   /api/v1/connectors/{id}/test                           testConnection (admins)
 //   POST   /api/v1/connectors/{id}/push                           createPush (admins, push-only packages)
+//   POST   /api/v1/connectors/{id}/oauth                          startOAuth (admins: the vendor's consent page)
 import type { components } from '../generated/schema';
 import { API_MODE, del, get, postTo, put } from '../http';
 import * as mock from '../mock/connectors';
@@ -60,6 +61,12 @@ export async function testConnection(id: string, input: ConnectionInput): Promis
 export async function createPush(id: string, input: ConnectionInput): Promise<ConnectorTest> {
   if (API_MODE !== 'live') return mock.createPush(id, input);
   return postTo('/api/v1/connectors/{id}/push', { id }, input);
+}
+
+/** The vendor's consent page for an OAuth connection; the vendor sends the browser back to the connector page. */
+export async function startOAuth(id: string, input: ConnectionInput): Promise<{ url: string }> {
+  if (API_MODE !== 'live') return mock.startOAuth(id, input);
+  return postTo('/api/v1/connectors/{id}/oauth', { id }, input);
 }
 
 /** The connector page of a connector: its own page (native ones), else the generic one. */

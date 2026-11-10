@@ -94,7 +94,9 @@ pub async fn install(st: &AppState, ctx: &AuthContext, p: &PackageConnector) -> 
             let auth = DdAuth(ctx.clone());
             let result = match kind {
                 "monitor" => monitors::create(State(st.clone()), auth, Bytes::from(with_tag(monitor_doc(&doc), &tag).to_string())).await.map(|j| j.0["id"].to_string()),
-                "security_rule" => security_monitoring::create_rule(State(st.clone()), auth, Bytes::from(with_tag(doc, &tag).to_string())).await.map(|(_, j)| j.0["id"].as_str().unwrap_or_default().to_string()),
+                "security_rule" => {
+                    security_monitoring::create_rule(State(st.clone()), auth, Bytes::from(with_tag(doc, &tag).to_string())).await.map(|(_, j)| j.0["id"].as_str().unwrap_or_default().to_string())
+                }
                 _ => match log_metric_doc(&doc) {
                     None => Err(crate::routes::datadog_api::DdError { status: axum::http::StatusCode::BAD_REQUEST, errors: vec!["a log-based metric needs an id".into()] }),
                     Some(d) => match logs::metrics::create(State(st.clone()), auth, Bytes::from(d.to_string())).await {
@@ -123,7 +125,8 @@ pub async fn install(st: &AppState, ctx: &AuthContext, p: &PackageConnector) -> 
 
 /// Removes what the package created for the org and its log pipeline (its last connection is gone).
 pub async fn remove(st: &AppState, ctx: &AuthContext, connector: &str) -> Result<(), sqlx::Error> {
-    let rows: Vec<(String, String)> = sqlx::query_as("SELECT kind, ref FROM connector_assets WHERE org_id = $1 AND connector_id = $2").bind(&ctx.org_id).bind(connector).fetch_all(&st.postgres).await?;
+    let rows: Vec<(String, String)> =
+        sqlx::query_as("SELECT kind, ref FROM connector_assets WHERE org_id = $1 AND connector_id = $2").bind(&ctx.org_id).bind(connector).fetch_all(&st.postgres).await?;
     for (kind, reference) in rows {
         let auth = DdAuth(ctx.clone());
         // Gone already (the org deleted it) is fine.
@@ -148,7 +151,10 @@ mod tests {
         assert_eq!(with_tag(monitor_doc(&wrapped), "connector:x")["tags"], json!(["team:billing", "connector:x"]));
         assert_eq!(with_tag(with_tag(json!({ "name": "R" }), "connector:x"), "connector:x")["tags"], json!(["connector:x"]));
         let flat = json!({ "id": "example.logins", "compute": { "aggregation_type": "count" }, "filter": { "query": "source:example" } });
-        assert_eq!(log_metric_doc(&flat).unwrap(), json!({ "data": { "id": "example.logins", "type": "logs_metrics", "attributes": { "compute": { "aggregation_type": "count" }, "filter": { "query": "source:example" } } } }));
+        assert_eq!(
+            log_metric_doc(&flat).unwrap(),
+            json!({ "data": { "id": "example.logins", "type": "logs_metrics", "attributes": { "compute": { "aggregation_type": "count" }, "filter": { "query": "source:example" } } } })
+        );
         assert_eq!(log_metric_doc(&json!({ "data": { "id": "a" } })).unwrap()["data"]["id"], "a");
         assert!(log_metric_doc(&json!({ "compute": {} })).is_none());
     }
@@ -173,8 +179,16 @@ mod tests {
             "cases": [{ "name": "many", "status": "medium", "condition": "failures > 10" }],
             "options": { "evaluationWindow": 300, "keepAlive": 3600, "maxSignalDuration": 86400, "detectionMethod": "threshold" }, "tags": [] });
         std::fs::write(root.join("assets/rules/brute.json"), rule.to_string()).unwrap();
-        std::fs::write(root.join("assets/metrics/logins.json"), json!({ "id": "example_audit.logins", "compute": { "aggregation_type": "count" }, "filter": { "query": "source:example-audit" } }).to_string()).unwrap();
-        std::fs::write(root.join("assets/metrics/taken.json"), json!({ "id": "orgs.own.metric", "compute": { "aggregation_type": "count" }, "filter": { "query": "source:example-audit" } }).to_string()).unwrap();
+        std::fs::write(
+            root.join("assets/metrics/logins.json"),
+            json!({ "id": "example_audit.logins", "compute": { "aggregation_type": "count" }, "filter": { "query": "source:example-audit" } }).to_string(),
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("assets/metrics/taken.json"),
+            json!({ "id": "orgs.own.metric", "compute": { "aggregation_type": "count" }, "filter": { "query": "source:example-audit" } }).to_string(),
+        )
+        .unwrap();
         let r = super::super::load(Some(dir.to_str().unwrap()));
         let _ = std::fs::remove_dir_all(&dir);
         assert!(r.invalid.is_empty(), "{:?}", r.invalid);
@@ -206,7 +220,11 @@ mod tests {
         let p = package();
         let a = admin(st, "assets-a").await;
         let b = admin(st, "assets-b").await;
-        sqlx::query("INSERT INTO log_metrics (org_id, name, query, aggregation, path, group_by, include_percentiles) VALUES ($1, 'orgs.own.metric', 'service:mine', 'count', NULL, '[]', false)").bind(&a.org_id).execute(&st.postgres).await.unwrap();
+        sqlx::query("INSERT INTO log_metrics (org_id, name, query, aggregation, path, group_by, include_percentiles) VALUES ($1, 'orgs.own.metric', 'service:mine', 'count', NULL, '[]', false)")
+            .bind(&a.org_id)
+            .execute(&st.postgres)
+            .await
+            .unwrap();
         let (created, problems) = install(st, &a, &p).await.unwrap();
         assert!(problems.is_empty(), "{problems:?}");
         assert_eq!(created, ["monitor:assets/monitors/failures.json", "security_rule:assets/rules/brute.json", "log_metric:assets/metrics/logins.json"]);

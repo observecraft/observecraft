@@ -218,3 +218,9 @@ export function createPush(id: string, input: Input): Promise<S['ConnectorTest']
   checked(p, input);
   return delay({ ok: true, message: `Created on ${p.entry.vendor}: it sends to ${input.pushUrl ?? 'the intake'}`, records: null }, 400);
 }
+
+/** Mock mode has no vendor: the consent is granted at once and the connection saved, as the callback would. */
+export async function startOAuth(id: string, input: Input): Promise<{ url: string }> {
+  const v = input.connectionId ? await updateConnection(id, input.connectionId, input) : await createConnection(id, input);
+  return delay({ url: `/integrations/connectors/${id}?oauth=${encodeURIComponent(v.name)}` });
+}
