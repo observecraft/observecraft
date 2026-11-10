@@ -80,3 +80,12 @@ for (const title of [
     assert.deepEqual(empty, []);
   });
 }
+
+test('a mock integration has as many instances of a metric as the tags its queries read tell apart', async () => {
+  const d = mock.dashboards.find((x) => x.title === 'Argo CD Overview');
+  const range = { from: Date.now() - 3_600_000, to: Date.now() };
+  const resolve = (q) => web.resolveQuery(q, d.templateVariables, {});
+  const controllers = widgets(d.widgets).find((w) => w.title === 'App Controllers').original;
+  const [series] = await web.queryIntegrationPanel(controllers, resolve, range);
+  assert.equal(series.points.at(-1)[1], 4, 'one application controller per host, not one per gRPC service the API server answers');
+});

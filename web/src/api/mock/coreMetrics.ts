@@ -238,6 +238,23 @@ for (const d of dashboards)
           : { set: `core_${d.logo}`, description: metric, unit, noise: 0.2, ...base(unit) };
   }
 
+// An integration whose queries filter on many values has more instances than hosts; a metric only has as many as
+// the tags its own queries read (and the dashboards' variables) tell apart.
+const keysOf = new Map<string, Set<string>>();
+for (const d of dashboards)
+  for (const [, metric, filters, by] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{([^}]*)\}(?: by \{([a-z0-9_.,]+)\})?/g)) {
+    const keys = keysOf.get(metric) ?? new Set(['host', ...d.templateVariables.flatMap((v) => (v.prefix ? [v.prefix] : []))]);
+    for (const f of filters.split(',')) if (/^!?[a-z][a-z0-9_]*:/.test(f.trim())) keys.add(f.trim().replace(/^!/, '').split(':')[0]);
+    for (const k of by?.split(',') ?? []) keys.add(k);
+    keysOf.set(metric, keys);
+  }
+for (const [metric, def] of Object.entries(CORE_METRICS)) {
+  const set = CORE_SETS[def.set];
+  const keys = keysOf.get(metric);
+  if (!set || set.length <= HOSTS.length || !keys || def.entities) continue;
+  def.entities = [...new Map(set.map((e) => [[...keys].map((k) => e[k]).join('|'), e])).values()];
+}
+
 const NOW_S = Math.floor(Date.now() / 1000);
 const DAY_S = 86_400;
 /** External Secrets' conditions: met (1) for status:true; one secret is failing (status:false). */
