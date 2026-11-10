@@ -31,6 +31,7 @@ import {
   IntegrationSunburst,
   IntegrationTopology,
 } from './IntegrationExtraWidgets';
+import { isEventPanel, panelSupport } from '../../../api/integrations/panelSupport';
 import { byteAxisInterval, formatMetricValue, formatUnitValue, presentationUnit, valueUnit } from '../../../api/integrations/units';
 
 /** Renders the actual upstream requests; never substitutes a different metric or formula. */
@@ -40,18 +41,14 @@ export function IntegrationWidget({ def }: { def: IntegrationWidgetDefinition })
   if (def.type === 'free_text') return <IntegrationFreeText def={def} />;
   if (def.type === 'hostmap') return <IntegrationHostmap def={def} />;
   if (def.type === 'topology_map') return <IntegrationTopology def={def} />;
-  const stream = def.requests?.[0]?.query?.data_source;
-  if (def.type === 'list_stream' && stream && stream !== 'event_stream')
+  const unsupported = panelSupport(def);
+  if (unsupported)
     return (
-      <WidgetState loading={false} error={new Error(`The ${stream.replace(/_/g, ' ')} list is not supported yet`)}>
+      <WidgetState loading={false} error={new Error(unsupported)}>
         {null}
       </WidgetState>
     );
-  return def.type === 'list_stream' || def.type === 'event_stream' || def.type === 'event_timeline' || def.requests?.some((r) => r.queries?.some((q) => q.data_source === 'events')) ? (
-    <IntegrationEvents def={def} />
-  ) : (
-    <IntegrationMetric def={def} />
-  );
+  return isEventPanel(def) ? <IntegrationEvents def={def} /> : <IntegrationMetric def={def} />;
 }
 
 /** Kubernetes resources, as the Kubernetes Explorer lists them; a row opens it in the Explorer. */
@@ -392,13 +389,8 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
     };
     content = <Chart option={option} height="100%" />;
   }
-  const supported = ['timeseries', 'query_value', 'query_table', 'toplist', 'sunburst', 'treemap', 'check_status', 'change', 'heatmap', 'geomap', 'bar_chart', 'distribution'].includes(def.type);
   return (
-    <WidgetState
-      loading={data.isPending}
-      error={!supported ? new Error(`The ${def.type} panel requires a data source that is not supported yet.`) : data.error}
-      empty={!series.length && def.type !== 'geomap'}
-    >
+    <WidgetState loading={data.isPending} error={data.error} empty={!series.length && def.type !== 'geomap'}>
       {content}
     </WidgetState>
   );
