@@ -1,8 +1,9 @@
 // integrations-core widgets beyond charts and tables, drawn as Datadog draws them: the geomap (a world map
 // coloured by value per country), the bar chart, the distribution (a histogram of the groups' values), the
-// host map, free text, a log pattern list and the sunburst (pie).
+// host map, free text, a log pattern list, the sunburst (pie) and the Data Streams topology.
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as echarts from 'echarts';
 import { Chart } from '../../../components/charts/Chart';
 import type { IntegrationWidgetDefinition } from '../../../api/integrations/evaluate';
@@ -10,6 +11,9 @@ import { queryIntegrationPanel } from '../../../api/integrations/panels';
 import { formatMetricValue } from '../../../api/integrations/units';
 import { countryValues, distributionBuckets, groupLabel, hostmapColor, hostmapGroups, hostmapQuery, hostmapScope, sunburstTree, type SunburstNode } from '../../../api/integrations/widgetData';
 import { loadWorldMap } from '../../../api/integrations/worldMap';
+import { queryTopology, type TopologyRequest } from '../../../api/integrations/topology';
+import { StreamGraph } from '../../dataStreams/StreamGraph';
+import '../../dataStreams/dataStreams.css';
 import { logPatterns } from '../../../api/client';
 import { palette, token } from '../../../theme/chartTheme';
 import { currentTheme } from '../../../theme/mode';
@@ -59,6 +63,27 @@ export function IntegrationGeomap({ values }: { values: Value[] }) {
             ],
           }}
         />
+      )}
+    </WidgetState>
+  );
+}
+
+/** A topology map on Data Streams: the queue's producers and consumers; a node opens it on the Data Streams map. */
+export function IntegrationTopology({ def }: { def: IntegrationWidgetDefinition }) {
+  const { range, resolve } = useDashboardContext();
+  const navigate = useNavigate();
+  const request = (def.requests as unknown as TopologyRequest[] | undefined)?.[0];
+  const data = useQuery({
+    queryKey: ['integration-topology', request, range, resolve(request?.query?.query_string ?? ''), (request?.query?.filters ?? []).map(resolve)],
+    queryFn: () => queryTopology(request, resolve, range),
+    placeholderData: keepPreviousData,
+  });
+  return (
+    <WidgetState loading={data.isPending} error={data.error} empty={!data.data?.edges.length}>
+      {data.data && (
+        <div className="iw-topology">
+          <StreamGraph nodes={data.data.nodes} edges={data.data.edges} fit onSelect={(id) => id && navigate(`/data-streams?node=${encodeURIComponent(id)}`)} />
+        </div>
       )}
     </WidgetState>
   );

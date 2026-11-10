@@ -132,7 +132,7 @@ export function WidgetFrame({ widget, dragClass = 'drag-l0' }: { widget: Widget;
   return (
     <div className={`wf wf-${def.type}${headerless ? ' wf-headerless' : ''}`}>
       <div className={`wf-head ${dragClass}`}>
-        {!headerless && <span className="wf-title">{def.title || ''}</span>}
+        {!headerless && <span className="wf-title">{ctx.resolveTitle?.(def.title || '') ?? def.title ?? ''}</span>}
         {span && (
           <span className="wf-span" title={`This widget shows the last ${span.label}`}>
             {span.label}
@@ -169,6 +169,7 @@ const GROUP_COLORS: Record<Extract<WidgetDefinition, { type: 'group' }>['color']
 export function GroupFrame({ widget, children, dragClass = 'drag-l0' }: { widget: Widget; children: ReactNode; dragClass?: string }) {
   const def = widget.definition as Extract<WidgetDefinition, { type: 'group' }>;
   const [open, setOpen] = useState(true);
+  const { resolveTitle } = useDashboardContext();
   if (def.showTitle === false)
     return (
       <div className="wg wg-untitled">
@@ -187,7 +188,7 @@ export function GroupFrame({ widget, children, dragClass = 'drag-l0' }: { widget
           {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
         </button>
         {def.logo && <IntegrationLogo logo={def.logo} name={def.title || def.logo} size={24} />}
-        <span className="wg-title">{def.title}</span>
+        <span className="wg-title">{resolveTitle?.(def.title || '') ?? def.title}</span>
         <span className="wf-actions wf-nodrag wg-actions">
           <WidgetMenu widget={widget} />
         </span>

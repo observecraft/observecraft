@@ -30,7 +30,8 @@ const VALUES: Record<string, string[]> = {
   table: ['orders', 'order_items', 'products', 'invoices'],
   schema: ['public', 'public', 'billing', 'catalog'],
   service: ['order-service', 'catalog-service', 'billing', 'inventory-service'],
-  topic: ['orders', 'payments', 'inventory-updates', 'catalog-changes'],
+  // The Data Streams mock's Kafka topics (mock/dataStreams.ts), so a dashboard's topic variable also narrows its topology.
+  topic: ['orders.created', 'payments.authorized', 'inventory.reserved', 'order-events'],
   queue: ['orders', 'emails', 'payments', 'webhooks'],
   env: ['prod', 'prod', 'prod', 'qa'],
   // The AWS services' dimensions (cloudServiceDashboards.generated.json): account 123456789012's demo resources.
@@ -57,6 +58,28 @@ const VALUES: Record<string, string[]> = {
 /** Values of a tag that differ for one integration: CloudFront's functions aren't Lambda's, Azure resources have names. */
 const LOGO_VALUES: Record<string, Record<string, string[]>> = {
   'tile:aws-docdb': { dbinstanceidentifier: ['catalog-docdb-1', 'catalog-docdb-2', 'reviews-docdb-1', 'catalog-docdb-3'] },
+  // Kafka's clients and the Data Streams mock's consumer groups (mock/dataStreams.ts).
+  kafka: {
+    consumer_group: ['billing-consumer', 'inventory-consumer', 'notification-consumer', 'catalog-consumer'],
+    'client-id': ['order-service-producer-1', 'billing-consumer-1', 'inventory-consumer-1', 'notification-consumer-1'],
+    service: ['order-service', 'billing', 'inventory-service', 'notification-worker'],
+  },
+  // Strimzi's operators: their metrics endpoints, the Kafka resources they reconcile and the JVM's collectors.
+  strimzi: {
+    endpoint: ['http://10.0.12.21:8080/metrics', 'http://10.0.12.22:8080/metrics', 'http://10.0.12.22:8081/metrics', 'http://10.0.12.21:8080/metrics'],
+    namespace: ['kafka', 'kafka', 'kafka', 'kafka'],
+    resource_namespace: ['kafka', 'kafka', 'kafka', 'kafka'],
+    kind: ['Kafka', 'KafkaNodePool', 'KafkaTopic', 'KafkaUser'],
+    name: ['shop-prod', 'brokers', 'orders.created', 'order-service'],
+    selector: ['strimzi.io/cluster=shop-prod', 'strimzi.io/cluster=shop-prod', 'strimzi.io/cluster=shop-prod', 'strimzi.io/cluster=shop-prod'],
+    action: ['end of minor GC', 'end of minor GC', 'end of major GC', 'end of minor GC'],
+    cause: ['G1 Evacuation Pause', 'G1 Humongous Allocation', 'G1 Compaction Pause', 'Metadata GC Threshold'],
+    area: ['heap', 'nonheap', 'heap', 'nonheap'],
+    id: ['G1 Eden Space', 'Metaspace', 'G1 Old Gen', "CodeHeap 'non-nmethods'"],
+    state: ['runnable', 'waiting', 'timed-waiting', 'blocked'],
+    reason: ['none', 'none', 'none', 'none'],
+  },
+  'confluent-platform': { instance: ['kafka-0', 'schemaregistry-0', 'connect-0', 'ksqldb-0'] },
   'tile:aws-cloudfront': { functionname: ['storefront-headers', 'cart-redirects', 'storefront-headers', 'image-rewrite'] },
   'tile:azure-compute-virtualmachines': { name: ['storefront-api-vm', 'order-service-vm', 'catalog-service-vm', 'billing-vm'] },
   'tile:azure-web-sites': { name: ['storefront-web', 'api-gateway', 'checkout-web', 'storefront-web'] },
@@ -250,10 +273,19 @@ for (const [logo, tags] of tagsOf) {
   );
 }
 
+/** The metrics a dashboard queries; a percentile of a distribution (`p95:m{…}`) is the engine's `m.p95` series. */
+const queried = (d: Dashboard) =>
+  [...JSON.stringify(d.widgets).matchAll(/(?<![\w.])([a-z]+|p\d{1,2}(?:\.\d+)?):([a-z][a-z0-9_]*\.[A-Za-z0-9_.]+)\{([^}]*)\}(?: by \{([a-z0-9_.,]+)\})?/g)].map(([, agg, metric, filters, by]) => ({
+    metric: /^p\d/.test(agg) ? `${metric}.${agg}` : metric,
+    base: metric,
+    filters,
+    by,
+  }));
+
 for (const d of dashboards)
-  for (const [, metric] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[A-Za-z0-9_.]+)\{/g)) {
+  for (const { metric, base: distribution } of queried(d)) {
     if (CORE_METRICS[metric]) continue;
-    const unit = (core.units as Record<string, string>)[metric] ?? (cloudServices.units as Record<string, string>)[metric];
+    const unit = (core.units as Record<string, string>)[distribution] ?? (cloudServices.units as Record<string, string>)[distribution];
     // An Azure resource count (azure.<type>.count) is one series per resource, valued 1; availability metrics are 0 or 1.
     // Google Cloud's up and health gauges are 0 or 1, 1 when well.
     const one =
@@ -277,7 +309,7 @@ for (const d of dashboards)
 // the tags its own queries read (and the dashboards' variables) tell apart.
 const keysOf = new Map<string, Set<string>>();
 for (const d of dashboards)
-  for (const [, metric, filters, by] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[A-Za-z0-9_.]+)\{([^}]*)\}(?: by \{([a-z0-9_.,]+)\})?/g)) {
+  for (const { metric, filters, by } of queried(d)) {
     const keys = keysOf.get(metric) ?? new Set(['host', ...d.templateVariables.flatMap((v) => (v.prefix ? [v.prefix] : []))]);
     for (const f of filters.split(',')) if (/^!?[a-z][a-z0-9_]*:/.test(f.trim())) keys.add(f.trim().replace(/^!/, '').split(':')[0]);
     for (const k of by?.split(',') ?? []) keys.add(k);
@@ -325,6 +357,26 @@ const OVERRIDES: Record<string, Pick<CoreMetricDef, 'base' | 'noise'> & Partial<
   'cert_manager.certificate.ready_status': { base: (e) => (e.condition === 'true' ? 1 : 0), noise: 0, integer: true },
   'cert_manager.certificate.expiration_timestamp': { base: (_e, r) => NOW_S + Math.round(12 + r() * 75) * DAY_S, noise: 0 },
   'cert_manager.clock_time': { base: () => NOW_S, noise: 0 },
+  // A healthy Kafka cluster: every partition online and in sync, no unclean elections, no fenced brokers.
+  ...Object.fromEntries(
+    [
+      'kafka.replication.offline_partitions_count',
+      'kafka.replication.under_replicated_partitions',
+      'kafka.replication.unclean_leader_elections.rate',
+      'kafka.controller.fenced_broker_count',
+      'kafka.kraft.broker_metadata.metadata_load_error_count',
+      'kafka.kraft.broker_metadata.metadata_apply_error_count',
+      'confluent.kafka.controller.offline_partitions_count',
+      'confluent.kafka.server.replica_manager.under_replicated_partitions',
+      'confluent.kafka.server.replica_manager.under_min_isr_partition_count',
+      'confluent.kafka.connect.worker.connector_failed_task_count',
+    ].map((m) => [m, { base: () => 0, noise: 0, integer: true }]),
+  ),
+  'kafka.controller.active_broker_count': { base: () => 3, noise: 0, integer: true },
+  'kafka.kraft.current_leader': { base: () => 1, noise: 0, integer: true },
+  'strimzi.cluster_operator.resource.state': { base: () => 1, noise: 0, integer: true },
+  'strimzi.topic_operator.resource.state': { base: () => 1, noise: 0, integer: true },
+  'strimzi.user_operator.resource.state': { base: () => 1, noise: 0, integer: true },
 };
 
 /** Between `lo` and `hi` per instance, varying by `noise`. */

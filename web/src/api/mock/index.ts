@@ -10,6 +10,7 @@ import { gitlabAuditLogs } from './gitlabAudit';
 import { googleWorkspaceLogs } from './googleWorkspace';
 import { entraLogs } from './entra';
 import { kubernetesToolLogs } from './kubernetesToolLogs';
+import { kafkaLogs } from './kafkaLogs';
 import { supplyChainFirewallLogs } from './supplyChainFirewallLogs';
 import { datastoreLogs } from './datastoreLogs';
 import { logField, logFieldValues, matchLog } from './match';
@@ -50,6 +51,8 @@ function logs(): LogEvent[] {
   out.push(...entraLogs(rng(29), now));
   // Vault's audit log, Gatekeeper's, Argo CD's and cert-manager's (their integration dashboards).
   out.push(...kubernetesToolLogs(rng(17), now));
+  // Kafka's brokers, for the Kafka dashboards' log widgets.
+  out.push(...kafkaLogs(rng(29), now));
   // Supply Chain Firewall's runs (its integration dashboard and Logs → source:scfw).
   out.push(...supplyChainFirewallLogs(rng(23), now));
   // PostgreSQL's, PgBouncer's, Redis's and ClickHouse's server logs, parsed by their pipelines (their integration dashboards).

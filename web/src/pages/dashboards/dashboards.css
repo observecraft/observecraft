@@ -2455,6 +2455,16 @@ td.iw-ev-source .status-bar {
 }
 
 /* A host map: one tile per host, in its value's colour. */
+.iw-topology {
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.iw-topology .dsm-graph {
+  max-height: 100%;
+}
 .iw-hostmap {
   display: flex;
   flex-wrap: wrap;

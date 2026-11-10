@@ -21,7 +21,16 @@ import { SourceIcon, STATUS_TOKENS } from '../../events/eventVisuals';
 import { searchKubernetes } from '../../../api/kubernetes/client';
 import { infrastructureList, type InfrastructureRequest } from '../../../api/integrations/infrastructure';
 import { COLUMNS } from '../../kubernetes/columns';
-import { IntegrationBarChart, IntegrationDistribution, IntegrationFreeText, IntegrationGeomap, IntegrationHostmap, IntegrationLogPatterns, IntegrationSunburst } from './IntegrationExtraWidgets';
+import {
+  IntegrationBarChart,
+  IntegrationDistribution,
+  IntegrationFreeText,
+  IntegrationGeomap,
+  IntegrationHostmap,
+  IntegrationLogPatterns,
+  IntegrationSunburst,
+  IntegrationTopology,
+} from './IntegrationExtraWidgets';
 import { byteAxisInterval, formatMetricValue, formatUnitValue, presentationUnit, valueUnit } from '../../../api/integrations/units';
 
 /** Renders the actual upstream requests; never substitutes a different metric or formula. */
@@ -30,6 +39,7 @@ export function IntegrationWidget({ def }: { def: IntegrationWidgetDefinition })
   if (def.type === 'list_stream' && def.requests?.[0]?.query?.data_source === 'logs_pattern_stream') return <IntegrationLogPatterns def={def} />;
   if (def.type === 'free_text') return <IntegrationFreeText def={def} />;
   if (def.type === 'hostmap') return <IntegrationHostmap def={def} />;
+  if (def.type === 'topology_map') return <IntegrationTopology def={def} />;
   const stream = def.requests?.[0]?.query?.data_source;
   if (def.type === 'list_stream' && stream && stream !== 'event_stream')
     return (

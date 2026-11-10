@@ -146,7 +146,10 @@ export function normalizeRequest(request: Pick<IntegrationRequest, 'q' | 'querie
       : old.security_query
         ? [legacyQuery('security_signals', old.security_query)]
         : [];
-  const raw: IntegrationQuery[] = (request.queries ?? (legacy as IntegrationQuery[]))
+  // A distribution's or heatmap's histogram request names its one query `query` (an object, not a string).
+  const single = (request as { query?: unknown }).query;
+  const one = single && typeof single === 'object' ? [single as IntegrationQuery] : undefined;
+  const raw: IntegrationQuery[] = (request.queries ?? one ?? (legacy as IntegrationQuery[]))
     .map((q) => (q.data_source === 'cloud_cost' ? { ...q, data_source: 'metrics' } : q))
     .map((q) => (q.data_source === 'metrics' && typeof q.query !== 'string' && q.metric_name ? { ...q, query: namedMetricQuery(q, request) } : q))
     .map((q) => (q.data_source === 'metrics' && typeof q.query === 'string' ? { ...q, query: canonicalMetricQuery(q.query) } : q));

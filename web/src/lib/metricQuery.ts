@@ -199,3 +199,19 @@ export function resolveSearchQuery(query: string, tvs: TemplateVariable[], value
   const resolved = named ? query.replace(reference!, (_, name: string) => term(byName.get(name)!)) : appendUnnamed ? [query, ...tvs.map(term)].join(' ') : query;
   return resolved.replace(/\s+/g, ' ').trim();
 }
+
+/**
+ * A widget title with the dashboard's variables it names, as Datadog shows them: `$name` as `prefix:value`,
+ * `$name.value` as the value alone, `*` while the variable is unset. Other `$` text stays as written.
+ */
+export function resolveTitle(title: string, tvs: TemplateVariable[], values: TemplateVarValues): string {
+  const byName = new Map(tvs.map((t) => [t.name, t]));
+  const names = [...byName.keys()].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (!names.length) return title;
+  return title.replace(new RegExp(`\\$(${names.join('|')})(\\.value)?(?![\\w.])`, 'g'), (_, name: string, dotValue?: string) => {
+    const tv = byName.get(name)!;
+    const value = values[name] ?? tv.default ?? '*';
+    if (!value || value === '*') return '*';
+    return dotValue || !tv.prefix ? value : `${tv.prefix}:${value}`;
+  });
+}

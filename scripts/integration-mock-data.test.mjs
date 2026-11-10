@@ -1,6 +1,6 @@
 // Mock mode (make web-mock) draws every widget of the Vault, Gatekeeper, External Secrets, Argo CD, Traefik Mesh,
-// cert-manager, PostgreSQL, PgBouncer, Redis and ClickHouse dashboards: their metrics, service checks, logs and security
-// signals, template variables at `*`.
+// cert-manager, PostgreSQL, PgBouncer, Redis, ClickHouse, Kafka, Strimzi and Confluent Platform dashboards: their metrics,
+// service checks, logs, security signals and Data Streams topologies, template variables at `*`.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -18,6 +18,7 @@ const { outputFiles } = require('esbuild').buildSync({
       "export { hostmapQuery } from './api/integrations/widgetData';",
       "export { checkStatusTiles } from './api/integrations/checkStatus';",
       "export { evaluateGroups } from './api/mock/metricsEngine';",
+      "export { queryTopology } from './api/integrations/topology';",
     ].join('\n'),
     resolveDir: fileURLToPath(new URL('../web/src', import.meta.url)),
     loader: 'ts',
@@ -50,6 +51,7 @@ async function hasData(d, def) {
   const o = def.original;
   if (o.type === 'list_stream' && o.requests?.[0]?.query?.data_source === 'logs_pattern_stream')
     return (await web.logPatterns({ range, query: web.resolveSearchQuery(o.requests[0].query.query_string, d.templateVariables, {}) })).length > 0;
+  if (o.type === 'topology_map') return (await web.queryTopology(o.requests?.[0], resolve, range)).edges.length > 0;
   if (o.type === 'hostmap') return (await web.queryIntegrationPanel({ type: 'query_table', requests: [{ q: web.hostmapQuery(o) }] }, resolve, range)).length > 0;
   const series = await web.queryIntegrationPanel(o, resolve, range);
   if (o.type === 'check_status') return web.checkStatusTiles(o, series).length > 0;
@@ -69,6 +71,10 @@ for (const title of [
   'PgBouncer - Metrics',
   'Redis - Overview',
   'ClickHouse Overview',
+  'Kafka, Zookeeper and Kafka Consumer Overview',
+  'Kafka KRaft Overview',
+  'Strimzi Overview',
+  'Confluent Platform Overview',
 ]) {
   test(`every widget of ${title} has data in mock mode`, async () => {
     const d = mock.dashboards.find((x) => x.title === title);
@@ -126,4 +132,23 @@ test('running totals the dashboards take the change of (diff, per_minute, deriva
       assert.ok(values.at(-1) > values[0], metric);
     }
   }
+});
+
+test('a Data Streams topology widget narrows the map to its queue and environment', async () => {
+  const range = { from: Date.now() - 3_600_000, to: Date.now() };
+  const d = mock.dashboards.find((x) => x.title === 'Kafka KRaft Overview');
+  const def = widgets(d.widgets).find((w) => w.original?.type === 'topology_map').original;
+  const all = await web.queryTopology(def.requests[0], (q) => web.resolveQuery(q, d.templateVariables, {}), range);
+  const orders = await web.queryTopology(def.requests[0], (q) => web.resolveQuery(q, d.templateVariables, { topic: 'orders.created', env: 'prod' }), range);
+  const topics = (g) => g.nodes.filter((n) => n.kind === 'topic').map((n) => n.name);
+  assert.ok(topics(all).length > 1, 'every Kafka topic without a topic chosen');
+  assert.deepEqual(topics(orders), ['orders.created']);
+  assert.ok(
+    orders.edges.every((e) => e.source === 'topic:kafka:orders.created' || e.target === 'topic:kafka:orders.created'),
+    JSON.stringify(orders.edges.map((e) => [e.source, e.target])),
+  );
+  assert.ok(
+    orders.nodes.some((n) => n.kind === 'service'),
+    'with its producers and consumers',
+  );
 });

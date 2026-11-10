@@ -336,6 +336,8 @@ const MOCK_INTEGRATIONS = [
   'argocd',
   'cert-manager',
   'supply-chain-firewall',
+  'strimzi',
+  'confluent-platform',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */

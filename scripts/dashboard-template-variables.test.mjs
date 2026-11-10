@@ -2,7 +2,7 @@
 // as Datadog applies them: each `$name` where it is written, `prefix:value`, dropped while it is `*`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseMetricQuery, resolveQuery, resolveSearchQuery } from '../web/src/lib/metricQuery.ts';
+import { parseMetricQuery, resolveQuery, resolveSearchQuery, resolveTitle } from '../web/src/lib/metricQuery.ts';
 
 const vault = [
   { name: 'vault_cluster', prefix: 'vault_cluster', default: '*' },
@@ -80,4 +80,15 @@ test('a search reads `$name.value` as the variable’s value, `*` while it is un
   const query = 'source:postgresql (host:$host.value OR hostname:$host.value)';
   assert.equal(resolveSearchQuery(query, vars, {}), 'source:postgresql (host:* OR hostname:*)');
   assert.equal(resolveSearchQuery(query, vars, { host: 'i-0a1b2c3d4e5f60001' }), 'source:postgresql (host:i-0a1b2c3d4e5f60001 OR hostname:i-0a1b2c3d4e5f60001)');
+});
+
+test('a widget title shows the variables it names: `$name` as prefix:value, `$name.value` as the value, * while unset', () => {
+  const kafka = [
+    { name: 'env', prefix: 'env', default: '*' },
+    { name: 'topic', prefix: 'topic', default: '*' },
+  ];
+  assert.equal(resolveTitle('Kafka Topology for $topic, $env', kafka, {}), 'Kafka Topology for *, *');
+  assert.equal(resolveTitle('Kafka Topology for $topic, $env', kafka, { topic: 'orders.created', env: 'prod' }), 'Kafka Topology for topic:orders.created, env:prod');
+  assert.equal(resolveTitle('Lag of $topic.value', kafka, { topic: 'orders.created' }), 'Lag of orders.created');
+  assert.equal(resolveTitle('Cost in $ of $unknown', kafka, {}), 'Cost in $ of $unknown', 'not a variable of the dashboard');
 });
