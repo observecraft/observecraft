@@ -20,7 +20,7 @@ const CORE: &str = "1e7420ec635aafdd33db6a1e69586de7d2e24c21";
 const EXTRAS: &str = "20d3ceeaf342b8c9f6211dc9df9ea3d382dbb692";
 
 /// Samples that pass today: the test fails when fewer do (raise it as the engine catches up).
-const PASSING: usize = 1081;
+const PASSING: usize = 1092;
 
 fn env(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.is_empty())

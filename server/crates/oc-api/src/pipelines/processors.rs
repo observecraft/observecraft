@@ -9,7 +9,7 @@ use serde_json::{Map, Value};
 
 use super::dates::parse_any;
 use super::filter::Filter;
-use super::grok::{as_f64, num, query_string, Grok};
+use super::grok::{as_f64, num, Grok};
 use super::log::{text, Log};
 use super::{Pipeline, MAX_NESTING};
 
@@ -734,22 +734,41 @@ fn lookup_row(line: &str) -> Option<(String, String)> {
 
 /// `scheme`, `host`, `port`, `path` and `queryString` of a URL (only the last two for a relative one).
 pub fn url_details(s: &str) -> Option<Value> {
+    // As Datadog's URL parser reads it: the parts as written, no defaults (port, `/` path) and no decoding.
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
     let mut out = Map::new();
-    let parsed = match url::Url::parse(s) {
-        Ok(u) if u.has_host() => {
-            out.insert("scheme".into(), Value::from(u.scheme()));
-            out.insert("host".into(), Value::from(u.host_str().unwrap_or("")));
-            if let Some(port) = u.port_or_known_default() {
+    let (rest, hash) = s.split_once('#').map_or((s, None), |(r, h)| (r, Some(h)));
+    let (rest, query) = rest.split_once('?').map_or((rest, None), |(r, q)| (r, Some(q)));
+    let scheme = rest.find("://").filter(|&i| i > 0 && rest[..i].chars().all(|c| c.is_ascii_alphanumeric() || "+.-".contains(c)));
+    let path = match scheme {
+        Some(i) => {
+            out.insert("scheme".into(), Value::from(&rest[..i]));
+            let after = &rest[i + 3..];
+            let (authority, path) = after.find('/').map_or((after, ""), |j| (&after[..j], &after[j..]));
+            let host_port = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
+            // `[v6]:port`, `host:port` or a host.
+            let (host, port) = match host_port.rfind(':') {
+                Some(j) if !host_port[j..].contains(']') && host_port[j + 1..].parse::<u16>().is_ok() => (&host_port[..j], host_port[j + 1..].parse::<u16>().ok()),
+                _ => (host_port, None),
+            };
+            out.insert("host".into(), Value::from(host.to_lowercase()));
+            if let Some(port) = port {
                 out.insert("port".into(), Value::from(port));
             }
-            u
+            path
         }
-        _ if s.starts_with('/') => url::Url::parse(&format!("http://relative.invalid{s}")).ok()?,
-        _ => return None,
+        None => rest,
     };
-    out.insert("path".into(), Value::from(parsed.path()));
-    if let Some(q) = parsed.query().filter(|q| !q.is_empty()) {
-        out.insert("queryString".into(), query_string(q));
+    out.insert("path".into(), Value::from(path));
+    if let Some(q) = query.filter(|q| !q.is_empty()) {
+        let pairs = q.split('&').filter(|p| !p.is_empty()).map(|p| p.split_once('=').unwrap_or((p, "")));
+        out.insert("queryString".into(), Value::Object(pairs.map(|(k, v)| (k.to_string(), Value::from(v))).collect()));
+    }
+    if let Some(h) = hash.filter(|h| !h.is_empty()) {
+        out.insert("hash".into(), Value::from(h));
     }
     Some(Value::Object(out))
 }
@@ -1054,10 +1073,16 @@ mod tests {
     #[test]
     fn url_parser() {
         let p = json!([{"type": "url-parser", "sources": ["http.url"], "target": "http.url_details"}]);
-        let out = run(p.clone(), log("m", json!({"http": {"url": "https://shop.example.com:8443/cart?id=7&q=red%20shoes"}})));
-        assert_eq!(out.get("http.url_details"), Some(json!({"scheme": "https", "host": "shop.example.com", "port": 8443, "path": "/cart", "queryString": {"id": "7", "q": "red shoes"}})));
-        let out = run(p, log("m", json!({"http": {"url": "/cart"}})));
-        assert_eq!(out.get("http.url_details"), Some(json!({"path": "/cart"})));
+        // As Datadog's: the URL's parts as written (query values aren't decoded), its port only when it has one.
+        let out = run(p.clone(), log("m", json!({"http": {"url": "https://Shop.Example.com:8443/cart?id=7&q=red%20shoes#reviews"}})));
+        assert_eq!(out.get("http.url_details"), Some(json!({"scheme": "https", "host": "shop.example.com", "port": 8443, "path": "/cart", "queryString": {"id": "7", "q": "red%20shoes"}, "hash": "reviews"})));
+        let details = |url: &str| run(p.clone(), log("m", json!({"http": {"url": url}}))).get("http.url_details");
+        assert_eq!(details("/cart"), Some(json!({"path": "/cart"})));
+        assert_eq!(details("https://shop.example.com"), Some(json!({"scheme": "https", "host": "shop.example.com", "path": ""})));
+        assert_eq!(details("SSL://login.example.com:443/"), Some(json!({"scheme": "SSL", "host": "login.example.com", "port": 443, "path": "/"})));
+        assert_eq!(details("www.example.com"), Some(json!({"path": "www.example.com"})));
+        assert_eq!(details("http://[2001:db8::1]:8080/x?flag"), Some(json!({"scheme": "http", "host": "[2001:db8::1]", "port": 8080, "path": "/x", "queryString": {"flag": ""}})));
+        assert_eq!(details(""), None);
     }
 
     #[test]

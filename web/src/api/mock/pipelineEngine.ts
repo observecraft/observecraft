@@ -595,25 +595,30 @@ export function statusOf(v: JsonValue | undefined): string {
   return 'info';
 }
 
-function urlDetails(s: string): Obj | undefined {
-  let u: URL;
-  let absolute = true;
-  try {
-    u = new URL(s);
-  } catch {
-    if (!s.startsWith('/')) return undefined;
-    u = new URL(s, 'http://relative.invalid');
-    absolute = false;
-  }
-  const out: Obj = absolute
-    ? {
-        scheme: u.protocol.replace(/:$/, ''),
-        host: u.hostname,
-        ...(u.port || u.protocol === 'http:' || u.protocol === 'https:' ? { port: Number(u.port || (u.protocol === 'https:' ? 443 : 80)) } : {}),
-      }
-    : {};
-  out.path = u.pathname;
-  if (u.search.length > 1) out.queryString = Object.fromEntries(u.searchParams);
+/** As Datadog's URL parser (and the server's): the parts as written, no default port or path, query values not decoded. */
+function urlDetails(text: string): Obj | undefined {
+  const s = text.trim();
+  if (!s) return undefined;
+  const [beforeHash, hash] = s.includes('#') ? [s.slice(0, s.indexOf('#')), s.slice(s.indexOf('#') + 1)] : [s, ''];
+  const [rest, query] = beforeHash.includes('?') ? [beforeHash.slice(0, beforeHash.indexOf('?')), beforeHash.slice(beforeHash.indexOf('?') + 1)] : [beforeHash, ''];
+  const out: Obj = {};
+  const m = /^([A-Za-z0-9+.-]+):\/\/([^/]*)(.*)$/.exec(rest);
+  if (m) {
+    out.scheme = m[1];
+    const hostPort = m[2].slice(m[2].lastIndexOf('@') + 1);
+    const port = /^(.*):(\d{1,5})$/.exec(hostPort);
+    out.host = (port && !port[2].includes(']') ? port[1] : hostPort).toLowerCase();
+    if (port) out.port = Number(port[2]);
+    out.path = m[3];
+  } else out.path = rest;
+  if (query)
+    out.queryString = Object.fromEntries(
+      query
+        .split('&')
+        .filter(Boolean)
+        .map((p) => (p.includes('=') ? [p.slice(0, p.indexOf('=')), p.slice(p.indexOf('=') + 1)] : [p, ''])),
+    );
+  if (hash) out.hash = hash;
   return out;
 }
 

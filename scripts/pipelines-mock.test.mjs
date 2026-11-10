@@ -102,6 +102,8 @@ test('test endpoint: a parsed message stays an attribute until remapped; GeoIP a
   const remapped = mock.testPipeline({ processors: [...processors, { type: 'message-remapper', sources: ['message'] }], log: sample('10.0.0.12 card declined') });
   assert.equal(remapped.log.message, 'card declined');
   assert.equal(remapped.log.attributes.message, undefined);
+  const url = mock.testPipeline({ processors: [{ type: 'url-parser', sources: ['u'], target: 'd' }], log: sample('m', { u: 'https://Shop.Example.com:8443/cart?q=red%20shoes#top' }) });
+  assert.deepEqual(url.log.attributes.d, { scheme: 'https', host: 'shop.example.com', port: 8443, path: '/cart', queryString: { q: 'red%20shoes' }, hash: 'top' });
 });
 
 test('mock pipelines: deterministic demo seed, CRUD, reorder and read-only integration pipelines', async () => {
