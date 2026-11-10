@@ -44,6 +44,17 @@ export function hostmapQuery(def: { requests?: unknown; node_type?: unknown; gro
   return `${fill.replace(/\s+by\s+\{[^}]*\}/, '')} by {${[node, ...groups].join(',')}}`;
 }
 
+/** The metric and filters a host map reads (`system.load.1{field:apps:argocd}`), its template variables left out. */
+export function hostmapScope(query: string): string {
+  const m = /:([\w.]+)\{([^}]*)\}/.exec(query);
+  if (!m) return query;
+  const filters = m[2]
+    .split(',')
+    .map((f) => f.trim())
+    .filter((f) => f && !f.startsWith('$') && f !== '*');
+  return `${m[1]}{${filters.join(',') || '*'}}`;
+}
+
 /** A host map's boxes: one per value of its group tags (one unnamed box without groups), with its nodes by name. */
 export function hostmapGroups(values: { name: string; value: number }[], groups: string[]): { label: string; nodes: { name: string; value: number }[] }[] {
   const boxes = new Map<string, { name: string; value: number }[]>();

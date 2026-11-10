@@ -1,7 +1,7 @@
 // Data of the geomap, distribution, hostmap and sunburst (pie) widgets (web/src/api/integrations/widgetData.ts).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { countryValues, distributionBuckets, groupLabel, hostmapColor, hostmapGroups, hostmapQuery, sunburstTree } from '../web/src/api/integrations/widgetData.ts';
+import { countryValues, distributionBuckets, groupLabel, hostmapColor, hostmapGroups, hostmapQuery, hostmapScope, sunburstTree } from '../web/src/api/integrations/widgetData.ts';
 
 test('a group reads without its query and tag keys', () => {
   assert.equal(groupLabel('query1 · country_code:RO'), 'RO');
@@ -128,4 +128,9 @@ test('a host map draws a box per group value, its nodes by name', () => {
     },
   ]);
   assert.deepEqual(hostmapGroups([{ name: 'host:a', value: 1 }], []), [{ label: '', nodes: [{ name: 'a', value: 1 }] }]);
+});
+
+test('an empty host map names the metric and the scope it looked in, without the unset variables', () => {
+  assert.equal(hostmapScope('avg:system.load.1{field:apps:argocd,$host,$kube_cluster_name} by {host,cluster_name}'), 'system.load.1{field:apps:argocd}');
+  assert.equal(hostmapScope('avg:process.stat.container.cpu.total_pct{$cluster_name} by {container_id}'), 'process.stat.container.cpu.total_pct{*}');
 });

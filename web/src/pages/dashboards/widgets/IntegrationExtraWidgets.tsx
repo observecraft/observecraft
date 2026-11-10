@@ -8,7 +8,7 @@ import { Chart } from '../../../components/charts/Chart';
 import type { IntegrationWidgetDefinition } from '../../../api/integrations/evaluate';
 import { queryIntegrationPanel } from '../../../api/integrations/panels';
 import { formatMetricValue } from '../../../api/integrations/units';
-import { countryValues, distributionBuckets, groupLabel, hostmapColor, hostmapGroups, hostmapQuery, sunburstTree, type SunburstNode } from '../../../api/integrations/widgetData';
+import { countryValues, distributionBuckets, groupLabel, hostmapColor, hostmapGroups, hostmapQuery, hostmapScope, sunburstTree, type SunburstNode } from '../../../api/integrations/widgetData';
 import { loadWorldMap } from '../../../api/integrations/worldMap';
 import { logPatterns } from '../../../api/client';
 import { palette, token } from '../../../theme/chartTheme';
@@ -138,10 +138,11 @@ export function IntegrationHostmap({ def }: { def: IntegrationWidgetDefinition }
   const boxes = hostmapGroups(values, groups);
   const [min, max] = [Math.min(...values.map((h) => h.value)), Math.max(...values.map((h) => h.value))];
   const metric = /:([\w.]+)\{/.exec(query ?? '')?.[1];
+  const scope = query ? hostmapScope(query) : undefined;
   if (panel && !data.isPending && !data.error && !values.length)
     return (
       <div className="wd-state iw-hostmap-empty">
-        <span>No data for {metric ?? 'this query'}</span>
+        <span>No data for {scope ?? 'this query'}</span>
         {/^process\./.test(metric ?? '') && <small>Sent by the Datadog Agent's Process Agent (process collection or container collection enabled).</small>}
       </div>
     );
