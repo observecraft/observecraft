@@ -4,7 +4,7 @@
 // variables, sized by the metric's unit from metadata.csv.
 import core from '../integrations/coreDashboards.generated.json' with { type: 'json' };
 import cloudServices from '../integrations/cloudServiceDashboards.generated.json' with { type: 'json' };
-import { INFRA_OVERRIDES, INFRA_VALUES } from './kubernetesIntegrationMetrics';
+import { INFRA_CROSS, INFRA_OVERRIDES, INFRA_VALUES } from './kubernetesIntegrationMetrics';
 
 type Tags = Record<string, string>;
 
@@ -284,9 +284,11 @@ for (const [logo, tags] of tagsOf) {
   const lists = new Map([...tags].map((t) => [t, tagValues(logo, t)]));
   // Enough instances for every value a query filters on.
   const count = Math.max(HOSTS.length, ...[...lists.values()].map((l) => l?.length ?? 0));
-  CORE_SETS[`core_${logo}`] = Array.from({ length: count }, (_, i) =>
+  const set = Array.from({ length: count }, (_, i) =>
     Object.fromEntries([...tags].map((t) => [t, t === 'host' ? HOSTS[i % HOSTS.length] : (lists.get(t)?.[i % lists.get(t)!.length] ?? `${t}-${(i % HOSTS.length) + 1}`)])),
   );
+  // Tags every instance has each value of (Envoy's response code classes), so their shares add up per instance.
+  CORE_SETS[`core_${logo}`] = (INFRA_CROSS[logo] ?? []).reduce((all, t) => all.flatMap((e) => (lists.get(t) ?? [e[t]]).map((v) => ({ ...e, [t]: v }))), set);
 }
 
 /** The metrics a dashboard queries; a percentile of a distribution (`p95:m{…}`) is the engine's `m.p95` series. */

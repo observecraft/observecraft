@@ -553,6 +553,17 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
     ],
   },
   {
+    check: 'envoy',
+    variants: [
+      {
+        label: 'Envoy in a pod (envoyproxy/envoy)',
+        text: 'The check reads Envoy’s statistics at `/stats/prometheus` on its admin interface; have it listen on the pod’s address (`admin.address.socket_address: { address: 0.0.0.0, port_value: 9901 }`), and keep that port off any Service, since the admin interface can also change Envoy. Put the annotations on the pod template (the container is `envoy`). Its logs keep the `envoy` source the integration’s pipeline reads.',
+        filename: POD_ANNOTATIONS,
+        code: checkAnnotation('envoy', 'envoy', { instances: [{ openmetrics_endpoint: 'http://%%host%%:9901/stats/prometheus' }] }),
+      },
+    ],
+  },
+  {
     check: 'coredns',
     variants: [
       {

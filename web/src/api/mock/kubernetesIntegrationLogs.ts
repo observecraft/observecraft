@@ -101,7 +101,50 @@ const WORKFLOWS = ['nightly-order-export', 'catalog-reindex', 'invoice-batch', '
 
 const ROLLOUTS = ['storefront/storefront-api', 'checkout/order-service', 'checkout/checkout-web', 'catalog/catalog-service'];
 
+const PATHS = ['/api/cart', '/api/products', '/api/orders', '/api/checkout', '/healthz'];
+/** An Envoy access log line as its pipeline leaves it: method, path, status code and category, duration. */
+const envoyAccess = (code: number, weight: number): Line => ({
+  status: code >= 500 ? 'error' : code >= 400 ? 'warn' : 'info',
+  message: (r) =>
+    `[2026-11-10T09:15:02.354Z] "${pick(r, ['GET', 'GET', 'POST'])} ${pick(r, PATHS)} HTTP/1.1" ${code} - "-" ${Math.floor(r() * 800)} ${200 + Math.floor(r() * 9000)} ${2 + Math.floor(r() * 120)} ${1 + Math.floor(r() * 100)} "-" "Mozilla/5.0" "${Math.floor(r() * 1e12).toString(16)}" "shop.example.com" "10.0.14.${10 + Math.floor(r() * 40)}:8080"`,
+  attributes: (r, message) => {
+    const [, method, path] = /"(\w+) (\S+) /.exec(message) ?? [];
+    return {
+      http: {
+        method,
+        url: path,
+        url_details: { path },
+        status_code: code,
+        status_category: code >= 500 ? 'error' : code >= 400 ? 'warning' : 'OK',
+        authority: 'shop.example.com',
+        useragent: 'Mozilla/5.0',
+      },
+      duration: (2 + Math.floor(r() * 120)) * 1e6,
+    };
+  },
+  weight,
+});
+
 const SOURCES: Source[] = [
+  {
+    source: 'envoy',
+    service: (r) => (r() < 0.8 ? 'storefront-gateway' : 'internal-gateway'),
+    namespace: 'gateway',
+    pod: (i) => `storefront-gateway-envoy-7c9d8b6f5-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+    count: 300,
+    lines: [
+      envoyAccess(200, 30),
+      envoyAccess(304, 3),
+      envoyAccess(404, 3),
+      envoyAccess(503, 1),
+      {
+        status: 'warn',
+        message: () => 'Unable to use runtime singleton for feature envoy.http.headermap.lazy_map_min_size',
+        attributes: () => ({ level: 'warning', logger_name: 'runtime', filename: 'source/common/runtime/runtime_features.cc', line_number: 31, thread_id: 1 }),
+        weight: 1,
+      },
+    ],
+  },
   {
     source: 'argo_rollouts',
     service: 'argo-rollouts',

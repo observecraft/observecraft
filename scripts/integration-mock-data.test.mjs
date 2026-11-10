@@ -42,6 +42,8 @@ const KNOWN = new Map([
   ['Redis - Overview / Error Logs', 'no error status'],
   // Upstream's query reads `short_image::*kube-controller-manager` (a doubled colon): no tag value matches it.
   ['Kube Controller Manager memory usage vs requests', 'upstream query typo'],
+  // Upstream's query filters one tag on two values at once (`envoy_response_code_class:5,envoy_response_code_class:4*`): no series has both.
+  ['Incoming Success Rate (non 5xx and 4xx responses)', 'upstream query filters a tag on two values'],
 ]);
 
 const widgets = (items) => items.flatMap((w) => (w.definition.type === 'group' ? widgets(w.definition.widgets) : [w.definition]));
@@ -91,6 +93,8 @@ for (const title of [
   'LEGACY - DCGM Exporter (Nvidia GPU Monitoring) Overview',
   'Argo Workflows',
   'Argo Rollouts Overview',
+  'Envoy - Overview',
+  'Envoy Openmetrics',
 ]) {
   test(`every widget of ${title} has data in mock mode`, async () => {
     const d = mock.dashboards.find((x) => x.title === title);

@@ -350,6 +350,7 @@ const MOCK_INTEGRATIONS = [
   'dcgm',
   'argo-workflows',
   'argo-rollouts',
+  'envoy',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */

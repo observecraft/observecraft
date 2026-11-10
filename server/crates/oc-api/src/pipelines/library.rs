@@ -436,6 +436,18 @@ mod tests {
         assert_eq!((log.message.as_str(), log.get("argo_rollouts.resource.name")), ("Reconciliation completed", Some(json!("checkout/order-service"))));
     }
 
+    /// Envoy's access log (its default format), as integrations-core's `envoy_tests.yaml` expects: the request, the
+    /// status code and its category, the duration in nanoseconds, the query string as sent.
+    #[test]
+    fn envoy_access_log() {
+        use serde_json::json;
+        let line = r#"[2026-11-10T09:15:02.354Z] "GET /api/products?q=red+shoes HTTP/1.1" 503 UF "-" 0 91 25 - "-" "curl/8.4.0" "d209e46f-9ed5-9b61-bbdd-43e22662702a" "shop.example.com" "10.0.14.31:8080""#;
+        let log = agent_log("envoy", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60003", "service": "storefront-gateway", "ddsource": "envoy"}));
+        assert_eq!((log.get("http.status_code"), log.get("http.method"), log.get("http.authority")), (Some(json!(503)), Some(json!("GET")), Some(json!("shop.example.com"))));
+        assert_eq!((log.get("http.url_details.queryString.q"), log.get("duration"), log.status.as_str()), (Some(json!("red+shoes")), Some(json!(25_000_000)), "error"));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_354));
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};
