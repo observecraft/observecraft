@@ -1,0 +1,26 @@
+{
+  "status": "Success",
+  "nextpagetoken": "healthapi-t1",
+  "response": {
+    "dataformat": "json",
+    "dataencoding": "utf-8",
+    "data": [
+      {
+        "time": "10 Nov 2026 07:06:30",
+        "syslogheader": "<110>1 2026-11-10T07:06:30.000000Z api.bitglass.com NILVALUE NILVALUE access",
+        "transactionid": "11aa0000dd01 [10 Nov 2026 07:06:30]",
+        "activity": "Connector, RestAPI",
+        "responsecode": "400",
+        "application": "Box",
+        "email": "jane.doe@example.com",
+        "user": "Jane Doe",
+        "device": "",
+        "fileid": "9900000001",
+        "filename": "returns.pdf",
+        "status": "",
+        "url": "api.box.example.com/2.0/files/9900000001",
+        "usergroup": "['All Users']"
+      }
+    ]
+  }
+}

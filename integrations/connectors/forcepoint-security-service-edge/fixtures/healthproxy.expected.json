@@ -1,0 +1,42 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c447-27c0-7532-84ee-c9339105c6aa"
+      },
+      "activity": "Server5xx",
+      "application": "Example App",
+      "date": 1794294360000,
+      "ddsource": "forcepoint-security-service-edge",
+      "device": "Mac",
+      "deviceguid": "0A1B2C3D-0000-4000-8000-000000000042",
+      "email": "jane.doe@example.com",
+      "file_status": null,
+      "host": "portal.bitglass.com",
+      "ipaddress": "203.0.113.24",
+      "location": "Berlin, DE",
+      "message": "Server5xx 502 app.example.com/orders",
+      "requestmethod": "GET",
+      "responsecode": "502",
+      "service": "forcepoint-sse-healthproxy",
+      "status": "error",
+      "syslogheader": "<110>1 2026-11-10T07:06:00.000000Z api.bitglass.com NILVALUE NILVALUE access",
+      "time": "10 Nov 2026 07:06:00",
+      "transactionid": "Za0000cc01 [10 Nov 2026 07:06:00]",
+      "url": "app.example.com/orders",
+      "user": "Jane Doe",
+      "useragent": "Mozilla/5.0",
+      "usergroup": "['All Users']"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "healthproxy-t1"
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "status": "Success",
+  "nextpagetoken": "admin-t1",
+  "response": {
+    "dataformat": "json",
+    "dataencoding": "utf-8",
+    "data": [
+      {
+        "time": "10 Nov 2026 07:05:00",
+        "syslogheader": "<110>1 2026-11-10T07:05:00.000000Z api.bitglass.com NILVALUE NILVALUE access",
+        "transactionid": "1f5e0000bb01 [10 Nov 2026 07:05:00]",
+        "email": "admin@example.com",
+        "user": "Shop Admin",
+        "activity": "Policy, Edit",
+        "action": "Update",
+        "application": "Admin Portal",
+        "url": "/policies/300101/",
+        "ipaddress": "203.0.113.10",
+        "device": "Windows",
+        "location": "Berlin, DE",
+        "useragent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "details": "Changed the Salesforce download policy",
+        "dlppattern": "",
+        "filename": "",
+        "pagetitle": "Policies",
+        "request": "",
+        "emailbcc": "",
+        "emailcc": "",
+        "emailfrom": "",
+        "emailsenttime": "",
+        "emailsubject": "",
+        "emailto": ""
+      }
+    ]
+  }
+}

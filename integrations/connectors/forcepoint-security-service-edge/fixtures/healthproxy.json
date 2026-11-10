@@ -1,0 +1,28 @@
+{
+  "status": "Success",
+  "nextpagetoken": "healthproxy-t1",
+  "response": {
+    "dataformat": "json",
+    "dataencoding": "utf-8",
+    "data": [
+      {
+        "time": "10 Nov 2026 07:06:00",
+        "syslogheader": "<110>1 2026-11-10T07:06:00.000000Z api.bitglass.com NILVALUE NILVALUE access",
+        "transactionid": "Za0000cc01 [10 Nov 2026 07:06:00]",
+        "activity": "Server5xx",
+        "responsecode": "502",
+        "requestmethod": "GET",
+        "url": "app.example.com/orders",
+        "application": "Example App",
+        "email": "jane.doe@example.com",
+        "user": "Jane Doe",
+        "device": "Mac",
+        "deviceguid": "0A1B2C3D-0000-4000-8000-000000000042",
+        "ipaddress": "203.0.113.24",
+        "location": "Berlin, DE",
+        "useragent": "Mozilla/5.0",
+        "usergroup": "['All Users']"
+      }
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c447-9cf0-7486-b488-0aacdf9623c6"
+      },
+      "activity": "Connector, RestAPI",
+      "application": "Box",
+      "date": 1794294390000,
+      "ddsource": "forcepoint-security-service-edge",
+      "device": "",
+      "email": "jane.doe@example.com",
+      "file_status": "",
+      "fileid": "9900000001",
+      "filename": "returns.pdf",
+      "host": "portal.bitglass.com",
+      "message": "Connector, RestAPI 400 Box",
+      "responsecode": "400",
+      "service": "forcepoint-sse-healthapi",
+      "status": "warn",
+      "syslogheader": "<110>1 2026-11-10T07:06:30.000000Z api.bitglass.com NILVALUE NILVALUE access",
+      "time": "10 Nov 2026 07:06:30",
+      "transactionid": "11aa0000dd01 [10 Nov 2026 07:06:30]",
+      "url": "api.box.example.com/2.0/files/9900000001",
+      "user": "Jane Doe",
+      "usergroup": "['All Users']"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "healthapi-t1"
+      }
+    }
+  }
+}

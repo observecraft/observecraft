@@ -1,0 +1,33 @@
+{
+  "status": "Success",
+  "nextpagetoken": "cloudaudit-t1",
+  "response": {
+    "dataformat": "json",
+    "dataencoding": "utf-8",
+    "data": [
+      {
+        "time": "10 Nov 2026 06:20:02",
+        "syslogheader": "<110>1 2026-11-10T06:20:02.000000Z api.bitglass.com NILVALUE NILVALUE cloudaudit",
+        "application": "Google Drive",
+        "enterprisename": "Example Shop",
+        "actor": "jane.doe@example.com",
+        "actoripaddress": "203.0.113.24",
+        "activity": "Share",
+        "action": "Quarantine",
+        "owner": "jane.doe@example.com",
+        "filename": "q4-pricing.xlsx",
+        "fileid": "1AbCdEfGh0000000000000000001",
+        "filelink": "https://drive.example.com/file/1AbCdEfGh0000000000000000001",
+        "folder": "/My Drive/Pricing",
+        "patterns": "Credit Card Numbers",
+        "sharedwith": "partner@example.net",
+        "status": "Internal, Shared, DLP",
+        "size": "48211",
+        "copies": "0",
+        "createdtime": "02 Nov 2026 10:00:00",
+        "modifiedtime": "10 Nov 2026 06:10:00",
+        "policyid": "200101"
+      }
+    ]
+  }
+}

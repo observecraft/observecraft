@@ -1,0 +1,310 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Forcepoint Security Service Edge (Forcepoint ONE SSE, formerly Bitglass): the cloud (API mode), access, admin and
+# health logs of an SSE tenant, read from its log export API (`/api/bitglassapi/logs/v1/`), one stream per log type, as
+# the logs Datadog's integration sends (source:forcepoint-security-service-edge, service:forcepoint-sse-<type>, the
+# record's fields at the top). integrations-core's pipeline and dashboards (Overview, Access, Admin, Cloud, Health) read
+# them as they are, so this package ships none: saving a connection installs the tile's. The web gateway's log types
+# are the Forcepoint Secure Web Gateway connector's.
+#
+# A record's `status` field (a file's sharing state: "Internal, Shared, DLP") can't stay at the top, where it is the
+# log's level: it is sent as `file_status`.
+schema_version: 1
+id: forcepoint-security-service-edge
+name: Forcepoint Security Service Edge
+publisher: ObserveCraft
+vendor: Forcepoint
+description: >-
+  Forcepoint ONE SSE's logs: SaaS files and their activity seen in API mode (DLP patterns, sharing), proxy access to
+  cloud applications, admin portal activity and the health of the proxy, the API connectors and the platform, read
+  from Forcepoint's log export API as logs.
+tiles: [forcepoint-security-service-edge]
+source: forcepoint-security-service-edge
+categories: [Log Collection, Security, Cloud]
+docs_url: https://help.forcepoint.com/insights/en-us/userguide/guid-58f76f66-45d3-41ea-bc4b-c43ff220c4ac.html
+setup: |
+  1. In the Forcepoint ONE SSE admin portal, open **SETTINGS → API Interface → OAuth** and add an application with the
+     **Log Events** API permission for a user who may read the logs.
+  2. Open the application's **Token Authorization URL** as that user and **Approve**: Forcepoint shows the user's
+     access token (it does not expire).
+  3. Pick the portal your tenant uses (the host in the admin portal's address bar).
+  4. Forcepoint allows 300 log export requests a day per log type: each log type is read every 10 minutes. Turn off the
+     streams of modules you don't use.
+instance: "{{ config.portal | host }}"
+
+config:
+  - key: portal
+    label: Portal
+    type: url
+    required: true
+    default: https://portal.bitglass.com
+    placeholder: https://portal.bitglass.com
+    strip_suffix: [/api/bitglassapi/logs/v1, /api/bitglassapi/logs/v1/]
+    help: >-
+      https://portal.bitglass.com, https://portal.us.bitglass.net, https://portal.eu.bitglass.net,
+      https://portal.bitglass.ca, https://portal.fg-bitglass.net, or your own portal domain.
+  - key: access_token
+    label: Access token
+    type: string
+    secret: true
+    required: true
+    help: The OAuth access token of a user approved for the Log Events API permission.
+
+auth:
+  kind: bearer
+  token: "{{ secrets.access_token }}"
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Forcepoint refused the access token (approve the OAuth application with the Log Events permission)
+  - status: [403]
+    kind: access_denied
+    message: The access token's user may not read this log type
+  - status: [429]
+    kind: throttled
+    message: "Forcepoint's daily quota of 300 requests for this log type is used up (it resets at 00:00 UTC)"
+  - status: [200]
+    when: "{{ response.status == 'Unauthorized' }}"
+    kind: auth
+    message: Forcepoint refused the access token
+
+streams:
+  - id: cloudsummary
+    name: Cloud file summary
+    description: >-
+      One log per file of a sanctioned SaaS application scanned in API mode (service:forcepoint-sse-cloudsummary): owner, filename, folder, application, patterns, sharedwith, action and file_status.
+    interval: 10m
+    budget: { requests: 290, per: day }
+    max_pages: 10
+    request:
+      method: POST
+      url: "{{ config.portal }}/api/bitglassapi/logs/v1/"
+      query:
+        cv: 1.1.0
+        responseformat: json
+        type: cloudsummary
+        # The checkpoint once there is one; the first run starts a day back.
+        nextpagetoken: "{{ page.cursor ?? cursor.token }}"
+        startdate: "{{ (page.cursor ?? cursor.token) ? null : ((now - 86400000) | strftime('%Y-%m-%dT%H:%M:%SZ')) }}"
+    records: "{{ response.response.data }}"
+    pagination: { kind: cursor, next: "{{ response.nextpagetoken }}" }
+    record_id: "{{ record.transactionid | nonempty }}"
+    incremental: { kind: token, next: "{{ response.nextpagetoken }}" }
+    output:
+      logs:
+        service: forcepoint-sse-cloudsummary
+        message: "{{ record.application }}: {{ record.filename }} ({{ record.owner }}){{ ': ' + (record.patterns | nonempty) ?? '' }}"
+        status: "info"
+        date: "{{ (record.time + ' +0000') | epoch_ms }}"
+        attributes: "{{ record + {file_status: record.status} }}"
+
+  - id: cloudaudit
+    name: Cloud audit
+    description: >-
+      One log per file activity in a sanctioned SaaS application read in API mode (service:forcepoint-sse-cloudaudit): actor, activity, action, filename, folder, sharedwith, patterns and file_status.
+    interval: 10m
+    budget: { requests: 290, per: day }
+    max_pages: 10
+    request:
+      method: POST
+      url: "{{ config.portal }}/api/bitglassapi/logs/v1/"
+      query:
+        cv: 1.1.0
+        responseformat: json
+        type: cloudaudit
+        # The checkpoint once there is one; the first run starts a day back.
+        nextpagetoken: "{{ page.cursor ?? cursor.token }}"
+        startdate: "{{ (page.cursor ?? cursor.token) ? null : ((now - 86400000) | strftime('%Y-%m-%dT%H:%M:%SZ')) }}"
+    records: "{{ response.response.data }}"
+    pagination: { kind: cursor, next: "{{ response.nextpagetoken }}" }
+    record_id: "{{ record.transactionid | nonempty }}"
+    incremental: { kind: token, next: "{{ response.nextpagetoken }}" }
+    output:
+      logs:
+        service: forcepoint-sse-cloudaudit
+        message: "{{ record.application }}: {{ (record.activity | nonempty) ?? record.action }} {{ record.filename }} by {{ record.actor ?? record.owner }}"
+        status: "info"
+        date: "{{ (record.time + ' +0000') | epoch_ms }}"
+        attributes: "{{ record + {file_status: record.status} }}"
+
+  - id: access
+    name: Access
+    description: >-
+      One log per request through the proxy to a cloud application (service:forcepoint-sse-access): email, activity, action, application, url, ipaddress, device, dlppattern, filename and the other fields.
+    interval: 10m
+    budget: { requests: 290, per: day }
+    max_pages: 10
+    request:
+      method: POST
+      url: "{{ config.portal }}/api/bitglassapi/logs/v1/"
+      query:
+        cv: 1.1.0
+        responseformat: json
+        type: access
+        # The checkpoint once there is one; the first run starts a day back.
+        nextpagetoken: "{{ page.cursor ?? cursor.token }}"
+        startdate: "{{ (page.cursor ?? cursor.token) ? null : ((now - 86400000) | strftime('%Y-%m-%dT%H:%M:%SZ')) }}"
+    records: "{{ response.response.data }}"
+    pagination: { kind: cursor, next: "{{ response.nextpagetoken }}" }
+    record_id: "{{ record.transactionid | nonempty }}"
+    incremental: { kind: token, next: "{{ response.nextpagetoken }}" }
+    output:
+      logs:
+        service: forcepoint-sse-access
+        message: "{{ record.application }}: {{ record.activity }} by {{ record.email ?? record.user }} ({{ record.action }})"
+        status: "{{ record.action | lower in ['deny', 'block', 'blocked'] ? 'warn' : 'info' }}"
+        date: "{{ (record.time + ' +0000') | epoch_ms }}"
+        attributes: "{{ record + {file_status: record.status} }}"
+
+  - id: admin
+    name: Admin
+    description: >-
+      One log per action in the admin portal (service:forcepoint-sse-admin): email, activity, action, url, ipaddress and the other fields.
+    interval: 10m
+    budget: { requests: 290, per: day }
+    max_pages: 10
+    request:
+      method: POST
+      url: "{{ config.portal }}/api/bitglassapi/logs/v1/"
+      query:
+        cv: 1.1.0
+        responseformat: json
+        type: admin
+        # The checkpoint once there is one; the first run starts a day back.
+        nextpagetoken: "{{ page.cursor ?? cursor.token }}"
+        startdate: "{{ (page.cursor ?? cursor.token) ? null : ((now - 86400000) | strftime('%Y-%m-%dT%H:%M:%SZ')) }}"
+    records: "{{ response.response.data }}"
+    pagination: { kind: cursor, next: "{{ response.nextpagetoken }}" }
+    record_id: "{{ record.transactionid | nonempty }}"
+    incremental: { kind: token, next: "{{ response.nextpagetoken }}" }
+    output:
+      logs:
+        service: forcepoint-sse-admin
+        message: "{{ record.activity }} by {{ record.email ?? record.user }}{{ ': ' + (record.action | nonempty) ?? '' }}"
+        status: "info"
+        date: "{{ (record.time + ' +0000') | epoch_ms }}"
+        attributes: "{{ record + {file_status: record.status} }}"
+
+  - id: healthproxy
+    name: Proxy health
+    description: >-
+      One log per proxy error (service:forcepoint-sse-healthproxy): activity, responsecode, url, application, email and device.
+    interval: 10m
+    budget: { requests: 290, per: day }
+    max_pages: 10
+    request:
+      method: POST
+      url: "{{ config.portal }}/api/bitglassapi/logs/v1/"
+      query:
+        cv: 1.1.0
+        responseformat: json
+        type: healthproxy
+        # The checkpoint once there is one; the first run starts a day back.
+        nextpagetoken: "{{ page.cursor ?? cursor.token }}"
+        startdate: "{{ (page.cursor ?? cursor.token) ? null : ((now - 86400000) | strftime('%Y-%m-%dT%H:%M:%SZ')) }}"
+    records: "{{ response.response.data }}"
+    pagination: { kind: cursor, next: "{{ response.nextpagetoken }}" }
+    record_id: "{{ record.transactionid | nonempty }}"
+    incremental: { kind: token, next: "{{ response.nextpagetoken }}" }
+    output:
+      logs:
+        service: forcepoint-sse-healthproxy
+        message: "{{ record.activity }} {{ record.responsecode }} {{ record.url }}"
+        status: "{{ (record.responsecode | int) >= 500 ? 'error' : 'warn' }}"
+        date: "{{ (record.time + ' +0000') | epoch_ms }}"
+        attributes: "{{ record + {file_status: record.status} }}"
+
+  - id: healthapi
+    name: API health
+    description: >-
+      One log per error of an API-mode connector (service:forcepoint-sse-healthapi): activity, responsecode, application, filename and file_status.
+    interval: 10m
+    budget: { requests: 290, per: day }
+    max_pages: 10
+    request:
+      method: POST
+      url: "{{ config.portal }}/api/bitglassapi/logs/v1/"
+      query:
+        cv: 1.1.0
+        responseformat: json
+        type: healthapi
+        # The checkpoint once there is one; the first run starts a day back.
+        nextpagetoken: "{{ page.cursor ?? cursor.token }}"
+        startdate: "{{ (page.cursor ?? cursor.token) ? null : ((now - 86400000) | strftime('%Y-%m-%dT%H:%M:%SZ')) }}"
+    records: "{{ response.response.data }}"
+    pagination: { kind: cursor, next: "{{ response.nextpagetoken }}" }
+    record_id: "{{ record.transactionid | nonempty }}"
+    incremental: { kind: token, next: "{{ response.nextpagetoken }}" }
+    output:
+      logs:
+        service: forcepoint-sse-healthapi
+        message: "{{ record.activity }} {{ record.responsecode }} {{ record.application }}"
+        status: "{{ (record.responsecode | int) >= 500 ? 'error' : 'warn' }}"
+        date: "{{ (record.time + ' +0000') | epoch_ms }}"
+        attributes: "{{ record + {file_status: record.status} }}"
+
+  - id: healthsystem
+    name: System health
+    description: >-
+      One log per platform error (service:forcepoint-sse-healthsystem): activity, responsecode, url, application and email.
+    interval: 10m
+    budget: { requests: 290, per: day }
+    max_pages: 10
+    request:
+      method: POST
+      url: "{{ config.portal }}/api/bitglassapi/logs/v1/"
+      query:
+        cv: 1.1.0
+        responseformat: json
+        type: healthsystem
+        # The checkpoint once there is one; the first run starts a day back.
+        nextpagetoken: "{{ page.cursor ?? cursor.token }}"
+        startdate: "{{ (page.cursor ?? cursor.token) ? null : ((now - 86400000) | strftime('%Y-%m-%dT%H:%M:%SZ')) }}"
+    records: "{{ response.response.data }}"
+    pagination: { kind: cursor, next: "{{ response.nextpagetoken }}" }
+    record_id: "{{ record.transactionid | nonempty }}"
+    incremental: { kind: token, next: "{{ response.nextpagetoken }}" }
+    output:
+      logs:
+        service: forcepoint-sse-healthsystem
+        message: "{{ record.activity }} {{ record.responsecode }} {{ record.url }}"
+        status: "{{ (record.responsecode | int) >= 500 ? 'error' : 'warn' }}"
+        date: "{{ (record.time + ' +0000') | epoch_ms }}"
+        attributes: "{{ record + {file_status: record.status} }}"
+
+test:
+  request:
+    method: POST
+    url: "{{ config.portal }}/api/bitglassapi/logs/v1/"
+    query: { cv: 1.1.0, responseformat: json, type: admin, startdate: "{{ (now - 300000) | strftime('%Y-%m-%dT%H:%M:%SZ') }}" }
+  success: "{{ response.status != 'Unauthorized' }}"
+  message: "Connected to {{ config.portal | host }}: {{ response.response.data | len }} admin logs in the last 5 minutes"
+
+mock:
+  config: { portal: "https://portal.bitglass.com" }
+  secrets: { access_token: fp-test-access-token }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: cloudsummary }, file: fixtures/cloudsummary.json }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: cloudaudit }, file: fixtures/cloudaudit.json }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: access }, file: fixtures/access.json }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: admin }, file: fixtures/admin.json }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: healthproxy }, file: fixtures/healthproxy.json }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: healthapi }, file: fixtures/healthapi.json }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: healthsystem }, file: fixtures/healthsystem.json }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: cloudsummary, nextpagetoken: "cloudsummary-t1" }, body: { status: Success, nextpagetoken: "cloudsummary-t1", response: { dataformat: json, dataencoding: utf-8, data: [] } } }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: cloudaudit, nextpagetoken: "cloudaudit-t1" }, body: { status: Success, nextpagetoken: "cloudaudit-t1", response: { dataformat: json, dataencoding: utf-8, data: [] } } }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: access, nextpagetoken: "access-t1" }, body: { status: Success, nextpagetoken: "access-t1", response: { dataformat: json, dataencoding: utf-8, data: [] } } }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: admin, nextpagetoken: "admin-t1" }, body: { status: Success, nextpagetoken: "admin-t1", response: { dataformat: json, dataencoding: utf-8, data: [] } } }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: healthproxy, nextpagetoken: "healthproxy-t1" }, body: { status: Success, nextpagetoken: "healthproxy-t1", response: { dataformat: json, dataencoding: utf-8, data: [] } } }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: healthapi, nextpagetoken: "healthapi-t1" }, body: { status: Success, nextpagetoken: "healthapi-t1", response: { dataformat: json, dataencoding: utf-8, data: [] } } }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: healthsystem, nextpagetoken: "healthsystem-t1" }, body: { status: Success, nextpagetoken: "healthsystem-t1", response: { dataformat: json, dataencoding: utf-8, data: [] } } }
+  expect:
+    cloudsummary: { records: 1, logs: 1, rerun: 0, golden: fixtures/cloudsummary.expected.json }
+    cloudaudit: { records: 1, logs: 1, rerun: 0, golden: fixtures/cloudaudit.expected.json }
+    access: { records: 2, logs: 2, rerun: 0, golden: fixtures/access.expected.json }
+    admin: { records: 1, logs: 1, rerun: 0, golden: fixtures/admin.expected.json }
+    healthproxy: { records: 1, logs: 1, rerun: 0, golden: fixtures/healthproxy.expected.json }
+    healthapi: { records: 1, logs: 1, rerun: 0, golden: fixtures/healthapi.expected.json }
+    healthsystem: { records: 1, logs: 1, rerun: 0, golden: fixtures/healthsystem.expected.json }
+    test: { ok: true, message: "admin logs" }
