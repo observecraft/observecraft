@@ -23,6 +23,16 @@ test("`@$name` reads the variable as an attribute, and drops with it while it is
   assert.equal(resolveSearchQuery(query, rollouts, { argo_rollouts_namespace: 'checkout' }), 'source:argo_rollouts @argo_rollouts_namespace:checkout');
 });
 
+test("`$name.value` in a search is the value alone, `*` while unset (Istio's log patterns)", () => {
+  const istio = [
+    { name: 'istiod_image', prefix: 'short_image', default: 'pilot' },
+    { name: 'cluster_name', prefix: 'kube_cluster_name', default: '*' },
+  ];
+  const query = 'source:$istiod_image.value kube_cluster_name:$cluster_name.value ';
+  assert.equal(resolveSearchQuery(query, istio, {}), 'source:pilot kube_cluster_name:*');
+  assert.equal(resolveSearchQuery(query, istio, { cluster_name: 'shop-prod-eks' }), 'source:pilot kube_cluster_name:shop-prod-eks');
+});
+
 test('a search leaves the variables it does not name alone', () => {
   const gatekeeper = [
     { name: 'cluster_name', prefix: 'cluster_name', default: '*' },
