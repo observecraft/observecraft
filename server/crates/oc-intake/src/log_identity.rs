@@ -19,8 +19,23 @@ fn stamp(event: &mut Map<String, Value>, received_at: DateTime<Utc>) {
     event.insert("_oc_ingest".into(), serde_json::json!({"id": id, "received_at": received_at.to_rfc3339()}));
 }
 
+/// A JSON logs body as one value: an object, an array of objects, or newline-delimited objects (NDJSON, as Fastly,
+/// Akamai DataStream 2, Zscaler NSS and Cloudflare send), which becomes an array. Shapes are checked by the callers.
+pub fn parse_body(body: &[u8]) -> Result<Value, &'static str> {
+    const INVALID: &str = "invalid JSON log body";
+    if let Ok(value) = serde_json::from_slice(body) {
+        return Ok(value);
+    }
+    let text = std::str::from_utf8(body).map_err(|_| INVALID)?;
+    let lines = text.lines().map(str::trim).filter(|l| !l.is_empty()).map(|l| serde_json::from_str::<Value>(l).ok().filter(Value::is_object).ok_or(INVALID)).collect::<Result<Vec<_>, _>>()?;
+    if lines.is_empty() {
+        return Err(INVALID);
+    }
+    Ok(Value::Array(lines))
+}
+
 pub fn prepare(body: &[u8]) -> Result<Vec<u8>, &'static str> {
-    let mut value: Value = serde_json::from_slice(body).map_err(|_| "invalid JSON log body")?;
+    let mut value = parse_body(body)?;
     let received_at = Utc::now();
     match &mut value {
         Value::Object(event) => stamp(event, received_at),
@@ -129,5 +144,17 @@ mod tests {
             assert!(prepare(body.as_bytes()).is_err(), "{body}");
         }
         assert_eq!(prepare(b"[]").unwrap(), b"[]");
+        for body in ["{\"a\":1}\n[1]", "{\"a\":1}\n{broken", "\n\n", "{\"a\":1}\nnull"] {
+            assert!(prepare(body.as_bytes()).is_err(), "{body}");
+        }
+    }
+
+    /// Fastly, Akamai DataStream 2, Zscaler NSS and Cloudflare send a JSON object per line (NDJSON).
+    #[test]
+    fn newline_delimited_bodies_are_a_log_per_line() {
+        let out: Value = serde_json::from_slice(&prepare(b"{\"message\":\"a\"}\r\n\n{\"message\":\"b\"}\n").unwrap()).unwrap();
+        assert_eq!((out.as_array().unwrap().len(), &out[0]["message"], &out[1]["message"]), (2, &serde_json::json!("a"), &serde_json::json!("b")));
+        assert!(out[1]["_oc_ingest"]["id"].is_string());
+        assert_eq!(parse_body(b"{\"message\":\"one\"}\n").unwrap()["message"], "one");
     }
 }

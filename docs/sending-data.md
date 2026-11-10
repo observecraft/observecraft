@@ -12,7 +12,7 @@ with Docker Compose) and `ocik_…` for the key. Keep the key in a secret, not i
 |---|---|---|---|
 | OTLP/HTTP (protobuf or JSON, gzip) | `POST /v1/traces`, `/v1/metrics`, `/v1/logs` (port 4318) | traces, metrics, logs | `Authorization: Bearer ocik_…` |
 | OTLP/gRPC (gzip, zstd) | port 4317 (Helm: `ingress.intakeGrpc`) | traces, metrics, logs | `authorization: Bearer ocik_…` metadata |
-| Datadog logs API | `POST /api/v2/logs` (JSON, gzip / deflate / zstd) | logs | `DD-API-KEY: ocik_…` |
+| Datadog logs API | `POST /api/v2/logs` (JSON object, array or NDJSON, gzip / deflate / zstd) | logs | `DD-API-KEY: ocik_…` |
 | Datadog metrics API | `POST /api/v2/series` (JSON or the Agent's protobuf), `POST /api/v1/series` (JSON), `POST /api/beta/sketches` (distributions) | metrics | `DD-API-KEY: ocik_…` |
 | Datadog Agent APM | `POST /api/v0.2/traces` (the trace-agent's payloads, both formats), `/api/v0.2/stats` | traces | `DD-API-KEY: ocik_…` |
 | Datadog Agent service checks, Kubernetes | `POST /api/v1/check_run`, `POST /api/v2/orchmanif` (Cluster Agent manifests) | service checks, Kubernetes objects | `DD-API-KEY: ocik_…` |

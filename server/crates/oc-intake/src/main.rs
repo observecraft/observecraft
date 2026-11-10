@@ -9,7 +9,7 @@
 //! - `POST /v1/traces | /v1/logs | /v1/metrics`  OTLP/HTTP (protobuf or JSON, optionally gzip) → Collector; `/v1/logs`
 //!   takes `?ddsource=&service=` for every record without its own (push packages' OTLP endpoints)
 //! - OTLP/gRPC on OC_INTAKE_GRPC_ADDR             the same three services (passed through undecoded) → Collector
-//! - `POST /api/v2/logs`                         JSON log events (object or array; Datadog's format) → Vector;
+//! - `POST /api/v2/logs`                         JSON log events (object, array or NDJSON; Datadog's format) → Vector;
 //!   `?ddsource=&service=&hostname=&ddtags=` apply to every log (webhooks, `log_query`)
 //! - `POST /api/v2/secruntime`, `/api/v2/secinfo` the Agent's runtime security events (Workload Protection), as logs
 //! - `POST /api/v2/series`, `/api/v1/series`     Datadog metrics (JSON or the Agent's protobuf) → OTLP → Collector
@@ -752,7 +752,7 @@ async fn otlp_logs(State(st): State<Shared>, RawQuery(query): RawQuery, mut head
     }
 }
 
-/// `POST /api/v2/logs`: JSON logs; `ddsource`, `service`, `hostname` and `ddtags` in the query string apply to
+/// `POST /api/v2/logs`: JSON logs (an object, an array or a JSON object per line); `ddsource`, `service`, `hostname` and `ddtags` in the query string apply to
 /// every log of the body (`log_query`), as on Datadog's intake.
 async fn json_logs(State(st): State<Shared>, RawQuery(query): RawQuery, mut headers: HeaderMap, body: Bytes) -> Response {
     let defaults = log_query::LogDefaults::from_query(query.as_deref());
@@ -1003,6 +1003,14 @@ mod tests {
         assert_eq!((&got[0]["ddsource"], &got[1]["ddsource"]), (&serde_json::json!("solarwinds"), &serde_json::json!("own")));
         let (_, got) = post(Some("api_key=ocik_webhook_test"), headers.clone(), br#"{"message":"plain"}"#.to_vec()).await;
         assert!(got.get("ddsource").is_none());
+        for query in [query, None] {
+            let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+            gzip.write_all(b"{\"message\":\"a\"}\n{\"message\":\"b\"}\n").unwrap();
+            let mut gz_headers = headers.clone();
+            gz_headers.insert(header::CONTENT_ENCODING, HeaderValue::from_static("gzip"));
+            let (status, got) = post(query, gz_headers, gzip.finish().unwrap()).await;
+            assert_eq!((status, &got[1]["message"]), (StatusCode::OK, &serde_json::json!("b")), "NDJSON, {query:?}");
+        }
         let (status, _) = post(query, headers.clone(), b"not json".to_vec()).await;
         assert_eq!(status, StatusCode::BAD_REQUEST);
         let (status, _) = post(query, HeaderMap::new(), br#"{"message":"x"}"#.to_vec()).await;

@@ -57,9 +57,9 @@ impl LogDefaults {
         }
     }
 
-    /// The JSON logs body (an object or an array of objects) with the parameters applied to every log.
+    /// The JSON logs body (an object, an array of objects or NDJSON) with the parameters applied to every log.
     pub fn apply(&self, body: &[u8]) -> Result<Vec<u8>, &'static str> {
-        let mut value: Value = serde_json::from_slice(body).map_err(|_| "invalid JSON log body")?;
+        let mut value = crate::log_identity::parse_body(body)?;
         match &mut value {
             Value::Object(event) => self.apply_to(event),
             Value::Array(events) => {
@@ -95,6 +95,8 @@ mod tests {
         assert_eq!((&out[1]["ddsource"], &out[1]["service"], &out[1]["hostname"], &out[1]["ddtags"]), (&json!("custom"), &json!("orion"), &json!("nms-01"), &json!("team:noc,env:prod")));
         let one: Value = serde_json::from_slice(&d.apply(br#"{"alert_name":"x"}"#).unwrap()).unwrap();
         assert_eq!(one["ddsource"], "solarwinds");
+        let lines: Value = serde_json::from_slice(&d.apply(b"{\"a\":1}\n{\"a\":2,\"ddsource\":\"own\"}").unwrap()).unwrap();
+        assert_eq!((&lines[0]["ddsource"], &lines[1]["ddsource"]), (&json!("solarwinds"), &json!("own")));
         for bad in ["[1]", "\"text\"", "{broken"] {
             assert!(d.apply(bad.as_bytes()).is_err(), "{bad}");
         }
