@@ -1,0 +1,30 @@
+{
+  "name": "Cloudflare",
+  "is_enabled": true,
+  "filter": { "query": "source:cloudflare" },
+  "processors": [
+    { "type": "date-remapper", "name": "The request's start as the log's date", "is_enabled": true, "sources": ["EdgeStartTimestamp", "Datetime", "Timestamp"] },
+    { "type": "attribute-remapper", "name": "Client IP", "is_enabled": true, "sources": ["ClientIP"], "source_type": "attribute", "target": "network.client.ip", "target_type": "attribute", "preserve_source": true, "override_on_conflict": false },
+    { "type": "attribute-remapper", "name": "Client country", "is_enabled": true, "sources": ["ClientCountry"], "source_type": "attribute", "target": "network.client.geoip.country.iso_code", "target_type": "attribute", "preserve_source": true, "override_on_conflict": false },
+    { "type": "attribute-remapper", "name": "Method", "is_enabled": true, "sources": ["ClientRequestMethod"], "source_type": "attribute", "target": "http.method", "target_type": "attribute", "preserve_source": true, "override_on_conflict": false },
+    { "type": "attribute-remapper", "name": "Host", "is_enabled": true, "sources": ["ClientRequestHost"], "source_type": "attribute", "target": "http.url_details.host", "target_type": "attribute", "preserve_source": true, "override_on_conflict": false },
+    { "type": "attribute-remapper", "name": "Path", "is_enabled": true, "sources": ["ClientRequestURI", "ClientRequestPath"], "source_type": "attribute", "target": "http.url_details.path", "target_type": "attribute", "preserve_source": true, "override_on_conflict": false },
+    { "type": "attribute-remapper", "name": "User agent", "is_enabled": true, "sources": ["ClientRequestUserAgent"], "source_type": "attribute", "target": "http.useragent", "target_type": "attribute", "preserve_source": true, "override_on_conflict": false },
+    { "type": "attribute-remapper", "name": "Referer", "is_enabled": true, "sources": ["ClientRequestReferer"], "source_type": "attribute", "target": "http.referer", "target_type": "attribute", "preserve_source": true, "override_on_conflict": false },
+    { "type": "attribute-remapper", "name": "Status code", "is_enabled": true, "sources": ["EdgeResponseStatus"], "source_type": "attribute", "target": "http.status_code", "target_type": "attribute", "preserve_source": true, "override_on_conflict": false },
+    { "type": "attribute-remapper", "name": "Ray id", "is_enabled": true, "sources": ["RayID"], "source_type": "attribute", "target": "http.request_id", "target_type": "attribute", "preserve_source": true, "override_on_conflict": false },
+    { "type": "category-processor", "name": "Status from the edge's status code", "is_enabled": true, "target": "http.status_category",
+      "categories": [
+        { "name": "OK", "filter": { "query": "@http.status_code:[200 TO 299]" } },
+        { "name": "notice", "filter": { "query": "@http.status_code:[300 TO 399]" } },
+        { "name": "warning", "filter": { "query": "@http.status_code:[400 TO 499]" } },
+        { "name": "error", "filter": { "query": "@http.status_code:[500 TO 599]" } }
+      ] },
+    { "type": "status-remapper", "name": "Log status from the status category", "is_enabled": true, "sources": ["http.status_category"] },
+    { "type": "category-processor", "name": "Firewall actions", "is_enabled": true, "target": "evt.outcome",
+      "categories": [
+        { "name": "blocked", "filter": { "query": "@Action:(block OR drop OR managed_challenge OR challenge OR jschallenge)" } },
+        { "name": "allowed", "filter": { "query": "@Action:(allow OR log OR bypass OR skip)" } }
+      ] }
+  ]
+}

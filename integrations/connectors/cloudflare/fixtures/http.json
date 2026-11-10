@@ -1,0 +1,7 @@
+{
+  "data": { "viewer": { "zones": [ { "httpRequests1mGroups": [
+    { "dimensions": { "datetimeMinute": "2026-11-10T11:53:00Z" }, "sum": { "requests": 18234, "cachedRequests": 12001, "bytes": 734002112, "cachedBytes": 512330240, "encryptedRequests": 18100, "threats": 12, "pageViews": 4321 }, "uniq": { "uniques": 2210 } },
+    { "dimensions": { "datetimeMinute": "2026-11-10T11:54:00Z" }, "sum": { "requests": 17950, "cachedRequests": 11870, "bytes": 721004000, "cachedBytes": 505000000, "encryptedRequests": 17820, "threats": 3, "pageViews": 4205 }, "uniq": { "uniques": 2188 } }
+  ] } ] } },
+  "errors": null
+}

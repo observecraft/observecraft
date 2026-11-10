@@ -1,0 +1,7 @@
+{
+  "data": { "viewer": { "zones": [ { "dnsAnalyticsAdaptiveGroups": [
+    { "count": 9123, "dimensions": { "datetimeMinute": "2026-11-10T11:53:00Z", "queryType": "A", "responseCode": "NOERROR" }, "avg": { "processingTimeUs": 410 } },
+    { "count": 37, "dimensions": { "datetimeMinute": "2026-11-10T11:53:00Z", "queryType": "AAAA", "responseCode": "NXDOMAIN" }, "avg": { "processingTimeUs": 380 } }
+  ] } ] } },
+  "errors": null
+}

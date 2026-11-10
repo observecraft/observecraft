@@ -1,0 +1,6 @@
+{
+  "data": { "viewer": { "accounts": [ { "workersInvocationsAdaptive": [
+    { "sum": { "requests": 5000, "errors": 3, "subrequests": 1200 }, "quantiles": { "cpuTimeP50": 1200, "cpuTimeP99": 7900 }, "dimensions": { "scriptName": "edge-router", "datetimeMinute": "2026-11-10T11:50:00Z" } }
+  ] } ] } },
+  "errors": null
+}
