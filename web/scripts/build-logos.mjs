@@ -129,6 +129,8 @@ const MAP = {
   gitlab: 'gitlab-icon',
   // ObserveCraft's GitLab Audit Events integration (its page, tile and dashboard)
   'gitlab-audit-events': 'gitlab-icon',
+  // ObserveCraft's Google Workspace integration (its page, tile and dashboard)
+  'google-workspace': 'google-icon',
   jira: 'jira',
   linear: 'linear-icon',
   bitbucket: 'bitbucket',

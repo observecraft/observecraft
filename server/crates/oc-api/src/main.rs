@@ -17,6 +17,7 @@ mod netbird;
 mod fleetdm;
 mod gitlab;
 mod gitlab_audit;
+mod google_workspace;
 mod cache;
 mod config;
 mod demo;
@@ -250,6 +251,10 @@ async fn main() -> anyhow::Result<()> {
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, gitlab_audit::crawler::LOGS_TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(gitlab_audit::crawler::GitlabAuditCrawler { api: Arc::new(gitlab::api::Rest { allow_private: state.config.portal_allow_private }), sink: logs });
         tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, gitlab_audit::crawler::INTERVAL_SECS, concurrency)));
+        // The Google Workspace integration's poller: the Reports API's activities as logs, one job per application.
+        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, google_workspace::crawler::LOGS_TOPIC));
+        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(google_workspace::crawler::WorkspaceCrawler { api: Arc::new(google_workspace::api::Rest::default()), sink: logs });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, google_workspace::crawler::INTERVAL_SECS, concurrency)));
     }
     // Cloud Cost Management's provider bills (`cost_bill_configs`), for the same clouds; written to ClickHouse directly.
     if state.config.cloud_crawlers.iter().any(|c| c == "aws") {

@@ -817,6 +817,7 @@ export const BRAND_LOGOS: Record<string, Logo> = {
   "gitlab-audit-events": ICONS["logos:gitlab-icon"],
   "go": ICONS["logos:go"],
   "google": ICONS["logos:google-icon"],
+  "google-workspace": ICONS["logos:google-icon"],
   "googlecloud": ICONS["logos:google-cloud"],
   "googlecloudfunctions": ICONS["logos:google-cloud-functions"],
   "googlecloudrun": ICONS["logos:google-cloud-run"],

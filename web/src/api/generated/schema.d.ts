@@ -4543,6 +4543,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/google-workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Google Workspace connection and its applications' syncs (no key). */
+        get: operations["google_workspace_status"];
+        /**
+         * Saves the Google Workspace connection (admins). The key is sealed; leave it out to keep the saved one. Another
+         *     service account or administrator reads from the first sync's lookback again; applications no longer selected stop.
+         */
+        put: operations["google_workspace_save"];
+        post?: never;
+        /** Removes the Google Workspace connection, its key and its polling (admins). Stored logs stay. */
+        delete: operations["google_workspace_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/google-workspace/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Polls Google now instead of within five minutes (admins). */
+        post: operations["google_workspace_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/google-workspace/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests a connection before or after saving it (admins): a token for the administrator and each application's
+         *     activities.
+         */
+        post: operations["google_workspace_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/installed": {
         parameters: {
             query?: never;
@@ -16073,6 +16132,80 @@ export interface components {
             scopes: string[];
             /** @description The token's user. */
             user?: string | null;
+        };
+        /** @description A Reports API application the integration can read. */
+        GoogleWorkspaceApplication: {
+            /** @description Read when an admin picks none. */
+            default: boolean;
+            /** @description The Reports API's `applicationName` (the logs' `service`). */
+            id: string;
+            name: string;
+        };
+        /** @description The connection as saved; the key is never answered. */
+        GoogleWorkspaceConnection: {
+            applications: string[];
+            /** @description The service account (the key's `client_email`). */
+            clientEmail: string;
+            subject: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+        };
+        /** @description What an admin enters. */
+        GoogleWorkspaceInput: {
+            /**
+             * @description Reports API applications to read (`login`, `admin`, `drive`, …); empty: the defaults.
+             * @default []
+             */
+            applications: string[];
+            /**
+             * @description The service account's JSON key file; leave it out to keep the saved one.
+             * @default null
+             */
+            serviceAccountKey: string | null;
+            /**
+             * @description The administrator the service account acts as (domain-wide delegation).
+             * @default
+             */
+            subject: string;
+        };
+        GoogleWorkspaceStatus: {
+            /** @description The applications that can be read. */
+            available: components["schemas"]["GoogleWorkspaceApplication"][];
+            connection?: components["schemas"]["GoogleWorkspaceConnection"] | null;
+            /** @description Each selected application's sync. */
+            syncs: components["schemas"]["GoogleWorkspaceSync"][];
+        };
+        /** @description An application's sync. */
+        GoogleWorkspaceSync: {
+            application: string;
+            /** @description Whether a backlog (more activities than a poll reads) is being read over several polls. */
+            catchingUp: boolean;
+            error?: components["schemas"]["CrawlIssue"] | null;
+            /**
+             * Format: int32
+             * @description Events sent by the last poll.
+             */
+            eventsLastSync: number;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful poll.
+             */
+            lastSyncAt?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms: activities up to here were read.
+             */
+            syncedUntil?: number | null;
+        };
+        /** @description A connection test's result. */
+        GoogleWorkspaceTest: {
+            /** @description The service account the key belongs to. */
+            clientEmail?: string | null;
+            message: string;
+            ok: boolean;
         };
         GpuDevice: {
             cluster?: string | null;
@@ -34518,6 +34651,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GitlabAuditTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    google_workspace_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleWorkspaceStatus"];
+                };
+            };
+        };
+    };
+    google_workspace_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleWorkspaceInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleWorkspaceStatus"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    google_workspace_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    google_workspace_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    google_workspace_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleWorkspaceInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleWorkspaceTest"];
                 };
             };
             400: {

@@ -4,6 +4,7 @@ pub mod authentik_integration;
 pub mod netbird_integration;
 pub mod fleetdm_integration;
 pub mod gitlab_audit_integration;
+pub mod google_workspace_integration;
 pub mod aws_integration;
 pub mod azure_integration;
 pub mod gcp_integration;
@@ -886,6 +887,11 @@ use crate::state::AppState;
         gitlab_audit_integration::delete_gitlab_audit,
         gitlab_audit_integration::test_gitlab_audit,
         gitlab_audit_integration::sync_gitlab_audit,
+        google_workspace_integration::get_google_workspace,
+        google_workspace_integration::put_google_workspace,
+        google_workspace_integration::delete_google_workspace,
+        google_workspace_integration::test_google_workspace,
+        google_workspace_integration::sync_google_workspace,
         integration_installs::list,
         integration_installs::install,
         integration_installs::uninstall,
@@ -1682,6 +1688,12 @@ pub fn router() -> Router<AppState> {
         )
         .route("/api/v1/integrations/gitlab-audit-events/test", axum::routing::post(gitlab_audit_integration::test_gitlab_audit))
         .route("/api/v1/integrations/gitlab-audit-events/sync", axum::routing::post(gitlab_audit_integration::sync_gitlab_audit))
+        .route(
+            "/api/v1/integrations/google-workspace",
+            get(google_workspace_integration::get_google_workspace).put(google_workspace_integration::put_google_workspace).delete(google_workspace_integration::delete_google_workspace),
+        )
+        .route("/api/v1/integrations/google-workspace/test", axum::routing::post(google_workspace_integration::test_google_workspace))
+        .route("/api/v1/integrations/google-workspace/sync", axum::routing::post(google_workspace_integration::sync_google_workspace))
         .route("/api/v1/integrations/installed", get(integration_installs::list))
         .route("/api/v1/integrations/checks/{check}/hosts", get(fleet::integration_hosts))
         .route("/api/v1/integrations/{id}/install", axum::routing::put(integration_installs::install).delete(integration_installs::uninstall))
@@ -2038,6 +2050,7 @@ mod tests {
             include_str!("netbird_integration.rs"),
             include_str!("fleetdm_integration.rs"),
             include_str!("gitlab_audit_integration.rs"),
+            include_str!("google_workspace_integration.rs"),
             include_str!("sso.rs"),
             include_str!("spans.rs"),
             include_str!("dashboards.rs"),
@@ -2362,6 +2375,7 @@ mod tests {
             ("netbird_integration.rs", include_str!("netbird_integration.rs")),
             ("fleetdm_integration.rs", include_str!("fleetdm_integration.rs")),
             ("gitlab_audit_integration.rs", include_str!("gitlab_audit_integration.rs")),
+            ("google_workspace_integration.rs", include_str!("google_workspace_integration.rs")),
             ("aws_integration.rs", include_str!("aws_integration.rs")),
             ("azure_integration.rs", include_str!("azure_integration.rs")),
             ("gcp_integration.rs", include_str!("gcp_integration.rs")),
@@ -2405,6 +2419,11 @@ mod tests {
             ("../gitlab_audit/crawler.rs", include_str!("../gitlab_audit/crawler.rs")),
             ("../gitlab_audit/fixtures.rs", include_str!("../gitlab_audit/fixtures.rs")),
             ("../gitlab_audit/logs.rs", include_str!("../gitlab_audit/logs.rs")),
+            ("../google_workspace/mod.rs", include_str!("../google_workspace/mod.rs")),
+            ("../google_workspace/api.rs", include_str!("../google_workspace/api.rs")),
+            ("../google_workspace/crawler.rs", include_str!("../google_workspace/crawler.rs")),
+            ("../google_workspace/fixtures.rs", include_str!("../google_workspace/fixtures.rs")),
+            ("../google_workspace/logs.rs", include_str!("../google_workspace/logs.rs")),
             ("../azure/mod.rs", include_str!("../azure/mod.rs")),
             ("../azure/api.rs", include_str!("../azure/api.rs")),
             ("../azure/crawler.rs", include_str!("../azure/crawler.rs")),

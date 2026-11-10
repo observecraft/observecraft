@@ -213,6 +213,19 @@ or SDK features.
   is a log (`source:gitlab-audit-events`, `service:gitlab`, `gitlab.*`) to `oc.logs.json`. Saving the connection
   installs its library pipeline (`gitlab.category`); its dashboard is ours (`scripts/gitlab-audit-events-dashboard.mjs`
   → `seeds/integrations/gitlab-audit-events/`), listed once connected; Cloud SIEM pack `gitlab-audit-events`.
+- **Google Workspace** (Integrations → Google Workspace, `oc-api/src/google_workspace/`,
+  `routes/google_workspace_integration.rs`; Datadog's tile is its own crawler): the server reads the Admin SDK Reports
+  API's activities with a service account's JSON key (Postgres `google_workspace_connections`, sealed) acting as an
+  administrator (domain-wide delegation, scope `admin.reports.audit.readonly`; the JWT is signed with `gcp_auth`'s
+  signer and exchanged at Google's fixed token endpoint, never the key's `token_uri`), on the cloud crawlers' jobs
+  (provider `google_workspace`, one job per application, every 5 minutes). Google answers newest first: a backlog past
+  a run's pages is carried on by the next runs (`google_workspace_progress`); each run re-reads 10 minutes before the
+  cursor and every 30 minutes 4 hours (Google delivers some activities hours late), sending only activities not yet
+  sent (`google_workspace_seen`, by application, `id.uniqueQualifier` and `id.time`). Each event is a log as Datadog
+  sends them (`source:gsuite`, `service:` the application, `evt.name`, `usr.email`, `network.client.*`, `id.*`,
+  `actor.*`, `event.parameters.*`) to `oc.logs.json`. Saving the connection installs its library pipeline
+  (`google_workspace.category`); its dashboard is ours (`scripts/google-workspace-dashboard.mjs` →
+  `seeds/integrations/google-workspace/`), listed once connected; Cloud SIEM pack `google-workspace`.
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **Slack** (`routes/slack.rs`, `datadog_api/slack_integration.rs`, page `web/src/pages/integrations/slack/`): workspaces

@@ -893,5 +893,190 @@
       "path": "server/seeds/pipelines/observecraft.json",
       "license": "MIT"
     }
+  },
+  {
+    "id": "google-workspace",
+    "integration": "google-workspace",
+    "name": "Google Workspace",
+    "filter": "source:gsuite",
+    "processors": [
+      {
+        "type": "date-remapper",
+        "name": "Define `id.time` as the official date of the log",
+        "enabled": true,
+        "sources": [
+          "id.time"
+        ]
+      },
+      {
+        "type": "service-remapper",
+        "name": "Define `id.applicationName` as the official service of the log",
+        "enabled": true,
+        "sources": [
+          "id.applicationName"
+        ]
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `actor.email` to `usr.email`",
+        "enabled": true,
+        "sources": [
+          "actor.email"
+        ],
+        "target": "usr.email",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `actor.profileId` to `usr.id`",
+        "enabled": true,
+        "sources": [
+          "actor.profileId"
+        ],
+        "target": "usr.id",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `ipAddress` to `network.client.ip`",
+        "enabled": true,
+        "sources": [
+          "ipAddress"
+        ],
+        "target": "network.client.ip",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `networkInfo.regionCode` to `network.client.geoip.country.iso_code`",
+        "enabled": true,
+        "sources": [
+          "networkInfo.regionCode"
+        ],
+        "target": "network.client.geoip.country.iso_code",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `networkInfo.subdivisionCode` to `network.client.geoip.subdivision.iso_code`",
+        "enabled": true,
+        "sources": [
+          "networkInfo.subdivisionCode"
+        ],
+        "target": "network.client.geoip.subdivision.iso_code",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "category-processor",
+        "name": "Categorise the activity by the application that recorded it",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "service:(login OR saml OR user_accounts)"
+            },
+            "name": "authentication"
+          },
+          {
+            "filter": {
+              "query": "service:token"
+            },
+            "name": "authorization"
+          },
+          {
+            "filter": {
+              "query": "service:admin"
+            },
+            "name": "administration"
+          },
+          {
+            "filter": {
+              "query": "service:(groups OR groups_enterprise)"
+            },
+            "name": "groups"
+          },
+          {
+            "filter": {
+              "query": "service:(drive OR takeout OR vault OR keep OR calendar OR chat OR meet OR jamboard OR gplus)"
+            },
+            "name": "data_access"
+          },
+          {
+            "filter": {
+              "query": "service:(mobile OR chrome OR context_aware_access OR access_evaluation)"
+            },
+            "name": "devices"
+          },
+          {
+            "filter": {
+              "query": "service:(gcp OR access_transparency OR rules OR data_studio)"
+            },
+            "name": "cloud"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "other"
+          }
+        ],
+        "target": "google_workspace.category"
+      },
+      {
+        "type": "category-processor",
+        "name": "Severity of the event: suspicious logins, attacks and disabled accounts are errors, failed logins and blocked actions warnings",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:(*suspicious* OR *gov_attack* OR *hijack* OR *leak* OR *account_disabled* OR *compromised* OR *SUSPICIOUS* OR *HIJACK* OR *LEAK* OR *COMPROMISED*)"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*failure* OR *failed* OR *blocked* OR *denied* OR *FAILURE* OR *FAILED* OR *BLOCKED* OR *DENIED* OR 2sv_disable)"
+            },
+            "name": "warn"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "info"
+          }
+        ],
+        "target": "google_workspace.severity"
+      },
+      {
+        "type": "status-remapper",
+        "name": "Define `google_workspace.severity` as the official status of the log",
+        "enabled": true,
+        "sources": [
+          "google_workspace.severity"
+        ]
+      }
+    ],
+    "source": {
+      "repository": "observecraft/observecraft",
+      "revision": "",
+      "path": "server/seeds/pipelines/observecraft.json",
+      "license": "MIT"
+    }
   }
 ]

@@ -90,12 +90,13 @@ fn installable(id: String) -> Result<String, ApiError> {
 
 /// Integrations set up on their own page rather than from their tile: the table holding their connection or
 /// accounts, by catalog id. Having one counts as installed.
-const CONNECTIONS: [(&str, &str); 8] = [
+const CONNECTIONS: [(&str, &str); 9] = [
     ("authentik", "authentik_connections"),
     ("aws", "aws_accounts"),
     ("azure", "azure_accounts"),
     ("fleetdm", "fleetdm_connections"),
     ("gitlab-audit-events", "gitlab_audit_connections"),
+    ("google-workspace", "google_workspace_connections"),
     ("google-cloud", "gcp_accounts"),
     ("netbird", "netbird_connections"),
     ("slack", "slack_accounts"),
@@ -205,8 +206,9 @@ mod tests {
         sqlx::query("INSERT INTO aws_accounts (org_id, aws_account_id) VALUES ($1, '123456789012')").bind(&org).execute(&st.postgres).await.unwrap();
         sqlx::query("INSERT INTO slack_accounts (org_id, name, team_id, bot_token_enc, installed_via) VALUES ($1, 'main', 'T0001', 'sealed', 'token')").bind(&org).execute(&st.postgres).await.unwrap();
         sqlx::query("INSERT INTO gitlab_audit_connections (org_id, base_url, token_enc) VALUES ($1, 'https://gitlab.example.com', 'sealed')").bind(&org).execute(&st.postgres).await.unwrap();
+        sqlx::query("INSERT INTO google_workspace_connections (org_id, client_email, key_enc, subject) VALUES ($1, 'sa@example-project.iam.gserviceaccount.com', 'sealed', 'admin@example.com')").bind(&org).execute(&st.postgres).await.unwrap();
         let Json(ids) = list(State(st.clone()), OrgId(org.clone())).await.unwrap();
-        assert_eq!(ids, ["authentik", "aws", "fleetdm", "gitlab-audit-events", "slack"]);
+        assert_eq!(ids, ["authentik", "aws", "fleetdm", "gitlab-audit-events", "google-workspace", "slack"]);
         let other = crate::test_support::new_org(st, "integration-connections-other").await;
         assert!(list(State(st.clone()), OrgId(other)).await.unwrap().0.is_empty(), "another org's connections don't count");
     }

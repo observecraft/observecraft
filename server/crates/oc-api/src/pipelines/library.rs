@@ -274,6 +274,47 @@ mod tests {
     }
 
     #[test]
+    fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
+        use crate::google_workspace::{fixtures, logs::logs_of};
+        use serde_json::json;
+        assert_eq!(get("google-workspace").unwrap().integration, "google-workspace", "installed with the integration");
+        let run = |activity: Value| {
+            let mut log = logs_of(&activity).remove(0);
+            let (status, service) = (log["status"].as_str().unwrap().to_string(), log["service"].as_str().unwrap().to_string());
+            for k in ["date", "message", "status", "service", "ddsource", "_oc_ingest"] {
+                log.as_object_mut().unwrap().remove(k);
+            }
+            let p = get("google-workspace").unwrap();
+            let (pipeline, errors) = Pipeline::compile(&p.name, &p.filter, &p.processors);
+            assert!(errors.is_empty(), "{errors:?}");
+            let mut out = super::super::Log::from_row(&json!({"status": "info", "service": service, "source": "gsuite", "message": "event", "attributes": log.to_string()}));
+            assert!(pipeline.apply(&mut out, 1_792_933_200_000));
+            assert_eq!(out.status, status, "the pipeline's status is the poller's");
+            out
+        };
+        let at = "2026-11-06T10:00:00Z";
+        for (activity, category) in [
+            (fixtures::login_success("1", at), "authentication"),
+            (fixtures::login_failure("2", at, "sam.lee@example.com"), "authentication"),
+            (fixtures::suspicious_login("3", at), "authentication"),
+            (fixtures::role_assigned("4", at), "administration"),
+            (fixtures::shared_publicly("5", at, "people_with_link"), "data_access"),
+            (fixtures::token_authorized("6", at), "authorization"),
+            (fixtures::activity("groups_enterprise", "7", at, "admin@example.com", "moderator_action", "add_member", &[]), "groups"),
+            (fixtures::activity("mobile", "8", at, "sam.lee@example.com", "device_updates", "DEVICE_COMPROMISED_EVENT", &[]), "devices"),
+            (fixtures::activity("user_accounts", "9", at, "sam.lee@example.com", "2sv_change", "2sv_disable", &[]), "authentication"),
+            (fixtures::activity("rules", "10", at, "admin@example.com", "rule_trigger_type", "rule_match", &[]), "cloud"),
+        ] {
+            let name = activity["events"][0]["name"].clone();
+            assert_eq!(run(activity).get("google_workspace.category"), Some(json!(category)), "{name}");
+        }
+        // An activity as the Reports API answers it, shipped another way (a log shipper): remapped.
+        let raw = with_attrs("google-workspace", "gsuite", fixtures::login_failure("11", "2026-11-06T10:00:00.250Z", "sam.lee@example.com"));
+        assert_eq!((raw.get("usr.email"), raw.get("usr.id"), raw.get("network.client.ip")), (Some(json!("sam.lee@example.com")), Some(json!("104857600000000000042")), Some(json!("198.51.100.7"))));
+        assert_eq!((raw.get("network.client.geoip.country.iso_code"), raw.service.as_str(), raw.timestamp_ms), (Some(json!("NL")), "login", Some(1_793_959_200_250)));
+    }
+
+    #[test]
     fn every_integrations_pipelines_are_listed() {
         assert!(all().len() >= 240, "{} pipelines", all().len());
         for id in ["nginx", "postgres", "mysql", "redisdb", "cisco_asa", "mongo", "symantec_endpoint_protection"] {

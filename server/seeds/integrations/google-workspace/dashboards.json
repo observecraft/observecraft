@@ -1,0 +1,3160 @@
+[
+  {
+    "id": "google-workspace-overview",
+    "title": "Google Workspace Overview",
+    "description": "A Google Workspace account's audit activities: logins and failed or suspicious logins, 2-step verification, Admin console changes, Drive files shared outside the domain, OAuth apps authorized, group and device changes, and the Cloud SIEM signals they raise.",
+    "kind": "integration",
+    "logo": "google-workspace",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "google-workspace-3",
+        "definition": {
+          "type": "group",
+          "title": "",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "google-workspace-1",
+              "definition": {
+                "type": "image",
+                "title": "Google Workspace",
+                "logo": "google-workspace",
+                "background": "#ffffff"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-2",
+              "definition": {
+                "type": "note",
+                "content": "**Google Workspace audit activities** record who signed in and from where, what administrators changed in the Admin console, who shared Drive files outside the domain, which OAuth apps users authorized, and group, account and device changes. This dashboard follows them, the users and addresses behind them, and the Cloud SIEM signals their detection rules raise.\n\nConnect Google Workspace in [Integrations → Google Workspace](/integrations/google-workspace): a service account reads the Admin SDK Reports API every five minutes, with no access to ObserveCraft needed. Google delivers some applications' activities hours late; they appear here as they arrive.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 2,
+                "y": 0,
+                "w": 10,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "id": "google-workspace-14",
+        "definition": {
+          "type": "group",
+          "title": "Overview",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "google-workspace-4",
+              "definition": {
+                "type": "integration",
+                "title": "Activities",
+                "original": {
+                  "type": "query_value",
+                  "title": "Activities",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-5",
+              "definition": {
+                "type": "integration",
+                "title": "Users",
+                "original": {
+                  "type": "query_value",
+                  "title": "Users",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@usr.email"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-6",
+              "definition": {
+                "type": "integration",
+                "title": "Failed logins",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failed logins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:login @evt.name:login_failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-7",
+              "definition": {
+                "type": "integration",
+                "title": "Suspicious logins",
+                "original": {
+                  "type": "query_value",
+                  "title": "Suspicious logins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:login @evt.name:(suspicious_login OR suspicious_login_less_secure_app OR suspicious_programmatic_login OR gov_attack_warning)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-8",
+              "definition": {
+                "type": "integration",
+                "title": "Files shared outside",
+                "original": {
+                  "type": "query_value",
+                  "title": "Files shared outside",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:drive @event.parameters.visibility:(people_with_link OR public_on_the_web OR shared_externally)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-9",
+              "definition": {
+                "type": "integration",
+                "title": "Security signals",
+                "original": {
+                  "type": "query_value",
+                  "title": "Security signals",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "security_signals",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": []
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-10",
+              "definition": {
+                "type": "integration",
+                "title": "Activities by application",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Activities by application",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "service",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-11",
+              "definition": {
+                "type": "integration",
+                "title": "Activities by category",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Activities by category",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@google_workspace.category",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 4,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-12",
+              "definition": {
+                "type": "integration",
+                "title": "Most frequent events",
+                "original": {
+                  "type": "toplist",
+                  "title": "Most frequent events",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 10,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-13",
+              "definition": {
+                "type": "integration",
+                "title": "Activities around the world",
+                "original": {
+                  "type": "geomap",
+                  "title": "Activities around the world",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.geoip.country.iso_code",
+                              "limit": 250,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 250,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "hostmap_blues",
+                    "palette_flip": false
+                  },
+                  "view": {
+                    "focus": "WORLD"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 10,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 21
+        }
+      },
+      {
+        "id": "google-workspace-26",
+        "definition": {
+          "type": "group",
+          "title": "Logins",
+          "color": "green",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "google-workspace-15",
+              "definition": {
+                "type": "integration",
+                "title": "Successful logins",
+                "original": {
+                  "type": "query_value",
+                  "title": "Successful logins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:login @evt.name:login_success"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-16",
+              "definition": {
+                "type": "integration",
+                "title": "Login challenges",
+                "original": {
+                  "type": "query_value",
+                  "title": "Login challenges",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:login @evt.name:login_challenge"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-17",
+              "definition": {
+                "type": "integration",
+                "title": "2-step verification turned off",
+                "original": {
+                  "type": "query_value",
+                  "title": "2-step verification turned off",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:user_accounts @evt.name:2sv_disable"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-18",
+              "definition": {
+                "type": "integration",
+                "title": "Passwords and recovery changed",
+                "original": {
+                  "type": "query_value",
+                  "title": "Passwords and recovery changed",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:user_accounts @evt.name:(password_edit OR recovery_email_edit OR recovery_phone_edit)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-19",
+              "definition": {
+                "type": "integration",
+                "title": "Logins and failed logins",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Logins and failed logins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:login @evt.name:login_success"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:gsuite service:login @evt.name:login_failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "succeeded",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "failed",
+                          "formula": "query2"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-20",
+              "definition": {
+                "type": "integration",
+                "title": "Logins by type",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Logins by type",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:login @evt.name:(login_success OR login_failure)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@event.parameters.login_type",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 4,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-21",
+              "definition": {
+                "type": "integration",
+                "title": "Users failing to log in",
+                "original": {
+                  "type": "toplist",
+                  "title": "Users failing to log in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:login @evt.name:login_failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.email",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 10,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-22",
+              "definition": {
+                "type": "integration",
+                "title": "Addresses failing to log in",
+                "original": {
+                  "type": "toplist",
+                  "title": "Addresses failing to log in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:login @evt.name:login_failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 10,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-23",
+              "definition": {
+                "type": "integration",
+                "title": "Failed logins around the world",
+                "original": {
+                  "type": "geomap",
+                  "title": "Failed logins around the world",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:login @evt.name:login_failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.geoip.country.iso_code",
+                              "limit": 250,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 250,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "hostmap_blues",
+                    "palette_flip": false
+                  },
+                  "view": {
+                    "focus": "WORLD"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 10,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-24",
+              "definition": {
+                "type": "integration",
+                "title": "2-step verification enrolled and turned off",
+                "original": {
+                  "type": "timeseries",
+                  "title": "2-step verification enrolled and turned off",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:user_accounts @evt.name:(2sv_enroll OR 2sv_disable)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 18,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-25",
+              "definition": {
+                "type": "log_stream",
+                "title": "Suspicious logins",
+                "query": "source:gsuite service:login @evt.name:(suspicious_login OR suspicious_login_less_secure_app OR suspicious_programmatic_login OR gov_attack_warning)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 6,
+                "y": 18,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 27,
+          "w": 12,
+          "h": 27
+        }
+      },
+      {
+        "id": "google-workspace-33",
+        "definition": {
+          "type": "group",
+          "title": "Admin activity",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "google-workspace-27",
+              "definition": {
+                "type": "integration",
+                "title": "Admin console changes",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Admin console changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:admin"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@event.type",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-28",
+              "definition": {
+                "type": "integration",
+                "title": "Most active administrators",
+                "original": {
+                  "type": "toplist",
+                  "title": "Most active administrators",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:admin"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.email",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "purple"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-29",
+              "definition": {
+                "type": "integration",
+                "title": "Most frequent changes",
+                "original": {
+                  "type": "toplist",
+                  "title": "Most frequent changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:admin"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "purple"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-30",
+              "definition": {
+                "type": "integration",
+                "title": "Users created, suspended and deleted",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "Users created, suspended and deleted",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:admin @evt.name:(CREATE_USER OR DELETE_USER OR SUSPEND_USER OR UNSUSPEND_USER OR CHANGE_PASSWORD OR RENAME_USER)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-31",
+              "definition": {
+                "type": "log_stream",
+                "title": "Roles and privileges granted",
+                "query": "source:gsuite service:admin @evt.name:(ASSIGN_ROLE OR UNASSIGN_ROLE OR CREATE_ROLE OR ADD_PRIVILEGE OR GRANT_ADMIN_PRIVILEGE)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-32",
+              "definition": {
+                "type": "log_stream",
+                "title": "Security, domain and application settings changed",
+                "query": "source:gsuite service:admin @event.type:(APPLICATION_SETTINGS OR SECURITY_SETTINGS OR DOMAIN_SETTINGS)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 14,
+                "w": 12,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 54,
+          "w": 12,
+          "h": 25
+        }
+      },
+      {
+        "id": "google-workspace-43",
+        "definition": {
+          "type": "group",
+          "title": "Drive sharing",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "google-workspace-34",
+              "definition": {
+                "type": "integration",
+                "title": "Files made public",
+                "original": {
+                  "type": "query_value",
+                  "title": "Files made public",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:drive @event.parameters.visibility:(people_with_link OR public_on_the_web)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-35",
+              "definition": {
+                "type": "integration",
+                "title": "Downloads",
+                "original": {
+                  "type": "query_value",
+                  "title": "Downloads",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:drive @evt.name:download"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-36",
+              "definition": {
+                "type": "integration",
+                "title": "Users sharing outside",
+                "original": {
+                  "type": "query_value",
+                  "title": "Users sharing outside",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:drive @event.parameters.visibility:(people_with_link OR public_on_the_web OR shared_externally)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@usr.email"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-37",
+              "definition": {
+                "type": "integration",
+                "title": "Files shared outside",
+                "original": {
+                  "type": "query_value",
+                  "title": "Files shared outside",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:drive @event.parameters.visibility:(people_with_link OR public_on_the_web OR shared_externally)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@event.parameters.doc_id"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-38",
+              "definition": {
+                "type": "integration",
+                "title": "Drive activity",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Drive activity",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:drive"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-39",
+              "definition": {
+                "type": "integration",
+                "title": "Sharing by visibility",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Sharing by visibility",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:drive @event.parameters.visibility:(people_with_link OR public_on_the_web OR shared_externally)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@event.parameters.visibility",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 4,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-40",
+              "definition": {
+                "type": "integration",
+                "title": "Users sharing outside the domain",
+                "original": {
+                  "type": "toplist",
+                  "title": "Users sharing outside the domain",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:drive @event.parameters.visibility:(people_with_link OR public_on_the_web OR shared_externally)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.email",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 10,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-41",
+              "definition": {
+                "type": "integration",
+                "title": "Files shared outside the domain",
+                "original": {
+                  "type": "treemap",
+                  "title": "Files shared outside the domain",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:drive @event.parameters.visibility:(people_with_link OR public_on_the_web OR shared_externally)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@event.parameters.doc_title",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 10,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-42",
+              "definition": {
+                "type": "log_stream",
+                "title": "Files made public",
+                "query": "source:gsuite service:drive @event.parameters.visibility:(people_with_link OR public_on_the_web)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 8,
+                "y": 10,
+                "w": 4,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 79,
+          "w": 12,
+          "h": 21
+        }
+      },
+      {
+        "id": "google-workspace-48",
+        "definition": {
+          "type": "group",
+          "title": "OAuth apps",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "google-workspace-44",
+              "definition": {
+                "type": "integration",
+                "title": "Apps authorized and revoked",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Apps authorized and revoked",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:token @evt.name:authorize"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:gsuite service:token @evt.name:revoke"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "authorized",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "revoked",
+                          "formula": "query2"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-45",
+              "definition": {
+                "type": "integration",
+                "title": "Grants by app",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Grants by app",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:token @evt.name:authorize"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@event.parameters.app_name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-46",
+              "definition": {
+                "type": "integration",
+                "title": "Apps by grants",
+                "original": {
+                  "type": "query_table",
+                  "title": "Apps by grants",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:token @evt.name:authorize"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@event.parameters.app_name",
+                              "limit": 25,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:gsuite service:token @evt.name:authorize"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@usr.email"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@event.parameters.app_name",
+                              "limit": 25,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "grants",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "users",
+                          "formula": "query2"
+                        }
+                      ],
+                      "sort": {
+                        "count": 100,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-47",
+              "definition": {
+                "type": "log_stream",
+                "title": "Apps authorized",
+                "query": "source:gsuite service:token @evt.name:authorize",
+                "limit": 50
+              },
+              "layout": {
+                "x": 6,
+                "y": 6,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 100,
+          "w": 12,
+          "h": 17
+        }
+      },
+      {
+        "id": "google-workspace-55",
+        "definition": {
+          "type": "group",
+          "title": "Groups, users and devices",
+          "color": "gray",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "google-workspace-49",
+              "definition": {
+                "type": "integration",
+                "title": "Group changes",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Group changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite @google_workspace.category:groups"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-50",
+              "definition": {
+                "type": "integration",
+                "title": "Most active users",
+                "original": {
+                  "type": "toplist",
+                  "title": "Most active users",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.email",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "cool"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-51",
+              "definition": {
+                "type": "integration",
+                "title": "Most active addresses",
+                "original": {
+                  "type": "toplist",
+                  "title": "Most active addresses",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "cool"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 6
+              }
+            },
+            {
+              "id": "google-workspace-52",
+              "definition": {
+                "type": "integration",
+                "title": "Mobile device events",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Mobile device events",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite service:mobile"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-53",
+              "definition": {
+                "type": "integration",
+                "title": "Top countries",
+                "original": {
+                  "type": "toplist",
+                  "title": "Top countries",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.geoip.country.iso_code",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "cool"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-54",
+              "definition": {
+                "type": "log_stream",
+                "title": "Group changes",
+                "query": "source:gsuite @google_workspace.category:groups",
+                "limit": 50
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 117,
+          "w": 12,
+          "h": 17
+        }
+      },
+      {
+        "id": "google-workspace-60",
+        "definition": {
+          "type": "group",
+          "title": "Cloud SIEM signals",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "google-workspace-56",
+              "definition": {
+                "type": "integration",
+                "title": "High and critical",
+                "original": {
+                  "type": "query_value",
+                  "title": "High and critical",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "security_signals",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite status:(high OR critical)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": []
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-57",
+              "definition": {
+                "type": "integration",
+                "title": "Medium",
+                "original": {
+                  "type": "query_value",
+                  "title": "Medium",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "security_signals",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite status:medium"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": []
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "google-workspace-58",
+              "definition": {
+                "type": "integration",
+                "title": "Signals by severity",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Signals by severity",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "security_signals",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "status",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 5,
+                "h": 8
+              }
+            },
+            {
+              "id": "google-workspace-59",
+              "definition": {
+                "type": "integration",
+                "title": "Signals by rule",
+                "original": {
+                  "type": "toplist",
+                  "title": "Signals by rule",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "security_signals",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gsuite"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@workflow.rule.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 134,
+          "w": 12,
+          "h": 11
+        }
+      },
+      {
+        "id": "google-workspace-62",
+        "definition": {
+          "type": "group",
+          "title": "All activities",
+          "color": "gray",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "google-workspace-61",
+              "definition": {
+                "type": "log_stream",
+                "title": "Activities",
+                "query": "source:gsuite",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 10
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 145,
+          "w": 12,
+          "h": 13
+        }
+      }
+    ],
+    "source": {
+      "repository": "observecraft",
+      "path": "scripts/google-workspace-dashboard.mjs",
+      "license": "MIT"
+    }
+  }
+]

@@ -11602,6 +11602,142 @@
         }
       }
     },
+    "/api/v1/integrations/google-workspace": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The Google Workspace connection and its applications' syncs (no key).",
+        "operationId": "google_workspace_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleWorkspaceStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Saves the Google Workspace connection (admins). The key is sealed; leave it out to keep the saved one. Another\nservice account or administrator reads from the first sync's lookback again; applications no longer selected stop.",
+        "operationId": "google_workspace_save",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleWorkspaceInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleWorkspaceStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Removes the Google Workspace connection, its key and its polling (admins). Stored logs stay.",
+        "operationId": "google_workspace_delete",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/google-workspace/sync": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Polls Google now instead of within five minutes (admins).",
+        "operationId": "google_workspace_sync",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/google-workspace/test": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Tests a connection before or after saving it (admins): a token for the administrator and each application's\nactivities.",
+        "operationId": "google_workspace_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleWorkspaceInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleWorkspaceTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/integrations/installed": {
       "get": {
         "tags": [
@@ -47824,6 +47960,192 @@
               "null"
             ],
             "description": "The token's user."
+          }
+        }
+      },
+      "GoogleWorkspaceApplication": {
+        "type": "object",
+        "description": "A Reports API application the integration can read.",
+        "required": [
+          "id",
+          "name",
+          "default"
+        ],
+        "properties": {
+          "default": {
+            "type": "boolean",
+            "description": "Read when an admin picks none."
+          },
+          "id": {
+            "type": "string",
+            "description": "The Reports API's `applicationName` (the logs' `service`)."
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "GoogleWorkspaceConnection": {
+        "type": "object",
+        "description": "The connection as saved; the key is never answered.",
+        "required": [
+          "clientEmail",
+          "subject",
+          "applications",
+          "updatedAt"
+        ],
+        "properties": {
+          "applications": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "clientEmail": {
+            "type": "string",
+            "description": "The service account (the key's `client_email`)."
+          },
+          "subject": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          }
+        }
+      },
+      "GoogleWorkspaceInput": {
+        "type": "object",
+        "description": "What an admin enters.",
+        "properties": {
+          "applications": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Reports API applications to read (`login`, `admin`, `drive`, …); empty: the defaults.",
+            "default": []
+          },
+          "serviceAccountKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The service account's JSON key file; leave it out to keep the saved one.",
+            "default": null
+          },
+          "subject": {
+            "type": "string",
+            "description": "The administrator the service account acts as (domain-wide delegation).",
+            "default": ""
+          }
+        }
+      },
+      "GoogleWorkspaceStatus": {
+        "type": "object",
+        "required": [
+          "syncs",
+          "available"
+        ],
+        "properties": {
+          "available": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoogleWorkspaceApplication"
+            },
+            "description": "The applications that can be read."
+          },
+          "connection": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GoogleWorkspaceConnection",
+                "description": "None until an admin connects Google Workspace."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "syncs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoogleWorkspaceSync"
+            },
+            "description": "Each selected application's sync."
+          }
+        }
+      },
+      "GoogleWorkspaceSync": {
+        "type": "object",
+        "description": "An application's sync.",
+        "required": [
+          "application",
+          "eventsLastSync",
+          "catchingUp"
+        ],
+        "properties": {
+          "application": {
+            "type": "string"
+          },
+          "catchingUp": {
+            "type": "boolean",
+            "description": "Whether a backlog (more activities than a poll reads) is being read over several polls."
+          },
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CrawlIssue",
+                "description": "Why the last poll failed (delegation refused, not an administrator), or its warning."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eventsLastSync": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Events sent by the last poll."
+          },
+          "lastSyncAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last successful poll."
+          },
+          "syncedUntil": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms: activities up to here were read."
+          }
+        }
+      },
+      "GoogleWorkspaceTest": {
+        "type": "object",
+        "description": "A connection test's result.",
+        "required": [
+          "ok",
+          "message"
+        ],
+        "properties": {
+          "clientEmail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The service account the key belongs to."
+          },
+          "message": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
           }
         }
       },

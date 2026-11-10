@@ -767,6 +767,8 @@ const INTEGRATION_BUNDLES: &[&str] = &[
     include_str!("../../../../seeds/integrations/authentik/dashboards.json"),
     // GitLab Audit Events: ObserveCraft's own (scripts/gitlab-audit-events-dashboard.mjs), over the integration's logs.
     include_str!("../../../../seeds/integrations/gitlab-audit-events/dashboards.json"),
+    // Google Workspace: ObserveCraft's own (scripts/google-workspace-dashboard.mjs), over the integration's logs.
+    include_str!("../../../../seeds/integrations/google-workspace/dashboards.json"),
     // ObserveCraft itself (scripts/observecraft-dashboard.mjs), over self_monitoring.rs's gauges.
     include_str!("../../../../seeds/integrations/observecraft/dashboards.json"),
 ];
@@ -792,7 +794,7 @@ fn seed_documents() -> anyhow::Result<Vec<(String, Value)>> {
 
 /// Integration dashboards appear once their integration is enabled (by the dashboard's `logo`): a cloud
 /// account or connection, synthetic tests, or its data received in the last day. Others are always available.
-const GATED: [&str; 12] = ["authentik", "aws", "azure", "gcp", "fleetdm", "gitlab-audit-events", "kubernetes", "linux", "netbird", "observecraft", "opentelemetry", "tile:synthetics"];
+const GATED: [&str; 13] = ["authentik", "aws", "azure", "gcp", "fleetdm", "gitlab-audit-events", "google-workspace", "kubernetes", "linux", "netbird", "observecraft", "opentelemetry", "tile:synthetics"];
 
 /// The gated integrations not enabled: their dashboards are left out of searches and recents.
 pub fn hidden_logos(enabled: &std::collections::BTreeSet<String>) -> Vec<String> {
@@ -826,11 +828,12 @@ impl Drop for EnabledChange<'_> {
 pub async fn enabled_integrations(st: &AppState, org: &str) -> Result<std::sync::Arc<std::collections::BTreeSet<String>>, ApiError> {
     enabled_cache()
         .get_or_load(&format!("{org}\0"), || async {
-            let (aws, azure, gcp, synthetics, netbird, fleetdm, authentik, gitlab_audit): (bool, bool, bool, bool, bool, bool, bool, bool) = sqlx::query_as(
+            let (aws, azure, gcp, synthetics, netbird, fleetdm, authentik, gitlab_audit, google_workspace): (bool, bool, bool, bool, bool, bool, bool, bool, bool) = sqlx::query_as(
                 "SELECT EXISTS (SELECT 1 FROM aws_accounts WHERE org_id = $1), EXISTS (SELECT 1 FROM azure_accounts WHERE org_id = $1), \
                  EXISTS (SELECT 1 FROM gcp_accounts WHERE org_id = $1), EXISTS (SELECT 1 FROM synthetic_tests WHERE org_id = $1), \
                  EXISTS (SELECT 1 FROM netbird_connections WHERE org_id = $1), EXISTS (SELECT 1 FROM fleetdm_connections WHERE org_id = $1), \
-                 EXISTS (SELECT 1 FROM authentik_connections WHERE org_id = $1), EXISTS (SELECT 1 FROM gitlab_audit_connections WHERE org_id = $1)",
+                 EXISTS (SELECT 1 FROM authentik_connections WHERE org_id = $1), EXISTS (SELECT 1 FROM gitlab_audit_connections WHERE org_id = $1), \
+                 EXISTS (SELECT 1 FROM google_workspace_connections WHERE org_id = $1)",
             )
             .bind(org)
             .fetch_one(&st.postgres)
@@ -856,7 +859,7 @@ pub async fn enabled_integrations(st: &AppState, org: &str) -> Result<std::sync:
                 )
                 .fetch_one::<Seen>()
                 .await?;
-            let flags = [("aws", aws), ("azure", azure), ("gcp", gcp), ("tile:synthetics", synthetics), ("netbird", netbird), ("fleetdm", fleetdm), ("authentik", authentik), ("gitlab-audit-events", gitlab_audit), ("kubernetes", seen.kubernetes), ("linux", seen.hosts), ("opentelemetry", seen.traces)];
+            let flags = [("aws", aws), ("azure", azure), ("gcp", gcp), ("tile:synthetics", synthetics), ("netbird", netbird), ("fleetdm", fleetdm), ("authentik", authentik), ("gitlab-audit-events", gitlab_audit), ("google-workspace", google_workspace), ("kubernetes", seen.kubernetes), ("linux", seen.hosts), ("opentelemetry", seen.traces)];
             // ObserveCraft's own health: the operator's organization only (self_monitoring.rs).
             let operator = crate::self_monitoring::operator_org(st).await.is_some_and(|o| o == org);
             let mut enabled: std::collections::BTreeSet<String> = flags.into_iter().filter(|(_, on)| *on).map(|(l, _)| l.to_string()).collect();
