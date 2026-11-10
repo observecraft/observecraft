@@ -1,0 +1,70 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "github.code_scanning.alerts.open",
+      "tags": [
+        [
+          "alert_number",
+          "42"
+        ],
+        [
+          "repository",
+          "example-org/order-service"
+        ],
+        [
+          "rule",
+          "js/sql-injection"
+        ],
+        [
+          "severity",
+          "high"
+        ],
+        [
+          "tool",
+          "CodeQL"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "github.code_scanning.alerts.open",
+      "tags": [
+        [
+          "alert_number",
+          "7"
+        ],
+        [
+          "repository",
+          "example-org/storefront-api"
+        ],
+        [
+          "rule",
+          "js/missing-rate-limiting"
+        ],
+        [
+          "severity",
+          "medium"
+        ],
+        [
+          "tool",
+          "CodeQL"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

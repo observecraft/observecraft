@@ -1,0 +1,4 @@
+[
+  { "@timestamp": 1794309000000, "_document_id": "Q9wE8rT7yU6iO5pA4sD3fG", "action": "business.set_actions_fork_pr_approvals_policy", "actor": "alex-morgan", "actor_id": 1003,
+    "business": "example-enterprise", "business_id": 801, "created_at": 1794309000000, "operation_type": "modify" }
+]

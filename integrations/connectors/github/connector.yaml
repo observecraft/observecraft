@@ -1,0 +1,262 @@
+# yaml-language-server: $schema=../connector.schema.json
+# GitHub (https://docs.github.com/en/rest): an organization's audit log (GitHub Enterprise Cloud) as the logs
+# Datadog's GitHub integration sends (source:github, GitHub's audit fields at the top level: action, actor, repo,
+# visibility, which the GitHub Cloud SIEM pack reads), the enterprise's audit log with an enterprise owner's token,
+# and the open code scanning, Dependabot and secret scanning alerts as gauges. Datadog has no integrations-core tile
+# for it, so the package adds its own tile and dashboard. The organization is read with a GitHub App (a JWT
+# exchanged for an installation token); the enterprise audit log, which GitHub Apps can't read, with a classic
+# personal access token. The alert gauges' names are ours: Datadog doesn't list its own.
+schema_version: 1
+id: github
+name: GitHub
+publisher: ObserveCraft
+vendor: GitHub
+description: >-
+  A GitHub organization's audit log (repositories, members, teams, permissions, settings, Actions, tokens) and its
+  enterprise's audit log as logs, and the open code scanning, Dependabot and secret scanning alerts as metrics.
+logo: github
+categories: [Source Control, Security, SIEM, Developer Tools]
+docs_url: https://docs.github.com/en/rest/orgs/orgs#get-the-audit-log-for-an-organization
+setup: |
+  1. Create a GitHub App owned by the organization (**Settings → Developer settings → GitHub Apps → New GitHub App**),
+     e.g. `observecraft`, without a webhook, with the organization permission **Administration: Read** (the audit
+     log) and the repository permissions **Code scanning alerts**, **Dependabot alerts** and **Secret scanning
+     alerts: Read**.
+  2. **Generate a private key** (a `.pem` file) and note the App ID; install the app on the organization (all
+     repositories) and note the installation id from the installation's URL.
+  3. The audit log needs GitHub Enterprise Cloud. For the enterprise's audit log, an enterprise owner creates a
+     classic token with `read:audit_log` and turns on **Enterprise audit log** below.
+links:
+  - { label: New GitHub App, url: "https://github.com/organizations/{{ config.organization }}/settings/apps/new" }
+instance: "{{ config.organization }}"
+
+config:
+  - key: api_url
+    label: API URL
+    type: url
+    required: true
+    default: https://api.github.com
+    help: https://api.github.com; https://api.<subdomain>.ghe.com with data residency; https://<host>/api/v3 for GitHub Enterprise Server.
+  - { key: organization, label: Organization, type: string, required: true, placeholder: example-org, pattern: "[A-Za-z0-9-]+" }
+  - { key: app_id, label: App ID, type: string, required: true, pattern: "[0-9]+|Iv[0-9A-Za-z.]+", help: The App ID or its client id. }
+  - { key: installation_id, label: Installation id, type: string, required: true, pattern: "[0-9]+" }
+  - { key: private_key, label: App private key, type: text, secret: true, required: true, placeholder: "-----BEGIN RSA PRIVATE KEY-----" }
+  - { key: enterprise, label: Enterprise, type: string, placeholder: example-enterprise, help: "The enterprise's slug, for its audit log." }
+  - { key: enterprise_token, label: Enterprise owner token, type: string, secret: true, help: "A classic token with read:audit_log, for the enterprise audit log." }
+
+# A GitHub App: an RS256 JWT (at most 10 minutes) exchanged for an hour-long installation token.
+auth:
+  kind: token_exchange
+  jwt:
+    private_key: "{{ secrets.private_key }}"
+    claims: { iss: "{{ config.app_id }}" }
+    lifetime: 9m
+  request:
+    method: POST
+    url: "{{ config.api_url }}/app/installations/{{ config.installation_id }}/access_tokens"
+    headers: { Authorization: "Bearer {{ auth.jwt }}", Accept: application/vnd.github+json }
+  capture: { token: "{{ response.token }}" }
+  ttl: 50m
+
+headers:
+  Accept: application/vnd.github+json
+  X-GitHub-Api-Version: "2022-11-28"
+
+# 5,000 requests an hour per installation (15,000 on Enterprise Cloud); audit log queries 1,750 an hour.
+rate_limit: { requests_per_minute: 25 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: "GitHub refused the app's credentials ({{ response.message ?? 'bad credentials' }}): check the App ID, installation id and private key"
+  - status: [403, 429]
+    when: "{{ headers['x-ratelimit-remaining'] == '0' || (response.message ?? '') | contains('rate limit') }}"
+    kind: throttled
+    message: "Rate limited by GitHub (resets at {{ headers['x-ratelimit-reset'] ?? '?' }})"
+  - status: [403]
+    kind: access_denied
+    message: "GitHub refused ({{ response.message ?? 'forbidden' }}): the app needs Administration read for the audit log and the alerts' read permissions"
+  - status: [404]
+    kind: access_denied
+    message: "Not found ({{ response.message ?? 'not found' }}): the audit log needs GitHub Enterprise Cloud, the alerts GitHub Advanced Security or Dependabot turned on"
+
+streams:
+  - id: audit_log
+    name: Organization audit log
+    description: >-
+      Every audit event of the organization as a log (source:github, service:github): evt.name is the action
+      (repo.create, org.add_member, protected_branch.destroy, …), usr.name the actor, network.client.* the actor's IP
+      and location; git events included.
+    request:
+      url: "{{ config.api_url }}/orgs/{{ config.organization }}/audit-log"
+      query:
+        phrase: "created:{{ window.start | rfc3339_s }}..{{ window.end | rfc3339_s }}"
+        include: all
+        order: asc
+        per_page: 100
+    pagination: { kind: link_header }
+    max_pages: 30
+    record_id: "{{ record._document_id }}"
+    incremental: &audit { kind: time, record_time: "{{ record['@timestamp'] }}", order: oldest_first, lookback: 1d, overlap: 10m }
+    output:
+      logs: &audit_log
+        service: github
+        message: "{{ record.action }} by {{ record.actor ?? 'GitHub' }}{{ ' on ' + record.repo ?? '' }}"
+        status: "{{ record.action in ['repo.access', 'protected_branch.destroy', 'org.remove_member', 'repo.destroy', 'org.disable_two_factor_requirement', 'secret_scanning.disable', 'business.disable_two_factor_requirement'] ? 'warn' : 'info' }}"
+        date: "{{ record['@timestamp'] | rfc3339 }}"
+        attributes: >-
+          {{ record + {
+               evt: {name: record.action, category: record.action | split('.') | first},
+               usr: {name: record.actor, id: record.actor_id | str},
+               network: {client: {ip: record.actor_ip, geoip: record.actor_location}}
+             } }}
+
+  - id: enterprise_audit_log
+    name: Enterprise audit log
+    description: >-
+      Every audit event of the enterprise as a log (source:github, service:github), as above. Needs the enterprise
+      slug and an enterprise owner's classic token with read:audit_log.
+    default_enabled: false
+    auth: { kind: bearer, token: "{{ secrets.enterprise_token }}" }
+    request:
+      url: "{{ config.api_url }}/enterprises/{{ config.enterprise }}/audit-log"
+      query:
+        phrase: "created:{{ window.start | rfc3339_s }}..{{ window.end | rfc3339_s }}"
+        include: all
+        order: asc
+        per_page: 100
+    pagination: { kind: link_header }
+    max_pages: 30
+    record_id: "{{ record._document_id }}"
+    incremental: *audit
+    output:
+      logs: *audit_log
+
+  - id: code_scanning_alerts
+    name: Code scanning alerts
+    description: >-
+      The open code scanning alerts as gauges (github.code_scanning.alerts.open, 1 per alert), tagged repository,
+      severity, rule and tool; summed, the open alerts.
+    interval: 15m
+    request:
+      url: "{{ config.api_url }}/orgs/{{ config.organization }}/code-scanning/alerts"
+      query: { state: open, per_page: 100 }
+    pagination: { kind: link_header }
+    max_pages: 50
+    output:
+      metrics:
+        - name: github.code_scanning.alerts.open
+          value: "1"
+          description: 1 per open code scanning alert; summed, the open alerts.
+          tags:
+            repository: "{{ record.repository.full_name }}"
+            alert_number: "{{ record.number | str }}"
+            severity: "{{ record.rule.security_severity_level ?? record.rule.severity }}"
+            rule: "{{ record.rule.id }}"
+            tool: "{{ record.tool.name }}"
+
+  - id: dependabot_alerts
+    name: Dependabot alerts
+    description: >-
+      The open Dependabot alerts as gauges (github.dependabot.alerts.open, 1 per alert), tagged repository,
+      severity, ecosystem and package.
+    interval: 15m
+    request:
+      url: "{{ config.api_url }}/orgs/{{ config.organization }}/dependabot/alerts"
+      query: { state: open, per_page: 100 }
+    pagination: { kind: link_header }
+    max_pages: 50
+    output:
+      metrics:
+        - name: github.dependabot.alerts.open
+          value: "1"
+          description: 1 per open Dependabot alert; summed, the open alerts.
+          tags:
+            repository: "{{ record.repository.full_name }}"
+            alert_number: "{{ record.number | str }}"
+            severity: "{{ record.security_advisory.severity }}"
+            ecosystem: "{{ record.dependency.package.ecosystem }}"
+            package: "{{ record.dependency.package.name }}"
+            scope: "{{ record.dependency.scope }}"
+
+  - id: secret_scanning_alerts
+    name: Secret scanning alerts
+    description: >-
+      The open secret scanning alerts as gauges (github.secret_scanning.alerts.open, 1 per alert), tagged repository
+      and secret type; the secrets themselves are never read into a tag or a log.
+    interval: 15m
+    request:
+      url: "{{ config.api_url }}/orgs/{{ config.organization }}/secret-scanning/alerts"
+      query: { state: open, per_page: 100, hide_secret: "true" }
+    pagination: { kind: link_header }
+    max_pages: 50
+    output:
+      metrics:
+        - name: github.secret_scanning.alerts.open
+          value: "1"
+          description: 1 per open secret scanning alert; summed, the open alerts.
+          tags:
+            repository: "{{ record.repository.full_name }}"
+            alert_number: "{{ record.number | str }}"
+            secret_type: "{{ record.secret_type }}"
+            validity: "{{ record.validity }}"
+
+test:
+  request: { url: "{{ config.api_url }}/orgs/{{ config.organization }}/audit-log", query: { per_page: 1 } }
+  message: "Connected: the app reads {{ config.organization }}'s audit log"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { organization: example-org, app_id: "123456", installation_id: "45678901", enterprise: example-enterprise }
+  secrets:
+    enterprise_token: ghp_test0000000000000000000000000000000
+    private_key: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQC3gCDdp3fiZFbq
+      oeXHYRxFDyWrZQS8Dydp7BQ/bEtjPdb0uL6SJgn27z/h2b4Wy82a14IbLDk0WGWr
+      Psc+k+4CCKD79QIQuE30bZCuL0i3q+aHp1JIejK3kjjg98+fp4co8nYSNRypp/et
+      jnnbD3FD7kkmNfrKcuRf3F4pWbAOyRSW0DeDPzNQrZmkq2xYPfpOZYRnWgHC27kr
+      CHBdnFF2sfD1Y1Pf771I7+WoC3XNf+58MFjeVhhnm+Oa8EaMeRgLKqfrQ++Zz5f2
+      qbwqIwvzVDwvTxnZSkDPJ6tWtCbp6u2G9dyguVR57gZWyOM/nJbHVCpn1j0oZJkh
+      r8y/WJ2vAgMBAAECggEACAcH6QpxeSrwjnUkqzM5XGAMQtI5gcyb6ctVG20uYxoK
+      dEw8sgIN/4p53fR7l121EegJngyyN/MCB5rIdplcGSStfjg6reaSKnY8lRImeTqA
+      7EBKnjcSTuuLp3PP1mkqxYTN24ANT/K0KBiKhiXHy7P56T0FSqP6D6OBTwfIZu0b
+      /EnYj6LJmSdW7hRqQdBvrS4AqSkJCf2lPrxLAXho+wCVP6CZsH0rUPqUgdqPTfyp
+      RGXPksbVzmDLjEX74pay342pSuXew4+SHN61oTh9ZAcyjah04B4GrfUEkh9a/WOu
+      mBGI6dj8rBmXI2M+EoTI9Cxh7QcXCcpLMiC30rBSmQKBgQDr+HqBf+qzefKy4FVb
+      IIQlNqn0MNyqYhy5sUqqd1LKQA+Rfjv70zAWOjJoIHfCiV2fg4seomXTbEVeqM1U
+      MTuw7szHxQQcdHsZlFuXnB6diwZkwEl4JdA2G9IsdVkmAi3T/KnqNob1e/BAG4n3
+      KD5o/yHUOKR52JJyTF45e6KHxQKBgQDHE4A6NhsnLVlMQSKxvn6tZF+yN/IHMQDI
+      +TPANLzaZY0wNhLHTLG9i8IXErAUuWCcj4q12dwJlWb0pNn7JSqFW7dcIECRvuHf
+      OfYOaqWjT7I+OLtLCWJlx6FYvXd6RpiUsjLbhZ5HUnAi1EIYfZ6x2Tiq4sJSGa4r
+      FOb3Dnry4wKBgQDgdafybz9OIf4e8Q3AdRm+XFUmFySQXmt8p4yiwoZaJL2qZC2i
+      yazAN/Oi4N+KiSgph/NZ3JiHmEIUXPWT1JE3KLBahqn2d0ZxepH1kWf97DTUuaQp
+      Sa7ZCXXPHIEEiqYVNA5c4ClYceCC2q9OD1XugmIngQnTbZNAbixi+ZwNEQKBgQC5
+      YStzCZdXcB9LpwwLwHxuMp36c6Zpk/RLMeRDA9ko9o/3aSMre/u3qkFfAwP9CHMy
+      12gv12PTeNCa2Dg0anOiI7oni9EU50+mc27yFdWQslIlJuciBOcgKDnTTPvJXZwQ
+      O7CoQ1EU0Wuiw02ZSMFSlBj06JxTn55Ud+5r+Yv8SQKBgQCbub+b7fP95Q4iWIXA
+      83XRkSwQ0ntTLF2tC2FgLuofGpoUPDhv1/dsOX+1g8fdN3b9gEQhujts9JtHP9Y+
+      Ze81kzFamdo6wp2+EL99LerWYyl3P6o2248l+7TdfXmpIDbXPSPo7+E5cZXJE2OV
+      Ozb36EXLi0aSD0YQOMOnjB5NgQ==
+      -----END PRIVATE KEY-----
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://api.github.com/app/installations/45678901/access_tokens", body: { token: ghs_test0000000000000000000000000000, expires_at: "2026-11-10T13:00:00Z" } }
+    - { url: "https://api.github.com/orgs/example-org/audit-log", query: { per_page: "1" }, body: [] }
+    - { url: "https://api.github.com/organizations/1001/audit-log", query: { after: "MS42OTQ4NTk0" }, file: fixtures/audit-log-2.json }
+    - url: https://api.github.com/orgs/example-org/audit-log
+      file: fixtures/audit-log-1.json
+      headers: { Link: '<https://api.github.com/organizations/1001/audit-log?include=all&order=asc&per_page=100&after=MS42OTQ4NTk0>; rel="next"' }
+    - { url: "https://api.github.com/enterprises/example-enterprise/audit-log", file: fixtures/enterprise-audit-log.json }
+    - { url: "https://api.github.com/orgs/example-org/code-scanning/alerts", file: fixtures/code-scanning.json }
+    - { url: "https://api.github.com/orgs/example-org/dependabot/alerts", file: fixtures/dependabot.json }
+    - { url: "https://api.github.com/orgs/example-org/secret-scanning/alerts", file: fixtures/secret-scanning.json }
+  expect:
+    audit_log: { records: 3, logs: 3, rerun: 0, golden: fixtures/audit_log.expected.json }
+    enterprise_audit_log: { records: 1, logs: 1, rerun: 0, golden: fixtures/enterprise_audit_log.expected.json }
+    code_scanning_alerts: { records: 2, metrics: 2, golden: fixtures/code_scanning_alerts.expected.json }
+    dependabot_alerts: { records: 1, metrics: 1 }
+    secret_scanning_alerts: { records: 1, metrics: 1 }
+    test: { ok: true, message: "Connected: the app reads example-org's audit log" }
