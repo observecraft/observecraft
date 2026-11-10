@@ -3,12 +3,11 @@
 # https://vercel.com/docs/drains/reference/logs records) to the intake's Datadog logs API as source:vercel, the shape
 # Datadog's Vercel integration receives, so integrations-extras' Vercel pipeline (REPORT lines parsed into lambda.*,
 # status from proxy.statusCode, service from projectName) and dashboard read them. A Trace Drain sends OTLP/HTTP spans
-# to the intake's /v1/traces. The vercel.* metrics Datadog derives from these logs are the log-based metrics under
+# to the intake's /v1/traces (the second push endpoint). The vercel.* metrics Datadog derives from these logs are the log-based metrics under
 # assets/log_metrics (their names, queries and group-bys from integrations-extras' vercel/assets/logs/vercel.yaml,
 # BSD-3-Clause, Copyright Datadog, Inc.).
-# The intake doesn't check `x-vercel-signature` yet, and the connector page has no field to save the drain's secret
-# for a push package without `create`: the signature is declared for when it does; the ingest key in the drain's
-# headers authenticates it meanwhile.
+# The intake checks the Log Drain's `x-vercel-signature` once its secret is saved on the connector page; until then
+# the ingest key in the drain's headers admits it.
 schema_version: 1
 id: vercel
 name: Vercel
@@ -45,11 +44,17 @@ push:
     - **Format**: JSON
     - **Custom Headers**: `DD-API-KEY: {{ api_key }}`
 
-    Vercel tests the endpoint when the drain is created; the ingest key in the header authenticates its deliveries.
-
-    **Traces.** Add another drain of type **Traces** for the same projects, with **Custom Endpoint**
-    `{{ intake }}/v1/traces`, format **Protobuf** (or JSON) and the same header. Spans arrive as OpenTelemetry traces
-    (APM); logs written during a traced request carry its `traceId` and `spanId`.
+    Vercel tests the endpoint when the drain is created. Copy the drain's **signature verification secret** below:
+    the intake then refuses deliveries without a valid `x-vercel-signature`.
+  endpoints:
+    - label: Traces
+      kind: otlp
+      url: "{{ intake }}/v1/traces"
+      headers: { DD-API-KEY: "{{ api_key }}" }
+      instructions: |
+        Add another drain of type **Traces** for the same projects, with this **Custom Endpoint**, format
+        **Protobuf** (or JSON) and the header below. Spans arrive as OpenTelemetry traces (APM); logs written during
+        a traced request carry its `traceId` and `spanId`.
 
 assets:
   log_metrics:
