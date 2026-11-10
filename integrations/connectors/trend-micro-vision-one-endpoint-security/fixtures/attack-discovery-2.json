@@ -1,0 +1,33 @@
+{
+  "Meta": {
+    "Result": 1,
+    "ErrorCode": 0,
+    "ErrorMsg": ""
+  },
+  "PermissionCtrl": {
+    "permission": "255",
+    "elements": null
+  },
+  "FeatureCtrl": {
+    "mode": "0"
+  },
+  "SystemCtrl": {
+    "TmcmSoDist_Role": "none"
+  },
+  "Data": {
+    "SyslogName": "",
+    "SyslogType": "",
+    "SyslogOutputFormat": "CEF",
+    "Count": 0,
+    "Next": "",
+    "Logs": [],
+    "CurrentPage": {
+      "SinceTime": 1794225600,
+      "PageToken": 42
+    },
+    "NextPage": {
+      "SinceTime": 1794225600,
+      "PageToken": 42
+    }
+  }
+}
