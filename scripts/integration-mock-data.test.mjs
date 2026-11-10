@@ -90,6 +90,7 @@ for (const title of [
   'vLLM Overview',
   'LEGACY - DCGM Exporter (Nvidia GPU Monitoring) Overview',
   'Argo Workflows',
+  'Argo Rollouts Overview',
 ]) {
   test(`every widget of ${title} has data in mock mode`, async () => {
     const d = mock.dashboards.find((x) => x.title === title);

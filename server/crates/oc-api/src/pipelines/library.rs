@@ -421,6 +421,21 @@ mod tests {
         assert_eq!(agent_log("argo_workflows", json!({"message": line, "service": "argo-workflows", "ddsource": "argo_workflows"})).message, "Processing workflow");
     }
 
+    /// Argo Rollouts' controller logs (logrus), as integrations-core's `argo_rollouts_tests.yaml` expects: `msg` moved
+    /// to the message, the rollout's name, namespace and resource version as numbers under `argo_rollouts`.
+    #[test]
+    fn argo_rollouts_controller_logs() {
+        use serde_json::json;
+        let line = r#"time="2026-11-10T09:15:02Z" level=info msg="Started syncing rollout" generation=4 namespace=checkout resourceVersion=24435167 rollout=order-service"#;
+        let log = agent_log("argo_rollouts", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60001", "service": "argo-rollouts", "ddsource": "argo_rollouts"}));
+        assert_eq!((log.message.as_str(), log.get("msg"), log.get("generation")), ("Started syncing rollout", None, Some(json!(4))));
+        assert_eq!((log.get("argo_rollouts.name"), log.get("argo_rollouts.namespace"), log.get("argo_rollouts.resource.version")), (Some(json!("order-service")), Some(json!("checkout")), Some(json!(24435167))));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_000));
+        let line = r#"time="2026-11-10T09:15:03Z" level=info msg="Reconciliation completed" resource=checkout/order-service"#;
+        let log = agent_log("argo_rollouts", json!({"message": line, "service": "argo-rollouts", "ddsource": "argo_rollouts"}));
+        assert_eq!((log.message.as_str(), log.get("argo_rollouts.resource.name")), ("Reconciliation completed", Some(json!("checkout/order-service"))));
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};

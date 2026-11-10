@@ -539,6 +539,20 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
     ],
   },
   {
+    check: 'argo_rollouts',
+    variants: [
+      {
+        label: 'Argo Rollouts Helm chart (argo/argo-rollouts)',
+        text: 'The controller serves its metrics on port 8090 (`controller.metrics.enabled: true` also gives them a Service). Put the annotations in the chart’s `controller.podAnnotations` value (the container is `argo-rollouts`). The logs annotation names the `argo_rollouts` source the integration’s pipeline reads (otherwise `argo-rollouts`, the image).',
+        filename: POD_ANNOTATIONS,
+        code: [
+          checkAnnotation('argo-rollouts', 'argo_rollouts', { instances: [{ openmetrics_endpoint: 'http://%%host%%:8090/metrics' }] }),
+          logsAnnotation('argo-rollouts', 'argo_rollouts', 'argo-rollouts'),
+        ].join('\n'),
+      },
+    ],
+  },
+  {
     check: 'coredns',
     variants: [
       {

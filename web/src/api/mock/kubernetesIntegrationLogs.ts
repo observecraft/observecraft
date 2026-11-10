@@ -99,7 +99,51 @@ const logrusLine = (status: LogStatus, msg: (r: Rand) => string, extra: (r: Rand
 };
 const WORKFLOWS = ['nightly-order-export', 'catalog-reindex', 'invoice-batch', 'image-thumbnails'];
 
+const ROLLOUTS = ['storefront/storefront-api', 'checkout/order-service', 'checkout/checkout-web', 'catalog/catalog-service'];
+
 const SOURCES: Source[] = [
+  {
+    source: 'argo_rollouts',
+    service: 'argo-rollouts',
+    namespace: 'argo-rollouts',
+    pod: (i) => `argo-rollouts-6f8b9c7d5-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+    count: 200,
+    lines: [
+      logrusLine(
+        'info',
+        () => 'Started syncing rollout',
+        (r) => {
+          const [namespace, rollout] = pick(r, ROLLOUTS).split('/');
+          return { generation: 4 + Math.floor(r() * 30), argo_rollouts: { namespace, name: rollout, resource: { version: 24435000 + Math.floor(r() * 9000) } } };
+        },
+        6,
+      ),
+      logrusLine(
+        'info',
+        () => 'Reconciliation completed',
+        (r) => ({ argo_rollouts: { resource: { name: pick(r, ROLLOUTS) } } }),
+        6,
+      ),
+      logrusLine(
+        'info',
+        (r) => `Step Analysis Run 'storefront-api-${Math.floor(r() * 46656).toString(36)}-success-rate' Status: Successful`,
+        (r) => ({ argo_rollouts: { resource: { name: pick(r, ROLLOUTS) } } }),
+        2,
+      ),
+      logrusLine(
+        'warn',
+        () => 'Rollout paused: CanaryPauseStep',
+        () => ({ argo_rollouts: { resource: { name: 'checkout/checkout-web' } } }),
+        1,
+      ),
+      logrusLine(
+        'error',
+        () => 'Rollout aborted: Metric "success-rate" assessed Failed due to failed (3) > failureLimit (2)',
+        () => ({ argo_rollouts: { resource: { name: 'checkout/order-service' } } }),
+        1,
+      ),
+    ],
+  },
   {
     source: 'argo_workflows',
     service: 'argo-workflows',
