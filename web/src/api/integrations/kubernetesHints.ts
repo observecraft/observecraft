@@ -575,6 +575,54 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
     ],
   },
   {
+    check: 'cert_manager',
+    variants: [
+      {
+        label: 'cert-manager Helm chart (jetstack/cert-manager)',
+        text: 'The controller serves its metrics on port 9402. Put the annotations in the chart’s `podAnnotations` value (the controller’s container is `cert-manager-controller`).',
+        filename: POD_ANNOTATIONS,
+        code: checkAnnotation('cert-manager-controller', 'cert_manager', { instances: [{ openmetrics_endpoint: 'http://%%host%%:9402/metrics' }] }),
+      },
+    ],
+  },
+  {
+    check: 'argocd',
+    variants: [
+      {
+        label: 'Argo CD Helm chart (argo/argo-cd)',
+        text: 'Each component serves its own metrics: the application controller on 8082, the API server on 8083, the repo server on 8084. Put the annotations in `controller.podAnnotations`, `server.podAnnotations` and `repoServer.podAnnotations` (one block for all three is fine: each pod reads its own container’s). Their logs keep the `argocd` source (the image) the integration’s pipeline reads.',
+        filename: POD_ANNOTATIONS,
+        code: [
+          checkAnnotation('application-controller', 'argocd', { instances: [{ app_controller_endpoint: 'http://%%host%%:8082/metrics' }] }),
+          checkAnnotation('server', 'argocd', { instances: [{ api_server_endpoint: 'http://%%host%%:8083/metrics' }] }),
+          checkAnnotation('repo-server', 'argocd', { instances: [{ repo_server_endpoint: 'http://%%host%%:8084/metrics' }] }),
+        ].join('\n'),
+      },
+    ],
+  },
+  {
+    check: 'vault',
+    variants: [
+      {
+        label: 'Vault Helm chart (hashicorp/vault)',
+        text: 'The check reads Vault’s Prometheus telemetry at `/v1/sys/metrics`: keep it (`telemetry { prometheus_retention_time = "24h" }`) and let it be read without a token (`unauthenticated_metrics_access = true` in the listener’s `telemetry` block), or give the check a token. Put the annotations in the chart’s `server.annotations` value (the container is `vault`).',
+        filename: POD_ANNOTATIONS,
+        code: checkAnnotation('vault', 'vault', { instances: [{ api_url: 'http://%%host%%:8200/v1', use_openmetrics: true, no_token: true }] }),
+      },
+    ],
+  },
+  {
+    check: 'traefik_mesh',
+    variants: [
+      {
+        label: 'Traefik Helm chart (traefik/traefik)',
+        text: 'The traefik_mesh check reads Traefik Proxy’s Prometheus metrics too: the chart serves them on its `metrics` entrypoint (port 9100, on by default). Put the annotations in the chart’s `deployment.podAnnotations` value (the container is `traefik`).',
+        filename: POD_ANNOTATIONS,
+        code: checkAnnotation('traefik', 'traefik_mesh', { instances: [{ openmetrics_endpoint: 'http://%%host%%:9100/metrics' }] }),
+      },
+    ],
+  },
+  {
     check: 'coredns',
     variants: [
       {
