@@ -123,10 +123,12 @@ export function convertDashboard(doc, integration, path, revision, repository = 
       let geometry;
       if (layout) {
         const scale = cols / extent;
+        // Both edges rounded, so widgets side by side keep meeting (3 + 5 of 8 columns is 5 + 7 of 12, not 5 + 8).
+        const x = Math.round(layout.x * scale);
         geometry = {
-          x: Math.round(layout.x * scale),
+          x,
           y: Math.round(layout.y * rowScale),
-          w: Math.max(1, Math.round(layout.width * scale)),
+          w: Math.max(1, Math.round((layout.x + layout.width) * scale) - x),
           h: Math.max(4, Math.round(layout.height * rowScale)),
         };
       } else {
