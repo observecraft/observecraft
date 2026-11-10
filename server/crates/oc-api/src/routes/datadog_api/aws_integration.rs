@@ -313,8 +313,21 @@ pub fn catalog() -> &'static Catalog {
     C.get_or_init(|| serde_json::from_str(include_str!("../../../../../seeds/aws_integration.json")).expect("seeds/aws_integration.json is valid"))
 }
 
-/// What the AWS crawler calls (`crate::aws::api`): CloudWatch's metric list and data, and resource tags.
-pub const STANDARD_PERMISSIONS: [&str; 3] = ["cloudwatch:GetMetricData", "cloudwatch:ListMetrics", "tag:GetResources"];
+/// What the AWS crawler calls (`crate::aws::api`): CloudWatch's metric list and data, resource tags, and the lookups of
+/// the resources whose ARNs their metrics don't carry (`crate::aws::naming::LOOKUPS`: REST APIs, RDS proxies, DMS
+/// replication instances, WAF Classic web ACLs).
+pub const STANDARD_PERMISSIONS: [&str; 10] = [
+    "cloudwatch:GetMetricData",
+    "cloudwatch:ListMetrics",
+    "tag:GetResources",
+    "apigateway:GET",
+    "rds:DescribeDBProxies",
+    "dms:DescribeReplicationInstances",
+    "waf:ListWebACLs",
+    "waf:GetWebACL",
+    "waf-regional:ListWebACLs",
+    "waf-regional:GetWebACL",
+];
 
 // ================================================================ storage
 

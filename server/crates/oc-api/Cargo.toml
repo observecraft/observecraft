@@ -18,6 +18,13 @@ aws-sdk-sts = "1"
 aws-sdk-cloudwatch = "1"
 aws-sdk-s3 = "1"
 aws-sdk-resourcegroupstagging = "1"
+# Resources whose ARNs their metrics don't carry (aws/naming.rs LOOKUPS): REST APIs, RDS proxies, DMS replication
+# instances, WAF Classic web ACLs.
+aws-sdk-apigateway = "1"
+aws-sdk-databasemigration = "1"
+aws-sdk-rds = "1"
+aws-sdk-waf = "1"
+aws-sdk-wafregional = "1"
 # GCP integration crawler: this install's Application Default Credentials (metadata server, workload identity, key file).
 gcp_auth = "0.12"
 aes-gcm = "0.11"

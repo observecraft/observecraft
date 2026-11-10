@@ -8,7 +8,18 @@ const fail = (message: string): never => {
   throw new Error(message);
 };
 
-const PERMISSIONS = ['cloudwatch:GetMetricData', 'cloudwatch:ListMetrics', 'tag:GetResources'];
+const PERMISSIONS = [
+  'cloudwatch:GetMetricData',
+  'cloudwatch:ListMetrics',
+  'tag:GetResources',
+  'apigateway:GET',
+  'rds:DescribeDBProxies',
+  'dms:DescribeReplicationInstances',
+  'waf:ListWebACLs',
+  'waf:GetWebACL',
+  'waf-regional:ListWebACLs',
+  'waf-regional:GetWebACL',
+];
 const EXCLUDED = ['AWS/SQS', 'AWS/ElasticMapReduce', 'AWS/Usage'];
 
 const hex = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');

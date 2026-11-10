@@ -165,7 +165,9 @@ collection on). An update keeps the fields it doesn't send; `aws_regions` and ea
   the two (`400`, as Datadog).
 - **Namespaces and log sources** come from ObserveCraft's own catalog (`server/seeds/aws_integration.json`).
 - **IAM permissions** are the ones ObserveCraft's crawler calls (`cloudwatch:ListMetrics`, `cloudwatch:GetMetricData`,
-  `tag:GetResources`); `/resource_collection` lists the read-only actions Cloud Security's account scans need on top of
+  `tag:GetResources`, and to tag the resources whose ARNs their metrics don't carry `apigateway:GET` for REST APIs,
+  `rds:DescribeDBProxies`, `dms:DescribeReplicationInstances` and WAF Classic's `waf:` / `waf-regional:ListWebACLs` and
+  `GetWebACL`); `/resource_collection` lists the read-only actions Cloud Security's account scans need on top of
   the AWS managed `SecurityAudit` policy ([security findings](#security-findings)).
 - One AWS account per organization (`409` for a second one with the same `aws_account_id`); writes need an admin.
 - Metrics are collected by ObserveCraft's crawler (`server/crates/oc-api/src/aws/`) every 10 minutes: the metric's

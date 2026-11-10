@@ -226,10 +226,31 @@ pub fn tags_match(filters: &Value, namespace: &str, resource_tags: &[String]) ->
     wanted.is_empty() || wanted.iter().any(|p| matches(p))
 }
 
+/// The namespace a series is named and tagged by: CloudWatch has RDS Proxy's metrics in `AWS/RDS` (by `ProxyName`),
+/// which Datadog names `aws.rds.proxy.*` (our catalog's `AWS/RDS/Proxy`).
+pub fn series_namespace<'a>(namespace: &'a str, dimensions: &[(String, String)]) -> &'a str {
+    if namespace == "AWS/RDS" && dimensions.iter().any(|(k, _)| k == "ProxyName") { "AWS/RDS/Proxy" } else { namespace }
+}
+
+/// The CloudWatch namespace a [`series_namespace`] is read from.
+pub fn cloudwatch_namespace(namespace: &str) -> &str {
+    if namespace == "AWS/RDS/Proxy" { "AWS/RDS" } else { namespace }
+}
+
+/// The lookups some ARNs need, by what the metrics' dimensions carry (`{<Dimension>@<lookup>}` in [`RESOURCES`]):
+/// REST APIs' ids by name (`apigateway:GET /restapis`), RDS proxies' ARNs by name (`rds:DescribeDBProxies`), DMS
+/// replication instances' ARNs by identifier (`dms:DescribeReplicationInstances`), and WAF Classic web ACLs' ARNs
+/// by metric name (`waf:` / `waf-regional:ListWebACLs` and `GetWebACL`; CloudFront's are global). Read once a run.
+pub const LOOKUPS: [&str; 5] = ["restapis", "dbproxies", "replicationinstances", "webacls", "regionalwebacls"];
+
+/// [`LOOKUPS`]' answers: lookup → name → id or ARN.
+pub type Lookups = HashMap<String, HashMap<String, String>>;
+
 /// The resource a metric is about, as the Tagging API names it: (namespace, ARN format with `{p}` partition,
-/// `{r}` region, `{a}` account and `{<Dimension>}` the dimensions' values, `{<Dimension>:lower}` lowercased). The
-/// first whose dimensions the metric has is used. A `*` stands for what the dimensions don't carry (the id after a
-/// web ACL's or an MSK cluster's name): the resource is the tagged one the pattern matches.
+/// `{r}` region, `{a}` account and `{<Dimension>}` the dimensions' values, `{<Dimension>:lower}` lowercased,
+/// `{<Dimension>@<lookup>}` what a [`LOOKUPS`] answers for the value). The first whose dimensions the metric has
+/// is used. A `*` stands for what the dimensions don't carry (the id after a web ACL's or an MSK cluster's name):
+/// the resource is the tagged one the pattern matches.
 const RESOURCES: &[(&str, &str)] = &[
     ("AWS/EC2", "arn:{p}:ec2:{r}:{a}:instance/{InstanceId}"),
     ("CWAgent", "arn:{p}:ec2:{r}:{a}:instance/{InstanceId}"),
@@ -252,6 +273,10 @@ const RESOURCES: &[(&str, &str)] = &[
     ("AWS/SQS", "arn:{p}:sqs:{r}:{a}:{QueueName}"),
     ("AWS/SNS", "arn:{p}:sns:{r}:{a}:{TopicName}"),
     ("AWS/ApiGateway", "arn:{p}:apigateway:{r}::/apis/{ApiId}"),
+    ("AWS/ApiGateway", "arn:{p}:apigateway:{r}::/restapis/{ApiName@restapis}"),
+    ("AWS/RDS/Proxy", "{ProxyName@dbproxies}"),
+    ("AWS/DMS", "arn:{p}:dms:{r}:{a}:rep:{ReplicationInstanceExternalResourceId}"),
+    ("AWS/DMS", "{ReplicationInstanceIdentifier@replicationinstances}"),
     ("AWS/AppSync", "arn:{p}:appsync:{r}:{a}:apis/{GraphQLAPIId}"),
     ("AWS/ApplicationELB", "arn:{p}:elasticloadbalancing:{r}:{a}:loadbalancer/{LoadBalancer}"),
     ("AWS/ApplicationELB", "arn:{p}:elasticloadbalancing:{r}:{a}:{TargetGroup}"),
@@ -288,6 +313,7 @@ const RESOURCES: &[(&str, &str)] = &[
     ("AWS/Route53", "arn:{p}:route53:::hostedzone/{HostedZoneId}"),
     ("AWS/Route53Resolver", "arn:{p}:route53resolver:{r}:{a}:resolver-endpoint/{EndpointId}"),
     ("AWS/WAFV2", "arn:{p}:wafv2:{r}:{a}:regional/webacl/{WebACL}/*"),
+    ("WAF", "{WebACL@regionalwebacls}"),
     ("AWS/Redshift", "arn:{p}:redshift:{r}:{a}:cluster:{ClusterIdentifier}"),
     ("AWS/ES", "arn:{p}:es:{r}:{a}:domain/{DomainName}"),
     ("AWS/Kafka", "arn:{p}:kafka:{r}:{a}:cluster/{Cluster Name}/*"),
@@ -321,22 +347,65 @@ const RESOURCES: &[(&str, &str)] = &[
 
 /// The web ACLs of CloudFront distributions are global, the others regional.
 fn webacl_scope(namespace: &str, dimensions: &[(String, String)]) -> Option<&'static str> {
-    (namespace == "AWS/WAFV2" && global_series(namespace, dimensions)).then_some("arn:{p}:wafv2:{r}:{a}:global/webacl/{WebACL}/*")
+    if !global_series(namespace, dimensions) {
+        return None;
+    }
+    match namespace {
+        "AWS/WAFV2" => Some("arn:{p}:wafv2:{r}:{a}:global/webacl/{WebACL}/*"),
+        "WAF" => Some("{WebACL@webacls}"),
+        _ => None,
+    }
+}
+
+fn formats<'a>(namespace: &'a str, dimensions: &[(String, String)]) -> impl Iterator<Item = &'static str> + 'a {
+    webacl_scope(namespace, dimensions).into_iter().chain(RESOURCES.iter().filter(move |(ns, _)| *ns == namespace).map(|(_, f)| *f))
+}
+
+/// A format's placeholders (`{InstanceId}`, `{EndpointName:lower}`, `{ApiName@restapis}`) as (dimension, lowercased,
+/// lookup), but `{p}`, `{r}` and `{a}`.
+fn placeholders(format: &str) -> Vec<(&str, bool, Option<&str>)> {
+    let mut out = vec![];
+    let mut rest = format;
+    while let Some(start) = rest.find('{') {
+        let Some(len) = rest[start..].find('}') else { break };
+        let inner = &rest[start + 1..start + len];
+        rest = &rest[start + len + 1..];
+        if matches!(inner, "p" | "r" | "a") {
+            continue;
+        }
+        out.push(match (inner.strip_suffix(":lower"), inner.split_once('@')) {
+            (Some(key), _) => (key, true, None),
+            (None, Some((key, lookup))) => (key, false, Some(lookup)),
+            (None, None) => (inner, false, None),
+        });
+    }
+    out
+}
+
+/// The [`LOOKUPS`] a series' ARN needs: that of the first format whose dimensions it has.
+pub fn lookup(namespace: &str, dimensions: &[(String, String)]) -> Option<&'static str> {
+    let has = |d: &str| dimensions.iter().any(|(k, _)| k == d);
+    let format = formats(namespace, dimensions).find(|f| placeholders(f).iter().all(|(key, _, _)| has(key)))?;
+    placeholders(format).into_iter().find_map(|(_, _, l)| l).and_then(|l| LOOKUPS.iter().copied().find(|x| *x == l))
 }
 
 /// The ARN (or ARN pattern, see [`RESOURCES`]) of the resource a metric's dimensions name, for the namespaces we map.
-pub fn resource_arn(partition: &str, region: &str, account: &str, namespace: &str, dimensions: &[(String, String)]) -> Option<String> {
-    let formats = webacl_scope(namespace, dimensions).into_iter().chain(RESOURCES.iter().filter(|(ns, _)| *ns == namespace).map(|(_, f)| *f));
-    formats.into_iter().find_map(|format| {
+pub fn resource_arn(partition: &str, region: &str, account: &str, namespace: &str, dimensions: &[(String, String)], ids: &Lookups) -> Option<String> {
+    formats(namespace, dimensions).find_map(|format| {
         let mut arn = format.replace("{p}", partition).replace("{r}", region).replace("{a}", account);
-        while let Some(start) = arn.find('{') {
-            let end = start + arn[start..].find('}')?;
-            let (key, lower) = match arn[start + 1..end].strip_suffix(":lower") {
-                Some(k) => (k.to_string(), true),
-                None => (arn[start + 1..end].to_string(), false),
+        for (key, lower, lookup) in placeholders(format) {
+            let value = dimensions.iter().find(|(k, _)| k == key).map(|(_, v)| v)?;
+            let value = match lookup {
+                Some(l) => ids.get(l)?.get(value)?.clone(),
+                None if lower => value.to_ascii_lowercase(),
+                None => value.clone(),
             };
-            let value = dimensions.iter().find(|(k, _)| *k == key).map(|(_, v)| if lower { v.to_ascii_lowercase() } else { v.clone() })?;
-            arn.replace_range(start..=end, &value);
+            let placeholder = match lookup {
+                Some(l) => format!("{{{key}@{l}}}"),
+                None if lower => format!("{{{key}:lower}}"),
+                None => format!("{{{key}}}"),
+            };
+            arn = arn.replacen(&placeholder, &value, 1);
         }
         Some(arn)
     })
@@ -439,7 +508,7 @@ mod tests {
     #[test]
     fn dimensions_name_the_resource_whose_tags_the_metrics_get() {
         let d = |k: &str, v: &str| vec![(k.to_string(), v.to_string())];
-        let arn = |ns: &str, dims: Vec<(String, String)>| resource_arn("aws", "us-east-1", "123456789012", ns, &dims);
+        let arn = |ns: &str, dims: Vec<(String, String)>| resource_arn("aws", "us-east-1", "123456789012", ns, &dims, &Lookups::new());
         assert_eq!(arn("AWS/EC2", d("InstanceId", "i-0a1b2c3d4e5f60001")).as_deref(), Some("arn:aws:ec2:us-east-1:123456789012:instance/i-0a1b2c3d4e5f60001"));
         assert_eq!(arn("AWS/Lambda", d("FunctionName", "checkout")).as_deref(), Some("arn:aws:lambda:us-east-1:123456789012:function:checkout"));
         assert_eq!(arn("AWS/RDS", d("DBInstanceIdentifier", "orders-db")).as_deref(), Some("arn:aws:rds:us-east-1:123456789012:db:orders-db"));
@@ -452,7 +521,7 @@ mod tests {
         let service = vec![("ClusterName".to_string(), "storefront".to_string()), ("ServiceName".to_string(), "order-service".to_string())];
         assert_eq!(arn("AWS/ECS", service.clone()).as_deref(), Some("arn:aws:ecs:us-east-1:123456789012:service/storefront/order-service"));
         assert_eq!(arn("ECS/ContainerInsights", d("ClusterName", "storefront")).as_deref(), Some("arn:aws:ecs:us-east-1:123456789012:cluster/storefront"));
-        assert_eq!(resource_arn("aws-cn", "cn-north-1", "123456789012", "AWS/EC2", &d("InstanceId", "i-1")).as_deref(), Some("arn:aws-cn:ec2:cn-north-1:123456789012:instance/i-1"));
+        assert_eq!(resource_arn("aws-cn", "cn-north-1", "123456789012", "AWS/EC2", &d("InstanceId", "i-1"), &Lookups::new()).as_deref(), Some("arn:aws-cn:ec2:cn-north-1:123456789012:instance/i-1"));
         let p = "123456789012";
         type Case = (&'static str, Vec<(String, String)>, String);
         let cases: [Case; 30] = [
@@ -492,6 +561,52 @@ mod tests {
         }
         assert_eq!(arn("AWS/EC2", d("AutoScalingGroupName", "web")), None);
         assert_eq!(arn("Acme/Checkout", d("Store", "eu")), None);
+    }
+
+    #[test]
+    fn resources_their_metrics_name_by_name_are_found_through_a_lookup() {
+        let ids: Lookups = HashMap::from([
+            ("restapis".to_string(), HashMap::from([("storefront-api".to_string(), "a1b2c3d4e5".to_string())])),
+            ("dbproxies".to_string(), HashMap::from([("orders-proxy".to_string(), "arn:aws:rds:us-east-1:123456789012:db-proxy:prx-0a1b2c3d4e5f60001".to_string())])),
+            ("replicationinstances".to_string(), HashMap::from([("orders-replication".to_string(), "arn:aws:dms:us-east-1:123456789012:rep:EXAMPLEORDERSREPLICATION0001".to_string())])),
+            ("webacls".to_string(), HashMap::from([("StorefrontCdn".to_string(), "arn:aws:waf::123456789012:webacl/0a1b2c3d-0000-4000-8000-000000000001".to_string())])),
+            ("regionalwebacls".to_string(), HashMap::from([("StorefrontAlb".to_string(), "arn:aws:waf-regional:us-east-1:123456789012:webacl/0a1b2c3d-0000-4000-8000-000000000002".to_string())])),
+        ]);
+        let arn = |ns: &str, d: &[(&str, &str)]| resource_arn("aws", "us-east-1", "123456789012", ns, &dims(d), &ids);
+        // REST APIs (v1) carry their name, their ARN their id; HTTP and WebSocket APIs carry their id.
+        assert_eq!(arn("AWS/ApiGateway", &[("ApiName", "storefront-api"), ("Stage", "prod")]).as_deref(), Some("arn:aws:apigateway:us-east-1::/restapis/a1b2c3d4e5"));
+        assert_eq!(arn("AWS/ApiGateway", &[("ApiId", "f1e2d3c4b5")]).as_deref(), Some("arn:aws:apigateway:us-east-1::/apis/f1e2d3c4b5"));
+        assert_eq!(arn("AWS/RDS/Proxy", &[("ProxyName", "orders-proxy"), ("TargetGroup", "default"), ("TargetRole", "READ_WRITE")]).as_deref(), Some("arn:aws:rds:us-east-1:123456789012:db-proxy:prx-0a1b2c3d4e5f60001"));
+        assert_eq!(arn("AWS/DMS", &[("ReplicationInstanceIdentifier", "orders-replication"), ("ReplicationTaskIdentifier", "ABCDEFGHIJ")]).as_deref(), Some("arn:aws:dms:us-east-1:123456789012:rep:EXAMPLEORDERSREPLICATION0001"));
+        assert_eq!(arn("AWS/DMS", &[("ReplicationInstanceExternalResourceId", "EXAMPLEORDERSREPLICATION0001")]).as_deref(), Some("arn:aws:dms:us-east-1:123456789012:rep:EXAMPLEORDERSREPLICATION0001"));
+        // WAF Classic's web ACLs by their metric name: CloudFront's are global, the others regional.
+        assert_eq!(arn("WAF", &[("Rule", "ALL"), ("WebACL", "StorefrontCdn")]).as_deref(), Some("arn:aws:waf::123456789012:webacl/0a1b2c3d-0000-4000-8000-000000000001"));
+        assert_eq!(arn("WAF", &[("Region", "us-east-1"), ("Rule", "ALL"), ("WebACL", "StorefrontAlb")]).as_deref(), Some("arn:aws:waf-regional:us-east-1:123456789012:webacl/0a1b2c3d-0000-4000-8000-000000000002"));
+        // A name the lookup doesn't have names no resource.
+        assert_eq!(arn("AWS/ApiGateway", &[("ApiName", "checkout-api")]), None);
+        assert_eq!(resource_arn("aws", "us-east-1", "123456789012", "AWS/RDS/Proxy", &dims(&[("ProxyName", "orders-proxy")]), &Lookups::new()), None);
+        // The lookup a series needs, if any.
+        assert_eq!(lookup("AWS/ApiGateway", &dims(&[("ApiName", "storefront-api"), ("Stage", "prod")])), Some("restapis"));
+        assert_eq!(lookup("AWS/ApiGateway", &dims(&[("ApiId", "f1e2d3c4b5")])), None);
+        assert_eq!(lookup("AWS/RDS/Proxy", &dims(&[("ProxyName", "orders-proxy")])), Some("dbproxies"));
+        assert_eq!(lookup("AWS/DMS", &dims(&[("ReplicationInstanceIdentifier", "orders-replication"), ("ReplicationTaskIdentifier", "T")])), Some("replicationinstances"));
+        assert_eq!(lookup("AWS/DMS", &dims(&[("ReplicationInstanceExternalResourceId", "E")])), None);
+        assert_eq!(lookup("WAF", &dims(&[("Rule", "ALL"), ("WebACL", "StorefrontCdn")])), Some("webacls"));
+        assert_eq!(lookup("WAF", &dims(&[("Region", "us-east-1"), ("Rule", "ALL"), ("WebACL", "StorefrontAlb")])), Some("regionalwebacls"));
+        assert_eq!(lookup("AWS/EC2", &dims(&[("InstanceId", "i-0a1b2c3d4e5f60001")])), None);
+        assert_eq!(LOOKUPS.len(), 5);
+    }
+
+    #[test]
+    fn rds_proxy_series_are_their_own_namespace() {
+        // CloudWatch has RDS Proxy's metrics in AWS/RDS, by ProxyName; Datadog names them aws.rds.proxy.*.
+        assert_eq!(series_namespace("AWS/RDS", &dims(&[("ProxyName", "orders-proxy")])), "AWS/RDS/Proxy");
+        assert_eq!(series_namespace("AWS/RDS", &dims(&[("ProxyName", "orders-proxy"), ("TargetGroup", "default"), ("Target", "db:orders-db")])), "AWS/RDS/Proxy");
+        assert_eq!(series_namespace("AWS/RDS", &dims(&[("DBInstanceIdentifier", "orders-db")])), "AWS/RDS");
+        assert_eq!(series_namespace("AWS/EC2", &dims(&[("InstanceId", "i-0a1b2c3d4e5f60001")])), "AWS/EC2");
+        assert_eq!(cloudwatch_namespace("AWS/RDS/Proxy"), "AWS/RDS");
+        assert_eq!(cloudwatch_namespace("ECS/ContainerInsights"), "ECS/ContainerInsights");
+        assert!(series_collected("AWS/RDS/Proxy", &dims(&[("ProxyName", "orders-proxy")])));
     }
 
     #[test]

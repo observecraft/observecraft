@@ -20,6 +20,9 @@
 //!   (`naming::resource_arn`), written to `oc.otlp-json.metrics` keyed by org with the org's headers.
 //!   The watermark advances only after Kafka acknowledged every record of the window, so a crash or a
 //!   Kafka outage re-reads the window instead of losing it.
+//! - **Lookups.** Some resources' ARNs aren't in their metrics' dimensions (REST APIs and RDS proxies by name, DMS
+//!   replication instances by identifier, WAF Classic web ACLs by metric name): a run that has such series asks
+//!   AWS once for each kind (`naming::LOOKUPS`). RDS Proxy's series, in CloudWatch's `AWS/RDS`, are `aws.rds.proxy.*`.
 //! - **Global services** (CloudFront, the web ACLs of CloudFront distributions, Route 53 health checks,
 //!   billing) have their metrics in us-east-1 only: an account whose regions leave us-east-1 out still
 //!   gets a us-east-1 job, which collects only those (`naming::global_series`).
@@ -250,8 +253,17 @@ pub async fn crawl(api: &dyn AwsApi, sink: &dyn MetricSink, headers: &[(String, 
             && naming::namespace_selected(&config["namespace_filters"], &m.namespace, known.contains(m.namespace.as_str()), custom)
             && naming::metric_selected(&config["metric_name_filters"], &m.namespace, &naming::metric_name(&m.namespace, &m.name))
     };
+    // RDS Proxy's series (AWS/RDS by ProxyName) are named as their own namespace's.
+    let renamed = |ms: Vec<MetricId>| -> Vec<MetricId> {
+        ms.into_iter()
+            .map(|mut m| {
+                m.namespace = naming::series_namespace(&m.namespace, &m.dimensions).to_string();
+                m
+            })
+            .collect()
+    };
     let listed = match api.list_metrics(t).await {
-        Ok(m) => m,
+        Ok(m) => renamed(m),
         Err(e) => return Outcome::Failed(issue(&e)).into(),
     };
     let regular: Vec<MetricId> = listed.into_iter().filter(|m| naming::period(&m.namespace, &m.name) == naming::MINUTE && selected(m)).collect();
@@ -261,7 +273,7 @@ pub async fn crawl(api: &dyn AwsApi, sink: &dyn MetricSink, headers: &[(String, 
     if daily_due {
         for ns in naming::daily_namespaces().into_iter().filter(|ns| naming::namespace_selected(&config["namespace_filters"], ns, known.contains(ns), custom)) {
             match api.list_namespace_metrics(t, ns).await {
-                Ok(ms) => daily.extend(ms.into_iter().filter(|m| naming::period(&m.namespace, &m.name) == naming::DAY && selected(m))),
+                Ok(ms) => daily.extend(renamed(ms).into_iter().filter(|m| naming::period(&m.namespace, &m.name) == naming::DAY && selected(m))),
                 Err(e) => return Outcome::Failed(issue(&e)).into(),
             }
         }
@@ -274,12 +286,26 @@ pub async fn crawl(api: &dyn AwsApi, sink: &dyn MetricSink, headers: &[(String, 
         Err(e @ AwsError::AccessDenied { .. }) => (HashMap::new(), Some(issue(&e))),
         Err(e) => return Outcome::Failed(issue(&e)).into(),
     };
+    // The ids of the resources whose ARNs the metrics don't carry, each lookup once a run; a failed one leaves its
+    // resources untagged and is the run's warning.
+    let (mut ids, mut warning) = (naming::Lookups::new(), warning);
+    let needed: std::collections::BTreeSet<&str> = regular.iter().chain(&daily).filter_map(|m| naming::lookup(&m.namespace, &m.dimensions)).collect();
+    for lookup in needed {
+        match api.resource_ids(t, lookup).await {
+            Ok(found) => {
+                ids.insert(lookup.to_string(), found);
+            }
+            Err(e) => {
+                warning.get_or_insert_with(|| issue(&e));
+            }
+        }
+    }
     let index = naming::TagIndex::new(&tags_by_arn);
     let mut found: HashMap<String, Vec<String>> = HashMap::new();
     let mut tagged = |ms: Vec<MetricId>| -> Vec<(MetricId, Vec<String>)> {
         ms.into_iter()
             .map(|m| {
-                let tags = naming::resource_arn(&t.partition, &t.region, &t.account_id, &m.namespace, &m.dimensions)
+                let tags = naming::resource_arn(&t.partition, &t.region, &t.account_id, &m.namespace, &m.dimensions, &ids)
                     .map(|arn| found.entry(arn.clone()).or_insert_with(|| index.get(&arn)).clone())
                     .unwrap_or_default();
                 (m, tags)
@@ -381,6 +407,10 @@ mod tests {
         fail_list: Option<AwsError>,
         fail_data: Option<AwsError>,
         fail_tags: Option<AwsError>,
+        /// The lookups' answers (`naming::LOOKUPS`), the lookups asked for, and an error they return.
+        ids: HashMap<String, HashMap<String, String>>,
+        looked_up: StdMutex<Vec<String>>,
+        fail_ids: Option<AwsError>,
         /// Each GetMetricData call: its statistics, start, end and period.
         calls: StdMutex<Vec<Call>>,
     }
@@ -403,6 +433,10 @@ mod tests {
         }
         async fn resource_tags(&self, _t: &Target) -> Result<HashMap<String, Vec<String>>, AwsError> {
             self.fail_tags.clone().map_or(Ok(self.tags.clone()), Err)
+        }
+        async fn resource_ids(&self, _t: &Target, lookup: &str) -> Result<HashMap<String, String>, AwsError> {
+            self.looked_up.lock().unwrap().push(lookup.to_string());
+            self.fail_ids.clone().map_or_else(|| Ok(self.ids.get(lookup).cloned().unwrap_or_default()), Err)
         }
     }
 
@@ -739,6 +773,59 @@ mod tests {
         assert!(attrs("vol-0a1b2c3d4e5f60002").is_none());
         let kafka = points.iter().find(|p| p.0.starts_with("aws.kafka.")).unwrap();
         assert!(kafka.2.contains(&("service".to_string(), "order-service".to_string())));
+    }
+
+    #[tokio::test]
+    async fn resources_their_metrics_name_by_name_get_their_tags_through_one_lookup_a_run() {
+        let ids = |pairs: &[(&str, &str, &str)]| -> HashMap<String, HashMap<String, String>> {
+            let mut out: HashMap<String, HashMap<String, String>> = HashMap::new();
+            for (lookup, name, id) in pairs {
+                out.entry(lookup.to_string()).or_default().insert(name.to_string(), id.to_string());
+            }
+            out
+        };
+        let proxy = "arn:aws:rds:us-east-1:123456789012:db-proxy:prx-0a1b2c3d4e5f60001";
+        let replication = "arn:aws:dms:us-east-1:123456789012:rep:EXAMPLEORDERSREPLICATION0001";
+        let webacl = "arn:aws:waf::123456789012:webacl/0a1b2c3d-0000-4000-8000-000000000001";
+        let aws = || FakeAws {
+            metrics: vec![
+                metric("AWS/ApiGateway", "Count", &[("ApiName", "storefront-api")]),
+                metric("AWS/ApiGateway", "Count", &[("ApiName", "storefront-api"), ("Stage", "prod")]),
+                metric("AWS/RDS", "ClientConnections", &[("ProxyName", "orders-proxy")]),
+                metric("AWS/DMS", "CDCLatencySource", &[("ReplicationInstanceIdentifier", "orders-replication"), ("ReplicationTaskIdentifier", "ABCDEFGHIJ")]),
+                metric("WAF", "BlockedRequests", &[("Rule", "ALL"), ("WebACL", "StorefrontCdn")]),
+            ],
+            ids: ids(&[("restapis", "storefront-api", "a1b2c3d4e5"), ("dbproxies", "orders-proxy", proxy), ("replicationinstances", "orders-replication", replication), ("webacls", "StorefrontCdn", webacl)]),
+            tags: HashMap::from([
+                ("arn:aws:apigateway:us-east-1::/restapis/a1b2c3d4e5".to_string(), vec!["team:storefront".to_string()]),
+                (proxy.to_string(), vec!["service:order-service".to_string()]),
+                (replication.to_string(), vec!["team:orders".to_string()]),
+                (webacl.to_string(), vec!["team:security".to_string()]),
+            ]),
+            ..Default::default()
+        };
+        let (fake, sink) = (aws(), FakeSink::default());
+        let outcome = crawl(&fake, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await.outcome;
+        assert!(matches!(outcome, Outcome::Collected { metrics: 5, warning: None, .. }), "{outcome:?}");
+        // Each lookup once a run, only those the metrics need.
+        let mut looked_up = fake.looked_up.lock().unwrap().clone();
+        looked_up.sort();
+        assert_eq!(looked_up, ["dbproxies", "replicationinstances", "restapis", "webacls"]);
+        let points = published(&sink);
+        let tagged = |name: &str, tag: (&str, &str)| points.iter().filter(|p| p.0 == name).all(|p| p.2.contains(&(tag.0.to_string(), tag.1.to_string()))) && points.iter().any(|p| p.0 == name);
+        assert!(tagged("aws.apigateway.count", ("team", "storefront")), "{points:?}");
+        // RDS Proxy's series (AWS/RDS by ProxyName) are aws.rds.proxy.*, read from AWS/RDS.
+        assert!(tagged("aws.rds.proxy.client_connections", ("service", "order-service")));
+        assert!(tagged("aws.dms.cdclatency_source", ("team", "orders")));
+        assert!(tagged("aws.waf.blocked_requests", ("team", "security")));
+
+        // A lookup that's denied leaves those resources untagged and is the run's warning.
+        let denied = AwsError::AccessDenied { action: Some("apigateway:GET".into()), message: "denied".into() };
+        let (fake, sink) = (FakeAws { fail_ids: Some(denied.clone()), ..aws() }, FakeSink::default());
+        let outcome = crawl(&fake, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await.outcome;
+        let Outcome::Collected { warning: Some(w), .. } = outcome else { panic!("{outcome:?}") };
+        assert_eq!((w.kind, w.missing_action.as_deref()), ("access_denied", Some("apigateway:GET")));
+        assert!(published(&sink).iter().any(|p| p.0 == "aws.apigateway.count" && !p.2.iter().any(|t| t.0 == "team")));
     }
 
     #[tokio::test]
