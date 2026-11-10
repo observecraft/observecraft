@@ -5,9 +5,8 @@
 # evt.name, actor* → usr.*), "Sanity Activity Overview" dashboard and monitors read them as they are, so this package
 # ships none: saving a connection installs the tile's.
 #
-# The document webhook is declared under `webhook` (the intake's /intake/webhook/sanity). The intake doesn't read
-# package webhook mappings yet (docs/connectors.md, push-only vendors): until it does, only the activity log is
-# collected.
+# Document changes come by a Sanity webhook to the intake's /intake/webhook/sanity, mapped by `webhook` below. Sanity
+# signs it with a base64 HMAC the intake doesn't check, so the ingest key in its URL admits it.
 schema_version: 1
 id: sanity
 name: Sanity
@@ -24,9 +23,8 @@ setup: |
   1. In [sanity.io/manage](https://www.sanity.io/manage), open the project, then **API → Tokens → Add API token**
      with the **Viewer** permission (the log shows only the activity the token's user can see; an organization
      admin's token sees the organization's events too).
-  2. Document changes (not collected yet: ObserveCraft's intake doesn't serve package webhooks so far; this is the
-     webhook to create once it does): in **API → Webhooks**, create a webhook to ObserveCraft's intake
-     (`/intake/webhook/sanity` with your ingest key as `?dd-api-key=`), trigger on **Create, Update, Delete**, filter
+  2. Document changes: in **API → Webhooks**, create a webhook to ObserveCraft's intake
+     (`https://<intake>/intake/webhook/sanity?dd-api-key=<ingest key>`), trigger on **Create, Update, Delete**, filter
      empty for every document, HTTP method POST, API version `v2021-03-25` or later, **Drafts** off, and this
      projection:
 
@@ -106,6 +104,7 @@ streams:
 
 webhook:
   name: sanity
+  record_id: "{{ record.documentId + ':' + record.timestamp }}"
   logs:
     service: activity-logs
     message: "{{ record.action }} {{ record.documentType }} {{ record.documentId }} in {{ record.datasetName }}"
