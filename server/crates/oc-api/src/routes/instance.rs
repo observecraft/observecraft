@@ -46,6 +46,7 @@ const TELEMETRY_TABLES: &[(&str, &str)] = &[
     ("otel.k8s_events", "OrgId"),
     ("otel.otel_events", "OrgId"),
     ("otel.otel_network", "OrgId"),
+    ("otel.otel_pathways", "OrgId"),
     ("otel.profiles", "OrgId"),
     ("oc.logs_raw", "org_id"),
     ("oc.logs_rehydrated", "org_id"),

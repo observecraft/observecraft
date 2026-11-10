@@ -14,6 +14,7 @@
 //! - `POST /api/v2/series`, `/api/v1/series`     Datadog metrics (JSON or the Agent's protobuf) → OTLP → Collector
 //! - `POST /api/beta/sketches`                   Datadog distribution metrics (DDSketch) → OTLP exponential histograms
 //! - `POST /api/v0.2/traces`, `/api/v0.2/stats`  the Datadog Agent's APM traces (dd-trace libraries) → OTLP spans
+//! - `POST /api/v0.1/pipeline_stats`            Data Streams Monitoring pathway checkpoints (dd-trace libraries, via the Agent) → otel.otel_pathways
 //! - `POST /api/v2/orchmanif`                    Datadog Cluster Agent manifests → Kubernetes Explorer objects
 //! - `GET /api/v1/validate`                      Datadog's API key check
 //! - `POST /api/v1/check_run`                    Datadog service checks → the `service_check.status` gauge
@@ -57,6 +58,7 @@ mod check_messages;
 mod datadog;
 mod datadog_apm;
 mod datadog_dns;
+mod datadog_dsm;
 mod datadog_events;
 mod datadog_network;
 mod datadog_orch;
@@ -827,6 +829,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/beta/sketches", post(datadog::sketches))
         .route("/api/v0.2/traces", post(datadog_apm::traces))
         .route("/api/v0.2/stats", post(datadog_apm::stats))
+        .route("/api/v0.1/pipeline_stats", post(datadog_dsm::pipeline_stats))
         .route("/api/v2/orchmanif", post(datadog_orch::manifests))
         .route("/api/v2/orch", post(datadog::acknowledge))
         .route("/api/v1/collector", post(datadog_process::collector))
