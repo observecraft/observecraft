@@ -24,6 +24,17 @@ function lookup(m: Obj, path: string): JsonValue | undefined {
 
 const isObj = (v: JsonValue | undefined): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v);
 
+/** An IPv4 or IPv6 address. */
+function isIp(s: string): boolean {
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(s)) return s.split('.').every((o) => +o <= 255);
+  if (!s.includes(':') || !/^[0-9a-fA-F:.]+$/.test(s)) return false;
+  try {
+    return new URL(`http://[${s}]`).hostname.length > 2;
+  } catch {
+    return false;
+  }
+}
+
 function objectPrefix(m: Obj, path: string): number {
   for (let i = path.indexOf('.'); i >= 0; i = path.indexOf('.', i + 1)) if (isObj(m[path.slice(0, i)])) return i;
   return -1;
@@ -73,26 +84,19 @@ class Log {
   constructor(s: SampleLog) {
     this.s = s;
   }
+  /** A `message` attribute (a parser's `%{data:message}`) is read before the log's message, as in Datadog. */
   get(path: string): JsonValue | undefined {
-    // A parser's `message` attribute, else the log's message.
-    if (path === 'message') return Object.hasOwn(this.s.attributes, 'message') ? this.s.attributes.message : this.s.message;
     const v = lookup(this.s.attributes, path);
     if (v !== undefined) return v;
+    if (path === 'message') return this.s.message;
     if (path === 'service' || path === 'status' || path === 'host' || path === 'source') return this.s[path] || undefined;
     return undefined;
   }
   set(path: string, v: JsonValue) {
-    if (path === 'message') this.s.message = text(v);
-    else setIn(this.s.attributes, path, v);
-  }
-  /** What a parser extracted: `message` is an attribute of that name, leaving the log's message (as Datadog's engine). */
-  setParsed(path: string, v: JsonValue) {
-    if (path === 'message') this.s.attributes.message = v;
-    else this.set(path, v);
+    setIn(this.s.attributes, path, v);
   }
   remove(path: string) {
-    if (path === 'message') this.s.message = '';
-    else removeIn(this.s.attributes, path);
+    removeIn(this.s.attributes, path);
   }
 }
 
@@ -550,8 +554,8 @@ export function grokParse(rules: Rule[], input: string, nowMs: number): { rule: 
 
 function place(log: Log, values: [string, JsonValue][]) {
   for (const [path, v] of values) {
-    if (path) log.setParsed(path, v);
-    else if (isObj(v)) for (const [k, x] of Object.entries(v)) log.setParsed(k, x);
+    if (path) log.set(path, v);
+    else if (isObj(v)) for (const [k, x] of Object.entries(v)) log.set(k, x);
   }
 }
 
@@ -571,7 +575,7 @@ export function parseGrok(req: GrokTestRequest, nowMs = Date.now()): GrokTestRes
       if (!parsed) return none();
       const log = new Log({ message: '', status: '', service: '', host: '', source: '', tags: {}, attributes: {}, date: null, traceId: '' });
       place(log, parsed.values);
-      return { matched: true, rule: parsed.rule, attributes: log.s.message ? { ...log.s.attributes, message: log.s.message } : log.s.attributes };
+      return { matched: true, rule: parsed.rule, attributes: log.s.attributes };
     }),
   };
 }
@@ -699,11 +703,11 @@ function compileStep(p: Processor, depth: number): Step | null {
       };
     case 'message-remapper':
       return (log) => {
+        // The attribute that became the message goes, as in Datadog.
         const source = p.sources.find((s) => log.get(s) !== undefined);
         if (source === undefined) return;
         log.s.message = text(log.get(source));
-        // A parsed `message` attribute became the message.
-        if (source === 'message') delete log.s.attributes.message;
+        log.remove(source);
       };
     case 'trace-id-remapper':
       return (log) => {
@@ -783,6 +787,47 @@ function compileStep(p: Processor, depth: number): Step | null {
         const details = typeof v === 'string' ? urlDetails(v) : undefined;
         if (details) log.set(p.target || 'http.url_details', details);
       };
+    case 'geo-ip-parser':
+      return (log) => {
+        const v = p.sources.map((s) => log.get(s)).find((x) => x !== undefined && x !== null);
+        if (v === undefined || !text(v).trim()) return;
+        // No location database: a valid address gets Datadog's "no location known".
+        log.set(p.target || 'network.client.geoip', isIp(text(v).trim()) ? {} : { invalidAddress: text(v) });
+      };
+    case 'array-processor': {
+      const op = p.operation;
+      if (op.type === 'select') {
+        if (!op.valueToExtract) throw new Error('A select operation needs a value to extract');
+        const matches = compileFilter(op.filter.trim());
+        return (log) => {
+          const items = log.get(op.source);
+          if (!Array.isArray(items)) return;
+          for (const item of items) {
+            if (!isObj(item)) continue;
+            // The element's fields, as attributes or bare names.
+            const el = new Log({ message: '', status: '', service: '', host: '', source: '', tags: flatten(item), attributes: item, date: null, traceId: '' });
+            const v = el.get(op.valueToExtract);
+            if (matches(el) && v !== undefined) return log.set(op.target, v);
+          }
+        };
+      }
+      if (op.type === 'append')
+        return (log) => {
+          const v = log.get(op.source);
+          if (v === undefined) return;
+          const prev = log.get(op.target);
+          const list = Array.isArray(prev) ? [...prev] : prev === undefined ? [] : [prev];
+          list.push(v);
+          if (op.preserveSource === false && op.source !== op.target) log.remove(op.source);
+          log.set(op.target, list);
+        };
+      if (op.type === 'length')
+        return (log) => {
+          const v = log.get(op.source);
+          if (Array.isArray(v)) log.set(op.target, v.length);
+        };
+      throw new Error(`Unknown array operation '${(op as { type: string }).type}' (select, append or length)`);
+    }
     case 'pipeline': {
       if (depth >= 1) throw new Error('Pipelines nest one level deep');
       const nested = compilePipeline(p.filter?.query ?? '', p.processors ?? [], depth + 1);

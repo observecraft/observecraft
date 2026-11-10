@@ -22,6 +22,10 @@ export function blankProcessor(type: ProcessorType): Processor {
       return { type, name: '', enabled: true, expression: '', target: '', replaceMissing: false };
     case 'url-parser':
       return { type, name: '', enabled: true, sources: ['http.url'], target: 'http.url_details' };
+    case 'geo-ip-parser':
+      return { type, name: '', enabled: true, sources: ['network.client.ip'], target: 'network.client.geoip' };
+    case 'array-processor':
+      return { type, name: '', enabled: true, operation: { type: 'length', source: '', target: '' } };
     case 'pipeline':
       return { type, name: '', enabled: true, filter: { query: '' }, processors: [] };
     default:
@@ -250,6 +254,50 @@ function Fields({ draft, onChange }: { draft: Processor; onChange: (p: Processor
           {input('Target attribute (gets scheme, host, port, path and queryString)', draft.target, (target) => onChange({ ...draft, target }), 'http.url_details')}
         </>
       );
+    case 'geo-ip-parser':
+      return (
+        <>
+          <SourcesInput value={draft.sources} onChange={(sources) => onChange({ ...draft, sources })} label="IP address attribute" />
+          {input('Target attribute', draft.target, (target) => onChange({ ...draft, target }), 'network.client.geoip')}
+          <p className="muted pl-help">No location database ships with ObserveCraft: an address gets an empty location, as unknown ones do in Datadog.</p>
+        </>
+      );
+    case 'array-processor': {
+      const op = draft.operation;
+      const setOp = (o: Partial<typeof op>) => onChange({ ...draft, operation: { ...op, ...o } as typeof op });
+      return (
+        <>
+          <label className="form-label">
+            Operation
+            <select
+              value={op.type}
+              onChange={(e) => {
+                const type = e.target.value as typeof op.type;
+                const { source, target } = op;
+                onChange({
+                  ...draft,
+                  operation:
+                    type === 'select' ? { type, source, target, filter: '', valueToExtract: '' } : type === 'append' ? { type, source, target, preserveSource: true } : { type, source, target },
+                });
+              }}
+            >
+              <option value="select">Select a value from the first matching element</option>
+              <option value="append">Append a value to an array</option>
+              <option value="length">Count the elements</option>
+            </select>
+          </label>
+          {input(op.type === 'append' ? 'Attribute to append' : 'Array attribute', op.source, (source) => setOp({ source }), 'entries')}
+          {input('Target attribute', op.target, (target) => setOp({ target }), op.type === 'length' ? 'entries_count' : 'outcome')}
+          {op.type === 'select' && (
+            <>
+              {input('Filter — on the element’s fields', op.filter, (filter) => setOp({ filter }), 'name:login')}
+              {input('Value to extract', op.valueToExtract, (valueToExtract) => setOp({ valueToExtract }), 'outcome')}
+            </>
+          )}
+          {op.type === 'append' && check('Keep the source attribute', op.preserveSource !== false, (preserveSource) => setOp({ preserveSource }))}
+        </>
+      );
+    }
     case 'pipeline':
       return (
         <>

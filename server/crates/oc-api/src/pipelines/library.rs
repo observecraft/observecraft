@@ -489,12 +489,11 @@ mod tests {
 
     #[test]
     fn redis_and_etcd_statuses() {
-        // Redis marks severities with a symbol: '#' is a warning.
-        // The parsed text is the `message` attribute; the log's message stays the line, as Datadog's engine leaves it.
+        // Redis marks severities with a symbol: '#' is a warning. Its pipeline parses the text into `@message` but has no
+        // message remapper: the message stays the line, as integrations-core's redis_tests.yaml expects.
         let line = "1:M 25 Oct 2026 12:59:58.000 # WARNING overcommit_memory is set to 0";
         let log = run("redisdb", "redis", line);
-        assert_eq!((log.status.as_str(), log.message.as_str()), ("warn", line));
-        assert_eq!(log.attrs.get("message"), Some(&serde_json::json!("WARNING overcommit_memory is set to 0")));
+        assert_eq!((log.status.as_str(), log.message.as_str(), log.get("message")), ("warn", line, Some(serde_json::json!("WARNING overcommit_memory is set to 0"))));
         let log = run("redisdb", "redis", "1:M 25 Oct 2026 12:59:58.000 * Ready to accept connections");
         assert_eq!(log.status, "info");
         let log = run("etcd", "etcd", "2026-10-25 12:59:58.123456 E | rafthttp: failed to dial peer");

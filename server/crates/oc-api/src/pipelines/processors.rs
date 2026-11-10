@@ -351,9 +351,9 @@ pub fn apply(step: &Step, log: &mut Log, now_ms: i64) {
             let Some(parsed) = grok.parse(&input, now_ms) else { return };
             for (path, v) in parsed.values {
                 match (path.is_empty(), v) {
-                    (true, Value::Object(o)) => o.into_iter().for_each(|(k, v)| log.set_parsed(&k, v)),
+                    (true, Value::Object(o)) => o.into_iter().for_each(|(k, v)| log.set(&k, v)),
                     (true, _) => {}
-                    (false, v) => log.set_parsed(&path, v),
+                    (false, v) => log.set(&path, v),
                 }
             }
         }
@@ -375,12 +375,7 @@ pub fn apply(step: &Step, log: &mut Log, now_ms: i64) {
         Step::Message(sources) => {
             if let Some((source, v)) = sources.iter().find_map(|s| log.get(s).map(|v| (s, v))) {
                 log.message = text(&v);
-                // A parsed `message` attribute became the message; another source goes, as Datadog's remapper removes it.
-                if source == "message" {
-                    log.remove_attr("message");
-                } else {
-                    log.remove(source);
-                }
+                log.remove(source);
             }
         }
         Step::TraceId(sources) => {

@@ -71,13 +71,28 @@ export interface UrlParser extends Base {
   target: string;
 }
 
+export interface GeoIpParser extends Base {
+  type: 'geo-ip-parser';
+  sources: string[];
+  target: string;
+}
+
+export interface ArrayProcessor extends Base {
+  type: 'array-processor';
+  operation:
+    | { type: 'select'; source: string; target: string; filter: string; valueToExtract: string }
+    | { type: 'append'; source: string; target: string; preserveSource?: boolean }
+    | { type: 'length'; source: string; target: string };
+}
+
 export interface NestedPipeline extends Base {
   type: 'pipeline';
   filter: { query: string };
   processors: Processor[];
 }
 
-export type Processor = GrokParser | ReservedRemapper | AttributeRemapper | CategoryProcessor | StringBuilder | LookupProcessor | ArithmeticProcessor | UrlParser | NestedPipeline;
+export type Processor =
+  GrokParser | ReservedRemapper | AttributeRemapper | CategoryProcessor | StringBuilder | LookupProcessor | ArithmeticProcessor | UrlParser | GeoIpParser | ArrayProcessor | NestedPipeline;
 export type ProcessorType = Processor['type'];
 
 /** The processor types the engine runs, with their labels. Others (from imported pipelines) are kept but skipped. */
@@ -94,6 +109,8 @@ export const PROCESSOR_TYPES: { type: ProcessorType; label: string; hint: string
   { type: 'lookup-processor', label: 'Lookup Processor', hint: 'Map values through a table' },
   { type: 'arithmetic-processor', label: 'Arithmetic Processor', hint: 'Compute a number from attributes' },
   { type: 'url-parser', label: 'URL Parser', hint: 'Split a URL into its parts' },
+  { type: 'geo-ip-parser', label: 'GeoIP Parser', hint: 'Locate an IP address (no location database ships: addresses get no location)' },
+  { type: 'array-processor', label: 'Array Processor', hint: 'Select from, append to or count an array' },
   { type: 'pipeline', label: 'Nested Pipeline', hint: 'Processors for a subset of the logs' },
 ];
 

@@ -67,7 +67,7 @@ impl Log {
         }
     }
 
-    /// An attribute by path (`http.status_code`). `message` is the log's message; `service`,
+    /// An attribute by path (`http.status_code`). `message`, `service`,
     /// `status`, `host` and `source` fall back to the log's own when no attribute has the name.
     pub fn get(&self, path: &str) -> Option<Value> {
         self.peek(path).map(std::borrow::Cow::into_owned)
@@ -76,14 +76,11 @@ impl Log {
     /// [`Log::get`] without copying attribute values.
     pub fn peek(&self, path: &str) -> Option<std::borrow::Cow<'_, Value>> {
         use std::borrow::Cow;
-        if path == "message" {
-            // A parser's `message` attribute, else the log's message.
-            return Some(self.attrs.get("message").map_or_else(|| Cow::Owned(Value::from(self.message.as_str())), Cow::Borrowed));
-        }
         if let Some(v) = lookup(&self.attrs, path) {
             return Some(Cow::Borrowed(v));
         }
         let reserved = match path {
+            "message" => return Some(Cow::Owned(Value::from(self.message.as_str()))),
             "service" => &self.service,
             "status" => &self.status,
             "host" => &self.host,
@@ -93,37 +90,13 @@ impl Log {
         (!reserved.is_empty()).then(|| Cow::Owned(Value::from(reserved.as_str())))
     }
 
-    /// Sets an attribute by path, creating nested objects (`message` sets the message).
+    /// Sets an attribute by path, creating nested objects.
     pub fn set(&mut self, path: &str, v: Value) {
-        if path == "message" {
-            self.message = text(&v);
-            return;
-        }
         self.flat = None;
         set_in(&mut self.attrs, path, v);
     }
 
-    /// Sets what a parser extracted: `message` is an attribute of that name, leaving the log's message as it is
-    /// (Datadog's engine does the same; a message remapper makes it the message).
-    pub fn set_parsed(&mut self, path: &str, v: Value) {
-        if path == "message" {
-            self.flat = None;
-            self.attrs.insert(path.to_string(), v);
-        } else {
-            self.set(path, v);
-        }
-    }
-
-    /// Removes a top-level attribute (not the log's message).
-    pub fn remove_attr(&mut self, key: &str) -> Option<Value> {
-        self.flat = None;
-        self.attrs.remove(key)
-    }
-
     pub fn remove(&mut self, path: &str) -> Option<Value> {
-        if path == "message" {
-            return Some(Value::from(std::mem::take(&mut self.message)));
-        }
         self.flat = None;
         remove_in(&mut self.attrs, path)
     }
@@ -305,11 +278,15 @@ mod tests {
         let mut log = Log::from_row(&row());
         log.set("http.status_code", json!(200));
         log.set("user.name", json!("jane"));
-        log.set("message", json!("rewritten"));
         assert_eq!(log.attrs["http.method"], json!("GET"));
         assert_eq!(log.attrs["http"], json!({"status_code": 200}));
         assert_eq!(log.attrs["user"], json!({"id": 7, "name": "jane"}));
-        assert_eq!(log.message, "rewritten");
+        // A `message` attribute (a parser's `%{data:message}`) is an attribute, read before the log's message until a
+        // message remapper makes it the message, as in Datadog; the log's message itself is never removed.
+        log.set("message", json!("extracted"));
+        assert_eq!((log.message.as_str(), log.get("message"), log.attrs["message"].clone()), ("GET /cart 200", Some(json!("extracted")), json!("extracted")));
+        assert_eq!(log.remove("message"), Some(json!("extracted")));
+        assert_eq!((log.get("message"), log.remove("message"), log.message.as_str()), (Some(json!("GET /cart 200")), None, "GET /cart 200"));
         assert_eq!(log.remove("user.id"), Some(json!(7)));
         assert_eq!(log.remove("http.method"), Some(json!("GET")));
         // A path through a non-object replaces it.

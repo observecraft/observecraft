@@ -77,6 +77,33 @@ test('test endpoint: processors run on the sample when the filter matches', () =
   assert.equal(miss.log.message, 'WARN 503 x');
 });
 
+test('test endpoint: a parsed message stays an attribute until remapped; GeoIP and array processors, as the server', () => {
+  const processors = [
+    { type: 'grok-parser', grok: { matchRules: 'r %{ip:network.client.ip} %{data:message}' } },
+    { type: 'geo-ip-parser', sources: ['network.client.ip'], target: 'network.client.geoip' },
+    { type: 'geo-ip-parser', sources: ['peer'], target: 'peer_geoip' },
+    { type: 'array-processor', operation: { type: 'select', source: 'entries', target: 'outcome', filter: 'name:login', valueToExtract: 'outcome' } },
+    { type: 'array-processor', operation: { type: 'length', source: 'entries', target: 'count' } },
+  ];
+  const attributes = {
+    peer: 'unknown',
+    entries: [
+      { name: 'check', outcome: 'skip' },
+      { name: 'login', outcome: 'ok' },
+    ],
+  };
+  const out = mock.testPipeline({ processors, log: sample('10.0.0.12 card declined', attributes) });
+  assert.equal(out.log.message, '10.0.0.12 card declined');
+  assert.equal(out.log.attributes.message, 'card declined');
+  assert.deepEqual(out.log.attributes.network.client.geoip, {});
+  assert.deepEqual(out.log.attributes.peer_geoip, { invalidAddress: 'unknown' });
+  assert.equal(out.log.attributes.outcome, 'ok');
+  assert.equal(out.log.attributes.count, 2);
+  const remapped = mock.testPipeline({ processors: [...processors, { type: 'message-remapper', sources: ['message'] }], log: sample('10.0.0.12 card declined') });
+  assert.equal(remapped.log.message, 'card declined');
+  assert.equal(remapped.log.attributes.message, undefined);
+});
+
 test('mock pipelines: deterministic demo seed, CRUD, reorder and read-only integration pipelines', async () => {
   const first = await mock.listPipelines();
   assert.ok(first.length >= 4);

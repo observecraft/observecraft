@@ -78,7 +78,10 @@ export function processorSummary(p: Processor): string {
     case 'arithmetic-processor':
       return `${p.expression} → ${p.target}`;
     case 'url-parser':
+    case 'geo-ip-parser':
       return arrow(p.sources, p.target);
+    case 'array-processor':
+      return `${p.operation.type} ${arrow(p.operation.source, p.operation.target)}`;
     case 'pipeline':
       return `${p.filter?.query || 'all logs'} · ${p.processors?.length ?? 0} processors`;
   }
