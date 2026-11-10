@@ -1,0 +1,98 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b1-030c-71da-9bcd-f57997aed769"
+      },
+      "action": "update",
+      "actor_id": "aa2e0000-0000-4000-8000-000000000001",
+      "actor_type": "user",
+      "date": "2026-11-10T09:01:37.420577Z",
+      "ddsource": "kandji",
+      "host": "example.api.kandji.io",
+      "id": "01K9EXAMPLE00000000000001",
+      "message": "update user by user",
+      "new_state": {
+        "email": "sam.lee@example.com",
+        "first_name": "Sam",
+        "last_name": "Lee",
+        "role": "admin"
+      },
+      "occurred_at": "2026-11-10T09:01:37.420577Z",
+      "old_state": {
+        "email": "sam.lee@example.com",
+        "first_name": "Sam",
+        "last_name": "Lee",
+        "role": "auditor"
+      },
+      "service": "audit",
+      "status": "info",
+      "target_component": "user",
+      "target_id": "4b3b0000-0000-4000-8000-000000000001",
+      "target_type": "admin"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f1-7d38-7027-a448-91fab1584dbc"
+      },
+      "action": "create",
+      "actor_id": "aa2e0000-0000-4000-8000-000000000002",
+      "actor_type": "user",
+      "date": "2026-11-10T10:12:03.000000Z",
+      "ddsource": "kandji",
+      "host": "example.api.kandji.io",
+      "id": "01K9EXAMPLE00000000000002",
+      "message": "create custom_app by user",
+      "new_state": {
+        "blueprint_names": [
+          "Engineering Macs"
+        ],
+        "name": "Storefront VPN profile"
+      },
+      "occurred_at": "2026-11-10T10:12:03.000000Z",
+      "service": "audit",
+      "status": "info",
+      "target_component": "custom_app",
+      "target_id": "5c4d0000-0000-4000-8000-000000000001",
+      "target_type": "library_item"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c520-cc17-7e74-9e3e-f27c92f437df"
+      },
+      "action": "threat_detected",
+      "actor_id": null,
+      "actor_type": "system",
+      "date": "2026-11-10T11:03:43.383000Z",
+      "ddsource": "kandji",
+      "host": "example.api.kandji.io",
+      "id": "01K9EXAMPLE00000000000003",
+      "message": "threat_detected edr by system",
+      "new_state": {
+        "classification": "malware",
+        "device_id": "1e5e0000-0000-4000-8000-000000000001",
+        "device_name": "Jane's MacBook Pro",
+        "file_hash": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+        "file_path": "/Users/jdoe/Downloads/eicar.com",
+        "status": "quarantined",
+        "threat_name": "EICAR-Test-File"
+      },
+      "occurred_at": "2026-11-10T11:03:43.383000Z",
+      "service": "audit",
+      "status": "info",
+      "target_component": "edr",
+      "target_id": "41b60000-0000-4000-8000-000000000001",
+      "target_type": "file_detection"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}

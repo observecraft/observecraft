@@ -1,0 +1,13 @@
+{
+  "next": null,
+  "results": [
+    {
+      "device_id": "1e5e0000-0000-4000-8000-000000000002", "device_name": "Sam's MacBook Air", "device_serial_number": "C02EXAMPLE02", "device_model": "MacBook Air (13-inch, M3, 2024)", "device_os_version": "15.5",
+      "blueprint_id": "41b60000-0000-4000-8000-0000000000b1", "blueprint_name": "Engineering Macs",
+      "name": "Slack", "bundle_id": "com.tinyspeck.slackmacgap", "version": "4.41.0", "path": "/Applications/Slack.app",
+      "cve_id": "CVE-2026-0003", "severity": "Critical", "cvss_score": 9.8, "description": "An example remote code execution in a bundled framework.",
+      "cve_link": "https://nvd.nist.gov/vuln/detail/CVE-2026-0003", "cve_published_at": "2026-11-05T09:00:00.000000", "cve_modified_at": "2026-11-06T09:00:00.000000",
+      "detection_datetime": "2026-11-10T01:00:00.000000Z"
+    }
+  ]
+}
