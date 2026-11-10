@@ -3,7 +3,7 @@
 # entries: triggered, acknowledged, escalated, resolved) as the events Datadog's PagerDuty integration shows (source
 # pagerduty), and its open incidents as gauges. Its id isn't `pagerduty`: that tile is ObserveCraft's notification
 # channel (monitors' @pagerduty-<service>), which this package leaves alone. PagerDuty can push instead: a v3
-# webhook subscription, which the page can create (push below; the intake side of webhooks isn't built yet).
+# webhook subscription, which the page can create, mapped by the intake to the same events (push and webhook below).
 schema_version: 1
 id: pagerduty-incidents
 name: PagerDuty Incidents
@@ -56,6 +56,19 @@ errors:
   - status: [429]
     kind: throttled
     message: Rate limited by PagerDuty
+
+# A webhook's event type → the timeline's log entry verb.
+tables:
+  webhook_verbs:
+    incident.triggered: trigger
+    incident.acknowledged: acknowledge
+    incident.unacknowledged: unacknowledge
+    incident.escalated: escalate
+    incident.reassigned: assign
+    incident.resolved: resolve
+    incident.reopened: reopen
+    incident.priority_updated: priority_change
+    incident.annotated: annotate
 
 streams:
   - id: log_entries
@@ -159,15 +172,32 @@ push:
           filter: { type: account_reference }
     message: "Webhook subscription {{ response.webhook_subscription.id }} created: copy its signing secret ({{ response.webhook_subscription.delivery_method.secret ?? 'shown in PagerDuty' }}) into the connection"
 
+# A v3 webhook's event as the Incident timeline's event: the incident is the event's data (a note's incident for
+# incident.annotated), its type the timeline's verb.
 webhook:
   name: pagerduty
   records: "{{ body.event }}"
-  logs:
-    service: pagerduty
-    message: "[#{{ record.data.number }}] {{ record.data.title }}: {{ record.event_type }}"
-    status: "{{ record.event_type == 'incident.triggered' ? 'error' : record.event_type == 'incident.resolved' ? 'info' : 'warn' }}"
+  record_id: "{{ record.id }}"
+  filter: "{{ record.resource_type == 'incident' }}"
+  events:
+    title: >-
+      [#{{ (record.data.incident ?? record.data).number ?? (record.data.incident ?? record.data).id }}] {{ (record.data.incident ?? record.data).title ?? (record.data.incident ?? record.data).summary }}: {{ tables.webhook_verbs[record.event_type] ?? record.event_type }}
+    text: "{{ record.data.content ?? (record.event_type + (' by ' + record.agent.summary ?? '')) }}{{ '\n\n' + (record.data.incident ?? record.data).html_url ?? '' }}"
+    alert_type: >-
+      {{ record.event_type == 'incident.triggered' ? 'error'
+         : record.event_type in ['incident.acknowledged', 'incident.escalated'] ? 'warning'
+         : record.event_type == 'incident.resolved' ? 'success' : 'info' }}
+    priority: "{{ record.event_type in ['incident.triggered', 'incident.acknowledged', 'incident.resolved', 'incident.escalated'] ? 'normal' : 'low' }}"
+    aggregation_key: "{{ (record.data.incident ?? record.data).id }}"
     date: "{{ record.occurred_at }}"
-    attributes: "{{ record + {evt: {name: record.event_type}, usr: {name: record.agent.summary}} }}"
+    tags:
+      service: "{{ record.data.service.summary }}"
+      incident: "{{ (record.data.incident ?? record.data).id }}"
+      incident_number: "{{ record.data.number | str }}"
+      urgency: "{{ record.data.urgency }}"
+      action: "{{ tables.webhook_verbs[record.event_type] ?? record.event_type }}"
+      team: "{{ (record.data.teams | first).summary }}"
+      agent: "{{ record.agent.summary }}"
 
 assets:
   dashboards: [assets/dashboards/overview.json]
