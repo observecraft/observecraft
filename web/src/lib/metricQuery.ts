@@ -84,7 +84,7 @@ export function resolveTemplateVars(q: ParsedMetricQuery, values: TemplateVarVal
       if (prefixes[name] === '') {
         const parsed = parseMetricQuery(`avg:scope{${value}}`);
         if (parsed) filters.push(...parsed.filters);
-      } else filters.push({ key: prefixes[name] ?? name, value, negate: false });
+      } else filters.push({ key: (prefixes[name] ?? name).replace(/^@/, ''), value, negate: false });
     }
   }
   return { ...q, filters, vars: [] };
@@ -102,6 +102,29 @@ export function resolveQuery(query: string, tvs: TemplateVariable[], values: Tem
   const vals = Object.fromEntries(tvs.map((t) => [t.name, values[t.name] ?? t.default]));
   const expanded = query.replace(/\$([\w]+)\.value\b/g, (reference, name: string) => vals[name] ?? reference);
   const parsed = parseMetricQuery(expanded);
-  if (!parsed) return expanded;
+  // Not a metric query: a log, signal or event search of an integration panel.
+  if (!parsed) return resolveSearchQuery(expanded, tvs, values, false);
   return formatMetricQuery(resolveTemplateVars(parsed, vals, prefixes));
+}
+
+/**
+ * Applies template variables to a search (logs, signals, events, monitors) as Datadog does: each `$name` the query
+ * writes becomes `prefix:value` where it stands, and is dropped while the variable is `*`. Names may hold dots
+ * (`$logs.request.path`); the longest name that matches wins. Variables the query doesn't name don't apply, unless it
+ * names none and `appendUnnamed`: our own widgets' searches are written without references and take every variable
+ * that is set.
+ */
+export function resolveSearchQuery(query: string, tvs: TemplateVariable[], values: TemplateVarValues, appendUnnamed = true): string {
+  const byName = new Map(tvs.map((t) => [t.name, t]));
+  const names = [...byName.keys()].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const quote = (v: string) => (/[\s:"()]/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : v);
+  const term = (tv: TemplateVariable) => {
+    const value = values[tv.name] ?? tv.default;
+    if (!value || value === '*') return '';
+    return tv.prefix ? `${tv.prefix}:${quote(value)}` : value;
+  };
+  const reference = names.length ? new RegExp(`\\$(${names.join('|')})(?![\\w.])`, 'g') : null;
+  const named = !!reference?.test(query);
+  const resolved = named ? query.replace(reference!, (_, name: string) => term(byName.get(name)!)) : appendUnnamed ? [query, ...tvs.map(term)].join(' ') : query;
+  return resolved.replace(/\s+/g, ' ').trim();
 }

@@ -149,7 +149,7 @@ export function IntegrationHostmap({ def }: { def: IntegrationWidgetDefinition }
 /** The log patterns of the widget's query, most frequent first. */
 export function IntegrationLogPatterns({ def }: { def: IntegrationWidgetDefinition }) {
   const { range, resolveSearch } = useDashboardContext();
-  const query = resolveSearch((def.requests?.[0]?.query?.query_string ?? '').replace(/\$[a-zA-Z_]\w*/g, ''));
+  const query = resolveSearch(def.requests?.[0]?.query?.query_string ?? '');
   const result = useQuery({ queryKey: ['logs', 'patterns', 'integration-panel', query, range], queryFn: () => logPatterns({ range, query }), placeholderData: keepPreviousData });
   const patterns = [...(result.data ?? [])].sort((a, b) => b.count - a.count).slice(0, 50);
   return (

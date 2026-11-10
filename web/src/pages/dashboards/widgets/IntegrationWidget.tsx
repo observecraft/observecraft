@@ -104,7 +104,7 @@ function IntegrationEvents({ def }: { def: IntegrationWidgetDefinition }) {
   const eventQuery = def.requests?.flatMap((r) => r.queries ?? []).find((q) => q.data_source === 'events');
   const search = (eventQuery as unknown as { search?: { query?: string } })?.search?.query;
   const legacy = typeof def.query === 'string' ? def.query : undefined;
-  const query = resolveSearch((search ?? def.requests?.[0]?.query?.query_string ?? legacy ?? '').replace(/\$[a-zA-Z_]\w*/g, ''));
+  const query = resolveSearch(search ?? def.requests?.[0]?.query?.query_string ?? legacy ?? '');
   const result = useQuery({ queryKey: ['events', 'integration-panel', query, range], queryFn: () => searchEvents({ range, query, limit: 25, offset: 0 }) });
   return (
     <WidgetState loading={result.isPending} error={result.error} empty={!result.data?.items.length}>
