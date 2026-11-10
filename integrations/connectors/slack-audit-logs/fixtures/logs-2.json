@@ -1,0 +1,14 @@
+{
+  "entries": [
+    { "id": "2345c67d-8e9f-0a1b-c234-5d67e8f9a0b1", "date_create": 1794301200, "action": "app_installed",
+      "actor": { "type": "user", "user": { "id": "W345CD678", "name": "alex.morgan", "email": "alex.morgan@example.com", "team": "T0123ABC" } },
+      "entity": { "type": "app", "app": { "id": "A0123ABCD", "name": "Deploy Bot", "is_distributed": false, "is_directory_approved": false, "scopes": ["chat:write", "channels:read"] } },
+      "context": { "location": { "type": "workspace", "id": "T0123ABC", "name": "example-shop", "domain": "example-shop" }, "ua": "Mozilla/5.0 (Windows NT 10.0) Chrome/141.0", "ip_address": "198.51.100.51" },
+      "details": { "app_owner_id": "W345CD678" } },
+    { "id": "3456d78e-9f0a-1b2c-d345-6e78f9a0b1c2", "date_create": 1794297600, "action": "public_channel_created",
+      "actor": { "type": "user", "user": { "id": "W123AB456", "name": "jordan.patel", "email": "jordan.patel@example.com", "team": "T0123ABC" } },
+      "entity": { "type": "channel", "channel": { "id": "C0123ABCD", "name": "order-service-incidents", "privacy": "public", "is_shared": false } },
+      "context": { "location": { "type": "workspace", "id": "T0123ABC", "name": "example-shop", "domain": "example-shop" }, "ua": "Mozilla/5.0 (Macintosh) Slack/4.41", "ip_address": "198.51.100.50" } }
+  ],
+  "response_metadata": { "next_cursor": "" }
+}

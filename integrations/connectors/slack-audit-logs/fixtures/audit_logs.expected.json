@@ -1,0 +1,254 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c538-dac0-7d04-b3e0-72cffd03b61e"
+      },
+      "action": "file_downloaded",
+      "actor": {
+        "type": "user",
+        "user": {
+          "email": "jordan.patel@example.com",
+          "id": "W123AB456",
+          "name": "jordan.patel",
+          "team": "T0123ABC"
+        }
+      },
+      "context": {
+        "ip_address": "198.51.100.50",
+        "location": {
+          "domain": "example-shop",
+          "id": "T0123ABC",
+          "name": "example-shop",
+          "type": "workspace"
+        },
+        "session_id": 7701234567,
+        "ua": "Mozilla/5.0 (Macintosh) Slack/4.41"
+      },
+      "date": "2026-11-10T11:30:00.000Z",
+      "date_create": 1794310200,
+      "ddsource": "slack",
+      "entity": {
+        "file": {
+          "filetype": "xlsx",
+          "id": "F0123ABCD",
+          "name": "q4-pricing.xlsx",
+          "title": "Q4 pricing"
+        },
+        "type": "file"
+      },
+      "evt": {
+        "name": "file_downloaded"
+      },
+      "host": "example-org",
+      "http": {
+        "useragent": "Mozilla/5.0 (Macintosh) Slack/4.41"
+      },
+      "id": "0123a45b-6c7d-8e9f-a012-3b45c6d7e8f9",
+      "message": "file_downloaded by jordan.patel@example.com on file q4-pricing.xlsx",
+      "network": {
+        "client": {
+          "ip": "198.51.100.50"
+        }
+      },
+      "service": "slack",
+      "status": "info",
+      "usr": {
+        "email": "jordan.patel@example.com",
+        "id": "W123AB456",
+        "name": "jordan.patel"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e6-7500-7e2c-84ce-0b7b5835bd76"
+      },
+      "action": "user_login_failed",
+      "actor": {
+        "type": "user",
+        "user": {
+          "email": "sam.lee@example.com",
+          "id": "W234BC567",
+          "name": "sam.lee",
+          "team": "T0123ABC"
+        }
+      },
+      "context": {
+        "ip_address": "203.0.113.77",
+        "location": {
+          "domain": "example-org",
+          "id": "E0123ABC",
+          "name": "Example Org",
+          "type": "enterprise"
+        },
+        "ua": "Mozilla/5.0 (X11; Linux x86_64) Chrome/141.0"
+      },
+      "date": "2026-11-10T10:00:00.000Z",
+      "date_create": 1794304800,
+      "ddsource": "slack",
+      "entity": {
+        "type": "user",
+        "user": {
+          "email": "sam.lee@example.com",
+          "id": "W234BC567",
+          "name": "sam.lee",
+          "team": "T0123ABC"
+        }
+      },
+      "evt": {
+        "name": "user_login_failed"
+      },
+      "host": "example-org",
+      "http": {
+        "useragent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/141.0"
+      },
+      "id": "1234b56c-7d8e-9f0a-b123-4c56d7e8f9a0",
+      "message": "user_login_failed by sam.lee@example.com on user sam.lee",
+      "network": {
+        "client": {
+          "ip": "203.0.113.77"
+        }
+      },
+      "service": "slack",
+      "status": "warn",
+      "usr": {
+        "email": "sam.lee@example.com",
+        "id": "W234BC567",
+        "name": "sam.lee"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4af-8680-7e38-81c4-aeb67afc42ea"
+      },
+      "action": "app_installed",
+      "actor": {
+        "type": "user",
+        "user": {
+          "email": "alex.morgan@example.com",
+          "id": "W345CD678",
+          "name": "alex.morgan",
+          "team": "T0123ABC"
+        }
+      },
+      "context": {
+        "ip_address": "198.51.100.51",
+        "location": {
+          "domain": "example-shop",
+          "id": "T0123ABC",
+          "name": "example-shop",
+          "type": "workspace"
+        },
+        "ua": "Mozilla/5.0 (Windows NT 10.0) Chrome/141.0"
+      },
+      "date": "2026-11-10T09:00:00.000Z",
+      "date_create": 1794301200,
+      "ddsource": "slack",
+      "details": {
+        "app_owner_id": "W345CD678"
+      },
+      "entity": {
+        "app": {
+          "id": "A0123ABCD",
+          "is_directory_approved": false,
+          "is_distributed": false,
+          "name": "Deploy Bot",
+          "scopes": [
+            "chat:write",
+            "channels:read"
+          ]
+        },
+        "type": "app"
+      },
+      "evt": {
+        "name": "app_installed"
+      },
+      "host": "example-org",
+      "http": {
+        "useragent": "Mozilla/5.0 (Windows NT 10.0) Chrome/141.0"
+      },
+      "id": "2345c67d-8e9f-0a1b-c234-5d67e8f9a0b1",
+      "message": "app_installed by alex.morgan@example.com on app Deploy Bot",
+      "network": {
+        "client": {
+          "ip": "198.51.100.51"
+        }
+      },
+      "service": "slack",
+      "status": "info",
+      "usr": {
+        "email": "alex.morgan@example.com",
+        "id": "W345CD678",
+        "name": "alex.morgan"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c478-9800-7f44-b89d-8b1fbf71e05e"
+      },
+      "action": "public_channel_created",
+      "actor": {
+        "type": "user",
+        "user": {
+          "email": "jordan.patel@example.com",
+          "id": "W123AB456",
+          "name": "jordan.patel",
+          "team": "T0123ABC"
+        }
+      },
+      "context": {
+        "ip_address": "198.51.100.50",
+        "location": {
+          "domain": "example-shop",
+          "id": "T0123ABC",
+          "name": "example-shop",
+          "type": "workspace"
+        },
+        "ua": "Mozilla/5.0 (Macintosh) Slack/4.41"
+      },
+      "date": "2026-11-10T08:00:00.000Z",
+      "date_create": 1794297600,
+      "ddsource": "slack",
+      "entity": {
+        "channel": {
+          "id": "C0123ABCD",
+          "is_shared": false,
+          "name": "order-service-incidents",
+          "privacy": "public"
+        },
+        "type": "channel"
+      },
+      "evt": {
+        "name": "public_channel_created"
+      },
+      "host": "example-org",
+      "http": {
+        "useragent": "Mozilla/5.0 (Macintosh) Slack/4.41"
+      },
+      "id": "3456d78e-9f0a-1b2c-d345-6e78f9a0b1c2",
+      "message": "public_channel_created by jordan.patel@example.com on channel order-service-incidents",
+      "network": {
+        "client": {
+          "ip": "198.51.100.50"
+        }
+      },
+      "service": "slack",
+      "status": "info",
+      "usr": {
+        "email": "jordan.patel@example.com",
+        "id": "W123AB456",
+        "name": "jordan.patel"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}
