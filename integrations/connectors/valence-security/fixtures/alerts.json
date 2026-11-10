@@ -1,0 +1,76 @@
+[
+  {
+    "vuid": "VALENCE:_:shop:_:ALERT:_::_::_:a7c3f9d1-0000-4000-8000-000000000001",
+    "alertTypeVuid": "VALENCE:_::_:ALERT_TYPE:_::_::_:AzureActiveDirectory.PrivilegedRoleAssigned",
+    "status": "Open",
+    "creationTimestamp": 1794301200,
+    "summaryLine": "jane.doe@example.com granted the privileged role \"Global Administrator\" to the user svc-backup@example.com.",
+    "connectorUids": [
+      "4___Microsoft365___Fetch___Microsoft365Primary"
+    ],
+    "events": [
+      {
+        "eventId": "f3a9b7d2-0000-4000-8000-000000000001",
+        "actorType": "User",
+        "actorUser": {
+          "name": "Jane Doe",
+          "id": "jane.doe@example.com",
+          "email": "jane.doe@example.com"
+        },
+        "action": {
+          "actionType": "Microsoft 365",
+          "actionName": "Add member to role.",
+          "actionDescription": "Added a user to an admin role in Microsoft 365."
+        },
+        "eventResult": "Success",
+        "eventResultDetails": "Success",
+        "ip": "203.0.113.24",
+        "userAgent": "Firefox - 132.0",
+        "platform": "Microsoft 365",
+        "connectorUid": "4___Microsoft365___Fetch___Microsoft365Primary",
+        "connectorDisplayName": "Microsoft 365 Primary",
+        "eventTime": {
+          "timestampKind": "exact",
+          "timestamp": 1794301190
+        }
+      }
+    ]
+  },
+  {
+    "vuid": "VALENCE:_:shop:_:ALERT:_::_::_:a7c3f9d1-0000-4000-8000-000000000002",
+    "alertTypeVuid": "VALENCE:_::_:ALERT_TYPE:_::_::_:Github.PublicRepositoryCreated",
+    "status": "Closed",
+    "creationTimestamp": 1794304800,
+    "summaryLine": "john.smith@example.com changed the visibility of example-org/storefront-api to public.",
+    "connectorUids": [
+      "7___Github___Fetch___GithubPrimary"
+    ],
+    "events": [
+      {
+        "eventId": "f3a9b7d2-0000-4000-8000-000000000002",
+        "actorType": "User",
+        "actorUser": {
+          "name": "John Smith",
+          "id": "john.smith@example.com",
+          "email": "john.smith@example.com"
+        },
+        "action": {
+          "actionType": "GitHub",
+          "actionName": "repo.access",
+          "actionDescription": "Changed a repository's visibility."
+        },
+        "eventResult": "Success",
+        "eventResultDetails": "Success",
+        "ip": "198.51.100.12",
+        "userAgent": "Firefox - 132.0",
+        "platform": "GitHub",
+        "connectorUid": "7___Github___Fetch___GithubPrimary",
+        "connectorDisplayName": "GitHub Primary",
+        "eventTime": {
+          "timestampKind": "exact",
+          "timestamp": 1794304790
+        }
+      }
+    ]
+  }
+]

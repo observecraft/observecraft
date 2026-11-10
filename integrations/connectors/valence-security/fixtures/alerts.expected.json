@@ -1,0 +1,142 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4af-8680-71e7-9bf9-621c8975f236"
+      },
+      "alert": {
+        "alertTypeVuid": "VALENCE:_::_:ALERT_TYPE:_::_::_:AzureActiveDirectory.PrivilegedRoleAssigned",
+        "connectorUids": [
+          "4___Microsoft365___Fetch___Microsoft365Primary"
+        ],
+        "creationTimestamp": 1794301200,
+        "events": [
+          {
+            "action": {
+              "actionDescription": "Added a user to an admin role in Microsoft 365.",
+              "actionName": "Add member to role.",
+              "actionType": "Microsoft 365"
+            },
+            "actorType": "User",
+            "actorUser": {
+              "email": "jane.doe@example.com",
+              "id": "jane.doe@example.com",
+              "name": "Jane Doe"
+            },
+            "connectorDisplayName": "Microsoft 365 Primary",
+            "connectorUid": "4___Microsoft365___Fetch___Microsoft365Primary",
+            "eventId": "f3a9b7d2-0000-4000-8000-000000000001",
+            "eventResult": "Success",
+            "eventResultDetails": "Success",
+            "eventTime": {
+              "timestamp": 1794301190,
+              "timestampKind": "exact"
+            },
+            "ip": "203.0.113.24",
+            "platform": "Microsoft 365",
+            "userAgent": "Firefox - 132.0"
+          }
+        ],
+        "status": "Open",
+        "summaryLine": "jane.doe@example.com granted the privileged role \"Global Administrator\" to the user svc-backup@example.com.",
+        "vuid": "VALENCE:_:shop:_:ALERT:_::_::_:a7c3f9d1-0000-4000-8000-000000000001"
+      },
+      "alert_type_details": {
+        "defaultSeverity": "High",
+        "disabled": false,
+        "mitreAttackTactics": [
+          "TA0003",
+          "TA0004"
+        ],
+        "mitreAttackTechniques": [
+          "T1098.003",
+          "T1078.004"
+        ],
+        "name": "Privileged Administrator Role Assigned",
+        "platform": "Microsoft 365",
+        "severity": "High",
+        "sourceKind": "valenceDefined",
+        "vuid": "VALENCE:_::_:ALERT_TYPE:_::_::_:AzureActiveDirectory.PrivilegedRoleAssigned"
+      },
+      "date": 1794301200000,
+      "ddsource": "valence-security",
+      "host": "app.valencesecurity.com",
+      "message": "jane.doe@example.com granted the privileged role \"Global Administrator\" to the user svc-backup@example.com.",
+      "service": "alerts",
+      "status": "critical"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e6-7500-7b74-9542-abd29fbbbf89"
+      },
+      "alert": {
+        "alertTypeVuid": "VALENCE:_::_:ALERT_TYPE:_::_::_:Github.PublicRepositoryCreated",
+        "connectorUids": [
+          "7___Github___Fetch___GithubPrimary"
+        ],
+        "creationTimestamp": 1794304800,
+        "events": [
+          {
+            "action": {
+              "actionDescription": "Changed a repository's visibility.",
+              "actionName": "repo.access",
+              "actionType": "GitHub"
+            },
+            "actorType": "User",
+            "actorUser": {
+              "email": "john.smith@example.com",
+              "id": "john.smith@example.com",
+              "name": "John Smith"
+            },
+            "connectorDisplayName": "GitHub Primary",
+            "connectorUid": "7___Github___Fetch___GithubPrimary",
+            "eventId": "f3a9b7d2-0000-4000-8000-000000000002",
+            "eventResult": "Success",
+            "eventResultDetails": "Success",
+            "eventTime": {
+              "timestamp": 1794304790,
+              "timestampKind": "exact"
+            },
+            "ip": "198.51.100.12",
+            "platform": "GitHub",
+            "userAgent": "Firefox - 132.0"
+          }
+        ],
+        "status": "Closed",
+        "summaryLine": "john.smith@example.com changed the visibility of example-org/storefront-api to public.",
+        "vuid": "VALENCE:_:shop:_:ALERT:_::_::_:a7c3f9d1-0000-4000-8000-000000000002"
+      },
+      "alert_type_details": {
+        "defaultSeverity": "Medium",
+        "disabled": false,
+        "mitreAttackTactics": [
+          "TA0010"
+        ],
+        "mitreAttackTechniques": [
+          "T1567"
+        ],
+        "name": "Repository Made Public",
+        "platform": "GitHub",
+        "severity": "Medium",
+        "sourceKind": "valenceDefined",
+        "vuid": "VALENCE:_::_:ALERT_TYPE:_::_::_:Github.PublicRepositoryCreated"
+      },
+      "date": 1794304800000,
+      "ddsource": "valence-security",
+      "host": "app.valencesecurity.com",
+      "message": "john.smith@example.com changed the visibility of example-org/storefront-api to public.",
+      "service": "alerts",
+      "status": "warning"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

@@ -1,0 +1,139 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Valence Security (SaaS security posture and threat detection): its alerts and the audit log of its console, as the
+# logs Datadog's integration sends (source:valence-security; service:alerts, {alert, alert_type_details} with the
+# alert's type joined in; service:audit-logs, the audit record as it is). integrations-core's pipeline and the tile's
+# three dashboards read them as they are, so this package ships neither.
+#
+# Valence's API reference is only available to customers. GET /api/v2/alerts/alertTypes is confirmed (the tile's
+# health check); the alert and audit log list paths below (/api/v2/alerts, /api/v2/audit-logs), their time filters
+# and the envelope of their answers are unverified: check them against your tenant's API documentation.
+schema_version: 1
+id: valence-security
+name: Valence Security
+publisher: ObserveCraft
+vendor: Valence Security
+description: >-
+  The SaaS security alerts of Valence Security (risky identities, privilege escalation, data exposure and
+  misconfigurations across connected SaaS apps), joined with their alert type's severity and MITRE ATT&CK tactics,
+  and the audit log of the Valence console, as logs read every 5 minutes from the Valence API.
+tiles: [valence-security]
+categories: [Log Collection, Security, SIEM, Cloud]
+source: valence-security
+docs_url: https://www.valencesecurity.com/
+setup: |
+  1. In Valence, open **Administration → Settings → Valence API** and generate an API key (an **Admin** user's key
+     reads both alerts and the audit log).
+  2. Choose your Valence region: US for `app.valencesecurity.com`, EU for `appeu.valencesecurity.com`.
+instance: "{{ config.region }}"
+
+config:
+  - key: region
+    label: Region
+    type: select
+    required: true
+    default: app.valencesecurity.com
+    options:
+      - { value: app.valencesecurity.com, label: US }
+      - { value: appeu.valencesecurity.com, label: EU }
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: bearer
+  token: "{{ secrets.api_key }}"
+
+rate_limit: { requests_per_minute: 30 }
+
+# The tile's pipeline maps these to the log's status the same way.
+tables:
+  severity: { Critical: alert, High: critical, Medium: warning, Low: info }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Valence refused the API key
+  - status: [403]
+    kind: access_denied
+    message: The API key's user can't read alerts or the audit log; use an Admin user's key
+
+streams:
+  - id: alerts
+    name: Alerts
+    description: >-
+      One log per alert and status (service:alerts): alert (vuid, status, summaryLine, events with actor, action, ip,
+      user agent) and alert_type_details (name, severity, platform, MITRE tactics and techniques). An alert closed
+      later is logged again with its new status.
+    interval: 5m
+    lookups:
+      - name: alert_types
+        request: { url: "https://{{ config.region }}/api/v2/alerts/alertTypes" }
+        records: "{{ response.alertTypes ?? response.items ?? response }}"
+        key: "{{ record.vuid }}"
+        ttl: 1h
+    request:
+      # Unverified: the list path and its time filter.
+      url: "https://{{ config.region }}/api/v2/alerts"
+      query: { fromTimestamp: "{{ (window.start / 1000) | floor }}", toTimestamp: "{{ (window.end / 1000) | floor }}" }
+    records: "{{ response.alerts ?? response.items ?? response }}"
+    record_id: "{{ record.vuid + ':' + record.status }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.creationTimestamp }}"
+      order: unordered
+      lookback: 1d
+      overlap: 10m
+    vars:
+      type: "{{ lookups.alert_types[record.alertTypeVuid] }}"
+    output:
+      logs:
+        service: alerts
+        status: "{{ tables.severity[vars.type.severity] ?? 'info' }}"
+        message: "{{ record.summaryLine ?? vars.type.name }}"
+        date: "{{ record.creationTimestamp | epoch_ms }}"
+        attributes: "{{ {alert: record, alert_type_details: vars.type} }}"
+
+  - id: audit_logs
+    name: Audit logs
+    description: >-
+      Every action in the Valence console (service:audit-logs): actor, action, details, ipAddress, success, timeEpoch.
+    interval: 5m
+    request:
+      # Unverified: the list path and its time filter.
+      url: "https://{{ config.region }}/api/v2/audit-logs"
+      query: { fromTimestamp: "{{ (window.start / 1000) | floor }}", toTimestamp: "{{ (window.end / 1000) | floor }}" }
+    records: "{{ response.auditLogs ?? response.items ?? response }}"
+    # Audit records carry no id: their content is their identity.
+    record_id: "{{ record | json | sha256 }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.timeEpoch }}"
+      order: unordered
+      lookback: 1d
+      overlap: 10m
+    output:
+      logs:
+        service: audit-logs
+        status: "{{ record.success == false ? 'error' : 'ok' }}"
+        message: "{{ record.details ?? record.action }}"
+        date: "{{ record.timeEpoch | epoch_ms }}"
+        attributes: "{{ record }}"
+
+test:
+  request: { url: "https://{{ config.region }}/api/v2/alerts/alertTypes" }
+  message: "Connected: {{ (response.alertTypes ?? response.items ?? response) | len }} alert types"
+
+mock:
+  config: { region: app.valencesecurity.com }
+  secrets: { api_key: valence-test-key-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://app.valencesecurity.com/api/v2/alerts/alertTypes", file: fixtures/alert-types.json }
+    - { url: "https://app.valencesecurity.com/api/v2/alerts", file: fixtures/alerts.json }
+    - { url: "https://app.valencesecurity.com/api/v2/audit-logs", file: fixtures/audit-logs.json }
+  expect:
+    alerts: { records: 2, logs: 2, rerun: 0, golden: fixtures/alerts.expected.json }
+    audit_logs: { records: 2, logs: 2, rerun: 0, golden: fixtures/audit_logs.expected.json }
+    test: { ok: true, message: "2 alert types" }
