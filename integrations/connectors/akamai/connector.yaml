@@ -1,0 +1,121 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Akamai SIEM API (https://techdocs.akamai.com/siem-integration/reference/api): App & API Protector / Kona Site
+# Defender security events of one or more security configurations, as the logs of Datadog's Akamai Application
+# Security integration (source:akamai, service:appsec, Akamai's event at the top level plus standard http.* and
+# network.client.* attributes), read every minute with an EdgeGrid API client (requests signed by the server's
+# akamai_edgegrid signer). Akamai keeps events 12 hours: an offset older than that is refused (416) and the stream
+# must be reset. The rule fields are ";"-joined base64 lists: the first rule's message and action are decoded
+# (rule_message, rule_action), the lists are kept as Akamai sends them. CDN logs come by DataStream 2, a separate
+# package (akamai-datastream-2). Datadog has no integrations-core tile for this one, so it adds its own tile.
+schema_version: 1
+id: akamai
+name: Akamai Application Security
+publisher: ObserveCraft
+vendor: Akamai
+description: >-
+  Akamai App & API Protector and Kona Site Defender security events (attacks detected, denied or alerted, with
+  the rules, client, request and geography) as logs, read every minute from Akamai's SIEM API.
+logo: akamai
+categories: [Security, SIEM, Network, Log Collection]
+docs_url: https://techdocs.akamai.com/siem-integration/reference/api
+setup: |
+  1. In Akamai Control Center, turn on **SIEM integration** in each security configuration's settings (with the
+     configurations' **Web Application Firewall** or **Bot Manager** data).
+  2. Under **Identity & Access → API clients**, create an API client with the **SIEM** API (READ-ONLY) and access to
+     the configurations' group; copy its host (`akab-….luna.akamaiapis.net`), client token, client secret and access
+     token.
+  3. Enter the security configurations' ids (shown in **Security Configurations**).
+links:
+  - { label: Identity & Access, url: "https://control.akamai.com/apps/identity-management/" }
+instance: "{{ config.host | replace('.luna.akamaiapis.net', '') }}"
+
+config:
+  - { key: host, label: API host, type: string, required: true, placeholder: akab-xxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxx.luna.akamaiapis.net, pattern: "akab-[a-z0-9-]+\\.luna\\.akamaiapis\\.net" }
+  - { key: config_ids, label: Security configuration ids, type: list, required: true, pattern: "[0-9]+" }
+  - { key: client_token, label: Client token, type: string, secret: true, required: true }
+  - { key: client_secret, label: Client secret, type: string, secret: true, required: true }
+  - { key: access_token, label: Access token, type: string, secret: true, required: true }
+
+auth:
+  kind: signer
+  signer: akamai_edgegrid
+  params:
+    client_token: "{{ secrets.client_token }}"
+    client_secret: "{{ secrets.client_secret }}"
+    access_token: "{{ secrets.access_token }}"
+
+rate_limit: { requests_per_minute: 20 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: "Akamai refused the API client's signature ({{ response.detail ?? response.title ?? 'unauthorized' }})"
+  - status: [403]
+    kind: access_denied
+    message: "The API client can't read these configurations ({{ response.detail ?? 'forbidden' }}): give it the SIEM API and the configurations' group, and turn SIEM on"
+  - status: [416]
+    kind: other
+    message: "Akamai refused the saved offset: it is older than the 12 hours Akamai keeps; reset the stream to start again"
+  - status: [429]
+    kind: throttled
+    message: Rate limited by Akamai
+
+streams:
+  - id: security_events
+    name: Security events
+    description: >-
+      Every security event as a log (source:akamai, service:appsec): evt.name is the first rule's action (alert,
+      deny, …), network.client.* the client, http.* the request; denied requests are warnings. The first run reads
+      the last 12 hours, later ones go on from Akamai's offset.
+    request:
+      url: "https://{{ config.host }}/siem/v1/configs/{{ config.config_ids | join(';') }}"
+      query:
+        offset: "{{ page.cursor ?? cursor.token }}"
+        from: "{{ (page.cursor ?? cursor.token) ? null : ((now - 43200000) | epoch_s) }}"
+        limit: 10000
+      format: ndjson
+    # The last line is the page's context ({total, offset, limit}); the others are events.
+    records: "{{ response | where('type', 'akamai_siem') }}"
+    pagination: { kind: cursor, next: "{{ ((response | last).total ?? 0) >= 10000 ? (response | last).offset : null }}" }
+    max_pages: 10
+    record_id: "{{ record.httpMessage.requestId + ':' + (record.attackData.configId ?? '') + ':' + (record.attackData.policyId ?? '') }}"
+    incremental: { kind: token, next: "{{ (response | last).offset }}" }
+    vars:
+      action: "{{ ((record.attackData.ruleActions ?? '') | replace('%3d', '=') | replace('%3D', '=') | replace('%3b', ';') | replace('%3B', ';') | split(';') | first | base64_decode) | nonempty }}"
+      message: "{{ ((record.attackData.ruleMessages ?? '') | replace('%3d', '=') | replace('%3D', '=') | replace('%3b', ';') | replace('%3B', ';') | replace('%2b', '+') | replace('%2B', '+') | replace('%2f', '/') | replace('%2F', '/') | split(';') | first | base64_decode) | nonempty }}"
+    output:
+      logs:
+        service: appsec
+        message: "{{ vars.action ?? 'event' }}: {{ vars.message ?? 'security event' }} ({{ record.httpMessage.method }} {{ record.httpMessage.host }}{{ record.httpMessage.path }} from {{ record.attackData.clientIP }})"
+        status: "{{ vars.action == 'deny' || (vars.action ?? '') | startswith('deny_custom') ? 'warn' : 'info' }}"
+        date: "{{ record.httpMessage.start | rfc3339 }}"
+        attributes: >-
+          {{ record + {
+               rule_action: vars.action,
+               rule_message: vars.message,
+               evt: {name: vars.action, category: 'appsec'},
+               network: {client: {ip: record.attackData.clientIP, geoip: {country: {iso_code: record.geo.country}, city: {name: record.geo.city}}}},
+               http: {method: record.httpMessage.method, status_code: record.httpMessage.status | int, url_details: {host: record.httpMessage.host, path: record.httpMessage.path, queryString: record.httpMessage.query}, request_id: record.httpMessage.requestId}
+             } }}
+
+test:
+  request:
+    url: "https://{{ config.host }}/siem/v1/configs/{{ config.config_ids | join(';') }}"
+    query: { from: "{{ (now - 60000) | epoch_s }}", limit: 1 }
+    format: ndjson
+  message: "Connected: the API client reads configurations {{ config.config_ids | join(', ') }}"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { host: akab-test0000example-0000example.luna.akamaiapis.net, config_ids: ["14227", "14228"] }
+  secrets: { client_token: akab-client-token-test, client_secret: dGVzdC1jbGllbnQtc2VjcmV0, access_token: akab-access-token-test }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://akab-test0000example-0000example.luna.akamaiapis.net/siem/v1/configs/14227;14228", query: { limit: "1" }, body: { total: 0, offset: "c0ffee00", limit: 1 } }
+    - { url: "https://akab-test0000example-0000example.luna.akamaiapis.net/siem/v1/configs/14227;14228", query: { offset: "8b2e6b8a-0000-4fda-9f2a-0000000000ab" }, body: { total: 0, offset: "8b2e6b8a-0000-4fda-9f2a-0000000000ab", limit: 10000 } }
+    - { url: "https://akab-test0000example-0000example.luna.akamaiapis.net/siem/v1/configs/14227;14228", file: fixtures/events.ndjson }
+  expect:
+    security_events: { records: 2, logs: 2, rerun: 0, golden: fixtures/security_events.expected.json }
+    test: { ok: true, message: "configurations 14227, 14228" }

@@ -1,0 +1,162 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c51d-6380-7ec3-834e-61a53582c5e7"
+      },
+      "attackData": {
+        "clientIP": "203.0.113.77",
+        "configId": "14227",
+        "policyId": "qik1_26545",
+        "ruleActions": "ZGVueQ%3d%3d%3bZGVueQ%3d%3d",
+        "ruleData": "Y2F0IC9ldGMvcGFzc3dk",
+        "ruleMessages": "U3lzdGVtIENvbW1hbmQgQWNjZXNz%3bU3lzdGVtIENvbW1hbmQgSW5qZWN0aW9u",
+        "ruleSelectors": "QVJHUzpvcmRlcg%3d%3d",
+        "ruleTags": "T1dBU1BfQ1JTL1dFQl9BVFRBQ0svRklMRV9JTkpFQ1RJT04%3d",
+        "ruleVersions": "NA%3d%3d%3bNA%3d%3d",
+        "rules": "OTUwMDAy%3bOTUwMDA2"
+      },
+      "date": "2026-11-10T11:00:00.000Z",
+      "ddsource": "akamai",
+      "evt": {
+        "category": "appsec",
+        "name": "deny"
+      },
+      "format": "json",
+      "geo": {
+        "asn": "64500",
+        "city": "LAGOS",
+        "continent": "AF",
+        "country": "NG",
+        "regionCode": "LA"
+      },
+      "host": "akab-test0000example-0000example",
+      "http": {
+        "method": "GET",
+        "request_id": "1158db1758e37bfe67b7c09",
+        "status_code": 403,
+        "url_details": {
+          "host": "shop.example.com",
+          "path": "/api/orders",
+          "queryString": "order=cat%20/etc/passwd"
+        }
+      },
+      "httpMessage": {
+        "bytes": "266",
+        "host": "shop.example.com",
+        "method": "GET",
+        "path": "/api/orders",
+        "port": "443",
+        "protocol": "HTTP/1.1",
+        "query": "order=cat%20/etc/passwd",
+        "requestHeaders": "User-Agent%3a%20curl%2f8.4.0",
+        "requestId": "1158db1758e37bfe67b7c09",
+        "responseHeaders": "Server%3a%20AkamaiGHost",
+        "start": "1794308400",
+        "status": "403"
+      },
+      "message": "deny: System Command Access (GET shop.example.com/api/orders from 203.0.113.77)",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": {
+              "name": "LAGOS"
+            },
+            "country": {
+              "iso_code": "NG"
+            }
+          },
+          "ip": "203.0.113.77"
+        }
+      },
+      "rule_action": "deny",
+      "rule_message": "System Command Access",
+      "service": "appsec",
+      "status": "warn",
+      "type": "akamai_siem",
+      "version": "1.0"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c538-dac0-7ca6-9ddb-8aac7592d5f2"
+      },
+      "attackData": {
+        "clientIP": "198.51.100.90",
+        "configId": "14228",
+        "policyId": "api1_10001",
+        "ruleActions": "YWxlcnQ%3d",
+        "ruleData": "JyBvciAxPTE%3d",
+        "ruleMessages": "U1FMIEluamVjdGlvbiBBdHRhY2s%3d",
+        "ruleSelectors": "QVJHUzpxdWVyeQ%3d%3d",
+        "ruleTags": "T1dBU1BfQ1JTL1dFQl9BVFRBQ0svU1FMX0lOSkVDVElPTg%3d%3d",
+        "ruleVersions": "NA%3d%3d",
+        "rules": "OTUwMDAx"
+      },
+      "date": "2026-11-10T11:30:00.000Z",
+      "ddsource": "akamai",
+      "evt": {
+        "category": "appsec",
+        "name": "alert"
+      },
+      "format": "json",
+      "geo": {
+        "asn": "64501",
+        "city": "FRANKFURT",
+        "continent": "EU",
+        "country": "DE"
+      },
+      "host": "akab-test0000example-0000example",
+      "http": {
+        "method": "POST",
+        "request_id": "2269ec2869f48c0f78c8d1a",
+        "status_code": 200,
+        "url_details": {
+          "host": "storefront-api.example.com",
+          "path": "/v1/search",
+          "queryString": null
+        }
+      },
+      "httpMessage": {
+        "bytes": "1820",
+        "host": "storefront-api.example.com",
+        "method": "POST",
+        "path": "/v1/search",
+        "port": "443",
+        "protocol": "HTTP/2",
+        "requestId": "2269ec2869f48c0f78c8d1a",
+        "start": "1794310200",
+        "status": "200"
+      },
+      "message": "alert: SQL Injection Attack (POST storefront-api.example.com/v1/search from 198.51.100.90)",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": {
+              "name": "FRANKFURT"
+            },
+            "country": {
+              "iso_code": "DE"
+            }
+          },
+          "ip": "198.51.100.90"
+        }
+      },
+      "rule_action": "alert",
+      "rule_message": "SQL Injection Attack",
+      "service": "appsec",
+      "status": "info",
+      "type": "akamai_siem",
+      "version": "1.0"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "8b2e6b8a-0000-4fda-9f2a-0000000000ab"
+      }
+    }
+  }
+}
