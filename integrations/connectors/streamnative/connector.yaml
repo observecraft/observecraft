@@ -1,0 +1,153 @@
+# yaml-language-server: $schema=../connector.schema.json
+# StreamNative Cloud (https://docs.streamnative.io/docs/cloud-metrics-api): the Cloud Metrics API's Prometheus exports
+# of one instance, as the metrics Datadog's integration sends: each sample's name under its export's group
+# (streamnative.health.*, .pulsar_resource.*, .source_connector.*, .sink_connector.*, .kafka_connect.*), its labels as
+# tags (cloud_streamnative_io_pulsar_instance, cluster, namespace, topic, pulsar_component, quantile, …). The tile's
+# integrations-core dashboards and monitors read them as they are, so this package ships none.
+schema_version: 1
+id: streamnative
+name: StreamNative
+publisher: ObserveCraft
+vendor: StreamNative
+description: >-
+  The health checks, Pulsar tenants, namespaces and topics, source and sink connectors and Kafka Connect of a
+  StreamNative Cloud instance as metrics, scraped every 2 minutes from the Cloud Metrics API.
+tiles: [streamnative]
+categories: [Metrics]
+docs_url: https://docs.streamnative.io/docs/cloud-metrics-api
+setup: |
+  1. In the StreamNative Cloud console, open **Service Accounts** and create one; give it the **metrics-viewer** role
+     on the instance (a Super Admin service account works too).
+  2. Download the service account's **OAuth2 key** file and copy its `client_id` and `client_secret`.
+  3. Enter the organization (its id in the console's URL) and the instance's name.
+instance: "{{ config.organization + '/' + config.instance_name }}"
+
+config:
+  - key: organization
+    label: Organization ID
+    type: string
+    required: true
+    pattern: "[a-z0-9-]+"
+    placeholder: o-example
+  - key: instance_name
+    label: Instance name
+    type: string
+    required: true
+    pattern: "[a-z0-9-]+"
+  - key: client_id
+    label: Client ID
+    type: string
+    required: true
+    help: The client_id of the service account's OAuth2 key file.
+  - key: client_secret
+    label: Client secret
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: https://auth.streamnative.cloud/oauth/token
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: body
+  params:
+    audience: "{{ 'urn:sn:pulsar:' + config.organization + ':' + config.instance_name }}"
+
+errors:
+  - status: [401]
+    kind: auth
+    message: StreamNative refused the service account's key
+  - status: [403]
+    kind: access_denied
+    message: The service account needs the metrics-viewer role on the instance (or Super Admin)
+
+# StreamNative asks for scrapes no more often than every 2 minutes, each allowed a minute.
+streams:
+  - id: health
+    name: Health
+    description: The detectors' end-to-end, publish and geo-replication latencies and the messaging and web service SLA checks (streamnative.health.*).
+    interval: 2m
+    request: { url: "https://metrics.streamnative.cloud/v1/cloud/metrics/health/export", format: prometheus }
+    filter: &samples "{{ !(record.name | endswith('_created')) && !(record.name | endswith('_bucket')) }}"
+    output:
+      metrics:
+        - name: "{{ 'streamnative.health.' + record.name }}"
+          value: "{{ record.value }}"
+          tags_from: "{{ record.labels }}"
+          time: "{{ record.timestamp }}"
+
+  - id: pulsar_resource
+    name: Pulsar resources
+    description: Rates, throughput, backlog, storage and latency buckets of the instance's tenants, namespaces and topics (streamnative.pulsar_resource.*).
+    interval: 2m
+    request: { url: "https://metrics.streamnative.cloud/v1/cloud/metrics/export", format: prometheus }
+    filter: *samples
+    output:
+      metrics:
+        - name: "{{ 'streamnative.pulsar_resource.' + record.name }}"
+          value: "{{ record.value }}"
+          tags_from: "{{ record.labels }}"
+          time: "{{ record.timestamp }}"
+
+  - id: source_connector
+    name: Source connectors
+    description: Records received and written, exceptions and JVM use of the Pulsar source connectors (streamnative.source_connector.*).
+    interval: 2m
+    request: { url: "https://metrics.streamnative.cloud/v1/cloud/metrics/source/export", format: prometheus }
+    filter: *samples
+    output:
+      metrics:
+        - name: "{{ 'streamnative.source_connector.' + record.name }}"
+          value: "{{ record.value }}"
+          tags_from: "{{ record.labels }}"
+          time: "{{ record.timestamp }}"
+
+  - id: sink_connector
+    name: Sink connectors
+    description: Records received and written, exceptions and JVM use of the Pulsar sink connectors (streamnative.sink_connector.*).
+    interval: 2m
+    request: { url: "https://metrics.streamnative.cloud/v1/cloud/metrics/sink/export", format: prometheus }
+    filter: *samples
+    output:
+      metrics:
+        - name: "{{ 'streamnative.sink_connector.' + record.name }}"
+          value: "{{ record.value }}"
+          tags_from: "{{ record.labels }}"
+          time: "{{ record.timestamp }}"
+
+  - id: kafka_connect
+    name: Kafka Connect
+    description: Task states, batch sizes, offset commits, errors and JVM use of the Kafka Connect connectors (streamnative.kafka_connect.*).
+    interval: 2m
+    request: { url: "https://metrics.streamnative.cloud/v1/cloud/metrics/kafkaconnect/export", format: prometheus }
+    filter: *samples
+    output:
+      metrics:
+        - name: "{{ 'streamnative.kafka_connect.' + record.name }}"
+          value: "{{ record.value }}"
+          tags_from: "{{ record.labels }}"
+          time: "{{ record.timestamp }}"
+
+test:
+  stream: health
+  message: "Connected: {{ records | len }} health samples"
+
+mock:
+  config: { organization: o-example, instance_name: shop, client_id: sn-client-0001 }
+  secrets: { client_secret: sn-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://auth.streamnative.cloud/oauth/token", body_contains: "urn%3Asn%3Apulsar%3Ao-example%3Ashop", body: { access_token: sn-access-token, token_type: Bearer, expires_in: 86400 } }
+    - { url: "https://metrics.streamnative.cloud/v1/cloud/metrics/health/export", file: fixtures/health.txt }
+    - { url: "https://metrics.streamnative.cloud/v1/cloud/metrics/export", file: fixtures/resource.txt }
+    - { url: "https://metrics.streamnative.cloud/v1/cloud/metrics/source/export", file: fixtures/source.txt }
+    - { url: "https://metrics.streamnative.cloud/v1/cloud/metrics/sink/export", file: fixtures/sink.txt }
+    - { url: "https://metrics.streamnative.cloud/v1/cloud/metrics/kafkaconnect/export", file: fixtures/kafkaconnect.txt }
+  expect:
+    health: { records: 5, metrics: 5, golden: fixtures/health.expected.json }
+    pulsar_resource: { records: 5, metrics: 5, golden: fixtures/pulsar_resource.expected.json }
+    source_connector: { records: 3, metrics: 3 }
+    sink_connector: { records: 2, metrics: 2 }
+    kafka_connect: { records: 2, metrics: 2, golden: fixtures/kafka_connect.expected.json }
+    test: { ok: true, message: "5 health samples" }

@@ -1,0 +1,82 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "streamnative.kafka_connect.kafka_connect_connector_task_running_ratio",
+      "tags": [
+        [
+          "cloud_streamnative_io_pulsar_cluster",
+          "shop-aws-use1"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_component",
+          "catalog-jdbc"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_instance",
+          "shop"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_tenant",
+          "public"
+        ],
+        [
+          "connector",
+          "catalog-jdbc"
+        ],
+        [
+          "kubernetes_namespace",
+          "example-org"
+        ],
+        [
+          "task",
+          "0"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "streamnative.kafka_connect.kafka_connect_worker_connector_failed_task_count",
+      "tags": [
+        [
+          "cloud_streamnative_io_pulsar_cluster",
+          "shop-aws-use1"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_component",
+          "catalog-jdbc"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_instance",
+          "shop"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_tenant",
+          "public"
+        ],
+        [
+          "connector",
+          "catalog-jdbc"
+        ],
+        [
+          "kubernetes_namespace",
+          "example-org"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

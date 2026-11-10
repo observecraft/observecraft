@@ -1,0 +1,10 @@
+# TYPE pulsar_rate_in gauge
+pulsar_rate_in{cloud_streamnative_io_organization_name="example-org",cloud_streamnative_io_pulsar_instance="shop",cluster="shop-aws-use1",namespace="public/orders",topic="persistent://public/orders/order-created"} 42.5
+pulsar_rate_in{cloud_streamnative_io_organization_name="example-org",cloud_streamnative_io_pulsar_instance="shop",cluster="shop-aws-use1",namespace="public/billing",topic="persistent://public/billing/invoice-issued"} 3.25
+# TYPE pulsar_rate_out gauge
+pulsar_rate_out{cloud_streamnative_io_organization_name="example-org",cloud_streamnative_io_pulsar_instance="shop",cluster="shop-aws-use1",namespace="public/orders",topic="persistent://public/orders/order-created"} 40
+# TYPE pulsar_storage_backlog_size gauge
+pulsar_storage_backlog_size{cloud_streamnative_io_organization_name="example-org",cloud_streamnative_io_pulsar_instance="shop",cluster="shop-aws-use1",namespace="public/orders",topic="persistent://public/orders/order-created"} 1048576
+# TYPE pulsar_storage_write_latency_le_10 gauge
+pulsar_storage_write_latency_le_10{cloud_streamnative_io_organization_name="example-org",cloud_streamnative_io_pulsar_instance="shop",cluster="shop-aws-use1",namespace="public/orders",topic="persistent://public/orders/order-created"} 12
+pulsar_msg_backlog{cloud_streamnative_io_organization_name="example-org",cloud_streamnative_io_pulsar_instance="shop",cluster="shop-aws-use1",namespace="public/orders",topic="persistent://public/orders/order-created"} NaN

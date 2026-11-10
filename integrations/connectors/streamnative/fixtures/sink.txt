@@ -1,0 +1,4 @@
+# TYPE pulsar_sink_written_total counter
+pulsar_sink_written_total{kubernetes_namespace="example-org",cloud_streamnative_io_pulsar_instance="shop",pulsar_component="orders-to-s3"} 55120
+# TYPE pulsar_sink_sink_exceptions_total counter
+pulsar_sink_sink_exceptions_total{kubernetes_namespace="example-org",cloud_streamnative_io_pulsar_instance="shop",pulsar_component="orders-to-s3"} 0

@@ -1,0 +1,10 @@
+# HELP pulsar_detector_e2e_latency_ms The latency distribution from message sending to message consumption
+# TYPE pulsar_detector_e2e_latency_ms summary
+pulsar_detector_e2e_latency_ms{cloud_streamnative_io_organization_name="example-org",cloud_streamnative_io_pulsar_instance="shop",cloud_streamnative_io_pulsar_cluster="shop-aws-use1",kubernetes_namespace="example-org",quantile="0.5"} 18.2
+pulsar_detector_e2e_latency_ms{cloud_streamnative_io_organization_name="example-org",cloud_streamnative_io_pulsar_instance="shop",cloud_streamnative_io_pulsar_cluster="shop-aws-use1",kubernetes_namespace="example-org",quantile="0.99"} 64
+pulsar_detector_e2e_latency_ms_count{cloud_streamnative_io_organization_name="example-org",cloud_streamnative_io_pulsar_instance="shop",cloud_streamnative_io_pulsar_cluster="shop-aws-use1",kubernetes_namespace="example-org"} 1440
+# HELP pulsar_detector_pulsar_sla_messaging_up The gauge for indicating the messaging service up or down
+# TYPE pulsar_detector_pulsar_sla_messaging_up gauge
+pulsar_detector_pulsar_sla_messaging_up{cloud_streamnative_io_organization_name="example-org",cloud_streamnative_io_pulsar_instance="shop",cloud_streamnative_io_pulsar_cluster="shop-aws-use1",kubernetes_namespace="example-org"} 1
+# TYPE pulsar_detector_pulsar_sla_webservice_up gauge
+pulsar_detector_pulsar_sla_webservice_up{cloud_streamnative_io_organization_name="example-org",cloud_streamnative_io_pulsar_instance="shop",cloud_streamnative_io_pulsar_cluster="shop-aws-use1",kubernetes_namespace="example-org"} 1

@@ -1,0 +1,145 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "streamnative.health.pulsar_detector_e2e_latency_ms",
+      "tags": [
+        [
+          "cloud_streamnative_io_organization_name",
+          "example-org"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_cluster",
+          "shop-aws-use1"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_instance",
+          "shop"
+        ],
+        [
+          "kubernetes_namespace",
+          "example-org"
+        ],
+        [
+          "quantile",
+          "0.5"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 18.2
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "streamnative.health.pulsar_detector_e2e_latency_ms",
+      "tags": [
+        [
+          "cloud_streamnative_io_organization_name",
+          "example-org"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_cluster",
+          "shop-aws-use1"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_instance",
+          "shop"
+        ],
+        [
+          "kubernetes_namespace",
+          "example-org"
+        ],
+        [
+          "quantile",
+          "0.99"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 64.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "streamnative.health.pulsar_detector_e2e_latency_ms_count",
+      "tags": [
+        [
+          "cloud_streamnative_io_organization_name",
+          "example-org"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_cluster",
+          "shop-aws-use1"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_instance",
+          "shop"
+        ],
+        [
+          "kubernetes_namespace",
+          "example-org"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1440.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "streamnative.health.pulsar_detector_pulsar_sla_messaging_up",
+      "tags": [
+        [
+          "cloud_streamnative_io_organization_name",
+          "example-org"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_cluster",
+          "shop-aws-use1"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_instance",
+          "shop"
+        ],
+        [
+          "kubernetes_namespace",
+          "example-org"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "streamnative.health.pulsar_detector_pulsar_sla_webservice_up",
+      "tags": [
+        [
+          "cloud_streamnative_io_organization_name",
+          "example-org"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_cluster",
+          "shop-aws-use1"
+        ],
+        [
+          "cloud_streamnative_io_pulsar_instance",
+          "shop"
+        ],
+        [
+          "kubernetes_namespace",
+          "example-org"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}
