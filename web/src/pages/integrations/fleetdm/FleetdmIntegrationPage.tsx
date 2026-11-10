@@ -59,6 +59,7 @@ const ATTRIBUTES: [string, string][] = [
   ['network.client.ip', 'The client’s address, for logins'],
   ['fleetdm.host_id, fleetdm.host_display_name', 'The host the activity was about'],
   ['fleetdm.team, fleetdm.fleet_initiated', 'The team involved; whether Fleet itself did it (automations)'],
+  ['fleetdm.category', 'authentication, host_action, software, mdm, policy, query, script, user_management, configuration or other (the log pipeline)'],
   ['fleetdm.details', 'The activity’s details, as Fleet records them'],
 ];
 
@@ -73,6 +74,8 @@ const METRICS: [string, string][] = [
   ['fleetdm.host.failing_policies, .critical_vulnerabilities, .issues', 'Fleet’s issues for the host (critical vulnerabilities: Fleet Premium)'],
   ['fleetdm.host.mdm_enrolled, fleetdm.host.disk_encrypted', '1 or 0, for hosts whose MDM or disk encryption status Fleet knows'],
   ['fleetdm.policy.passing_hosts, fleetdm.policy.failing_hosts', 'Per global policy (tags policy, policy_id, critical, platform), as Fleet last counted them'],
+  ['fleetdm.vulnerabilities.total', 'Every vulnerability (CVE) Fleet found on the hosts'],
+  ['fleetdm.vulnerability.hosts', 'Hosts with each of the 50 most widespread vulnerabilities (tags cve, severity from its CVSS score, known_exploited from CISA’s catalog; scores: Fleet Premium)'],
 ];
 
 const statusKey = ['integrations', 'fleetdm'];
@@ -203,7 +206,7 @@ function Configure() {
             {(e as Error).message}
           </p>
         ))}
-        {save.isSuccess && !save.isPending && <p className="muted">Saved. The first sync starts within a minute.</p>}
+        {save.isSuccess && !save.isPending && <p className="muted">Saved. The first sync starts within a minute; the FleetDM log pipeline and dashboard are installed.</p>}
         <div className="rt-create-actions">
           <button type="button" className="btn" disabled={!isAdmin || !ready || test.isPending} onClick={() => test.mutate(input)}>
             {test.isPending ? 'Testing…' : 'Test connection'}
@@ -278,9 +281,14 @@ function DataCollected() {
     <div className="ci-setup">
       <h3>Dashboard</h3>
       <p className="muted">
-        <Link to={dashboard}>FleetDM Overview</Link> charts the hosts (online, offline and missing, by platform, OS and osquery version and team, the longest unseen and the fullest disks), the
-        policies and security (hosts failing policies, critical vulnerabilities, MDM enrollment, disk encryption, the global policies) and the activity feed (activities by type, failed logins, the
-        most active users, streams of logins, actions on hosts and configuration changes). It appears in Dashboards once Fleet is connected.
+        <Link to={dashboard}>FleetDM Overview</Link> charts the hosts (online, offline, missing and new, by platform, OS and osquery version and team, the longest unseen and the fullest disks), the
+        policies (hosts failing policies, the global policies), the vulnerabilities (the most widespread CVEs, by severity, those known exploited), MDM enrollment and disk encryption, and the activity
+        feed (activities by category, type and user, failed logins, streams of logins, actions on hosts and configuration changes). It appears in Dashboards once Fleet is connected.
+      </p>
+      <h3>Log pipeline</h3>
+      <p className="muted">
+        Saving the connection installs the <Link to="/logs/pipelines">FleetDM</Link> pipeline: it files each activity under <code>fleetdm.category</code>, takes a failed login&apos;s user from the
+        address that was tried, and gives Fleet activities sent another way (Fleet&apos;s audit log destinations) the same attributes.
       </p>
       <h3>Activities</h3>
       <p className="muted">
@@ -311,8 +319,8 @@ function DataCollected() {
       <h3>Metrics</h3>
       <p className="muted">
         Every minute; every series is tagged <code>fleet_instance</code>. Host series also carry <code>fleet_host</code>, <code>fleet_host_id</code>, <code>platform</code>, <code>os_version</code>,{' '}
-        <code>osquery_version</code>, <code>team</code> and <code>hardware_model</code>. Fleet&apos;s hosts aren&apos;t infrastructure hosts: they don&apos;t appear in the host list (a server that
-        also runs the Datadog Agent keeps its own). Up to 10,000 hosts are read per minute; the host counts include all of them.
+        <code>osquery_version</code>, <code>team</code>, <code>hardware_model</code> and <code>mdm_status</code>. Fleet&apos;s hosts aren&apos;t infrastructure hosts: they don&apos;t appear in the
+        host list (a server that also runs the Datadog Agent keeps its own). Up to 10,000 hosts are read per minute; the host counts include all of them.
       </p>
       <dl className="ci-sync">
         {METRICS.map(([name, text]) => (

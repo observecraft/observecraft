@@ -370,5 +370,249 @@
       "path": "server/seeds/pipelines/observecraft.json",
       "license": "MIT"
     }
+  },
+  {
+    "id": "fleetdm",
+    "integration": "fleetdm",
+    "name": "FleetDM",
+    "filter": "source:fleetdm",
+    "processors": [
+      {
+        "type": "date-remapper",
+        "name": "Define `created_at` as the official date of the log",
+        "enabled": true,
+        "sources": [
+          "created_at"
+        ]
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `type` to `evt.name`",
+        "enabled": true,
+        "sources": [
+          "type"
+        ],
+        "target": "evt.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `actor_full_name` to `usr.name`",
+        "enabled": true,
+        "sources": [
+          "actor_full_name"
+        ],
+        "target": "usr.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `actor_email` to `usr.email`",
+        "enabled": true,
+        "sources": [
+          "actor_email"
+        ],
+        "target": "usr.email",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `actor_id` to `usr.id`",
+        "enabled": true,
+        "sources": [
+          "actor_id"
+        ],
+        "target": "usr.id",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details` to `fleetdm.details`",
+        "enabled": true,
+        "sources": [
+          "details"
+        ],
+        "target": "fleetdm.details",
+        "preserveSource": false,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `fleetdm.details.public_ip` to `network.client.ip`",
+        "enabled": true,
+        "sources": [
+          "fleetdm.details.public_ip"
+        ],
+        "target": "network.client.ip",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `fleetdm.details.host_display_name` to `fleetdm.host_display_name`",
+        "enabled": true,
+        "sources": [
+          "fleetdm.details.host_display_name"
+        ],
+        "target": "fleetdm.host_display_name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "pipeline",
+        "name": "Failed logins: the user is the one who tried",
+        "enabled": true,
+        "filter": {
+          "query": "@evt.name:user_failed_login"
+        },
+        "processors": [
+          {
+            "type": "attribute-remapper",
+            "name": "Map the attempted `fleetdm.details.email` to `usr.email`",
+            "enabled": true,
+            "sources": [
+              "fleetdm.details.email"
+            ],
+            "target": "usr.email",
+            "preserveSource": true,
+            "overrideOnConflict": true,
+            "sourceType": "attribute",
+            "targetType": "attribute"
+          }
+        ]
+      },
+      {
+        "type": "category-processor",
+        "name": "Categorise the activity",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:(user_logged_in OR user_failed_login OR user_added_by_sso OR user_logged_out)"
+            },
+            "name": "authentication"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(ran_script OR locked_host OR unlocked_host OR wiped_host OR read_host_disk_encryption_key OR transferred_hosts OR deleted_host OR ran_script_batch OR canceled_run_script)"
+            },
+            "name": "host_action"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(installed_software OR uninstalled_software OR added_software OR edited_software OR deleted_software OR added_app_store_app OR deleted_app_store_app OR installed_app_store_app)"
+            },
+            "name": "software"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(mdm_enrolled OR mdm_unenrolled OR *_profile OR *_declaration_profile OR enabled_macos_disk_encryption OR disabled_macos_disk_encryption OR enabled_windows_mdm OR disabled_windows_mdm)"
+            },
+            "name": "mdm"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:*_policy"
+            },
+            "name": "policy"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(live_query OR *_saved_query OR *_pack)"
+            },
+            "name": "query"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(added_script OR edited_script OR deleted_script)"
+            },
+            "name": "script"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(created_user OR deleted_user OR changed_user_global_role OR deleted_user_global_role OR changed_user_team_role OR deleted_user_team_role OR user_added_by_sso OR reset_password)"
+            },
+            "name": "user_management"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(edited_agent_options OR created_team OR deleted_team OR applied_spec_team OR edited_enroll_secrets OR changed_macos_setup_assistant OR created_fleet OR deleted_fleet)"
+            },
+            "name": "configuration"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "other"
+          }
+        ],
+        "target": "fleetdm.category"
+      },
+      {
+        "type": "category-processor",
+        "name": "Severity of the activity: failed logins and installs are errors, hosts locked or wiped, keys read and deletions warnings",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:user_failed_login"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@fleetdm.details.status:*fail*"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(locked_host OR wiped_host OR read_host_disk_encryption_key OR deleted_*)"
+            },
+            "name": "warn"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "info"
+          }
+        ],
+        "target": "fleetdm.severity"
+      },
+      {
+        "type": "status-remapper",
+        "name": "Define `fleetdm.severity` as the official status of the log",
+        "enabled": true,
+        "sources": [
+          "fleetdm.severity"
+        ]
+      }
+    ],
+    "source": {
+      "repository": "observecraft/observecraft",
+      "revision": "",
+      "path": "server/seeds/pipelines/observecraft.json",
+      "license": "MIT"
+    }
   }
 ]

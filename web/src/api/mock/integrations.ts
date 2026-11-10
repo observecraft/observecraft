@@ -5,6 +5,7 @@
 import type { CollectedMetric, CollectorConfig, IntegrationDetail, IntegrationHost, IntegrationStatus, IntegrationSummary } from '../integrations/types';
 import { rng } from './generator';
 import { authentikConnected } from './authentik';
+import { fleetdmConnected } from './fleetdm';
 import { coreCatalog, type CoreIntegration } from '../integrations/catalog';
 import { linkCore } from '../integrations/coreLink';
 import { availableHere, installable, ownIntegration, unavailableReason, type Collection, type CollectionInfo } from '../integrations/collection';
@@ -1006,7 +1007,7 @@ function entryInstallable(e: Entry): boolean {
 }
 
 /** Integrations set up on their own page: installed while their mock connection is saved, as the server counts one. */
-const CONNECTED: Record<string, () => boolean> = { authentik: authentikConnected };
+const CONNECTED: Record<string, () => boolean> = { authentik: authentikConnected, fleetdm: fleetdmConnected };
 
 function statusOf(e: Entry): IntegrationStatus {
   if (!availableHere(collectionInfo(e))) return 'unavailable';

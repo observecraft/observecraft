@@ -2,7 +2,7 @@
   {
     "id": "fleetdm-overview",
     "title": "FleetDM Overview",
-    "description": "Hosts of a Fleet server (status, platforms, OS versions, disk, failing policies, vulnerabilities, MDM), its global policies and its activity feed.",
+    "description": "Hosts of a Fleet server (status, platforms, OS versions, disk, failing policies, MDM, disk encryption), its global policies, its vulnerabilities and its activity feed.",
     "kind": "integration",
     "logo": "fleetdm",
     "teams": [],
@@ -59,7 +59,7 @@
         }
       },
       {
-        "id": "fleetdm-9",
+        "id": "fleetdm-15",
         "definition": {
           "type": "group",
           "title": "Overview",
@@ -255,10 +255,102 @@
               "id": "fleetdm-7",
               "definition": {
                 "type": "integration",
-                "title": "Failing policy checks",
+                "title": "New today",
                 "original": {
                   "type": "query_value",
-                  "title": "Failing policy checks",
+                  "title": "New today",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.hosts.new{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-8",
+              "definition": {
+                "type": "integration",
+                "title": "Low disk space",
+                "original": {
+                  "type": "query_value",
+                  "title": "Low disk space",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.hosts.low_disk_space{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-9",
+              "definition": {
+                "type": "integration",
+                "title": "Failing checks",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failing checks",
                   "title_size": "16",
                   "title_align": "left",
                   "requests": [
@@ -291,14 +383,212 @@
                 }
               },
               "layout": {
-                "x": 8,
-                "y": 0,
+                "x": 0,
+                "y": 4,
                 "w": 2,
                 "h": 4
               }
             },
             {
-              "id": "fleetdm-8",
+              "id": "fleetdm-10",
+              "definition": {
+                "type": "integration",
+                "title": "Vulnerabilities",
+                "original": {
+                  "type": "query_value",
+                  "title": "Vulnerabilities",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.vulnerabilities.total{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-11",
+              "definition": {
+                "type": "integration",
+                "title": "Exploited CVEs",
+                "original": {
+                  "type": "query_value",
+                  "title": "Exploited CVEs",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.vulnerability.hosts{known_exploited:true} by {cve}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "count_nonzero(query1)"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-12",
+              "definition": {
+                "type": "integration",
+                "title": "MDM enrolled",
+                "original": {
+                  "type": "query_value",
+                  "title": "MDM enrolled",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.mdm_enrolled{*}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:fleetdm.host.count{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "100 * query1 / query2"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "custom_unit": "%"
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-13",
+              "definition": {
+                "type": "integration",
+                "title": "Encrypted",
+                "original": {
+                  "type": "query_value",
+                  "title": "Encrypted",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.disk_encrypted{*}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:fleetdm.host.count{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "100 * query1 / query2"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "custom_unit": "%"
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "fleetdm-14",
               "definition": {
                 "type": "integration",
                 "title": "Activities",
@@ -350,7 +640,7 @@
               },
               "layout": {
                 "x": 10,
-                "y": 0,
+                "y": 4,
                 "w": 2,
                 "h": 4
               }
@@ -361,11 +651,11 @@
           "x": 0,
           "y": 10,
           "w": 12,
-          "h": 7
+          "h": 11
         }
       },
       {
-        "id": "fleetdm-21",
+        "id": "fleetdm-27",
         "definition": {
           "type": "group",
           "title": "Hosts",
@@ -374,7 +664,7 @@
           "compact": false,
           "widgets": [
             {
-              "id": "fleetdm-10",
+              "id": "fleetdm-16",
               "definition": {
                 "type": "integration",
                 "title": "Hosts around the world",
@@ -428,7 +718,7 @@
               }
             },
             {
-              "id": "fleetdm-11",
+              "id": "fleetdm-17",
               "definition": {
                 "type": "integration",
                 "title": "Status",
@@ -503,7 +793,7 @@
               }
             },
             {
-              "id": "fleetdm-12",
+              "id": "fleetdm-18",
               "definition": {
                 "type": "integration",
                 "title": "Platforms",
@@ -557,7 +847,7 @@
               }
             },
             {
-              "id": "fleetdm-13",
+              "id": "fleetdm-19",
               "definition": {
                 "type": "integration",
                 "title": "Teams",
@@ -611,7 +901,7 @@
               }
             },
             {
-              "id": "fleetdm-14",
+              "id": "fleetdm-20",
               "definition": {
                 "type": "integration",
                 "title": "osquery versions",
@@ -661,7 +951,7 @@
               }
             },
             {
-              "id": "fleetdm-15",
+              "id": "fleetdm-21",
               "definition": {
                 "type": "integration",
                 "title": "Hosts by status",
@@ -729,7 +1019,7 @@
               }
             },
             {
-              "id": "fleetdm-16",
+              "id": "fleetdm-22",
               "definition": {
                 "type": "integration",
                 "title": "OS versions",
@@ -766,7 +1056,7 @@
               }
             },
             {
-              "id": "fleetdm-17",
+              "id": "fleetdm-23",
               "definition": {
                 "type": "integration",
                 "title": "Online hosts by platform",
@@ -813,7 +1103,7 @@
               }
             },
             {
-              "id": "fleetdm-18",
+              "id": "fleetdm-24",
               "definition": {
                 "type": "integration",
                 "title": "Longest unseen hosts",
@@ -860,7 +1150,7 @@
               }
             },
             {
-              "id": "fleetdm-19",
+              "id": "fleetdm-25",
               "definition": {
                 "type": "integration",
                 "title": "Least free disk space",
@@ -907,7 +1197,7 @@
               }
             },
             {
-              "id": "fleetdm-20",
+              "id": "fleetdm-26",
               "definition": {
                 "type": "integration",
                 "title": "Hosts",
@@ -1008,13 +1298,13 @@
         },
         "layout": {
           "x": 0,
-          "y": 17,
+          "y": 21,
           "w": 12,
           "h": 41
         }
       },
       {
-        "id": "fleetdm-31",
+        "id": "fleetdm-37",
         "definition": {
           "type": "group",
           "title": "Policies and security",
@@ -1023,7 +1313,7 @@
           "compact": false,
           "widgets": [
             {
-              "id": "fleetdm-22",
+              "id": "fleetdm-28",
               "definition": {
                 "type": "integration",
                 "title": "Hosts failing a policy",
@@ -1069,7 +1359,7 @@
               }
             },
             {
-              "id": "fleetdm-23",
+              "id": "fleetdm-29",
               "definition": {
                 "type": "integration",
                 "title": "Critical vulnerabilities",
@@ -1115,7 +1405,7 @@
               }
             },
             {
-              "id": "fleetdm-24",
+              "id": "fleetdm-30",
               "definition": {
                 "type": "integration",
                 "title": "MDM enrolled",
@@ -1161,7 +1451,7 @@
               }
             },
             {
-              "id": "fleetdm-25",
+              "id": "fleetdm-31",
               "definition": {
                 "type": "integration",
                 "title": "Disks encrypted",
@@ -1207,7 +1497,7 @@
               }
             },
             {
-              "id": "fleetdm-26",
+              "id": "fleetdm-32",
               "definition": {
                 "type": "integration",
                 "title": "Policy checks",
@@ -1272,7 +1562,7 @@
               }
             },
             {
-              "id": "fleetdm-27",
+              "id": "fleetdm-33",
               "definition": {
                 "type": "integration",
                 "title": "Global policies",
@@ -1330,7 +1620,7 @@
               }
             },
             {
-              "id": "fleetdm-28",
+              "id": "fleetdm-34",
               "definition": {
                 "type": "integration",
                 "title": "Most failing policies",
@@ -1380,7 +1670,7 @@
               }
             },
             {
-              "id": "fleetdm-29",
+              "id": "fleetdm-35",
               "definition": {
                 "type": "integration",
                 "title": "Hosts with the most failing policies",
@@ -1427,7 +1717,7 @@
               }
             },
             {
-              "id": "fleetdm-30",
+              "id": "fleetdm-36",
               "definition": {
                 "type": "integration",
                 "title": "Most critical vulnerabilities",
@@ -1477,13 +1767,487 @@
         },
         "layout": {
           "x": 0,
-          "y": 58,
+          "y": 62,
           "w": 12,
           "h": 21
         }
       },
       {
-        "id": "fleetdm-41",
+        "id": "fleetdm-43",
+        "definition": {
+          "type": "group",
+          "title": "Vulnerabilities",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "fleetdm-38",
+              "definition": {
+                "type": "integration",
+                "title": "Vulnerabilities on the most hosts",
+                "original": {
+                  "type": "toplist",
+                  "title": "Vulnerabilities on the most hosts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:fleetdm.vulnerability.hosts{*} by {cve}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-39",
+              "definition": {
+                "type": "integration",
+                "title": "By severity",
+                "original": {
+                  "type": "sunburst",
+                  "title": "By severity",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.vulnerability.hosts{*} by {severity}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 0,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-40",
+              "definition": {
+                "type": "integration",
+                "title": "Known exploited (CISA)",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Known exploited (CISA)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.vulnerability.hosts{*} by {known_exploited}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-41",
+              "definition": {
+                "type": "integration",
+                "title": "Vulnerabilities",
+                "original": {
+                  "type": "query_table",
+                  "title": "Vulnerabilities",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:fleetdm.vulnerability.hosts{*} by {cve,severity,known_exploited}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "hosts",
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 100,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 8,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-42",
+              "definition": {
+                "type": "integration",
+                "title": "Vulnerabilities found",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Vulnerabilities found",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.vulnerabilities.total{*}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "vulnerabilities",
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "area"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 8,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 83,
+          "w": 12,
+          "h": 19
+        }
+      },
+      {
+        "id": "fleetdm-48",
+        "definition": {
+          "type": "group",
+          "title": "MDM and disk encryption",
+          "color": "green",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "fleetdm-44",
+              "definition": {
+                "type": "integration",
+                "title": "MDM enrollment",
+                "original": {
+                  "type": "sunburst",
+                  "title": "MDM enrollment",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.count{*} by {mdm_status}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-45",
+              "definition": {
+                "type": "integration",
+                "title": "Disk encryption",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Disk encryption",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.disk_encrypted{*}",
+                          "aggregator": "last"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:fleetdm.host.count{*}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "encrypted",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "not encrypted or unknown",
+                          "formula": "query2 - query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 0,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-46",
+              "definition": {
+                "type": "integration",
+                "title": "MDM enrolled by platform",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "MDM enrolled by platform",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fleetdm.host.mdm_enrolled{*} by {platform}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "fleetdm-47",
+              "definition": {
+                "type": "log_stream",
+                "title": "MDM enrollment, profiles and disk encryption",
+                "query": "source:fleetdm @fleetdm.category:mdm",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 8,
+                "w": 12,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 102,
+          "w": 12,
+          "h": 19
+        }
+      },
+      {
+        "id": "fleetdm-60",
         "definition": {
           "type": "group",
           "title": "Activity feed",
@@ -1492,7 +2256,7 @@
           "compact": false,
           "widgets": [
             {
-              "id": "fleetdm-32",
+              "id": "fleetdm-49",
               "definition": {
                 "type": "integration",
                 "title": "Activities over time",
@@ -1557,7 +2321,7 @@
               }
             },
             {
-              "id": "fleetdm-33",
+              "id": "fleetdm-50",
               "definition": {
                 "type": "integration",
                 "title": "Failed logins",
@@ -1615,13 +2379,13 @@
               }
             },
             {
-              "id": "fleetdm-34",
+              "id": "fleetdm-51",
               "definition": {
                 "type": "integration",
-                "title": "Activities by type",
+                "title": "Activities by category",
                 "original": {
                   "type": "sunburst",
-                  "title": "Activities by type",
+                  "title": "Activities by category",
                   "title_size": "16",
                   "title_align": "left",
                   "requests": [
@@ -1642,7 +2406,7 @@
                           },
                           "group_by": [
                             {
-                              "facet": "@evt.name",
+                              "facet": "@fleetdm.category",
                               "limit": 10,
                               "sort": {
                                 "aggregation": "count",
@@ -1687,7 +2451,7 @@
               }
             },
             {
-              "id": "fleetdm-35",
+              "id": "fleetdm-52",
               "definition": {
                 "type": "integration",
                 "title": "Most active users",
@@ -1755,7 +2519,7 @@
               }
             },
             {
-              "id": "fleetdm-36",
+              "id": "fleetdm-53",
               "definition": {
                 "type": "integration",
                 "title": "Hosts acted on most",
@@ -1823,7 +2587,7 @@
               }
             },
             {
-              "id": "fleetdm-37",
+              "id": "fleetdm-54",
               "definition": {
                 "type": "log_stream",
                 "title": "Logins and failed logins",
@@ -1838,7 +2602,7 @@
               }
             },
             {
-              "id": "fleetdm-38",
+              "id": "fleetdm-55",
               "definition": {
                 "type": "log_stream",
                 "title": "Scripts, software and MDM actions on hosts",
@@ -1853,7 +2617,7 @@
               }
             },
             {
-              "id": "fleetdm-39",
+              "id": "fleetdm-56",
               "definition": {
                 "type": "log_stream",
                 "title": "Policies, queries and configuration changed",
@@ -1868,7 +2632,7 @@
               }
             },
             {
-              "id": "fleetdm-40",
+              "id": "fleetdm-57",
               "definition": {
                 "type": "log_stream",
                 "title": "Warnings and errors",
@@ -1881,14 +2645,147 @@
                 "w": 6,
                 "h": 8
               }
+            },
+            {
+              "id": "fleetdm-58",
+              "definition": {
+                "type": "integration",
+                "title": "Activities by user",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Activities by user",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:fleetdm @usr.email:*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.email",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 28,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "fleetdm-59",
+              "definition": {
+                "type": "integration",
+                "title": "Top activity types",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "Top activity types",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:fleetdm"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 28,
+                "w": 6,
+                "h": 6
+              }
             }
           ]
         },
         "layout": {
           "x": 0,
-          "y": 79,
+          "y": 121,
           "w": 12,
-          "h": 31
+          "h": 37
         }
       }
     ],

@@ -137,6 +137,38 @@ mod tests {
     }
 
     #[test]
+    fn fleetdm_activities_get_categories_users_and_statuses() {
+        use crate::fleetdm::{fixtures, logs::log_of};
+        use serde_json::json;
+        assert_eq!(get("fleetdm").unwrap().integration, "fleetdm", "installed with the integration");
+        let attrs = |activity: Value| {
+            let mut log = log_of(&activity, "fleet.example.com");
+            for k in ["date", "message", "status", "service", "ddsource", "host", "_oc_ingest"] {
+                log.as_object_mut().unwrap().remove(k);
+            }
+            log
+        };
+        let run = |activity: Value| with_attrs("fleetdm", "fleetdm", attrs(activity));
+        let policy = run(fixtures::created_policy(1, "2026-11-06T10:00:00Z"));
+        assert_eq!((policy.get("fleetdm.category"), policy.status.as_str()), (Some(json!("policy")), "info"));
+        let wiped = run(fixtures::activity(2, "wiped_host", "2026-11-06T10:00:00Z", json!({ "host_id": 3, "host_display_name": "desktop-sam" })));
+        assert_eq!((wiped.get("fleetdm.category"), wiped.status.as_str()), (Some(json!("host_action")), "warn"));
+        let install = run(fixtures::activity(3, "installed_software", "2026-11-06T10:00:00Z", json!({ "software_title": "zoom.us.app", "status": "failed_install" })));
+        assert_eq!((install.get("fleetdm.category"), install.status.as_str()), (Some(json!("software")), "error"));
+        let profile = run(fixtures::activity(4, "created_macos_profile", "2026-11-06T10:00:00Z", json!({ "profile_name": "Wi-Fi" })));
+        assert_eq!(profile.get("fleetdm.category"), Some(json!("mdm")));
+        let mut failed = fixtures::activity(5, "user_failed_login", "2026-11-06T10:00:00Z", json!({ "email": "admin@example.com", "public_ip": "198.51.100.7" }));
+        failed["actor_email"] = Value::Null;
+        let failed = run(failed);
+        assert_eq!((failed.get("fleetdm.category"), failed.get("usr.email"), failed.status.as_str()), (Some(json!("authentication")), Some(json!("admin@example.com")), "error"));
+        assert_eq!(run(fixtures::activity(6, "something_new", "2026-11-06T10:00:00Z", json!({}))).get("fleetdm.category"), Some(json!("other")));
+        // An activity as Fleet's audit log destination writes it: remapped.
+        let raw = with_attrs("fleetdm", "fleetdm", fixtures::activity(7, "user_logged_in", "2026-11-06T10:00:00.000Z", json!({ "public_ip": "203.0.113.24" })));
+        assert_eq!((raw.get("evt.name"), raw.get("usr.name"), raw.get("usr.email"), raw.get("network.client.ip")), (Some(json!("user_logged_in")), Some(json!("Jordan Patel")), Some(json!("jordan.patel@example.com")), Some(json!("203.0.113.24"))));
+        assert_eq!((raw.get("fleetdm.category"), raw.timestamp_ms), (Some(json!("authentication")), Some(1_793_959_200_000)));
+    }
+
+    #[test]
     fn every_integrations_pipelines_are_listed() {
         assert!(all().len() >= 240, "{} pipelines", all().len());
         for id in ["nginx", "postgres", "mysql", "redisdb", "cisco_asa", "mongo", "symantec_endpoint_protection"] {

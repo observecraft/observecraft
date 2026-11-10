@@ -27,6 +27,9 @@ interface Host {
   encrypted?: boolean;
 }
 
+/** Fleet's MDM enrollment status of a host (none for Linux). */
+const mdmStatus = (x: Host): string | undefined => (x.mdm === true ? (x.platform === 'darwin' ? 'On (automatic)' : 'On (manual)') : x.mdm === false ? 'Off' : undefined);
+
 const h = (
   name: string,
   platform: string,
@@ -111,6 +114,18 @@ const FAILING: Record<string, number> = {
   'No critical vulnerabilities': HOSTS.filter((x) => x.critical > 0).length,
 };
 
+/** The vulnerabilities on the most hosts: CVE, severity, CISA known exploit (Fleet Premium), hosts. */
+const VULNERABILITIES: [cve: string, severity: string, known: boolean | undefined, hosts: number][] = [
+  ['CVE-2024-3094', 'critical', true, 3],
+  ['CVE-2023-4863', 'high', true, 5],
+  ['CVE-2024-6387', 'high', false, 4],
+  ['CVE-2023-38545', 'critical', false, 2],
+  ['CVE-2024-21626', 'high', false, 2],
+  ['CVE-2023-44487', 'medium', true, 6],
+  ['CVE-2024-2961', 'medium', false, 1],
+];
+const VULN_HOSTS = new Map(VULNERABILITIES.map(([cve, , , n]) => [cve, n]));
+
 const PLATFORMS = [...new Set(HOSTS.map((x) => x.platform))];
 
 export const FLEETDM_SETS: Record<string, Tags[]> = {
@@ -123,10 +138,12 @@ export const FLEETDM_SETS: Record<string, Tags[]> = {
     osquery_version: x.osquery,
     team: x.team,
     ...(x.model ? { hardware_model: x.model } : {}),
+    ...(mdmStatus(x) ? { mdm_status: mdmStatus(x) as string } : {}),
     ...(GEO[x.name] ? { country_code: GEO[x.name][0], city: GEO[x.name][1] } : {}),
   })),
   fleetdm_instance: [{ fleet_instance: INSTANCE }],
   fleetdm_platforms: PLATFORMS.map((platform) => ({ fleet_instance: INSTANCE, platform })),
+  fleetdm_vulnerabilities: VULNERABILITIES.map(([cve, severity, known]) => ({ fleet_instance: INSTANCE, cve, severity, ...(known === undefined ? {} : { known_exploited: String(known) }) })),
   fleetdm_policies: POLICIES.map(([policy, critical, platform], i) => ({ fleet_instance: INSTANCE, policy, policy_id: String(12 + i), critical: String(critical), ...(platform ? { platform } : {}) })),
 };
 
@@ -158,6 +175,8 @@ export const FLEETDM_METRICS: Record<string, CloudMetricDef> = {
   'fleetdm.host.issues': gauge('Issues of the Fleet host', (x) => x.failing + x.critical),
   'fleetdm.host.mdm_enrolled': flag('Fleet hosts enrolled in MDM', (x) => x.mdm === true),
   'fleetdm.host.disk_encrypted': flag('Fleet hosts with an encrypted disk', (x) => x.encrypted === true),
+  'fleetdm.vulnerability.hosts': { set: 'fleetdm_vulnerabilities', description: 'Fleet hosts with the vulnerability', base: (e) => VULN_HOSTS.get(e.cve) ?? 0, noise: 0, integer: true },
+  'fleetdm.vulnerabilities.total': count('Vulnerabilities Fleet found on the hosts', 87),
   'fleetdm.hosts.total': count('Fleet hosts', HOSTS.length),
   'fleetdm.hosts.online': count('Fleet hosts online', status('online')),
   'fleetdm.hosts.offline': count('Fleet hosts offline', status('offline')),

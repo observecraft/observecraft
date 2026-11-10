@@ -11,6 +11,8 @@ use crate::routes::portal_sources::{send_with_status, Auth, HttpCall};
 pub const ACTIVITIES_PAGE_SIZE: usize = 100;
 /// Hosts per page (a listed host is a few kB: a page stays well under the client's answer cap).
 pub const HOSTS_PAGE_SIZE: usize = 200;
+/// The vulnerabilities read per poll: those on the most hosts.
+pub const VULNERABILITIES: usize = 50;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum FleetError {
@@ -69,9 +71,19 @@ pub const HOST_SUMMARY: &str = "/host_summary";
 /// The global policies, with their passing and failing host counts.
 pub const GLOBAL_POLICIES: &str = "/global/policies";
 
-/// A page of activities (0-based), newest first.
-pub fn activities_path(page: usize) -> String {
-    format!("/activities?page={page}&per_page={ACTIVITIES_PAGE_SIZE}&order_key=created_at&order_direction=desc")
+/// A page (0-based) of the activities created from `start_ms` on (Fleet's `start_created_at`, to the second), by id:
+/// Fleet's order of creation, so new activities only add to the last pages.
+pub fn activities_path(page: usize, start_ms: i64) -> String {
+    let start = chrono::DateTime::from_timestamp_millis(start_ms.div_euclid(1000) * 1000).unwrap_or_default().format("%Y-%m-%dT%H:%M:%SZ");
+    format!("/activities?page={page}&per_page={ACTIVITIES_PAGE_SIZE}&order_key=id&order_direction=asc&start_created_at={start}")
+}
+
+/// The newest activity (the connection test: can the token read the activities).
+pub const LATEST_ACTIVITY: &str = "/activities?page=0&per_page=1&order_key=id&order_direction=desc";
+
+/// The vulnerabilities on the most hosts, with how many Fleet knows (`count`).
+pub fn vulnerabilities_path() -> String {
+    format!("/vulnerabilities?page=0&per_page={VULNERABILITIES}&order_key=hosts_count&order_direction=desc")
 }
 
 /// A page of hosts (0-based), by id so pages stay stable while hosts enroll.
@@ -85,7 +97,9 @@ mod tests {
 
     #[test]
     fn paths_and_errors() {
-        assert_eq!(activities_path(2), "/activities?page=2&per_page=100&order_key=created_at&order_direction=desc");
+        let start = chrono::DateTime::parse_from_rfc3339("2026-11-06T11:00:00.750Z").unwrap().timestamp_millis();
+        assert_eq!(activities_path(2, start), "/activities?page=2&per_page=100&order_key=id&order_direction=asc&start_created_at=2026-11-06T11:00:00Z");
+        assert_eq!(vulnerabilities_path(), "/vulnerabilities?page=0&per_page=50&order_key=hosts_count&order_direction=desc");
         assert_eq!(hosts_path(0), "/hosts?page=0&per_page=200&order_key=id&order_direction=asc");
         assert_eq!(classify(Some(401), "token fleet-secret refused", "fleet-secret"), FleetError::Auth("token [token] refused".into()));
         assert!(matches!(classify(Some(429), "", "t"), FleetError::Throttled(_)));
