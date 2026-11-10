@@ -22,6 +22,10 @@ const EXTRAS: &str = "20d3ceeaf342b8c9f6211dc9df9ea3d382dbb692";
 /// Samples that pass today: the test fails when fewer do (raise it as the engine catches up).
 const PASSING: usize = 1299;
 
+/// Pipelines that must give upstream's result for every one of their samples: the datastores ObserveCraft runs on
+/// (PostgreSQL, PgBouncer, Redis and Valkey, ClickHouse) and Kafka with Confluent Platform and Strimzi.
+const EVERY_SAMPLE: [&str; 7] = ["clickhouse", "confluent_platform", "kafka", "pgbouncer", "postgres", "redisdb", "strimzi"];
+
 fn env(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.is_empty())
 }
@@ -198,4 +202,8 @@ fn integration_pipelines_give_upstreams_results_for_its_samples() {
         std::fs::write(path, format!("{summary}\n\n{lines}\n{report}")).unwrap();
     }
     assert!(passed >= PASSING, "{summary} (was {PASSING})");
+    for id in EVERY_SAMPLE {
+        let (ok, n) = per.get(id).copied().unwrap_or_default();
+        assert!(n > 0 && ok == n, "{id}: {ok} of {n} samples pass\n{}", report.lines().skip_while(|l| !l.starts_with(&format!("{id} #"))).take_while(|l| l.starts_with(&format!("{id} #")) || l.starts_with("  ")).collect::<Vec<_>>().join("\n"));
+    }
 }
