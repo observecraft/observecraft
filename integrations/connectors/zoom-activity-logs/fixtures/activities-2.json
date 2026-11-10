@@ -1,0 +1,7 @@
+{
+  "from": "2026-11-09", "to": "2026-11-10", "page_size": 2, "next_page_token": "", "total_records": 4,
+  "activity_logs": [
+    { "email": "sam.lee@example.com", "time": "2026-11-10T08:15:44Z", "type": "Sign in", "ip_address": "203.0.113.15", "client_type": "Mac", "version": "6.2.5", "login_type": "Work Email" },
+    { "email": "alex.morgan@example.com", "time": "2026-11-08T17:00:00Z", "type": "Sign in", "ip_address": "198.51.100.41", "client_type": "Windows", "version": "6.2.5", "login_type": "SSO" }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c518-f6b0-7904-b54d-3e79bae07fb9"
+      },
+      "action": "Delete",
+      "category_type": "Recording",
+      "date": "2026-11-10T10:55:10Z",
+      "ddsource": "zoom-activity-logs",
+      "evt": {
+        "category": "operation",
+        "name": "Recording Delete"
+      },
+      "host": "aBcDeFgHiJkLmNoPqRsT01",
+      "message": "alex.morgan@example.com: Delete Recording: Delete Cloud Recording - Weekly order-service sync",
+      "operation_detail": "Delete Cloud Recording - Weekly order-service sync",
+      "operator": "alex.morgan@example.com",
+      "service": "zoom-activity-logs",
+      "status": "warn",
+      "time": "2026-11-10T10:55:10Z",
+      "usr": {
+        "email": "alex.morgan@example.com"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c474-2b30-7ea6-8612-17135adfd59b"
+      },
+      "action": "Update",
+      "category_type": "User",
+      "date": "2026-11-10T07:55:10Z",
+      "ddsource": "zoom-activity-logs",
+      "evt": {
+        "category": "operation",
+        "name": "User Update"
+      },
+      "host": "aBcDeFgHiJkLmNoPqRsT01",
+      "message": "alex.morgan@example.com: Update User: Update user settings: jordan.patel@example.com",
+      "operation_detail": "Update user settings: jordan.patel@example.com",
+      "operator": "alex.morgan@example.com",
+      "service": "zoom-activity-logs",
+      "status": "info",
+      "time": "2026-11-10T07:55:10Z",
+      "usr": {
+        "email": "alex.morgan@example.com"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}
