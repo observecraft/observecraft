@@ -10,6 +10,7 @@ mod auth;
 mod aws;
 mod bills;
 mod azure;
+mod entra;
 mod cloud;
 mod gcp;
 mod authentik;
@@ -237,6 +238,11 @@ async fn main() -> anyhow::Result<()> {
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, authentik::crawler::LOGS_TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(authentik::crawler::AuthentikCrawler { api: Arc::new(authentik::api::Rest { allow_private: state.config.portal_allow_private }), sink: logs });
         tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, authentik::crawler::INTERVAL_SECS, concurrency)));
+        // The Microsoft Entra ID logs' poller: the Azure app registrations' tenants' sign-ins, audits and risk
+        // detections from Microsoft Graph, as logs (JSON logs).
+        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, entra::crawler::LOGS_TOPIC));
+        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(entra::crawler::EntraCrawler { api: Arc::new(azure::api::Rest::new(reqwest::Client::new(), Default::default())), sink: logs });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, entra::crawler::INTERVAL_SECS, concurrency)));
         // The NetBird integration's poller: the accounts' audit events as logs, their peers as metrics.
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, netbird::crawler::LOGS_TOPIC));
         let metrics: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));

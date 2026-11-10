@@ -170,17 +170,20 @@ pub struct Endpoints {
     pub metrics: String,
     /// Blob Storage; `{account}` is replaced by the storage account.
     pub blob: String,
+    /// Microsoft Graph (Entra ID's sign-in and audit logs, `crate::entra`).
+    pub graph: String,
 }
 
 impl Default for Endpoints {
     fn default() -> Self {
-        Endpoints { login: "https://login.microsoftonline.com".into(), management: "https://management.azure.com".into(), metrics: "https://{region}.metrics.monitor.azure.com".into(), blob: "https://{account}.blob.core.windows.net".into() }
+        Endpoints { login: "https://login.microsoftonline.com".into(), management: "https://management.azure.com".into(), metrics: "https://{region}.metrics.monitor.azure.com".into(), blob: "https://{account}.blob.core.windows.net".into(), graph: "https://graph.microsoft.com".into() }
     }
 }
 
 const MANAGEMENT_SCOPE: &str = "https://management.azure.com/.default";
 const METRICS_SCOPE: &str = "https://metrics.monitor.azure.com/.default";
 const STORAGE_SCOPE: &str = "https://storage.azure.com/.default";
+const GRAPH_SCOPE: &str = "https://graph.microsoft.com/.default";
 /// The Blob Storage REST version the calls ask for.
 const BLOB_VERSION: &str = "2021-08-06";
 /// What reading a cost export's blobs needs (the Storage Blob Data Reader role).
@@ -320,6 +323,33 @@ impl Rest {
     pub async fn get_blob(&self, c: &Credentials, account: &str, container: &str, name: &str) -> Result<Vec<u8>, AzureError> {
         let res = self.blob_request(c, self.blob_url(account, container, Some(name))?).await?;
         Ok(res.bytes().await.map_err(|e| AzureError::Other(e.to_string()))?.to_vec())
+    }
+
+    /// A Microsoft Graph GET (`crate::entra`): `target` is a path under `/v1.0` or an `@odata.nextLink` Graph
+    /// returned, followed only on Graph so the token goes nowhere else. Graph's error code leads a refusal's message
+    /// (`Authorization_RequestDenied: …`), as its codes tell a missing permission from a missing license.
+    pub async fn graph_get(&self, c: &Credentials, target: &str) -> Result<Value, AzureError> {
+        let root = format!("{}/v1.0", self.endpoints.graph.trim_end_matches('/'));
+        let url = if target.starts_with('/') {
+            format!("{root}{target}")
+        } else if target.starts_with(&format!("{root}/")) {
+            target.to_string()
+        } else {
+            return Err(AzureError::Other(format!("not Microsoft Graph: {target}")));
+        };
+        let token = self.token(c, GRAPH_SCOPE).await?;
+        let res = self.http.get(url).bearer_auth(token).send().await.map_err(|e| AzureError::Other(e.to_string()))?;
+        let status = res.status().as_u16();
+        let body = res.text().await.unwrap_or_default();
+        if !(200..300).contains(&status) {
+            let code = serde_json::from_str::<Value>(&body).ok().and_then(|v| v["error"]["code"].as_str().map(str::to_string));
+            return Err(match (classify(status, &body), code) {
+                (AzureError::Forbidden { action, message }, Some(code)) => AzureError::Forbidden { action, message: format!("{code}: {message}") },
+                (AzureError::Rejected(m), Some(code)) => AzureError::Rejected(format!("{code}: {m}")),
+                (e, _) => e,
+            });
+        }
+        serde_json::from_str(&body).map_err(|e| AzureError::Other(e.to_string()))
     }
 
     /// Every page of a Resource Manager list (`value`, `nextLink`).
@@ -565,6 +595,18 @@ mod tests {
             )
             .route("/examplecostexports/costs/{*name}", get(|axum::extract::Path(name): axum::extract::Path<String>| async move { format!("bytes of {name}") }))
             .route(
+                "/v1.0/auditLogs/signIns",
+                get(move |h: HeaderMap, Query(q): Query<HashMap<String, String>>| async move {
+                    // Microsoft Graph: its own token; refusals carry Graph's error code.
+                    assert_eq!(bearer(&h), "Bearer tok-https://graph.microsoft.com/.default");
+                    if q.get("$filter").is_some_and(|f| f.contains("premium")) {
+                        let body = json!({ "error": { "code": "Authentication_RequestFromNonPremiumTenantOrB2CTenant", "message": "Neither tenant is B2C or tenant doesn't have premium license" } });
+                        return (axum::http::StatusCode::FORBIDDEN, Json(body));
+                    }
+                    (axum::http::StatusCode::OK, Json(json!({ "value": [{ "id": "s-1" }], "filter": q.get("$filter") })))
+                }),
+            )
+            .route(
                 "/deniedaccount/costs",
                 get(|| async { (axum::http::StatusCode::FORBIDDEN, "<?xml version=\"1.0\" encoding=\"utf-8\"?><Error><Code>AuthorizationPermissionMismatch</Code><Message>This request is not authorized to perform this operation using this permission.</Message></Error>") }),
             )
@@ -576,7 +618,7 @@ mod tests {
     #[tokio::test]
     async fn blobs_are_listed_page_by_page_and_downloaded() {
         let (base, _) = fake_azure().await;
-        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: format!("{base}/{{account}}") });
+        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: format!("{base}/{{account}}"), graph: base.clone() });
         let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
         let blobs = rest.list_blobs(&c, "examplecostexports", "costs", "cost-exports/observecraft-actual/").await.unwrap();
         assert_eq!(
@@ -591,7 +633,7 @@ mod tests {
     #[tokio::test]
     async fn the_rest_client_signs_in_lists_and_reads_batches() {
         let (base, seen) = fake_azure().await;
-        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base.clone() });
+        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base.clone(), graph: base.clone() });
         let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
         let resources = rest.resources(&c, "sub-a").await.unwrap();
         assert_eq!(resources.len(), 2);
@@ -642,9 +684,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn graph_reads_paths_and_its_own_links_with_its_token() {
+        let (base, seen) = fake_azure().await;
+        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base.clone(), graph: base.clone() });
+        let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
+        let page = rest.graph_get(&c, "/auditLogs/signIns?$filter=createdDateTime ge 2026-11-06T10:00:00Z").await.unwrap();
+        assert_eq!((page["value"][0]["id"].as_str(), page["filter"].as_str()), (Some("s-1"), Some("createdDateTime ge 2026-11-06T10:00:00Z")));
+        // An `@odata.nextLink` is absolute: followed on Graph only, so the token never goes elsewhere.
+        let link = rest.graph_get(&c, &format!("{base}/v1.0/auditLogs/signIns?$skiptoken=x")).await.unwrap();
+        assert_eq!(link["value"][0]["id"], "s-1");
+        assert!(matches!(rest.graph_get(&c, "https://elsewhere.example.com/v1.0/auditLogs/signIns").await, Err(AzureError::Other(m)) if m.contains("not Microsoft Graph")));
+        let denied = rest.graph_get(&c, "/auditLogs/signIns?$filter=premium").await.unwrap_err();
+        assert!(matches!(&denied, AzureError::Forbidden { action: None, message } if message.starts_with("Authentication_RequestFromNonPremiumTenantOrB2CTenant: ")), "{denied:?}");
+        assert_eq!(seen.lock().unwrap().iter().filter(|s| s.starts_with("token")).count(), 1, "one Graph token, cached");
+    }
+
+    #[tokio::test]
     async fn subscriptions_follow_next_links_and_skip_disabled_ones() {
         let (base, _) = fake_azure().await;
-        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base });
+        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base.clone(), graph: base });
         let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
         assert_eq!(rest.subscriptions(&c).await.unwrap(), ["sub-a"]);
     }

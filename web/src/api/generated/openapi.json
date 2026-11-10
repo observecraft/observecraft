@@ -11104,6 +11104,149 @@
         }
       }
     },
+    "/api/v1/integrations/azure/accounts/{id}/entra-logs": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The app registration's Entra ID logs and their polling status.",
+        "operationId": "azure_entra_logs",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntraLogs"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Turns the app registration's Entra ID logs on or off, by stream (admins). On, the Microsoft Entra ID tile counts\nas installed and its log pipeline is installed; off, the polling stops (stored logs stay).",
+        "operationId": "azure_entra_logs_save",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntraLogsInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntraLogs"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/azure/accounts/{id}/entra-logs/test": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Tests what the app registration may read from Microsoft Graph, stream by stream (admins): the permissions and\nlicenses each needs are named when Graph refuses.",
+        "operationId": "azure_entra_logs_test",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntraLogsTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/integrations/azure/accounts/{id}/status": {
       "get": {
         "tags": [
@@ -44639,6 +44782,112 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "EntraLogs": {
+        "type": "object",
+        "description": "An app registration's Entra ID logs.",
+        "required": [
+          "enabled",
+          "signIns",
+          "audits",
+          "risk",
+          "streams"
+        ],
+        "properties": {
+          "audits": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "risk": {
+            "type": "boolean"
+          },
+          "signIns": {
+            "type": "boolean"
+          },
+          "streams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeStatus"
+            },
+            "description": "One per stream on: scope `signins`, `audits` or `risk`."
+          }
+        }
+      },
+      "EntraLogsInput": {
+        "type": "object",
+        "description": "What an admin turns on.",
+        "properties": {
+          "audits": {
+            "type": "boolean",
+            "default": true
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "risk": {
+            "type": "boolean",
+            "default": false
+          },
+          "signIns": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "EntraLogsTest": {
+        "type": "object",
+        "required": [
+          "ok",
+          "streams"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Every stream readable."
+          },
+          "streams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntraStreamTest"
+            }
+          }
+        }
+      },
+      "EntraStreamTest": {
+        "type": "object",
+        "description": "One stream's test.",
+        "required": [
+          "stream",
+          "ok",
+          "message",
+          "permission"
+        ],
+        "properties": {
+          "license": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The license it needs, when one does."
+          },
+          "message": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "permission": {
+            "type": "string",
+            "description": "The Microsoft Graph application permission it needs."
+          },
+          "stream": {
+            "type": "string",
+            "description": "`signins`, `audits` or `risk`."
           }
         }
       },

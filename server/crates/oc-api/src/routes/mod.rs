@@ -7,6 +7,7 @@ pub mod gitlab_audit_integration;
 pub mod google_workspace_integration;
 pub mod aws_integration;
 pub mod azure_integration;
+pub mod entra_logs;
 pub mod gcp_integration;
 pub mod apps;
 pub mod assist;
@@ -867,6 +868,9 @@ use crate::state::AppState;
         azure_integration::update_account,
         azure_integration::delete_account,
         azure_integration::account_status,
+        entra_logs::get_entra_logs,
+        entra_logs::put_entra_logs,
+        entra_logs::test_entra_logs,
         authentik_integration::get_authentik,
         authentik_integration::put_authentik,
         authentik_integration::delete_authentik,
@@ -1673,6 +1677,8 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/integrations/azure/accounts", get(azure_integration::list_accounts).post(azure_integration::create_account))
         .route("/api/v1/integrations/azure/accounts/{id}", axum::routing::put(azure_integration::update_account).delete(azure_integration::delete_account))
         .route("/api/v1/integrations/azure/accounts/{id}/status", get(azure_integration::account_status))
+        .route("/api/v1/integrations/azure/accounts/{id}/entra-logs", get(entra_logs::get_entra_logs).put(entra_logs::put_entra_logs))
+        .route("/api/v1/integrations/azure/accounts/{id}/entra-logs/test", axum::routing::post(entra_logs::test_entra_logs))
         .route("/api/v1/integrations/authentik", get(authentik_integration::get_authentik).put(authentik_integration::put_authentik).delete(authentik_integration::delete_authentik))
         .route("/api/v1/integrations/authentik/test", axum::routing::post(authentik_integration::test_authentik))
         .route("/api/v1/integrations/authentik/sync", axum::routing::post(authentik_integration::sync_authentik))
@@ -2047,6 +2053,7 @@ mod tests {
             include_str!("ci.rs"),
             include_str!("gitlab_ci.rs"),
             include_str!("authentik_integration.rs"),
+            include_str!("entra_logs.rs"),
             include_str!("netbird_integration.rs"),
             include_str!("fleetdm_integration.rs"),
             include_str!("gitlab_audit_integration.rs"),
@@ -2378,6 +2385,7 @@ mod tests {
             ("google_workspace_integration.rs", include_str!("google_workspace_integration.rs")),
             ("aws_integration.rs", include_str!("aws_integration.rs")),
             ("azure_integration.rs", include_str!("azure_integration.rs")),
+            ("entra_logs.rs", include_str!("entra_logs.rs")),
             ("gcp_integration.rs", include_str!("gcp_integration.rs")),
             ("kubernetes_autoscaling.rs", include_str!("kubernetes_autoscaling.rs")),
             ("kubernetes_integration.rs", include_str!("kubernetes_integration.rs")),
@@ -2397,6 +2405,11 @@ mod tests {
             ("../authentik/crawler.rs", include_str!("../authentik/crawler.rs")),
             ("../authentik/fixtures.rs", include_str!("../authentik/fixtures.rs")),
             ("../authentik/logs.rs", include_str!("../authentik/logs.rs")),
+            ("../entra/mod.rs", include_str!("../entra/mod.rs")),
+            ("../entra/api.rs", include_str!("../entra/api.rs")),
+            ("../entra/crawler.rs", include_str!("../entra/crawler.rs")),
+            ("../entra/fixtures.rs", include_str!("../entra/fixtures.rs")),
+            ("../entra/logs.rs", include_str!("../entra/logs.rs")),
             ("../netbird/mod.rs", include_str!("../netbird/mod.rs")),
             ("../netbird/api.rs", include_str!("../netbird/api.rs")),
             ("../netbird/crawler.rs", include_str!("../netbird/crawler.rs")),

@@ -4323,6 +4323,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/azure/accounts/{id}/entra-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The app registration's Entra ID logs and their polling status. */
+        get: operations["azure_entra_logs"];
+        /**
+         * Turns the app registration's Entra ID logs on or off, by stream (admins). On, the Microsoft Entra ID tile counts
+         *     as installed and its log pipeline is installed; off, the polling stops (stored logs stay).
+         */
+        put: operations["azure_entra_logs_save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/azure/accounts/{id}/entra-logs/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests what the app registration may read from Microsoft Graph, stream by stream (admins): the permissions and
+         *     licenses each needs are named when Graph refuses.
+         */
+        post: operations["azure_entra_logs_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/azure/accounts/{id}/status": {
         parameters: {
             query?: never;
@@ -14976,6 +15017,42 @@ export interface components {
         EntityOwnerRef: {
             name: string;
             type?: string | null;
+        };
+        /** @description An app registration's Entra ID logs. */
+        EntraLogs: {
+            audits: boolean;
+            enabled: boolean;
+            risk: boolean;
+            signIns: boolean;
+            /** @description One per stream on: scope `signins`, `audits` or `risk`. */
+            streams: components["schemas"]["ScopeStatus"][];
+        };
+        /** @description What an admin turns on. */
+        EntraLogsInput: {
+            /** @default true */
+            audits: boolean;
+            /** @default true */
+            enabled: boolean;
+            /** @default false */
+            risk: boolean;
+            /** @default true */
+            signIns: boolean;
+        };
+        EntraLogsTest: {
+            /** @description Every stream readable. */
+            ok: boolean;
+            streams: components["schemas"]["EntraStreamTest"][];
+        };
+        /** @description One stream's test. */
+        EntraStreamTest: {
+            /** @description The license it needs, when one does. */
+            license?: string | null;
+            message: string;
+            ok: boolean;
+            /** @description The Microsoft Graph application permission it needs. */
+            permission: string;
+            /** @description `signins`, `audits` or `risk`. */
+            stream: string;
         };
         /** @description JSON error body returned by every endpoint. */
         ErrorBody: {
@@ -34188,6 +34265,113 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    azure_entra_logs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntraLogs"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    azure_entra_logs_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntraLogsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntraLogs"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    azure_entra_logs_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntraLogsTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };

@@ -1,0 +1,2663 @@
+[
+  {
+    "id": "azure-active-directory-overview",
+    "title": "Microsoft Entra ID Overview",
+    "description": "A Microsoft Entra ID tenant's sign-in logs, audit logs and risk detections: sign-ins and failed sign-ins, where from, MFA and Conditional Access, risky sign-ins, and changes to users, groups, applications and roles.",
+    "kind": "integration",
+    "logo": "azure-active-directory",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "azure-active-directory-2",
+        "definition": {
+          "type": "group",
+          "title": "Microsoft Entra ID Overview",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "azure-active-directory-2-banner",
+              "definition": {
+                "type": "image",
+                "title": "Microsoft Entra ID",
+                "logo": "azure-active-directory",
+                "background": "#ffffff"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
+            {
+              "id": "azure-active-directory-1",
+              "definition": {
+                "type": "note",
+                "content": "**Microsoft Entra ID** (formerly Azure Active Directory) is Microsoft's cloud identity service. This dashboard follows a tenant's sign-in logs, audit logs and Identity Protection risk detections: who signs in, to which applications and from where, failed sign-ins and the reasons, users and addresses behind them, sign-ins without multi-factor authentication or rated risky, Conditional Access results, and the changes made to users, groups, applications and roles.\n\nTurn on Entra ID logs for an app registration in [Integrations → Microsoft Azure](/integrations/azure?detail=entra): ObserveCraft reads them from Microsoft Graph (sign-ins need Entra ID P1, risk levels P2), with no Event Hub or forwarder.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 10
+        }
+      },
+      {
+        "id": "azure-active-directory-15",
+        "definition": {
+          "type": "group",
+          "title": "Overview",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "azure-active-directory-3",
+              "definition": {
+                "type": "integration",
+                "title": "Sign-ins",
+                "original": {
+                  "type": "query_value",
+                  "title": "Sign-ins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-active-directory-4",
+              "definition": {
+                "type": "integration",
+                "title": "Failed sign-ins",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failed sign-ins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-active-directory-5",
+              "definition": {
+                "type": "integration",
+                "title": "Failure rate",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failure rate",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "100 * query1 / query2"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1,
+                  "custom_unit": "%"
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-active-directory-6",
+              "definition": {
+                "type": "integration",
+                "title": "Users signing in",
+                "original": {
+                  "type": "query_value",
+                  "title": "Users signing in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:success"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@properties.userPrincipalName"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-active-directory-7",
+              "definition": {
+                "type": "integration",
+                "title": "Risky sign-ins",
+                "original": {
+                  "type": "query_value",
+                  "title": "Risky sign-ins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @properties.riskLevelDuringSignIn:(medium OR high)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-active-directory-8",
+              "definition": {
+                "type": "integration",
+                "title": "Risk detections",
+                "original": {
+                  "type": "query_value",
+                  "title": "Risk detections",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:UserRiskEvents"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-active-directory-9",
+              "definition": {
+                "type": "integration",
+                "title": "Single-factor sign-ins",
+                "original": {
+                  "type": "query_value",
+                  "title": "Single-factor sign-ins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:success @properties.authenticationRequirement:singleFactorAuthentication"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-active-directory-10",
+              "definition": {
+                "type": "integration",
+                "title": "Failing IPs",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failing IPs",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@network.client.ip"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-active-directory-11",
+              "definition": {
+                "type": "integration",
+                "title": "Countries",
+                "original": {
+                  "type": "query_value",
+                  "title": "Countries",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@properties.location.countryOrRegion"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-active-directory-12",
+              "definition": {
+                "type": "integration",
+                "title": "Applications",
+                "original": {
+                  "type": "query_value",
+                  "title": "Applications",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@properties.appDisplayName"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-active-directory-13",
+              "definition": {
+                "type": "integration",
+                "title": "Directory changes",
+                "original": {
+                  "type": "query_value",
+                  "title": "Directory changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:AuditLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-active-directory-14",
+              "definition": {
+                "type": "integration",
+                "title": "Role changes",
+                "original": {
+                  "type": "query_value",
+                  "title": "Role changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:AuditLogs @properties.category:RoleManagement"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 10,
+          "w": 12,
+          "h": 11
+        }
+      },
+      {
+        "id": "azure-active-directory-25",
+        "definition": {
+          "type": "group",
+          "title": "Sign-ins",
+          "color": "green",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "azure-active-directory-16",
+              "definition": {
+                "type": "integration",
+                "title": "Sign-ins and failed sign-ins",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Sign-ins and failed sign-ins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:success"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "successful",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "failed",
+                          "formula": "query2"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-17",
+              "definition": {
+                "type": "integration",
+                "title": "Client apps",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Client apps",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.clientAppUsed",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-18",
+              "definition": {
+                "type": "integration",
+                "title": "Sign-ins around the world",
+                "original": {
+                  "type": "geomap",
+                  "title": "Sign-ins around the world",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.location.countryOrRegion",
+                              "limit": 250,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 250,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "hostmap_blues",
+                    "palette_flip": false
+                  },
+                  "view": {
+                    "focus": "WORLD"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 8,
+                "h": 8
+              }
+            },
+            {
+              "id": "azure-active-directory-19",
+              "definition": {
+                "type": "integration",
+                "title": "Users signing in most",
+                "original": {
+                  "type": "toplist",
+                  "title": "Users signing in most",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:success"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.userPrincipalName",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "cool"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "azure-active-directory-20",
+              "definition": {
+                "type": "integration",
+                "title": "Applications signed in to",
+                "original": {
+                  "type": "toplist",
+                  "title": "Applications signed in to",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.appDisplayName",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "cool"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 14,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-21",
+              "definition": {
+                "type": "integration",
+                "title": "Conditional Access",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Conditional Access",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.conditionalAccessStatus",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 14,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-22",
+              "definition": {
+                "type": "integration",
+                "title": "Authentication requirement",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Authentication requirement",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:success"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.authenticationRequirement",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 14,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-23",
+              "definition": {
+                "type": "integration",
+                "title": "Sign-ins by operating system",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "Sign-ins by operating system",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.deviceDetail.operatingSystem",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 20,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-24",
+              "definition": {
+                "type": "integration",
+                "title": "Sign-ins by browser",
+                "original": {
+                  "type": "treemap",
+                  "title": "Sign-ins by browser",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.deviceDetail.browser",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 20,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 21,
+          "w": 12,
+          "h": 29
+        }
+      },
+      {
+        "id": "azure-active-directory-33",
+        "definition": {
+          "type": "group",
+          "title": "Failed sign-ins",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "azure-active-directory-26",
+              "definition": {
+                "type": "integration",
+                "title": "Failed sign-ins by error code",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Failed sign-ins by error code",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.status.errorCode",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-27",
+              "definition": {
+                "type": "integration",
+                "title": "Failure reasons",
+                "original": {
+                  "type": "toplist",
+                  "title": "Failure reasons",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.status.failureReason",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-28",
+              "definition": {
+                "type": "integration",
+                "title": "Users failing to sign in",
+                "original": {
+                  "type": "toplist",
+                  "title": "Users failing to sign in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.userPrincipalName",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "azure-active-directory-29",
+              "definition": {
+                "type": "integration",
+                "title": "Addresses failing to sign in",
+                "original": {
+                  "type": "toplist",
+                  "title": "Addresses failing to sign in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "azure-active-directory-30",
+              "definition": {
+                "type": "integration",
+                "title": "Failed sign-ins around the world",
+                "original": {
+                  "type": "geomap",
+                  "title": "Failed sign-ins around the world",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.location.countryOrRegion",
+                              "limit": 250,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 250,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "hostmap_blues",
+                    "palette_flip": false
+                  },
+                  "view": {
+                    "focus": "WORLD"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "azure-active-directory-31",
+              "definition": {
+                "type": "integration",
+                "title": "Addresses with the most failed sign-ins",
+                "original": {
+                  "type": "query_table",
+                  "title": "Addresses with the most failed sign-ins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 25,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@properties.userPrincipalName"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 25,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "failed sign-ins",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "users tried",
+                          "formula": "query2"
+                        }
+                      ],
+                      "sort": {
+                        "count": 100,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 14,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "azure-active-directory-32",
+              "definition": {
+                "type": "log_stream",
+                "title": "Failed sign-ins",
+                "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:failure",
+                "limit": 50
+              },
+              "layout": {
+                "x": 6,
+                "y": 14,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 50,
+          "w": 12,
+          "h": 25
+        }
+      },
+      {
+        "id": "azure-active-directory-41",
+        "definition": {
+          "type": "group",
+          "title": "Risk",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "azure-active-directory-34",
+              "definition": {
+                "type": "integration",
+                "title": "Risky sign-ins by risk level",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Risky sign-ins by risk level",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @properties.riskLevelDuringSignIn:(medium OR high)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.riskLevelDuringSignIn",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-35",
+              "definition": {
+                "type": "integration",
+                "title": "Risk detections by type",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Risk detections by type",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:UserRiskEvents"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.riskEventType",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-36",
+              "definition": {
+                "type": "integration",
+                "title": "Users with risky sign-ins",
+                "original": {
+                  "type": "toplist",
+                  "title": "Users with risky sign-ins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @properties.riskLevelDuringSignIn:(medium OR high)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.userPrincipalName",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-37",
+              "definition": {
+                "type": "integration",
+                "title": "Risk detections by level",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Risk detections by level",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:UserRiskEvents"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.riskLevel",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-38",
+              "definition": {
+                "type": "integration",
+                "title": "Single-factor sign-ins by application",
+                "original": {
+                  "type": "toplist",
+                  "title": "Single-factor sign-ins by application",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:SignInLogs @evt.outcome:success @properties.authenticationRequirement:singleFactorAuthentication"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.appDisplayName",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-39",
+              "definition": {
+                "type": "log_stream",
+                "title": "Risky sign-ins",
+                "query": "source:azure.activedirectory @category:SignInLogs @properties.riskLevelDuringSignIn:(medium OR high)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 12,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "azure-active-directory-40",
+              "definition": {
+                "type": "log_stream",
+                "title": "Risk detections",
+                "query": "source:azure.activedirectory @category:UserRiskEvents",
+                "limit": 50
+              },
+              "layout": {
+                "x": 6,
+                "y": 12,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 75,
+          "w": 12,
+          "h": 23
+        }
+      },
+      {
+        "id": "azure-active-directory-49",
+        "definition": {
+          "type": "group",
+          "title": "Directory changes",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "azure-active-directory-42",
+              "definition": {
+                "type": "integration",
+                "title": "Changes by category",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Changes by category",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:AuditLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.category",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-43",
+              "definition": {
+                "type": "integration",
+                "title": "Changes by result",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Changes by result",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:AuditLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.result",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-active-directory-44",
+              "definition": {
+                "type": "integration",
+                "title": "Activities",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "Activities",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:AuditLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@operationName",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "azure-active-directory-45",
+              "definition": {
+                "type": "integration",
+                "title": "Administrators changing most",
+                "original": {
+                  "type": "toplist",
+                  "title": "Administrators changing most",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:AuditLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.id",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "purple"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 6,
+                "w": 3,
+                "h": 8
+              }
+            },
+            {
+              "id": "azure-active-directory-46",
+              "definition": {
+                "type": "integration",
+                "title": "Services logging changes",
+                "original": {
+                  "type": "toplist",
+                  "title": "Services logging changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:azure.activedirectory @category:AuditLogs"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@properties.loggedByService",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "purple"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 6,
+                "w": 3,
+                "h": 8
+              }
+            },
+            {
+              "id": "azure-active-directory-47",
+              "definition": {
+                "type": "log_stream",
+                "title": "Role assignments",
+                "query": "source:azure.activedirectory @category:AuditLogs @properties.category:RoleManagement",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 14,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "azure-active-directory-48",
+              "definition": {
+                "type": "log_stream",
+                "title": "All directory changes",
+                "query": "source:azure.activedirectory @category:AuditLogs",
+                "limit": 50
+              },
+              "layout": {
+                "x": 6,
+                "y": 14,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 98,
+          "w": 12,
+          "h": 25
+        }
+      }
+    ],
+    "source": {
+      "repository": "observecraft",
+      "path": "scripts/entra-id-dashboard.mjs",
+      "license": "MIT"
+    }
+  }
+]

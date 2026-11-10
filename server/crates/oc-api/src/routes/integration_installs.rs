@@ -94,6 +94,8 @@ const CONNECTIONS: [(&str, &str); 9] = [
     ("authentik", "authentik_connections"),
     ("aws", "aws_accounts"),
     ("azure", "azure_accounts"),
+    // Microsoft Entra ID: an Azure app registration with its Entra ID logs on.
+    ("azure-active-directory", "entra_log_settings"),
     ("fleetdm", "fleetdm_connections"),
     ("gitlab-audit-events", "gitlab_audit_connections"),
     ("google-workspace", "google_workspace_connections"),

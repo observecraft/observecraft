@@ -210,6 +210,36 @@ mod tests {
         assert_eq!(raw.timestamp_ms, Some(1_793_959_200_250), "GitLab's time");
     }
 
+    /// The Entra ID poller's logs (`crate::entra`) read as the Event Hub records integrations-core's
+    /// `azure.activedirectory_tests.yaml` (revision in `pipelines.json`) expects: the same `evt.*`, `usr.*`, client IP,
+    /// message, date and title. Its OCSF sub-pipelines are left out of the library (no schema processor here), and its
+    /// user-agent and GeoIP parsers are skipped by the engine.
+    #[test]
+    fn entra_id_logs_read_as_the_event_hubs() {
+        use crate::entra::{api::Stream, fixtures, logs::log_of};
+        use serde_json::json;
+        assert_eq!(get("azure_active_directory").unwrap().integration, "azure-active-directory", "installed with the integration");
+        let run = |stream: Stream, event: Value| agent_log("azure_active_directory", log_of(stream, &event, fixtures::TENANT));
+        let ok = run(Stream::SignIns, fixtures::sign_in("b95c8eca", "2026-11-06T10:00:00.1234567Z", "jordan.patel@example.com", 0));
+        assert_eq!((ok.get("evt.category"), ok.get("evt.name"), ok.get("evt.outcome")), (Some(json!("SignInLogs")), Some(json!("Sign-in activity")), Some(json!("success"))));
+        assert_eq!((ok.get("usr.id"), ok.get("usr.email"), ok.get("usr.name")), (Some(json!("jordan.patel@example.com")), Some(json!("jordan.patel@example.com")), Some(json!("Jordan Patel"))));
+        assert_eq!((ok.get("network.client.ip"), ok.get("duration").and_then(|d| d.as_f64())), (Some(json!("203.0.113.24")), Some(0.0)));
+        assert_eq!((ok.source.as_str(), ok.service.as_str(), ok.status.as_str()), ("azure.activedirectory", "azure", "info"));
+        assert_eq!(ok.timestamp_ms, Some(1_793_959_200_123), "the sign-in's time");
+        assert_eq!(ok.get("title"), Some(json!("'Sign-in activity' resulted in success initiated by jordan.patel@example.com ")));
+        assert_eq!(ok.message, "jordan.patel@example.com signed in to Azure Portal");
+        let failed = run(Stream::SignIns, fixtures::sign_in("c95c8eca", "2026-11-06T10:00:00Z", "jordan.patel@example.com", 50126));
+        assert_eq!(failed.get("evt.outcome"), Some(json!("failure")));
+        assert_eq!(failed.message, "Invalid username or password or Invalid on-premise username or password.", "the failure reason, as `resultDescription`");
+        let role = run(Stream::Audits, fixtures::role_assigned("Directory_5d3c_1", "2026-11-06T10:00:00Z", "Global Administrator"));
+        assert_eq!((role.get("evt.category"), role.get("evt.name"), role.get("evt.outcome")), (Some(json!("AuditLogs")), Some(json!("Add member to role")), Some(json!("success"))));
+        assert_eq!((role.get("usr.id"), role.get("usr.name"), role.get("network.client.ip")), (Some(json!("sam.lee@example.com")), Some(json!("sam.lee@example.com")), Some(json!("198.51.100.7"))));
+        assert_eq!(role.get("title"), Some(json!("'Add member to role' resulted in success initiated by sam.lee@example.com ")));
+        assert_eq!(role.timestamp_ms, Some(1_793_959_200_000));
+        let risk = run(Stream::Risk, fixtures::risk("r-1", "2026-11-06T10:00:00Z", "high"));
+        assert_eq!((risk.get("evt.category"), risk.get("network.client.ip"), risk.timestamp_ms), (Some(json!("UserRiskEvents")), Some(json!("198.51.100.200")), Some(1_793_959_200_000)));
+    }
+
     /// A log as the Datadog Agent forwards it to the intake (`/api/v2/logs`), normalized as the log ingester
     /// does, then run through integration pipeline `id` as the indexer does.
     fn agent_log(id: &str, envelope: Value) -> super::super::Log {
