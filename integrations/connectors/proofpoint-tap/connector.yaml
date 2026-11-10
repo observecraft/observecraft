@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Proofpoint TAP (Targeted Attack Protection, https://help.proofpoint.com/Threat_Insight_Dashboard/API_Documentation/SIEM_API):
+# the click and message events of the SIEM API, as the logs Datadog's integration sends (source:proofpoint-tap,
+# service:click-blocked, click-permitted, message-blocked and message-delivered, the event's fields at the top with
+# eventTime). integrations-core's pipeline and dashboards (Overview, Clicks Insights, Messages Insights) read them as
+# they are, so this package ships none: saving a connection installs the tile's.
+schema_version: 1
+id: proofpoint-tap
+name: Proofpoint TAP
+publisher: ObserveCraft
+vendor: Proofpoint
+description: >-
+  Clicks on rewritten URLs that TAP blocked or permitted and messages it blocked or delivered with threats (scores,
+  threat details, sandbox verdicts, quarantine), read every 5 minutes from Proofpoint TAP's SIEM API as logs.
+tiles: [proofpoint-tap]
+source: proofpoint-tap
+categories: [Log Collection, Security, SIEM]
+docs_url: https://help.proofpoint.com/Threat_Insight_Dashboard/API_Documentation/SIEM_API
+setup: |
+  1. In the TAP dashboard, open **Settings → Connected Applications** and **Create New Credential**, e.g.
+     `observecraft`.
+  2. Copy the **Service Principal** and the **Secret** (shown once).
+links:
+  - { label: TAP dashboard, url: "https://threatinsight.proofpoint.com/" }
+instance: "{{ config.service_principal }}"
+
+config:
+  - key: service_principal
+    label: Service principal
+    type: string
+    required: true
+  - key: secret
+    label: Secret
+    type: string
+    secret: true
+    required: true
+  - key: event_types
+    label: Event types
+    type: multiselect
+    default: [click-blocked, click-permitted, message-blocked, message-delivered]
+    options:
+      - { value: click-blocked, label: Clicks blocked }
+      - { value: click-permitted, label: Clicks permitted }
+      - { value: message-blocked, label: Messages blocked }
+      - { value: message-delivered, label: Messages delivered }
+
+auth:
+  kind: basic
+  username: "{{ config.service_principal }}"
+  password: "{{ secrets.secret }}"
+
+# 1,800 SIEM API requests per rolling 24 hours per service principal.
+budget: { requests: 1700, per: day }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Proofpoint refused the service principal and secret
+  - status: [403]
+    kind: access_denied
+    message: The credential may not read the SIEM API
+  - status: [429]
+    kind: throttled
+    message: Proofpoint's quota of 1,800 SIEM API requests a day is used up
+
+streams:
+  - id: events
+    name: Clicks and messages
+    description: >-
+      One log per event: clicks blocked and permitted (service:click-blocked, click-permitted: url, classification,
+      threatStatus, clickIP, recipient, sender) and messages blocked and delivered (service:message-blocked,
+      message-delivered: subject, sender, recipient, scores, threatsInfoMap, messageParts, quarantineFolder).
+    interval: 5m
+    max_pages: 30
+    request:
+      url: https://tap-api-v2.proofpoint.com/v2/siem/all
+      query:
+        format: json
+        interval: "{{ (window.start | rfc3339_s) + '/' + (window.end | rfc3339_s) }}"
+    records: >-
+      {{ (response.clicksBlocked | with('kind', 'click-blocked')) + (response.clicksPermitted | with('kind', 'click-permitted'))
+         + (response.messagesBlocked | with('kind', 'message-blocked')) + (response.messagesDelivered | with('kind', 'message-delivered')) }}
+    filter: "{{ record.kind in config.event_types }}"
+    record_id: "{{ record.kind + ':' + (record.id ?? record.GUID) }}"
+    incremental:
+      kind: time
+      # The SIEM API selects events by the time TAP created them, not the click's or message's time: every event
+      # of a window belongs to it.
+      record_time: "{{ window.start }}"
+      order: oldest_first
+      lookback: 12h
+      settle: 1m
+      # At most an hour a request, and never more than 7 days back.
+      slice: 1h
+    vars:
+      time: "{{ record.clickTime ?? record.messageTime }}"
+      active: "{{ record.threatStatus == 'active' || 'active' in (record.threatsInfoMap | pluck('threatStatus')) }}"
+    output:
+      logs:
+        service: "{{ record.kind }}"
+        message: >-
+          {{ record.kind | startswith('click') ? ('Click ' + (record.kind == 'click-blocked' ? 'blocked' : 'permitted') + ': ' + record.recipient + ' → ' + record.url)
+             : ('Message ' + (record.kind == 'message-blocked' ? 'blocked' : 'delivered') + ': ' + (record.subject ?? '') + ' (' + (record.sender ?? '?') + ' → ' + (record.recipient | join(', ')) + ')') }}
+        status: >-
+          {{ record.kind | startswith('click')
+             ? (vars.active && record.classification in ['malware', 'phish'] ? 'critical' : vars.active && record.classification == 'spam' ? 'warning' : 'info')
+             : (vars.active ? 'warning' : 'info') }}
+        date: "{{ vars.time }}"
+        attributes: "{{ record + {eventTime: vars.time, kind: null} }}"
+
+test:
+  request:
+    url: https://tap-api-v2.proofpoint.com/v2/siem/all
+    query: { format: json, sinceSeconds: 300 }
+  message: >-
+    Connected: {{ (response.clicksBlocked | len) + (response.clicksPermitted | len) + (response.messagesBlocked | len) + (response.messagesDelivered | len) }}
+    events in the last 5 minutes
+
+mock:
+  config: { service_principal: 0a1b2c3d-0000-4000-8000-00000000c0de }
+  secrets: { secret: tap-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://tap-api-v2.proofpoint.com/v2/siem/all", query: { interval: "2026-11-10T11:00:00Z/2026-11-10T11:59:00Z" }, file: fixtures/all.json }
+    - { url: "https://tap-api-v2.proofpoint.com/v2/siem/all", query: { sinceSeconds: "300" }, file: fixtures/all.json }
+    - { url: "https://tap-api-v2.proofpoint.com/v2/siem/all", file: fixtures/empty.json }
+  expect:
+    events: { records: 4, logs: 4, rerun: 0, golden: fixtures/events.expected.json }
+    test: { ok: true, message: "4 events" }
