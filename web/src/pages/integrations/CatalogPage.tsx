@@ -10,6 +10,7 @@ import { IntegrationCard } from './IntegrationCard';
 import { IntegrationModal } from './IntegrationModal';
 import { useCatalog } from './queries';
 import { showsUnavailable } from '../../api/integrations/catalogFilter';
+import { tileConnector } from '../../api/integrations/collection';
 
 /** Integrations with their own page instead of the detail modal. */
 const OWN_PAGES: Record<string, string> = {
@@ -19,11 +20,16 @@ const OWN_PAGES: Record<string, string> = {
   kubernetes: '/integrations/kubernetes',
   slack: '/integrations/slack',
   authentik: '/integrations/authentik',
-  netbird: '/integrations/netbird',
   fleetdm: '/integrations/fleetdm',
   'gitlab-audit-events': '/integrations/gitlab-audit-events',
   'google-workspace': '/integrations/google-workspace',
 };
+
+/** Integrations with their own page, and those a connector package collects (its page; push-only ones keep the modal). */
+function pageOf(id: string): string | undefined {
+  const c = tileConnector(id);
+  return OWN_PAGES[id] ?? (c?.kind === 'package' ? c.page : undefined);
+}
 
 const STATUSES: Option<IntegrationStatus | 'all'>[] = [
   { value: 'all', label: 'All Statuses' },
@@ -81,7 +87,13 @@ export function CatalogPage() {
 
   const navigate = useNavigate();
   // Integrations with their own page open it; the others open the detail modal.
-  const open = useCallback((id: string) => (OWN_PAGES[id] ? navigate(OWN_PAGES[id]) : setParam('integration', id)), [navigate, setParam]);
+  const open = useCallback(
+    (id: string) => {
+      const page = pageOf(id);
+      return page ? navigate(page) : setParam('integration', id);
+    },
+    [navigate, setParam],
+  );
 
   return (
     <div className="int-page">

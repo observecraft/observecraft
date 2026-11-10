@@ -202,11 +202,18 @@ or SDK features.
   sends each event as a log (`source:authentik`) to `oc.logs.json`. Saving the connection installs its library pipeline
   (`seeds/pipelines/observecraft.json`, `authentik.category`); its dashboard is ours (`scripts/authentik-dashboard.mjs`
   → `seeds/integrations/authentik/`), listed once connected.
-- **NetBird** (Integrations → NetBird, `oc-api/src/netbird/`, `routes/netbird_integration.rs`; Datadog has no NetBird
-  integration): the server polls a NetBird Cloud or self-hosted management API (token in Postgres
-  `netbird_connections`, sealed) on the cloud crawlers' jobs (provider `netbird`, scopes `events` and `peers`): audit
-  events as logs (`source:netbird`) to `oc.logs.json`, peers as `netbird.peer.*` gauges to `oc.otlp-json.metrics`.
-  Its dashboard is ours (`scripts/netbird-dashboard.mjs` → `seeds/integrations/netbird/`), listed once connected.
+- **Connector packages** (ADR-0007, `docs/connectors.md`): integrations that call a vendor's API are packages in
+  `integrations/connectors/<id>/` (`connector.yaml`, validated against `integrations/connectors/connector.schema.json`,
+  generated from `server/crates/oc-connectors/src/manifest.rs`), run by the engine `server/crates/oc-connectors` (no
+  database or Kafka code; expression language, auth kinds, pagination, lossless time windows, outputs, replay harness,
+  `oc-connector` CLI). The server (`oc-api/src/connectors/`) compiles the bundled ones in (`build.rs`), loads the
+  operator's from `OC_CONNECTORS_DIR`, keeps connections in Postgres `connector_connections` (secrets sealed per field)
+  / `connector_stream_state`, runs every package's streams in one loop on `cloud_crawl_jobs` (provider = connector id,
+  scope = stream), publishes to Kafka before saving state, and serves `/api/v1/connectors…` (`routes/connectors.rs`)
+  and the generic page (`web/src/pages/integrations/connectors/`). Native connectors (authentik, FleetDM, GitLab Audit
+  Events, Google Workspace, Entra ID) implement the same `Connector` trait (`connectors/native.rs`) for the catalog,
+  installed state and dashboard gating. NetBird is a package (migration 0102 moved its connections); Have I Been Pwned
+  is the example package. Write a package, not code: `node scripts/connector.mjs new|build|test`.
 - **FleetDM** (Integrations → FleetDM, `oc-api/src/fleetdm/`, `routes/fleetdm_integration.rs`; Datadog has no Fleet
   integration): the server polls a Fleet server's REST API (`/api/v1/fleet`, an API-only observer's token in Postgres
   `fleetdm_connections`, sealed) on the cloud crawlers' jobs (provider `fleetdm`, scopes `activities` and `hosts`):

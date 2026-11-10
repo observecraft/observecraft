@@ -1,2 +1,0 @@
-# Units of the NetBird integration's metrics (scripts/netbird-dashboard.mjs; the poller sends none).
-netbird.peer.last_seen_age,second

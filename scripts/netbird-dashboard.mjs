@@ -1,12 +1,11 @@
 // The NetBird dashboard. Datadog has no NetBird integration, so this is ObserveCraft's own, over what the NetBird
-// integration collects (server/crates/oc-api/src/netbird): the peers' `netbird.peer.*` gauges and the audit events,
-// logs with `source:netbird` (`@evt.name` the activity code, `@netbird.category` its first segment, `@usr.*` the
-// initiator). Written in the Datadog widget format the integration dashboards use and converted like them
-// (import-integration-dashboards.mjs).
-// node scripts/netbird-dashboard.mjs   (writes server/seeds/integrations/netbird/{dashboards.json,units.csv})
+// connector package collects (integrations/connectors/netbird): the peers' `netbird.peer.*` gauges and the audit
+// events, logs with `source:netbird` (`@evt.name` the activity code, `@netbird.category` its first segment, `@usr.*`
+// the initiator). Written in the Datadog widget format, as the package's asset; `scripts/connector.mjs build` converts
+// it like the integration dashboards (import-integration-dashboards.mjs) into the package's dist/dashboards.json.
+// node scripts/netbird-dashboard.mjs   (writes integrations/connectors/netbird/assets/dashboards/overview.json)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { convertDashboard } from './import-integration-dashboards.mjs';
 
 // ---------------------------------------------------------------- queries (Datadog format)
 
@@ -244,43 +243,15 @@ function dashboard() {
   };
 }
 
-/** Units of the metrics the dashboard charts (Datadog unit names): the poller sends none. */
-export const NETBIRD_UNITS = { 'netbird.peer.last_seen_age': 'second' };
-
-/** Our logo tile instead of a banner image (there is none for NetBird), as the integrations-core dashboards have. */
-function withLogo(widgets) {
-  return widgets.map((w) => {
-    if (w.definition.type === 'group') return { ...w, definition: { ...w.definition, widgets: withLogo(w.definition.widgets) } };
-    if (w.definition.type === 'image') return { ...w, definition: { type: 'image', title: 'NetBird', logo: 'netbird', background: '#ffffff' } };
-    return w;
-  });
-}
-
-const renamed = (widgets) =>
-  widgets.map((w) => ({ ...w, id: w.id.replace(/^upstream-/, 'netbird-'), definition: w.definition.type === 'group' ? { ...w.definition, widgets: renamed(w.definition.widgets) } : w.definition }));
-
-export function buildDashboard() {
+/** The dashboard in Datadog's format, as the package ships it. */
+export function datadogDashboard() {
   seq = 0;
-  const doc = dashboard();
-  const converted = convertDashboard(doc, 'netbird', 'netbird_overview.json', 'observecraft');
-  return {
-    ...converted,
-    id: 'netbird-overview',
-    description: doc.description,
-    widgets: renamed(withLogo(converted.widgets)),
-    source: { repository: 'observecraft', path: 'scripts/netbird-dashboard.mjs', license: 'MIT' },
-  };
+  return dashboard();
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const dir = new URL('../server/seeds/integrations/netbird/', import.meta.url);
+  const dir = new URL('../integrations/connectors/netbird/assets/dashboards/', import.meta.url);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(new URL('dashboards.json', dir), JSON.stringify([buildDashboard()], null, 2) + '\n');
-  writeFileSync(
-    new URL('units.csv', dir),
-    `# Units of the NetBird integration's metrics (scripts/netbird-dashboard.mjs; the poller sends none).\n${Object.entries(NETBIRD_UNITS)
-      .map(([name, unit]) => `${name},${unit}`)
-      .join('\n')}\n`,
-  );
-  console.log('wrote server/seeds/integrations/netbird/{dashboards.json,units.csv}');
+  writeFileSync(new URL('overview.json', dir), JSON.stringify(datadogDashboard(), null, 2) + '\n');
+  console.log('wrote integrations/connectors/netbird/assets/dashboards/overview.json (then: node scripts/connector.mjs build integrations/connectors/netbird)');
 }

@@ -9,7 +9,7 @@ import { fleetdmConnected } from './fleetdm';
 import { gitlabAuditConnected } from './gitlabAudit';
 import { googleWorkspaceConnected } from './googleWorkspace';
 import { entraConnected } from './entra';
-import { netbirdConnected } from './netbird';
+import { connectorConnected, connectorEntries } from './connectors';
 import { awsConnected } from './aws';
 import { azureConnected } from './azure';
 import { gcpConnected } from './gcp';
@@ -17,7 +17,7 @@ import { slackConnected } from './slack';
 import { coreCatalog, type CoreIntegration } from '../integrations/catalog';
 import { coreSteps } from '../integrations/setupSteps';
 import { linkCore } from '../integrations/coreLink';
-import { availableHere, installable, ownIntegration, unavailableReason, type Collection, type CollectionInfo } from '../integrations/collection';
+import { availableHere, installable, ownIntegration, tileConnector, unavailableReason, type Collection, type CollectionInfo } from '../integrations/collection';
 import { awsMetricPrefix } from '../integrations/detection';
 import awsCatalog from '../../../../server/seeds/aws_integration.json';
 import azureCatalog from '../../../../server/seeds/azure_integration.json';
@@ -1028,12 +1028,22 @@ const AZURE_SERVICES: Entry[] = azureCatalog.resource_types.map((t) => ({
 }));
 
 const CORE_LINKS = linkCore(CURATED, coreCatalog.integrations);
-const CATALOG: Entry[] = [
+const LISTED: Entry[] = [
   ...CURATED.map((e) => ({ ...e, core: CORE_LINKS.linked.get(e.id) })),
   ...AWS_SERVICES,
   ...AZURE_SERVICES,
   ...GCP_SERVICES,
   ...CORE_LINKS.unlinked.map((c): Entry => ({ id: c.id, name: c.name, categories: c.categories, os: c.supportedOs, collect: { kind: 'agent' }, core: c })),
+];
+/** Connector packages without a catalog tile add their own (docs/connectors.md). */
+export function connectorTile(c: { id: string; name: string; categories: string[]; description: string; logo: string }): Entry {
+  return { id: c.id, name: c.name, logo: c.logo, categories: c.categories, about: c.description, collect: { kind: 'notify', settings: [] } };
+}
+const CATALOG: Entry[] = [
+  ...LISTED,
+  ...connectorEntries()
+    .filter((c) => c.kind !== 'native' && !LISTED.some((e) => e.id === c.id || c.tiles.includes(e.id)))
+    .map(connectorTile),
 ];
 
 // ---------------------------------------------------------------- derivation
@@ -1066,13 +1076,15 @@ const CONNECTED: Record<string, () => boolean> = {
   'gitlab-audit-events': gitlabAuditConnected,
   'google-workspace': googleWorkspaceConnected,
   'google-cloud': gcpConnected,
-  netbird: netbirdConnected,
   slack: slackConnected,
 };
 
 function statusOf(e: Entry): IntegrationStatus {
-  if (!availableHere(collectionInfo(e))) return 'unavailable';
+  if (!availableHere(collectionInfo(e), e.id)) return 'unavailable';
   if (CONNECTED[e.id]?.()) return 'installed';
+  // A connector package's tile: installed while it has a connection (connectors::connected).
+  const connector = tileConnector(e.id);
+  if (connector && connectorConnected(connector.id)) return 'installed';
   return statusOverride.get(e.id) ?? e.status ?? 'available';
 }
 
@@ -1380,7 +1392,7 @@ export function integrationMetadata(id: string): IntegrationDetail {
     hosts: [],
     resources: [],
     releaseNotes: [],
-    setupSteps: !availableHere(collectionInfo(e))
+    setupSteps: !availableHere(collectionInfo(e), e.id)
       ? []
       : e.collect.kind === 'agent'
         ? coreSteps(e.core!)

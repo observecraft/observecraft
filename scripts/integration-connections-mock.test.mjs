@@ -1,5 +1,6 @@
 // Mock mode (make web-mock) shows an integration set up on its own page as installed exactly while it has a saved
-// connection or account, as the server does (`CONNECTIONS` in routes/integration_installs.rs).
+// connection or account, as the server does (`CONNECTIONS` in routes/integration_installs.rs for platform
+// integrations, `connectors::connected` for connectors: native ones and packages).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -15,7 +16,7 @@ const { outputFiles } = require('esbuild').buildSync({
       "export * as fleetdm from './api/mock/fleetdm';",
       "export * as gitlabAudit from './api/mock/gitlabAudit';",
       "export * as googleWorkspace from './api/mock/googleWorkspace';",
-      "export * as netbird from './api/mock/netbird';",
+      "export * as connectors from './api/mock/connectors';",
       "export * as aws from './api/mock/aws';",
       "export * as azure from './api/mock/azure';",
       "export * as entra from './api/mock/entra';",
@@ -53,7 +54,15 @@ const CASES = {
       }),
     remove: () => web.googleWorkspace.deleteGoogleWorkspace(),
   },
-  netbird: { connect: () => web.netbird.saveNetbird({ baseUrl: 'https://api.netbird.io', token }), remove: () => web.netbird.deleteNetbird() },
+  // Connector packages, through the generic connectors mock.
+  netbird: {
+    connect: () => web.connectors.createConnection('netbird', { name: '', config: { base_url: 'https://api.netbird.io' }, secrets: { token } }),
+    remove: async () => Promise.all((await web.connectors.getConnector('netbird')).connections.map((c) => web.connectors.deleteConnection('netbird', c.id))),
+  },
+  'have-i-been-pwned': {
+    connect: () => web.connectors.createConnection('have-i-been-pwned', { name: '', config: {}, secrets: { api_key: token } }),
+    remove: async () => Promise.all((await web.connectors.getConnector('have-i-been-pwned')).connections.map((c) => web.connectors.deleteConnection('have-i-been-pwned', c.id))),
+  },
   aws: { remove: async () => Promise.all((await web.aws.listAwsAccounts()).map((a) => web.aws.deleteAwsAccount(a.id))) },
   // Before azure: removing its app registrations removes their Entra ID logs too.
   'azure-active-directory': { remove: () => web.entra.saveEntraLogs('3c2b1a09-8f7e-4d6c-9b5a-4f3e2d1c0b9a', { enabled: false }) },
@@ -62,11 +71,15 @@ const CASES = {
   slack: { remove: async () => Promise.all((await web.slack.getSlackOverview()).accounts.map((a) => web.slack.disconnectSlackAccount(a.id))) },
 };
 
-test('every connection the server counts as installed is covered here', () => {
+test('every connection the server counts as installed is covered here', async () => {
   const rust = readFileSync(new URL('../server/crates/oc-api/src/routes/integration_installs.rs', import.meta.url), 'utf8');
   const block = rust.match(/const CONNECTIONS[^=]*= \[([\s\S]*?)\];/)[1];
-  const ids = [...block.matchAll(/\("([^"]+)", "[^"]+"\)/g)].map((m) => m[1]);
-  assert.deepEqual(ids.sort(), Object.keys(CASES).sort());
+  const platform = [...block.matchAll(/\("([^"]+)", "[^"]+"\)/g)].map((m) => m[1]);
+  // Connectors: the native ones (connectors/native.rs) and the bundled packages.
+  const native = readFileSync(new URL('../server/crates/oc-api/src/connectors/native.rs', import.meta.url), 'utf8');
+  const natives = [...native.matchAll(/native\(\s*"([^"]+)"/g)].map((m) => m[1]);
+  const packages = (await web.connectors.listConnectors()).connectors.filter((c) => c.kind === 'package').map((c) => c.id);
+  assert.deepEqual([...platform, ...natives, ...packages].sort(), Object.keys(CASES).sort());
 });
 
 for (const [id, c] of Object.entries(CASES)) {

@@ -79,6 +79,10 @@ fn collected_by_datadog(id: &str) -> Option<&'static str> {
 /// A catalog id that can be installed here.
 fn installable(id: String) -> Result<String, ApiError> {
     let id = checked(id)?;
+    if let Some(c) = crate::connectors::registry().connectors.iter().find(|c| c.entry().tiles.contains(&id) && c.entry().kind != crate::connectors::ConnectorKind::Push) {
+        let page = c.entry().page.clone().unwrap_or_else(|| format!("/integrations/connectors/{}", c.entry().id));
+        return Err(ApiError::BadRequest(format!("{id} is installed by connecting it: {page}")));
+    }
     let why = match collected_by_datadog(&id) {
         None => return Ok(id),
         Some("crawler") => "Datadog collects it by calling the vendor's API from its own service",
@@ -88,31 +92,22 @@ fn installable(id: String) -> Result<String, ApiError> {
     Err(ApiError::BadRequest(format!("{id} is not available in ObserveCraft: {why}, so there is nothing to install")))
 }
 
-/// Integrations set up on their own page rather than from their tile: the table holding their connection or
-/// accounts, by catalog id. Having one counts as installed.
-const CONNECTIONS: [(&str, &str); 10] = [
-    ("authentik", "authentik_connections"),
-    ("aws", "aws_accounts"),
-    ("azure", "azure_accounts"),
-    // Microsoft Entra ID: an Azure app registration with its Entra ID logs on.
-    ("azure-active-directory", "entra_log_settings"),
-    ("fleetdm", "fleetdm_connections"),
-    ("gitlab-audit-events", "gitlab_audit_connections"),
-    ("google-workspace", "google_workspace_connections"),
-    ("google-cloud", "gcp_accounts"),
-    ("netbird", "netbird_connections"),
-    ("slack", "slack_accounts"),
-];
+/// Platform integrations set up on their own page rather than from their tile: the table holding their accounts, by
+/// catalog id. Having one counts as installed. Connectors (vendor APIs: packages and native ones) count through
+/// [`crate::connectors::connected`].
+const CONNECTIONS: [(&str, &str); 4] = [("aws", "aws_accounts"), ("azure", "azure_accounts"), ("google-cloud", "gcp_accounts"), ("slack", "slack_accounts")];
 
 /// The org's installed integrations (catalog ids): installed from their tile, or with a saved connection.
 pub async fn installed(st: &AppState, org: &str) -> Result<Vec<String>, ApiError> {
     let connected: Vec<String> = CONNECTIONS.iter().map(|(id, table)| format!("SELECT '{id}' WHERE EXISTS (SELECT 1 FROM {table} WHERE org_id = $1)")).collect();
     let sql = format!("SELECT integration FROM integration_installs WHERE org_id = $1 UNION {} ORDER BY 1", connected.join(" UNION "));
-    Ok(sqlx::query_scalar(sqlx::AssertSqlSafe(sql)).bind(org).fetch_all(&st.postgres).await?)
+    let mut ids: std::collections::BTreeSet<String> = sqlx::query_scalar::<_, String>(sqlx::AssertSqlSafe(sql)).bind(org).fetch_all(&st.postgres).await?.into_iter().collect();
+    ids.extend(crate::connectors::connected(st, org).await?);
+    Ok(ids.into_iter().collect())
 }
 
-/// Installs an integration's library log pipelines for the org (those it has are kept): on Install, and when an
-/// integration set up on its own page (authentik, FleetDM) saves its connection.
+/// Installs an integration's library log pipelines for the org (those it has are kept): on Install, and when a
+/// connector (authentik, FleetDM, a package) saves its connection.
 pub async fn install_pipelines(st: &AppState, org: &str, id: &str) -> Result<(), ApiError> {
     for p in pipelines_of(id) {
         let input = LogPipelineInput { name: p.name.clone(), filter: p.filter.clone(), enabled: true, processors: p.processors.clone() };
@@ -224,6 +219,8 @@ mod tests {
             assert_eq!(collected_by_datadog(id), None, "{id}");
         }
         let Err(ApiError::BadRequest(message)) = installable("asana".into()) else { panic!("asana is collected by Datadog's own service") };
+        // A tile a connector makes available is installed by connecting it.
+        assert!(matches!(installable("have-i-been-pwned".into()), Err(ApiError::BadRequest(m)) if m.contains("/integrations/connectors/have-i-been-pwned")));
         assert!(message.contains("calling") && message.contains("API"), "{message}");
         assert!(matches!(installable("gke".into()), Err(ApiError::BadRequest(m)) if m.contains("documentation")));
         assert_eq!(installable("redis".into()).unwrap(), "redis");

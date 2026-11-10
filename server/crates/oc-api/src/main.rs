@@ -14,7 +14,7 @@ mod entra;
 mod cloud;
 mod gcp;
 mod authentik;
-mod netbird;
+mod connectors;
 mod fleetdm;
 mod gitlab;
 mod gitlab_audit;
@@ -243,11 +243,16 @@ async fn main() -> anyhow::Result<()> {
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, entra::crawler::LOGS_TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(entra::crawler::EntraCrawler { api: Arc::new(azure::api::Rest::new(reqwest::Client::new(), Default::default())), sink: logs });
         tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, entra::crawler::INTERVAL_SECS, concurrency)));
-        // The NetBird integration's poller: the accounts' audit events as logs, their peers as metrics.
-        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, netbird::crawler::LOGS_TOPIC));
-        let metrics: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));
-        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(netbird::crawler::NetbirdCrawler { api: Arc::new(netbird::api::Rest { allow_private: state.config.portal_allow_private }), logs, metrics });
-        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, netbird::crawler::INTERVAL_SECS, concurrency)));
+        // Connector packages (integrations/connectors, OC_CONNECTORS_DIR): one loop over every package's streams; logs,
+        // metrics and events to their topics.
+        let sinks = connectors::runner::Sinks {
+            logs: Arc::new(cloud::kafka::KafkaSink::new(&brokers, connectors::runner::LOGS_TOPIC)),
+            metrics: Arc::new(cloud::kafka::KafkaSink::new(&brokers, connectors::runner::METRICS_TOPIC)),
+            events: Arc::new(cloud::kafka::KafkaSink::new(&brokers, connectors::runner::EVENTS_TOPIC)),
+        };
+        let transport: Arc<dyn oc_connectors::http::Transport> = Arc::new(connectors::net::Net { allow_private: state.config.portal_allow_private });
+        let runner = Arc::new(connectors::runner::Runner { rt: Arc::new(oc_connectors::engine::Runtime::new(transport, true)), sinks });
+        tokio::spawn(org_limits::background(connectors::runner::run(state.clone(), runner, concurrency)));
         // The FleetDM integration's poller: the Fleet servers' activities as logs, their hosts and policies as metrics.
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, fleetdm::crawler::LOGS_TOPIC));
         let metrics: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));

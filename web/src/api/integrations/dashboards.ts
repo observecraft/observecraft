@@ -5,8 +5,8 @@ import kubernetes from '../../../../server/seeds/integrations/kubernetes/dashboa
 import aws from '../../../../server/seeds/integrations/aws/dashboards.json';
 import azure from '../../../../server/seeds/integrations/azure/dashboards.json';
 import gcp from '../../../../server/seeds/integrations/gcp/dashboards.json';
-// ObserveCraft's own NetBird dashboard (scripts/netbird-dashboard.mjs).
-import netbird from '../../../../server/seeds/integrations/netbird/dashboards.json';
+// The connector packages' own dashboards (integrations/connectors/*/dist, `node scripts/connector.mjs build`): NetBird's.
+import connectorPackages from '../connectors/packages.generated.json';
 // ObserveCraft's own FleetDM dashboard (scripts/fleetdm-dashboard.mjs).
 import fleetdm from '../../../../server/seeds/integrations/fleetdm/dashboards.json';
 // ObserveCraft's own authentik dashboard (scripts/authentik-dashboard.mjs).
@@ -33,7 +33,7 @@ export const integrationDashboards = [
   ...aws,
   ...azure,
   ...gcp,
-  ...netbird,
+  ...connectorPackages.flatMap((p) => p.dashboards),
   ...fleetdm,
   ...authentik,
   ...gitlabAudit,

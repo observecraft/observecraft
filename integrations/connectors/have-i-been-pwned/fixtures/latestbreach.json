@@ -1,0 +1,6 @@
+{
+  "Name": "ExampleForum", "Title": "Example Forum", "Domain": "forum.example", "BreachDate": "2026-11-01", "AddedDate": "2026-11-09T08:00:00Z",
+  "ModifiedDate": "2026-11-09T08:00:00Z", "PwnCount": 5000, "Description": "In November 2026, the Example Forum community leaked usernames, email addresses and IP addresses.",
+  "LogoPath": "https://logos.haveibeenpwned.com/ExampleForum.png", "DataClasses": ["Email addresses", "IP addresses", "Usernames"], "IsVerified": true, "IsFabricated": false,
+  "IsSensitive": false, "IsRetired": false, "IsSpamList": false, "IsMalware": false, "IsStealerLog": false, "IsSubscriptionFree": false
+}

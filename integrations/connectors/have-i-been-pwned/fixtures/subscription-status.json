@@ -1,0 +1,1 @@
+{ "SubscriptionName": "Pwned 1", "Description": "Up to 10 email addresses per minute and searches of domains with up to 25 breached addresses.", "SubscribedUntil": "2027-01-01T00:00:00", "Rpm": 10, "DomainSearchMaxBreachedAccounts": 25 }

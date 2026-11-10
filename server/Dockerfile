@@ -8,6 +8,8 @@ COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY web/ ./
 COPY server/seeds/ /server/seeds/
+# The connector packages: the mock mode's catalog and fixtures (scripts/connector.mjs build).
+COPY integrations/ /integrations/
 COPY CHANGELOG.md /CHANGELOG.md
 RUN VITE_API_MODE=live npm run build
 
@@ -28,6 +30,8 @@ COPY --from=planner /src/recipe.json recipe.json
 # Export this dependency layer with Buildx, including DuckDB's expensive native compilation.
 RUN cargo chef cook --release --locked --recipe-path recipe.json --bin observecraft-server --bin oc-intake --bin oc-tracegen
 COPY server/ .
+# The bundled connector packages, compiled into the server (crates/oc-api/build.rs reads ../../../integrations).
+COPY integrations/ /integrations/
 RUN cargo build --locked --release --bin observecraft-server --bin oc-intake --bin oc-tracegen
 
 FROM debian:bookworm-slim

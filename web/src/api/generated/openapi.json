@@ -5232,6 +5232,403 @@
         }
       }
     },
+    "/api/v1/connectors": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Every connector of this server: bundled and operator packages, native connectors.",
+        "operationId": "list_connectors",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorCatalog"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connectors/{id}": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "A connector and the org's connections of it, with their streams' status.",
+        "operationId": "get_connector",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connectors/{id}/connections": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The org's connections of a connector.",
+        "operationId": "list_connector_connections",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectionView"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Creates a connection (admins): its secrets are sealed, its streams start within a minute.",
+        "operationId": "create_connector_connection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connectors/{id}/connections/{connection}": {
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Changes a connection (admins); secrets left out are kept while its URLs stay the same.",
+        "operationId": "update_connector_connection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "connection",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Removes a connection, its secrets, state and polling (admins). Stored logs and metrics stay.",
+        "operationId": "delete_connector_connection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "connection",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connectors/{id}/connections/{connection}/sync": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Runs a connection's streams now instead of at their next interval (admins); native connectors' too.",
+        "operationId": "sync_connector_connection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "connection",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connectors/{id}/push": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "For a push-only package: creates the push job or webhook on the vendor's side with the config entered\n(`push.create`, admins). Nothing is stored.",
+        "operationId": "create_connector_push",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connectors/{id}/test": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Tests a connection before or after saving it (admins): the package's test request, with the secrets entered or\n(`connectionId`) the saved ones.",
+        "operationId": "test_connector_connection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dashboard": {
       "get": {
         "tags": [
@@ -11897,142 +12294,6 @@
                   "items": {
                     "type": "string"
                   }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/integrations/netbird": {
-      "get": {
-        "tags": [
-          "integrations"
-        ],
-        "summary": "The NetBird connection and its syncs' status (no token).",
-        "operationId": "netbird_status",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NetbirdStatus"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "integrations"
-        ],
-        "summary": "Saves the NetBird connection (admins). The token is sealed; leave it out to keep the saved one (only while the\nURL stays the same).",
-        "operationId": "netbird_save",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NetbirdInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NetbirdStatus"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "integrations"
-        ],
-        "summary": "Removes the NetBird connection, its token and its polling (admins). Stored logs and metrics stay.",
-        "operationId": "netbird_delete",
-        "responses": {
-          "204": {},
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/integrations/netbird/sync": {
-      "post": {
-        "tags": [
-          "integrations"
-        ],
-        "summary": "Polls NetBird now instead of within the minute (admins).",
-        "operationId": "netbird_sync",
-        "responses": {
-          "204": {},
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/integrations/netbird/test": {
-      "post": {
-        "tags": [
-          "integrations"
-        ],
-        "summary": "Tests a connection before or after saving it (admins): the token's user and role, and whether it can read the\naudit log and the peers.",
-        "operationId": "netbird_test",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NetbirdInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NetbirdTest"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -39890,6 +40151,572 @@
           }
         }
       },
+      "ConnectionInput": {
+        "type": "object",
+        "description": "What an admin enters.",
+        "properties": {
+          "config": {
+            "type": "object",
+            "description": "The package's non-secret fields.",
+            "default": {},
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "connectionId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For a test: the saved connection whose secrets fill the ones left out.",
+            "default": null
+          },
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "name": {
+            "type": "string",
+            "description": "Defaults to the connected account (`connection.instance`).",
+            "default": ""
+          },
+          "pushUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For a push-only package's `push.create`: the URL the vendor is to send to (as the page shows it).",
+            "default": null
+          },
+          "secrets": {
+            "type": "object",
+            "description": "Secret fields entered; left out or empty keeps the saved one.",
+            "default": {},
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "streams": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The streams to collect (default: those enabled by default).",
+            "default": null
+          }
+        }
+      },
+      "ConnectionView": {
+        "type": "object",
+        "description": "A connection as answered: its configuration and which secrets are saved, never their values.",
+        "required": [
+          "id",
+          "name",
+          "config",
+          "secrets",
+          "enabled",
+          "streams"
+        ],
+        "properties": {
+          "config": {
+            "type": "object",
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The secret fields saved."
+          },
+          "streams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreamStatus"
+            }
+          },
+          "updatedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms; None for native connectors."
+          }
+        }
+      },
+      "ConnectorCatalog": {
+        "type": "object",
+        "description": "Every connector of this server.",
+        "required": [
+          "connectors",
+          "invalid"
+        ],
+        "properties": {
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorEntry"
+            }
+          },
+          "invalid": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvalidPackage"
+            },
+            "description": "The operator's packages that couldn't be loaded (admins only)."
+          }
+        }
+      },
+      "ConnectorDetail": {
+        "type": "object",
+        "description": "A connector and the org's connections of it.",
+        "required": [
+          "connector",
+          "connections"
+        ],
+        "properties": {
+          "connections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionView"
+            }
+          },
+          "connector": {
+            "$ref": "#/components/schemas/ConnectorEntry"
+          }
+        }
+      },
+      "ConnectorEntry": {
+        "type": "object",
+        "description": "A connector: its package's catalog entry, or a native connector's.",
+        "required": [
+          "id",
+          "name",
+          "publisher",
+          "vendor",
+          "version",
+          "description",
+          "tiles",
+          "logo",
+          "categories",
+          "source",
+          "kind",
+          "thirdParty",
+          "links",
+          "config",
+          "streams",
+          "dashboards",
+          "monitors",
+          "testable"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "config": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorField"
+            }
+          },
+          "dashboards": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Titles of the dashboards it brings (listed once connected)."
+          },
+          "description": {
+            "type": "string"
+          },
+          "docsUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ConnectorKind"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorLink"
+            }
+          },
+          "logo": {
+            "type": "string"
+          },
+          "monitors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Names of its recommended monitors."
+          },
+          "name": {
+            "type": "string"
+          },
+          "page": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A native connector's own page."
+          },
+          "pipeline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The log pipeline installed with a connection."
+          },
+          "publisher": {
+            "type": "string"
+          },
+          "push": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorPush"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "setup": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Markdown."
+          },
+          "source": {
+            "type": "string",
+            "description": "Logs' `source`."
+          },
+          "streams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorStream"
+            }
+          },
+          "testable": {
+            "type": "boolean",
+            "description": "Whether it has a connection test."
+          },
+          "thirdParty": {
+            "type": "boolean",
+            "description": "Shipped with ObserveCraft, or the operator's (`OC_CONNECTORS_DIR`): community, third-party or private."
+          },
+          "tiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Catalog tiles it makes available."
+          },
+          "vendor": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "ConnectorField": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "type",
+          "required",
+          "secret",
+          "default",
+          "options"
+        ],
+        "properties": {
+          "default": {},
+          "help": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorOption"
+            }
+          },
+          "pattern": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placeholder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "secret": {
+            "type": "boolean"
+          },
+          "type": {
+            "type": "string",
+            "description": "string | text | url | number | boolean | select | multiselect | list"
+          }
+        }
+      },
+      "ConnectorKind": {
+        "type": "string",
+        "description": "How a connector is set up.",
+        "enum": [
+          "package",
+          "native",
+          "push"
+        ]
+      },
+      "ConnectorLink": {
+        "type": "object",
+        "required": [
+          "label",
+          "url"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "May hold `{{ config.<key> }}` parts."
+          }
+        }
+      },
+      "ConnectorMetric": {
+        "type": "object",
+        "description": "A metric a stream writes.",
+        "required": [
+          "name",
+          "type",
+          "tags"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "The name (a template for families: `streamnative.{{ record.name }}`)."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "gauge | count"
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ConnectorOption": {
+        "type": "object",
+        "required": [
+          "value",
+          "label"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "ConnectorPush": {
+        "type": "object",
+        "description": "Where a push-only vendor sends.",
+        "required": [
+          "kind",
+          "instructions",
+          "headers",
+          "canCreate"
+        ],
+        "properties": {
+          "canCreate": {
+            "type": "boolean",
+            "description": "Whether the page can create the push on the vendor's side (`POST /api/v1/connectors/{id}/push`)."
+          },
+          "headers": {
+            "type": "object",
+            "description": "Headers the vendor must send.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "instructions": {
+            "type": "string",
+            "description": "Markdown with `{{ intake }}` and `{{ source }}`."
+          },
+          "kind": {
+            "type": "string",
+            "description": "logs | otlp | webhook"
+          },
+          "signatureHeader": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The header carrying the vendor's signature, when the intake checks it."
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The URL to paste (`{{ intake }}`, `{{ source }}`, `{{ api_key }}`, `{{ config.x }}` parts)."
+          },
+          "webhook": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ConnectorStream": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "intervalSecs",
+          "defaultEnabled",
+          "logs",
+          "metrics",
+          "events",
+          "costs",
+          "incremental"
+        ],
+        "properties": {
+          "costs": {
+            "type": "boolean"
+          },
+          "defaultEnabled": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "events": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "incremental": {
+            "type": "string",
+            "description": "none | new_records | time | token"
+          },
+          "intervalSecs": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Seconds between runs."
+          },
+          "logs": {
+            "type": "boolean",
+            "description": "Its records become logs (with the connector's source)."
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorMetric"
+            }
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "ConnectorTest": {
+        "type": "object",
+        "description": "A connection test's result.",
+        "required": [
+          "ok",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "records": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Records the test read.",
+            "minimum": 0
+          }
+        }
+      },
       "ContainerRecommendation": {
         "type": "object",
         "required": [
@@ -51084,6 +51911,25 @@
           }
         }
       },
+      "InvalidPackage": {
+        "type": "object",
+        "description": "A package that couldn't be loaded, for instance admins.",
+        "required": [
+          "dir",
+          "problems"
+        ],
+        "properties": {
+          "dir": {
+            "type": "string"
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "InventoryLibrary": {
         "type": "object",
         "required": [
@@ -57538,156 +58384,6 @@
           },
           "name": {
             "type": "string"
-          }
-        }
-      },
-      "NetbirdConnection": {
-        "type": "object",
-        "description": "The connection as saved; the token is never answered.",
-        "required": [
-          "baseUrl",
-          "updatedAt"
-        ],
-        "properties": {
-          "baseUrl": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Epoch ms."
-          }
-        }
-      },
-      "NetbirdInput": {
-        "type": "object",
-        "description": "What an admin enters.",
-        "properties": {
-          "baseUrl": {
-            "type": "string",
-            "description": "The management API's URL: `https://api.netbird.io` for NetBird Cloud, the server's for self-hosted NetBird.",
-            "default": ""
-          },
-          "token": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "A personal access token of a service user allowed to read the audit log; leave it out to keep the saved one.",
-            "default": null
-          }
-        }
-      },
-      "NetbirdStatus": {
-        "type": "object",
-        "required": [
-          "eventsLastSync",
-          "peers"
-        ],
-        "properties": {
-          "connection": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/NetbirdConnection",
-                "description": "None until an admin connects NetBird."
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "error": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/CrawlIssue",
-                "description": "Why the last poll of the events or the peers failed (token refused, role missing, …), or its warning."
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "eventsLastSync": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Events sent by the last poll."
-          },
-          "lastSyncAt": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int64",
-            "description": "Epoch ms of the last successful poll of the audit events."
-          },
-          "peers": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Peers read by the last poll."
-          },
-          "peersSyncedAt": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int64",
-            "description": "Epoch ms of the last successful poll of the peers."
-          },
-          "syncedUntil": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int64",
-            "description": "Epoch ms: events recorded up to here were read."
-          }
-        }
-      },
-      "NetbirdTest": {
-        "type": "object",
-        "description": "A connection test's result.",
-        "required": [
-          "ok",
-          "message"
-        ],
-        "properties": {
-          "events": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int64",
-            "description": "Audit events the token can read.",
-            "minimum": 0
-          },
-          "message": {
-            "type": "string"
-          },
-          "ok": {
-            "type": "boolean"
-          },
-          "peers": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int64",
-            "description": "Peers of the account.",
-            "minimum": 0
-          },
-          "role": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Its role (owner, admin, auditor, …)."
-          },
-          "user": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "The token's user (name or email)."
           }
         }
       },
@@ -72311,6 +73007,65 @@
             "type": "number",
             "format": "double",
             "description": "Messages per second reaching the last consumer."
+          }
+        }
+      },
+      "StreamStatus": {
+        "type": "object",
+        "description": "A stream's collection, from its job.",
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "records",
+          "written"
+        ],
+        "properties": {
+          "collectedUntil": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms: records up to here were read (time windows), or the last run's minute."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CrawlIssue",
+                "description": "Why the last run failed, or its warning."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastSuccessAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last successful run."
+          },
+          "name": {
+            "type": "string"
+          },
+          "records": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Records read by the last run."
+          },
+          "written": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Logs, points, events and costs it wrote."
           }
         }
       },

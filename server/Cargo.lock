@@ -3841,6 +3841,7 @@ dependencies = [
  "hyper 1.12.0",
  "hyper-util",
  "lettre",
+ "oc-connectors",
  "oc-flags",
  "oc-query",
  "oc-store",

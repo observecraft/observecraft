@@ -2375,6 +2375,133 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/connectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every connector of this server: bundled and operator packages, native connectors. */
+        get: operations["list_connectors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A connector and the org's connections of it, with their streams' status. */
+        get: operations["get_connector"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's connections of a connector. */
+        get: operations["list_connector_connections"];
+        put?: never;
+        /** Creates a connection (admins): its secrets are sealed, its streams start within a minute. */
+        post: operations["create_connector_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/connections/{connection}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes a connection (admins); secrets left out are kept while its URLs stay the same. */
+        put: operations["update_connector_connection"];
+        post?: never;
+        /** Removes a connection, its secrets, state and polling (admins). Stored logs and metrics stay. */
+        delete: operations["delete_connector_connection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/connections/{connection}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Runs a connection's streams now instead of at their next interval (admins); native connectors' too. */
+        post: operations["sync_connector_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * For a push-only package: creates the push job or webhook on the vendor's side with the config entered
+         *     (`push.create`, admins). Nothing is stored.
+         */
+        post: operations["create_connector_push"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests a connection before or after saving it (admins): the package's test request, with the secrets entered or
+         *     (`connectionId`) the saved ones.
+         */
+        post: operations["test_connector_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard": {
         parameters: {
             query?: never;
@@ -4654,65 +4781,6 @@ export interface paths {
         get: operations["list_installed_integrations"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/netbird": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The NetBird connection and its syncs' status (no token). */
-        get: operations["netbird_status"];
-        /**
-         * Saves the NetBird connection (admins). The token is sealed; leave it out to keep the saved one (only while the
-         *     URL stays the same).
-         */
-        put: operations["netbird_save"];
-        post?: never;
-        /** Removes the NetBird connection, its token and its polling (admins). Stored logs and metrics stay. */
-        delete: operations["netbird_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/netbird/sync": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Polls NetBird now instead of within the minute (admins). */
-        post: operations["netbird_sync"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/netbird/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Tests a connection before or after saving it (admins): the token's user and role, and whether it can read the
-         *     audit log and the peers.
-         */
-        post: operations["netbird_test"];
         delete?: never;
         options?: never;
         head?: never;
@@ -13519,6 +13587,188 @@ export interface components {
             /** Format: int64 */
             azure: number;
         };
+        /** @description What an admin enters. */
+        ConnectionInput: {
+            /**
+             * @description The package's non-secret fields.
+             * @default {}
+             */
+            config: {
+                [key: string]: unknown;
+            };
+            /**
+             * @description For a test: the saved connection whose secrets fill the ones left out.
+             * @default null
+             */
+            connectionId: string | null;
+            /** @default null */
+            enabled: boolean | null;
+            /**
+             * @description Defaults to the connected account (`connection.instance`).
+             * @default
+             */
+            name: string;
+            /**
+             * @description For a push-only package's `push.create`: the URL the vendor is to send to (as the page shows it).
+             * @default null
+             */
+            pushUrl: string | null;
+            /**
+             * @description Secret fields entered; left out or empty keeps the saved one.
+             * @default {}
+             */
+            secrets: {
+                [key: string]: string;
+            };
+            /**
+             * @description The streams to collect (default: those enabled by default).
+             * @default null
+             */
+            streams: string[] | null;
+        };
+        /** @description A connection as answered: its configuration and which secrets are saved, never their values. */
+        ConnectionView: {
+            config: {
+                [key: string]: unknown;
+            };
+            enabled: boolean;
+            id: string;
+            name: string;
+            /** @description The secret fields saved. */
+            secrets: string[];
+            streams: components["schemas"]["StreamStatus"][];
+            /**
+             * Format: int64
+             * @description Epoch ms; None for native connectors.
+             */
+            updatedAt?: number | null;
+        };
+        /** @description Every connector of this server. */
+        ConnectorCatalog: {
+            connectors: components["schemas"]["ConnectorEntry"][];
+            /** @description The operator's packages that couldn't be loaded (admins only). */
+            invalid: components["schemas"]["InvalidPackage"][];
+        };
+        /** @description A connector and the org's connections of it. */
+        ConnectorDetail: {
+            connections: components["schemas"]["ConnectionView"][];
+            connector: components["schemas"]["ConnectorEntry"];
+        };
+        /** @description A connector: its package's catalog entry, or a native connector's. */
+        ConnectorEntry: {
+            categories: string[];
+            config: components["schemas"]["ConnectorField"][];
+            /** @description Titles of the dashboards it brings (listed once connected). */
+            dashboards: string[];
+            description: string;
+            docsUrl?: string | null;
+            id: string;
+            kind: components["schemas"]["ConnectorKind"];
+            links: components["schemas"]["ConnectorLink"][];
+            logo: string;
+            /** @description Names of its recommended monitors. */
+            monitors: string[];
+            name: string;
+            /** @description A native connector's own page. */
+            page?: string | null;
+            /** @description The log pipeline installed with a connection. */
+            pipeline?: string | null;
+            publisher: string;
+            push?: components["schemas"]["ConnectorPush"] | null;
+            /** @description Markdown. */
+            setup?: string | null;
+            /** @description Logs' `source`. */
+            source: string;
+            streams: components["schemas"]["ConnectorStream"][];
+            /** @description Whether it has a connection test. */
+            testable: boolean;
+            /** @description Shipped with ObserveCraft, or the operator's (`OC_CONNECTORS_DIR`): community, third-party or private. */
+            thirdParty: boolean;
+            /** @description Catalog tiles it makes available. */
+            tiles: string[];
+            vendor: string;
+            version: string;
+        };
+        ConnectorField: {
+            default: unknown;
+            help?: string | null;
+            key: string;
+            label: string;
+            options: components["schemas"]["ConnectorOption"][];
+            pattern?: string | null;
+            placeholder?: string | null;
+            required: boolean;
+            secret: boolean;
+            /** @description string | text | url | number | boolean | select | multiselect | list */
+            type: string;
+        };
+        /**
+         * @description How a connector is set up.
+         * @enum {string}
+         */
+        ConnectorKind: "package" | "native" | "push";
+        ConnectorLink: {
+            label: string;
+            /** @description May hold `{{ config.<key> }}` parts. */
+            url: string;
+        };
+        /** @description A metric a stream writes. */
+        ConnectorMetric: {
+            description?: string | null;
+            /** @description The name (a template for families: `streamnative.{{ record.name }}`). */
+            name: string;
+            tags: string[];
+            /** @description gauge | count */
+            type: string;
+            unit?: string | null;
+        };
+        ConnectorOption: {
+            label: string;
+            value: string;
+        };
+        /** @description Where a push-only vendor sends. */
+        ConnectorPush: {
+            /** @description Whether the page can create the push on the vendor's side (`POST /api/v1/connectors/{id}/push`). */
+            canCreate: boolean;
+            /** @description Headers the vendor must send. */
+            headers: {
+                [key: string]: string;
+            };
+            /** @description Markdown with `{{ intake }}` and `{{ source }}`. */
+            instructions: string;
+            /** @description logs | otlp | webhook */
+            kind: string;
+            /** @description The header carrying the vendor's signature, when the intake checks it. */
+            signatureHeader?: string | null;
+            /** @description The URL to paste (`{{ intake }}`, `{{ source }}`, `{{ api_key }}`, `{{ config.x }}` parts). */
+            url?: string | null;
+            webhook?: string | null;
+        };
+        ConnectorStream: {
+            costs: boolean;
+            defaultEnabled: boolean;
+            description: string;
+            events: boolean;
+            id: string;
+            /** @description none | new_records | time | token */
+            incremental: string;
+            /**
+             * Format: int64
+             * @description Seconds between runs.
+             */
+            intervalSecs: number;
+            /** @description Its records become logs (with the connector's source). */
+            logs: boolean;
+            metrics: components["schemas"]["ConnectorMetric"][];
+            name: string;
+        };
+        /** @description A connection test's result. */
+        ConnectorTest: {
+            message: string;
+            ok: boolean;
+            /** @description Records the test read. */
+            records?: number | null;
+        };
         ContainerRecommendation: {
             /** Format: double */
             cpuAvg?: number | null;
@@ -17062,6 +17312,11 @@ export interface components {
             /** @description Names of its library log pipelines. */
             pipelines: string[];
         };
+        /** @description A package that couldn't be loaded, for instance admins. */
+        InvalidPackage: {
+            dir: string;
+            problems: string[];
+        };
         InventoryLibrary: {
             direct?: boolean | null;
             ecosystem: string;
@@ -18970,76 +19225,6 @@ export interface components {
             /** Format: int64 */
             count: number;
             name: string;
-        };
-        /** @description The connection as saved; the token is never answered. */
-        NetbirdConnection: {
-            baseUrl: string;
-            /**
-             * Format: int64
-             * @description Epoch ms.
-             */
-            updatedAt: number;
-        };
-        /** @description What an admin enters. */
-        NetbirdInput: {
-            /**
-             * @description The management API's URL: `https://api.netbird.io` for NetBird Cloud, the server's for self-hosted NetBird.
-             * @default
-             */
-            baseUrl: string;
-            /**
-             * @description A personal access token of a service user allowed to read the audit log; leave it out to keep the saved one.
-             * @default null
-             */
-            token: string | null;
-        };
-        NetbirdStatus: {
-            connection?: components["schemas"]["NetbirdConnection"] | null;
-            error?: components["schemas"]["CrawlIssue"] | null;
-            /**
-             * Format: int32
-             * @description Events sent by the last poll.
-             */
-            eventsLastSync: number;
-            /**
-             * Format: int64
-             * @description Epoch ms of the last successful poll of the audit events.
-             */
-            lastSyncAt?: number | null;
-            /**
-             * Format: int32
-             * @description Peers read by the last poll.
-             */
-            peers: number;
-            /**
-             * Format: int64
-             * @description Epoch ms of the last successful poll of the peers.
-             */
-            peersSyncedAt?: number | null;
-            /**
-             * Format: int64
-             * @description Epoch ms: events recorded up to here were read.
-             */
-            syncedUntil?: number | null;
-        };
-        /** @description A connection test's result. */
-        NetbirdTest: {
-            /**
-             * Format: int64
-             * @description Audit events the token can read.
-             */
-            events?: number | null;
-            message: string;
-            ok: boolean;
-            /**
-             * Format: int64
-             * @description Peers of the account.
-             */
-            peers?: number | null;
-            /** @description Its role (owner, admin, auditor, …). */
-            role?: string | null;
-            /** @description The token's user (name or email). */
-            user?: string | null;
         };
         NetworkFacet: {
             /** @description `client_service`, `server_port`, … */
@@ -23552,6 +23737,33 @@ export interface components {
              * @description Messages per second reaching the last consumer.
              */
             throughput: number;
+        };
+        /** @description A stream's collection, from its job. */
+        StreamStatus: {
+            /**
+             * Format: int64
+             * @description Epoch ms: records up to here were read (time windows), or the last run's minute.
+             */
+            collectedUntil?: number | null;
+            enabled: boolean;
+            error?: components["schemas"]["CrawlIssue"] | null;
+            id: string;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful run.
+             */
+            lastSuccessAt?: number | null;
+            name: string;
+            /**
+             * Format: int32
+             * @description Records read by the last run.
+             */
+            records: number;
+            /**
+             * Format: int32
+             * @description Logs, points, events and costs it wrote.
+             */
+            written: number;
         };
         SuggestRequest: {
             /** @description The term being typed, e.g. `serv`, `service:`, `service:pho`, `-env:`. */
@@ -29733,6 +29945,288 @@ export interface operations {
             };
         };
     };
+    list_connectors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorCatalog"];
+                };
+            };
+        };
+    };
+    get_connector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_connector_connections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionView"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_connector_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionView"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_connector_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                connection: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionView"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_connector_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                connection: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    sync_connector_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                connection: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_connector_push: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    test_connector_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     datadog_list_dashboards: {
         parameters: {
             query?: {
@@ -34993,137 +35487,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": string[];
-                };
-            };
-        };
-    };
-    netbird_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NetbirdStatus"];
-                };
-            };
-        };
-    };
-    netbird_save: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NetbirdInput"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NetbirdStatus"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    netbird_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    netbird_sync: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    netbird_test: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NetbirdInput"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NetbirdTest"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

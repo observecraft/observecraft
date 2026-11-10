@@ -1,0 +1,51 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "AddedDate": "2026-11-09T08:00:00Z",
+      "BreachDate": "2026-11-01",
+      "DataClasses": [
+        "Email addresses",
+        "IP addresses",
+        "Usernames"
+      ],
+      "Description": "In November 2026, the Example Forum community leaked usernames, email addresses and IP addresses.",
+      "Domain": "forum.example",
+      "IsFabricated": false,
+      "IsMalware": false,
+      "IsRetired": false,
+      "IsSensitive": false,
+      "IsSpamList": false,
+      "IsStealerLog": false,
+      "IsSubscriptionFree": false,
+      "IsVerified": true,
+      "LogoPath": "https://logos.haveibeenpwned.com/ExampleForum.png",
+      "ModifiedDate": "2026-11-09T08:00:00Z",
+      "Name": "ExampleForum",
+      "PwnCount": 5000,
+      "Title": "Example Forum",
+      "_oc_ingest": {
+        "id": "01a1bf52-3c00-7dec-b5be-574c7eed2b44"
+      },
+      "date": "2026-11-09T08:00:00Z",
+      "ddsource": "have-i-been-pwned",
+      "host": "have-i-been-pwned",
+      "message": "In November 2026, the Example Forum community leaked usernames, email addresses and IP addresses.",
+      "service": "latest-breach",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "seen": [
+          {
+            "id": "983fc33258070fea"
+          }
+        ]
+      }
+    }
+  }
+}

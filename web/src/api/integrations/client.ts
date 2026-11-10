@@ -2,7 +2,8 @@
 // installs an integration's log pipelines and dashboards). Catalog templates do not install collectors.
 import * as mock from '../mock/integrations';
 import { API_MODE, del, get, put } from '../http';
-import { availableHere, type CollectionInfo } from './collection';
+import { availableHere, registerConnector, type CollectionInfo } from './collection';
+import { listConnectors } from '../connectors/client';
 import { hasReportedMetrics, reportedMetricNames, waitingForData, type ReportedMetrics } from './detection';
 import type { IntegrationDetail, IntegrationHost, IntegrationStatus, IntegrationSummary } from './types';
 
@@ -23,7 +24,7 @@ function liveStatus(id: string, installed: Set<string>, detected: boolean, avail
 function liveState(id: string, collection: CollectionInfo, declared: { name: string }[], reported: ReportedMetrics, installed: Set<string>): Pick<IntegrationSummary, 'status' | 'waitingForData'> {
   const prefixes = mock.catalogPrefixes(id);
   return {
-    status: liveStatus(id, installed, hasReportedMetrics(id, declared, reported, prefixes), availableHere(collection)),
+    status: liveStatus(id, installed, hasReportedMetrics(id, declared, reported, prefixes), availableHere(collection, id)),
     waitingForData: waitingForData(id, installed.has(id), declared, reported, prefixes),
   };
 }
@@ -46,8 +47,14 @@ async function checkHosts(check: string): Promise<IntegrationHost[]> {
  */
 export async function listCatalog(): Promise<IntegrationSummary[]> {
   if (API_MODE === 'mock') return mock.listCatalog();
-  const [reported, installed] = await Promise.all([reportedMetrics(), installedIds()]);
-  return mock.catalogMetadata().map((entry) => ({ ...entry, ...liveState(entry.id, entry, mock.declaredMetrics(entry.id), reported, installed) }));
+  const [reported, installed, connectors] = await Promise.all([reportedMetrics(), installedIds(), listConnectors()]);
+  const known = mock.catalogMetadata();
+  // The operator's connector packages (OC_CONNECTORS_DIR): their tiles become available, and those without one add theirs.
+  for (const c of connectors.connectors) registerConnector(c);
+  const theirs: IntegrationSummary[] = connectors.connectors
+    .filter((c) => c.thirdParty && !known.some((e) => e.id === c.id || c.tiles.includes(e.id)))
+    .map((c) => ({ id: c.id, name: c.name, publisher: c.publisher, logo: c.logo, categories: c.categories, description: c.description, status: installed.has(c.id) ? 'installed' : 'available' }));
+  return [...known.map((entry) => ({ ...entry, ...liveState(entry.id, entry, mock.declaredMetrics(entry.id), reported, installed) })), ...theirs];
 }
 
 export const listCategories = mock.listCategories;

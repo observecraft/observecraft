@@ -2,6 +2,8 @@
 // here: Agent checks, Agent logs and webhooks work as they are; senders with a free-form URL work once pointed at the
 // intake; what Datadog's own service collects (vendor APIs, OAuth connections) or only documents does not.
 
+import packages from '../connectors/packages.generated.json';
+
 /** See COLLECTIONS in scripts/import-integration-catalog.mjs. */
 export type Collection = 'agent' | 'logs' | 'crawler' | 'oauth' | 'webhook' | 'push-site' | 'docs';
 
@@ -19,8 +21,32 @@ export function installable(collection: Collection | undefined): boolean {
   return !collection || !NOT_INSTALLABLE.includes(collection);
 }
 
-/** Whether ObserveCraft receives this integration's data at all. */
-export function availableHere(c: CollectionInfo): boolean {
+/** A connector making a tile available (docs/connectors.md): its id and page. */
+export interface TileConnector {
+  id: string;
+  name: string;
+  page: string;
+  kind: 'package' | 'native' | 'push';
+}
+
+/** The bundled connector packages, by the tiles they make available (third-party ones are added at run time). */
+const CONNECTOR_TILES = new Map<string, TileConnector>();
+
+export function registerConnector(c: { id: string; name: string; page?: string | null; kind: TileConnector['kind']; tiles: string[] }) {
+  const entry = { id: c.id, name: c.name, page: c.page ?? `/integrations/connectors/${c.id}`, kind: c.kind };
+  for (const tile of [c.id, ...c.tiles]) CONNECTOR_TILES.set(tile, entry);
+}
+
+for (const p of packages as { entry: { id: string; name: string; page?: string | null; kind: TileConnector['kind']; tiles: string[] } }[]) registerConnector(p.entry);
+
+/** The connector making a tile available, if any. */
+export function tileConnector(id: string): TileConnector | undefined {
+  return CONNECTOR_TILES.get(id);
+}
+
+/** Whether ObserveCraft receives this integration's data at all (`id`: a tile a connector covers is available). */
+export function availableHere(c: CollectionInfo, id?: string): boolean {
+  if (id && CONNECTOR_TILES.has(id)) return true;
   if (c.collection === 'push-site') return !!c.customEndpoint;
   return installable(c.collection);
 }
@@ -60,7 +86,6 @@ const OWN: Record<string, { to: string; label: string }> = {
   'azure-active-directory': { to: '/integrations/azure?detail=entra', label: 'Entra ID logs' },
   'google-cloud': { to: '/integrations/gcp', label: 'Google Cloud' },
   authentik: { to: '/integrations/authentik', label: 'authentik' },
-  netbird: { to: '/integrations/netbird', label: 'NetBird' },
   fleetdm: { to: '/integrations/fleetdm', label: 'FleetDM' },
   'gitlab-audit-events': { to: '/integrations/gitlab-audit-events', label: 'GitLab Audit Events' },
   'google-workspace': { to: '/integrations/google-workspace', label: 'Google Workspace' },
@@ -72,5 +97,6 @@ const OWN: Record<string, { to: string; label: string }> = {
 };
 
 export function ownIntegration(id: string): { to: string; label: string } | undefined {
-  return OWN[id];
+  const c = CONNECTOR_TILES.get(id);
+  return OWN[id] ?? (c ? { to: c.page, label: c.name } : undefined);
 }
