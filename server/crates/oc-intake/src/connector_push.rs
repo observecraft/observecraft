@@ -242,9 +242,9 @@ mod tests {
         KeyOrg { org_id: id.into(), span_retention_days: 15, metrics_retention_days: 30, metrics_5m_days: 90, metrics_1h_days: 395, flag_environment_id: None, ingest_mbps: None, ingest_rps: None }
     }
 
-    fn sign(body: &[u8]) -> String {
+    fn sign(secret: &str, body: &[u8]) -> String {
         use hmac::{KeyInit, Mac};
-        let mut mac = hmac::Hmac::<Sha256>::new_from_slice(b"whsec-a").unwrap();
+        let mut mac = hmac::Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
         mac.update(body);
         format!("sha256={}", mac.finalize().into_bytes().iter().map(|b| format!("{b:02x}")).collect::<String>())
     }
@@ -262,6 +262,9 @@ mod tests {
         let seen = logs.clone();
         let asked: Arc<Mutex<Vec<String>>> = Arc::default();
         let asked_by = asked.clone();
+        // Org A's signing secret, made for this run.
+        let secret = format!("{:032x}", rand::random::<u128>());
+        let saved = secret.clone();
         tokio::spawn(async move {
             let app = Router::new()
                 .route("/ingest/connectors/push", route_get(move || async move { Json(defs) }))
@@ -270,7 +273,7 @@ mod tests {
                     route_get(move |headers: HeaderMap| async move {
                         let org = headers[crate::ORG_HEADER].to_str().unwrap().to_string();
                         asked_by.lock().unwrap().push(org.clone());
-                        Json(json!({ "secrets": if org == "org-a" { vec!["whsec-a"] } else { vec![] } }))
+                        Json(json!({ "secrets": if org == "org-a" { vec![saved] } else { vec![] } }))
                     }),
                 )
                 .route(
@@ -304,9 +307,9 @@ mod tests {
             }
         };
         let body: &[u8] = br#"{"id":"evt_1","type":"invoice.paid","created":1794312000}"#;
-        assert_eq!(call("ocik_push_a", Some(sign(body)), body).await, StatusCode::ACCEPTED);
+        assert_eq!(call("ocik_push_a", Some(sign(&secret, body)), body).await, StatusCode::ACCEPTED);
         assert_eq!(call("ocik_push_a", None, body).await, StatusCode::UNAUTHORIZED, "A saved a secret: unsigned is refused");
-        assert_eq!(call("ocik_push_a", Some(sign(b"other")), body).await, StatusCode::UNAUTHORIZED);
+        assert_eq!(call("ocik_push_a", Some(sign(&secret, b"other")), body).await, StatusCode::UNAUTHORIZED);
         assert_eq!(call("ocik_push_b", None, body).await, StatusCode::ACCEPTED, "B saved none: its key admits it");
         assert_eq!(call("ocik_push_b", Some("sha256=00".into()), body).await, StatusCode::ACCEPTED);
         let got = logs.lock().unwrap().clone();

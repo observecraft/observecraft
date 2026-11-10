@@ -680,7 +680,7 @@ mod tests {
         assert!(points.iter().any(|p| p.0 == "azure.storage_storageaccounts_blobservices.blob_capacity"));
         // Their resource counts carry the account's Resource Health status.
         let status = |name: &str, account: &str| {
-            let p = points.iter().find(|p| p.0 == name && p.2.contains(&("name".to_string(), account.to_string()))).unwrap_or_else(|| panic!("{name} of {account}"));
+            let p = points.iter().find(|p| p.0 == name && p.2.contains(&("name".to_string(), account.to_string()))).expect("the count of a storage service");
             p.2.iter().find(|t| t.0 == "status").unwrap().1.clone()
         };
         assert_eq!(status("azure.storage_storageaccounts_blobservices.count", "storefrontassets"), "Running");

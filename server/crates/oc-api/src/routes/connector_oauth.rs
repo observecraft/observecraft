@@ -310,7 +310,7 @@ mod tests {
         )
         .await
         .unwrap();
-        assert!(kept.secrets.contains(&"oauth_refresh_token".to_string()), "{:?}", kept.secrets);
+        assert!(kept.secrets.contains(&"oauth_refresh_token".to_string()), "the refresh token is kept");
         // The vendor refusing: the page says why, nothing saved.
         let b = crate::test_support::admin_of_new_org(st, "oauth-b").await;
         let other = start_with(st, &b, p, &input).await.unwrap();

@@ -724,7 +724,7 @@ mod tests {
         let now = chrono::Utc::now();
         let event = serde_json::json!({ "source_type": "kafka", "_oc_kafka_headers": { "x-oc-org": "org-1" }, "message": "hi", "timestamp": "2026-11-05T10:20:30.456Z" });
         let row = normalize(LogEvent { fields: event.as_object().unwrap().clone(), timestamp: None }, now).unwrap();
-        assert!(v7(&row.id), "{}", row.id);
+        assert!(v7(&row.id), "a UUIDv7");
         assert_eq!(i64::from_str_radix(&row.id.replace('-', "")[..12], 16).unwrap(), row.ts_ms);
         assert_eq!(row.ts_ms, chrono::DateTime::parse_from_rfc3339("2026-11-05T10:20:30.456Z").unwrap().timestamp_millis());
     }
