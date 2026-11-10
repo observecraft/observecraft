@@ -58,3 +58,13 @@ test('unavailable tiles are left out of the default listing, and found by search
 test('an unavailable tile offers its details, not Install', () => {
   assert.deepEqual(cardHover('unavailable'), { band: 'Not available', action: 'details' });
 });
+
+test('a tile a connector package collects is available and links to the connector page', async () => {
+  const { registerConnector, tileConnector } = await import('../web/src/api/integrations/collection.ts');
+  assert.equal(availableHere({ collection: 'crawler' }, 'example-crawler-tile'), false);
+  registerConnector({ id: 'example-crawler-tile', name: 'Example', kind: 'package', tiles: ['example-alias'] });
+  assert.equal(availableHere({ collection: 'crawler' }, 'example-crawler-tile'), true);
+  assert.equal(availableHere({ collection: 'oauth' }, 'example-alias'), true, 'every tile the package names');
+  assert.deepEqual(ownIntegration('example-alias'), { to: '/integrations/connectors/example-crawler-tile', label: 'Example' });
+  assert.equal(tileConnector('example-alias')?.kind, 'package');
+});

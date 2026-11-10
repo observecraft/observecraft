@@ -2,8 +2,6 @@
 // here: Agent checks, Agent logs and webhooks work as they are; senders with a free-form URL work once pointed at the
 // intake; what Datadog's own service collects (vendor APIs, OAuth connections) or only documents does not.
 
-import packages from '../connectors/packages.generated.json';
-
 /** See COLLECTIONS in scripts/import-integration-catalog.mjs. */
 export type Collection = 'agent' | 'logs' | 'crawler' | 'oauth' | 'webhook' | 'push-site' | 'docs';
 
@@ -29,15 +27,14 @@ export interface TileConnector {
   kind: 'package' | 'native' | 'push';
 }
 
-/** The bundled connector packages, by the tiles they make available (third-party ones are added at run time). */
+/** Connectors by the tiles they make available: the bundled packages (registered by mock/connectors.ts) and, live,
+ * every connector the server lists (third-party ones included, integrations/client.ts). */
 const CONNECTOR_TILES = new Map<string, TileConnector>();
 
 export function registerConnector(c: { id: string; name: string; page?: string | null; kind: TileConnector['kind']; tiles: string[] }) {
   const entry = { id: c.id, name: c.name, page: c.page ?? `/integrations/connectors/${c.id}`, kind: c.kind };
   for (const tile of [c.id, ...c.tiles]) CONNECTOR_TILES.set(tile, entry);
 }
-
-for (const p of packages as { entry: { id: string; name: string; page?: string | null; kind: TileConnector['kind']; tiles: string[] } }[]) registerConnector(p.entry);
 
 /** The connector making a tile available, if any. */
 export function tileConnector(id: string): TileConnector | undefined {

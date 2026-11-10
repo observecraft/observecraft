@@ -4,6 +4,7 @@
 // package's recorded test message.
 import type { components } from '../generated/schema';
 import packages from '../connectors/packages.generated.json';
+import { registerConnector } from '../integrations/collection';
 
 type S = components['schemas'];
 type Entry = S['ConnectorEntry'];
@@ -17,6 +18,8 @@ interface Package {
 }
 
 const PACKAGES = packages as unknown as Package[];
+// The bundled packages' tiles are available and link to their page, before the server's list arrives.
+for (const p of PACKAGES) registerConnector(p.entry);
 
 /** The native connectors (connectors/native.rs): their own pages. */
 const NATIVE: Entry[] = [
