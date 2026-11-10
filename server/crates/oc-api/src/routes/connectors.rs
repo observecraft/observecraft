@@ -8,7 +8,8 @@
 //! - URL fields are checked with the Developer Portal connectors' rules (`check_site_url`) and every request goes
 //!   through the SSRF guard (`OC_PORTAL_ALLOW_PRIVATE` for internal hosts).
 //! - Saving installs the package's log pipeline and dashboards for the org, and its dashboards are listed once the
-//!   org has a connection (`routes::dashboards`).
+//!   org has a connection (`routes::dashboards`); it creates the package's monitors, Cloud SIEM rules and log-based
+//!   metrics once (`connectors::assets`). Removing the last connection removes those and the pipeline.
 
 use std::sync::Arc;
 
@@ -475,6 +476,13 @@ async fn save(st: &AppState, ctx: &crate::auth::AuthContext, p: &PackageConnecto
     tx.commit().await?;
     poll_now(st, &m.id, &ctx.org_id, &id).await?;
     install_assets(st, &ctx.org_id, Some(&ctx.user_id), p).await?;
+    let (created, problems) = connectors::assets::install(st, ctx, p).await?;
+    if !created.is_empty() {
+        ctx.audit(st, "connectors.assets_created", &m.id, &created.join(", ")).await;
+    }
+    for problem in problems {
+        tracing::warn!(connector = %m.id, %problem, "a package asset was not created");
+    }
     let replaced: Vec<&str> = checked.secrets.keys().map(String::as_str).collect();
     let detail = format!("{}{}", checked.name, if replaced.is_empty() { String::new() } else { format!(", {} replaced", replaced.join(", ")) });
     ctx.audit(st, if previous.is_some() { "connectors.connection_updated" } else { "connectors.connection_created" }, &m.id, &detail).await;
@@ -512,6 +520,10 @@ pub async fn delete_connection(State(st): State<AppState>, Admin(ctx): Admin, Pa
     sqlx::query("DELETE FROM connector_connections WHERE org_id = $1 AND connector_id = $2 AND id = $3::uuid").bind(&ctx.org_id).bind(&id).bind(&saved.id).execute(&mut *tx).await?;
     sqlx::query("DELETE FROM cloud_crawl_jobs WHERE provider = $1 AND org_id = $2 AND account_id = $3::uuid").bind(&id).bind(&ctx.org_id).bind(&saved.id).execute(&mut *tx).await?;
     tx.commit().await?;
+    // The last one: the package's monitors, rules, log-based metrics and pipeline go (its dashboards stay).
+    if store::list(&st, &ctx.org_id, &id).await?.is_empty() {
+        connectors::assets::remove(&st, &ctx, &id).await?;
+    }
     ctx.audit(&st, "connectors.connection_deleted", &p.package.manifest.id, &saved.name).await;
     Ok(StatusCode::NO_CONTENT)
 }

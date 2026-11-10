@@ -371,8 +371,13 @@ test:
   package's; they are seeded for every org and listed once it has a connection.
 - `assets.pipeline`: a log pipeline in Datadog's pipeline JSON (`{name, filter: {query}, processors}`), installed with
   the first connection (`connector:<id>`), editable in Logs → Pipelines.
-- `assets.monitors`, `assets.security_rules`, `assets.log_metrics`, `assets.metadata`: validated and shipped; the
-  connector page lists the monitors. Creating them from the package is not built yet.
+- `assets.monitors` (Datadog's monitor JSON, or integrations-core's `{definition: …}`), `assets.security_rules`
+  (Cloud SIEM rule JSON) and `assets.log_metrics` (`{id, compute, filter, group_by}` or the API's `{data: …}`): created
+  for the org with its first connection, through the same code as Datadog's API (monitors and rules tagged
+  `connector:<id>`). Each is created once (Postgres `connector_assets`): saving again, a second connection or an asset
+  the org deleted create nothing; a log-based metric whose name the org has is left alone. One that can't be created
+  is skipped (the server logs why). Removing the org's last connection removes them and the pipeline; dashboards
+  stay. `assets.metadata` is validated and shipped.
 
 ## Push-only vendors and webhooks
 

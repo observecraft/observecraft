@@ -68,8 +68,9 @@ API integrations: adding one should be a package, not code, and operators should
    `connector_connections` with the same ids, so its jobs and cursors carry on; its log identity (instance + event id)
    is reproduced by the engine's identity rule, so events read again are stored once.
 7. **Assets**: a connection's save installs the package's log pipeline (as `integration_installs::install_pipelines`
-   does) and enables its dashboards (seeded for every org, listed once the org has a connection). Monitors and SIEM rules
-   are listed on the connector page as recommended; they are created on request.
+   does) and enables its dashboards (seeded for every org, listed once the org has a connection). Its monitors, Cloud
+   SIEM rules and log-based metrics are created once with the first connection (`connector_assets`), and removed with
+   the pipeline when the last one is, as uninstalling an integration removes its pipelines.
 
 ## Consequences
 
