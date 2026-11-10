@@ -185,6 +185,19 @@ const HINTS: KubernetesHint[] = [
     ],
   },
   {
+    check: 'pgbouncer',
+    variants: [
+      {
+        label: 'PgBouncer Deployment (bitnami/pgbouncer, edoburu/pgbouncer or your own image)',
+        text: `Annotate the pod template of the PgBouncer Deployment (its container here \`pgbouncer\`). The check reads PgBouncer’s admin console, the \`pgbouncer\` database: add the check’s user to \`stats_users\` (\`PGBOUNCER_STATS_USERS=datadog\` with the Bitnami image) and to the auth file. CloudNativePG’s \`Pooler\` only admits certificate logins to the console, which the check can’t make. ${SECRET_NOTE}`,
+        annotations: [
+          checkAnnotation('pgbouncer', 'pgbouncer', { instances: [{ database_url: 'postgresql://datadog:ENC[k8s_secret@db/datadog-pgbouncer/password]@%%host%%:6432/pgbouncer' }] }),
+          logsAnnotation('pgbouncer', 'pgbouncer', 'pgbouncer'),
+        ].join('\n'),
+      },
+    ],
+  },
+  {
     check: 'redisdb',
     variants: [
       {

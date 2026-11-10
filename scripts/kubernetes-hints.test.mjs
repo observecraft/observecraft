@@ -81,3 +81,7 @@ test('ClickHouse runs its check against the HTTP interface of its pods', () => {
   for (const v of kubernetesHint('clickhouse').variants) assert.equal(instanceOf('clickhouse', v).port, 8123, v.label);
   assert.ok(kubernetesHint('clickhouse').variants.some((v) => /Altinity/.test(v.label)));
 });
+
+test('PgBouncer runs its check against the admin console of its pods', () => {
+  for (const v of kubernetesHint('pgbouncer').variants) assert.match(instanceOf('pgbouncer', v).database_url, /^postgresql:\/\/datadog:.+@%%host%%:6432\/pgbouncer$/, v.label);
+});

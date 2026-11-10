@@ -59,3 +59,8 @@ test('ClickHouse: the HTTP interface and the system tables, no Database Monitori
   assert.match(stepsOf('clickhouse'), /system/);
   assert.match(stepsOf('clickhouse'), /Leave dbm off/);
 });
+
+test('PgBouncer: the admin console with a stats user', () => {
+  assert.match(stepsOf('pgbouncer'), /stats_users/);
+  assert.match(stepsOf('pgbouncer'), /database_url|pgbouncer database/);
+});

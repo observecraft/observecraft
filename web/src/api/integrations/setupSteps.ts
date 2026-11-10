@@ -38,6 +38,9 @@ const CHECK_NOTES: Record<string, string[]> = {
     'The check queries ClickHouse’s HTTP interface (port 8123, not the native port 9000) as a user that can read the system tables (system.metrics, system.events, system.asynchronous_metrics, system.parts); a readonly profile is enough.',
     'Its Database Monitoring options (dbm, query_samples, query_metrics) are not supported: ObserveCraft does not receive those payloads. Leave dbm off.',
   ],
+  pgbouncer: [
+    'The check reads PgBouncer’s admin console, the pgbouncer database: add its user to stats_users in pgbouncer.ini (and to the auth file) and set database_url to postgresql://datadog:<PASSWORD>@<HOST>:6432/pgbouncer.',
+  ],
 };
 
 /** How an integrations-core entry is set up to send to ObserveCraft. */
