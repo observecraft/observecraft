@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { OUT as BRAND_ICONS, sanitizeSvg } from '../web/scripts/fetch-brand-icons.mjs';
-import { catalogLogoKeys, isGeneric, logoExists, resolveLogo } from '../web/scripts/integration-logos.mjs';
+import { BRANDS } from '../web/scripts/fetch-brand-icons.mjs';
+import { AMBIGUOUS, HOMONYMS, OVERRIDES, catalogLogoKeys, isGeneric, logoExists, resolveLogo } from '../web/scripts/integration-logos.mjs';
 import { BRAND_LOGOS } from '../web/src/assets/brandLogos.generated.ts';
 import { INTEGRATION_LOGOS } from '../web/src/assets/integrationLogos.generated.ts';
 
@@ -58,6 +59,81 @@ test('well-known integrations show their own brand', () => {
   for (const [id, logo] of Object.entries(expected)) assert.equal(logoOf(id), logo, id);
 });
 
+/**
+ * Integrations whose name is also another brand's (or another project's) in the icon sets: the logo they must show,
+ * and the homonyms they must never show. `null` is our own monogram tile: no logo we may use is known.
+ */
+const NAME_AMBIGUOUS = {
+  puma: ['brand:puma', ['si:puma']], // the Ruby web server, not the sportswear brand
+  vespa: ['brand:vespa', ['si:vespa']], // vespa.ai, not Piaggio's scooter
+  impala: ['logos:apache', ['logos:impala']], // Apache Impala, not impala.io
+  'obsidian-security': ['brand:obsidiansecurity', ['logos:obsidian-icon', 'logos:obsidian', 'si:obsidian']], // not the notes app
+  fluxcd: ['si:flux', ['logos:flux']], // the CNCF GitOps project, not Facebook's Flux architecture
+  spark: ['logos:apache-spark', ['logos:spark']], // Apache Spark, not the Spark Java framework
+  hive: ['si:apachehive', ['si:hive']], // Apache Hive, not the Hive blockchain
+  yarn: ['si:apachehadoop', ['si:yarn', 'logos:yarn']], // Hadoop YARN, not the JavaScript package manager
+  'snmp-hewlett-packard-enterprise': ['brand:hpe', ['si:hp', 'logos:hp']], // HPE, not HP Inc.
+  streamnative: ['brand:streamnative', ['si:apachepulsar']],
+  strimzi: ['brand:strimzi', ['logos:kafka-icon']],
+  'confluent-platform': ['brand:confluent', ['logos:kafka-icon']],
+  'cert-manager': ['brand:cert-manager', ['logos:kubernetes']],
+  'cri-o': ['brand:crio', ['logos:kubernetes']],
+  'kubevirt-api': ['brand:kubevirt', ['logos:kubernetes']],
+  'kubevirt-controller': ['brand:kubevirt', ['logos:kubernetes']],
+  'kubevirt-handler': ['brand:kubevirt', ['logos:kubernetes']],
+  karpenter: ['brand:karpenter', ['logos:kubernetes']],
+  ambari: ['logos:apache', ['si:apachehadoop']],
+  mapr: [null, ['si:apachehadoop']],
+  marathon: [null, ['logos:mesos']],
+  envoy: ['logos:envoy-icon', []],
+  kong: ['logos:kong-icon', []],
+  temporal: ['logos:temporal-icon', []],
+  'temporal-cloud': ['si:temporal', []],
+  celery: ['si:celery', []],
+  ray: ['si:ray', []],
+  falco: ['si:falco', []],
+  harbor: ['si:harbor', []],
+  flink: ['si:apacheflink', []],
+  storm: ['si:apachestorm', []],
+  druid: ['si:apachedruid', []],
+  pulsar: ['si:apachepulsar', []],
+  solr: ['logos:solr', []],
+  tomcat: ['logos:tomcat', []],
+  consul: ['logos:consul', []],
+  vault: ['logos:vault-icon', []],
+  teleport: ['brand:teleport', []],
+  unbound: ['brand:nlnetlabs', []],
+  squid: ['brand:squid', []],
+  varnish: ['brand:varnish', []],
+  gearman: ['brand:gearman', []],
+  riak: ['logos:riak', []],
+  sidekiq: ['logos:sidekiq-icon', []],
+  weaviate: ['brand:weaviate', []],
+  milvus: ['logos:milvus-icon', []],
+  calico: ['brand:calico', []],
+  twistlock: ['si:paloaltonetworks', []],
+};
+
+test('integrations named like another brand show their own logo, never the homonym', () => {
+  for (const [id, [expected, never]] of Object.entries(NAME_AMBIGUOUS)) {
+    const logo = logoOf(id);
+    assert.equal(logo, expected, id);
+    for (const homonym of never) assert.notEqual(logo, homonym, `${id} must never show ${homonym}`);
+  }
+});
+
+test('ambiguous names are resolved explicitly, never by a match on their name', () => {
+  const explicit = (id) => id in OVERRIDES || Object.values(BRANDS).some((b) => b.ids.includes(id));
+  for (const id of Object.keys(NAME_AMBIGUOUS)) assert.ok(AMBIGUOUS.has(id), `${id} is flagged AMBIGUOUS in integration-logos.mjs`);
+  for (const id of AMBIGUOUS) assert.ok(explicit(id), `${id} is flagged ambiguous: give it an OVERRIDES or BRANDS entry`);
+  for (const id of AMBIGUOUS) assert.ok(byId.has(id), `${id} (AMBIGUOUS) is in the catalog`);
+  for (const k of keys) {
+    const logo = resolveLogo(k);
+    // A homonym is only shown when an OVERRIDES entry names it on purpose, never through a name match.
+    if (logo && HOMONYMS.has(logo)) assert.equal(OVERRIDES[k.id], logo, `${k.id} resolves to the homonym ${logo} by name`);
+  }
+});
+
 test('generic host checks never get a third-party brand', () => {
   for (const id of ['disk', 'network', 'process', 'battery', 'directory', 'tls', 'ntp', 'dns', 'ssh', 'thermal']) assert.equal(logoOf(id), null, id);
 });
@@ -81,6 +157,8 @@ const WITHOUT_LOGO = [
   'cybersixgill-actionable-alerts',
   'kyoto-tycoon',
   'lambdatest',
+  'mapr',
+  'marathon',
   'resin',
   'scaphandre',
   'supervisord',

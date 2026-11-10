@@ -31,18 +31,44 @@ const BRAND_OF = new Map(Object.entries(BRANDS).flatMap(([name, b]) => b.ids.map
 /** The providers' official service icons (fetch-cloud-icons.mjs): `cloud:<cloud>/<id>` → its SVG file. */
 export const cloudIconFile = (ref) => new URL(`../src/assets/cloud-icons/${ref.slice('cloud:'.length)}.svg`, import.meta.url);
 
-/** Integrations whose id or name doesn't lead to their logo: id → `logos:<SVG Logos name>` or `si:<Simple Icons slug>`. */
-const OVERRIDES = {
+/**
+ * Integrations whose id or name doesn't lead to their logo: id → `logos:<SVG Logos name>`, `si:<Simple Icons slug>`,
+ * or null for our own tile when no logo we may use is known (better than another brand's).
+ */
+export const OVERRIDES = {
   // Simple Icons' "hive" is a blockchain; Argo CD has no id of its own there
   hive: 'si:apachehive',
+  // Names shared with other brands (AMBIGUOUS below): the project's own mark, chosen explicitly
+  fluxcd: 'si:flux',
+  spark: 'logos:apache-spark',
+  impala: 'logos:apache',
+  ambari: 'logos:apache',
+  mapr: null,
+  marathon: null,
+  envoy: 'logos:envoy-icon',
+  kong: 'logos:kong-icon',
+  temporal: 'logos:temporal-icon',
+  celery: 'si:celery',
+  ray: 'si:ray',
+  falco: 'si:falco',
+  harbor: 'si:harbor',
+  flink: 'si:apacheflink',
+  storm: 'si:apachestorm',
+  druid: 'si:apachedruid',
+  pulsar: 'si:apachepulsar',
+  solr: 'logos:solr',
+  tomcat: 'logos:tomcat',
+  consul: 'logos:consul',
+  vault: 'logos:vault-icon',
+  riak: 'logos:riak',
+  sidekiq: 'logos:sidekiq-icon',
+  milvus: 'logos:milvus-icon',
   argocd: 'logos:argo-icon',
   postgres: 'logos:postgresql',
   'active-directory': 'logos:microsoft-icon',
   'avi-vantage': 'logos:vmware',
-  marathon: 'logos:mesos',
   'pan-firewall': 'si:paloaltonetworks',
   scylla: 'si:scylladb',
-  fluxcd: 'logos:flux',
   boundary: 'logos:hashicorp-icon',
   torchserve: 'logos:pytorch-icon',
   // Apache projects without a mark of their own in either set: the ASF feather
@@ -57,9 +83,7 @@ const OVERRIDES = {
   mapreduce: 'si:apachehadoop',
   'hdfs-datanode': 'si:apachehadoop',
   'hdfs-namenode': 'si:apachehadoop',
-  mapr: 'si:apachehadoop',
   cloudera: 'si:cloudera',
-  ambari: 'si:apachehadoop',
   cockroachdb: 'si:cockroachlabs',
   openshift: 'si:redhatopenshift',
   glusterfs: 'logos:redhat-icon',
@@ -68,9 +92,6 @@ const OVERRIDES = {
   'cassandra-nodetool': 'logos:cassandra',
   'kafka-consumer': 'logos:kafka-icon',
   'amazon-kafka': 'logos:aws-msk',
-  'confluent-platform': 'logos:kafka-icon',
-  strimzi: 'logos:kafka-icon',
-  streamnative: 'si:apachepulsar',
   'aws-fargate': 'logos:aws-fargate',
   'eks-fargate': 'logos:aws-fargate',
   'amazon-eks': 'logos:aws-eks',
@@ -138,13 +159,9 @@ const OVERRIDES = {
   'kubernetes-state-core': 'logos:kubernetes',
   kubelet: 'logos:kubernetes',
   'external-dns': 'logos:kubernetes',
-  karpenter: 'logos:kubernetes',
-  'cert-manager': 'logos:kubernetes',
   'kube-dns': 'logos:kubernetes',
-  'cri-o': 'logos:kubernetes',
   cri: 'logos:kubernetes',
   'snmp-dell': 'si:dell',
-  'snmp-hewlett-packard-enterprise': 'si:hp',
   'snmp-juniper': 'si:junipernetworks',
   'juniper-srx-firewall': 'si:junipernetworks',
   'snmp-american-power-conversion': 'si:schneiderelectric',
@@ -168,9 +185,6 @@ const OVERRIDES = {
   'okta-workflows': 'logos:okta-icon',
   'have-i-been-pwned': 'si:haveibeenpwned',
   'riak-cs': 'logos:riak',
-  'kubevirt-api': 'logos:kubernetes',
-  'kubevirt-controller': 'logos:kubernetes',
-  'kubevirt-handler': 'logos:kubernetes',
   'citrix-hypervisor': 'si:citrix',
   'aws-applicationelb': 'logos:aws-elb',
   'aws-networkelb': 'logos:aws-elb',
@@ -280,6 +294,76 @@ const GENERIC = new Set([
 export const isGeneric = (id) => GENERIC.has(id);
 /** Simple Icons' brands we never show for a match on a word: our own competitor's mark and common words. */
 const NEVER = new Set(['datadog', 'process', 'network', 'container', 'directory', 'battery', 'thermal']);
+/**
+ * Integrations whose name is also another brand's or project's in SVG Logos / Simple Icons (Puma the Ruby server vs
+ * the sportswear brand, Vespa the search engine vs the scooter): resolved only through OVERRIDES or BRANDS, never by
+ * name, so a new homonym can't slip in. scripts/integration-logos.test.mjs lists what each must and mustn't show.
+ */
+export const AMBIGUOUS = new Set([
+  'puma',
+  'vespa',
+  'impala',
+  'obsidian-security',
+  'fluxcd',
+  'spark',
+  'hive',
+  'yarn',
+  'snmp-hewlett-packard-enterprise',
+  'streamnative',
+  'strimzi',
+  'confluent-platform',
+  'cert-manager',
+  'cri-o',
+  'kubevirt-api',
+  'kubevirt-controller',
+  'kubevirt-handler',
+  'karpenter',
+  'ambari',
+  'mapr',
+  'marathon',
+  'envoy',
+  'kong',
+  'temporal',
+  'temporal-cloud',
+  'celery',
+  'ray',
+  'falco',
+  'harbor',
+  'flink',
+  'storm',
+  'druid',
+  'pulsar',
+  'solr',
+  'tomcat',
+  'consul',
+  'vault',
+  'teleport',
+  'unbound',
+  'squid',
+  'varnish',
+  'gearman',
+  'riak',
+  'sidekiq',
+  'weaviate',
+  'milvus',
+  'calico',
+  'twistlock',
+]);
+/** Icons of a brand that shares its name with an integration: never picked by a name match. */
+export const HOMONYMS = new Set([
+  'si:puma', // PUMA, the sportswear brand
+  'si:vespa', // Piaggio's scooter
+  'logos:impala', // impala.io
+  'logos:flux', // Facebook's Flux architecture
+  'logos:spark', // the Spark Java web framework
+  'logos:obsidian', // the Obsidian notes app
+  'logos:obsidian-icon',
+  'si:obsidian',
+  'si:hp', // HP Inc., not Hewlett Packard Enterprise
+  'si:hive', // the Hive blockchain
+  'si:yarn', // the JavaScript package manager
+  'logos:yarn',
+]);
 /** Provider prefixes of the cloud services: their services fall back to the provider's logo. */
 const PROVIDER = { aws: 'logos:aws', azure: 'logos:microsoft-azure', gcp: 'logos:google-cloud', kube: 'logos:kubernetes', windows: 'logos:microsoft-windows-icon', snmp: null };
 
@@ -293,10 +377,9 @@ const slug = (text) =>
 
 /** The logo of one name: SVG Logos (`x-icon` first, square marks suit tiles) then Simple Icons. */
 function byName(name) {
-  for (const n of [`${name}-icon`, name]) if (hasSvgLogo(n)) return `logos:${n}`;
+  for (const n of [`${name}-icon`, name]) if (hasSvgLogo(n) && !HOMONYMS.has(`logos:${n}`)) return `logos:${n}`;
   const s = slug(name);
-  if (!NEVER.has(s) && SIMPLE_ICONS.has(s)) return `si:${s}`;
-  if (!NEVER.has(s) && SIMPLE_ICONS.has(`apache${s}`)) return `si:apache${s}`;
+  for (const candidate of [s, `apache${s}`]) if (!NEVER.has(s) && SIMPLE_ICONS.has(candidate) && !HOMONYMS.has(`si:${candidate}`)) return `si:${candidate}`;
   return null;
 }
 
@@ -315,6 +398,8 @@ export function resolveLogo({ id, name, cloud }) {
   if (GENERIC.has(id)) return null;
   const brand = BRAND_OF.get(id);
   if (brand && logoExists(brand)) return brand;
+  // A name shared with another brand: our tile rather than whatever the name matches.
+  if (AMBIGUOUS.has(id)) return null;
   const exact = byName(id) ?? byName(name);
   if (exact) return exact;
   // Vendor products (`cisco-secure-endpoint`, `snmp-fortinet`): the longest prefix with a logo, then the provider.
