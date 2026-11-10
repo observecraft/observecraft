@@ -253,6 +253,22 @@ or SDK features.
   `actor.*`, `event.parameters.*`) to `oc.logs.json`. Saving the connection installs its library pipeline
   (`google_workspace.category`); its dashboard is ours (`scripts/google-workspace-dashboard.mjs` →
   `seeds/integrations/google-workspace/`), listed once connected; Cloud SIEM pack `google-workspace`.
+- **Browser tests** (Synthetic Monitoring, `routes/synthetics_browser.rs`, `browser/steps.rs`): steps in Datadog's browser step
+  model (`type`, `params.element.userLocator`, `allowFailure`, `isCritical`, `timeout`), validated by the server and
+  run by **oc-browser** (`browser/` at the repo root: TypeScript + Playwright's Chromium in its own container, reached
+  at `OC_BROWSER_URL` with `OC_BROWSER_TOKEN`). Every request a page makes goes through oc-browser's per-run proxy,
+  which refuses internal addresses with the same rules as `synthetics_net.rs` (`OC_SYNTHETICS_ALLOW_PRIVATE`). Screenshots
+  and videos (failed and manual runs only) are in ClickHouse `otel.synthetics_artifacts`, served by
+  `/api/v1/synthetics/tests/{id}/results/{result}/artifacts/{name}`; metrics are `synthetics.test_runs`
+  (`test_type:browser`) and `synthetics.browser.test_duration`. The Helm chart's `browser.enabled` stays off until the
+  release workflow publishes the oc-browser image.
+- **AI Testing** (Synthetic Monitoring → AI Testing, `routes/ai_testing.rs`; our name, not Datadog's "Bits"): a job is an
+  Assist run of kind `testing` (same worker, provider and usage) whose agent drives an oc-browser session (`/v1/sessions`:
+  page snapshots with refs, actions that come back as steps with locators oc-browser computes) and proposes browser
+  tests made of its recorded actions, each sample-run before it is stored in Postgres `ai_testing_proposals`
+  (`/api/v1/synthetics/ai-testing/...`); accepting creates the tests and a suite per journey. Agent profiles
+  (`ai_testing_profiles`) name global variables: the model only sees `{{ NAME }}`. The UI is
+  `web/src/pages/synthetics/aiTesting/` (jobs read with the Assist runs client, mock in `mock/aiTesting.ts`).
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **Slack** (`routes/slack.rs`, `datadog_api/slack_integration.rs`, page `web/src/pages/integrations/slack/`): workspaces
@@ -415,6 +431,9 @@ or SDK features.
     (Datadog's signed Remote Configuration; vertical recommendations are shown and applied with the commands the UI
     gives), realized savings against a pre-autoscaling baseline, and pod usage in the Kubernetes Explorer for the
     Datadog Agent's `container.*` metrics (its pods carry no `k8s.pod.uid`);
+  - Synthetic tests through Datadog's API and Terraform provider (`datadog_synthetics_test`, browser and API tests,
+    `/api/v1/synthetics/tests/...`); browser tests' email, file, sub-test, API-test and drag-and-drop steps, other
+    browsers than Chromium, the recorder and the link to Session Replay;
   - RUM's mobile Session Replay, replay retention and privacy settings, Operations, source maps and debug symbols, generated metrics, retention filters and the
     events search and aggregation API (`/api/v2/rum/events`); the error-focused processing mode keeps every session.
 
@@ -427,6 +446,7 @@ or SDK features.
 | `server/crates/oc-query` | Search syntax → ClickHouse / DuckDB `WHERE` clauses, metric query parser |
 | `server/crates/oc-store` | ClickHouse + Postgres clients, migrations, retention |
 | `server/crates/oc-tracegen` | Synthetic traces, logs, metrics and CI pipelines |
+| `browser/` | oc-browser: runs browser test steps in Playwright's Chromium (TypeScript, `npm test` needs `make browser-install`) |
 | `server/migrations/` | ClickHouse (telemetry) and Postgres (metadata) schemas |
 | `web/src/api/` | The UI's only data-access layer: typed clients + in-browser mocks |
 | `web/src/pages/` | One folder per product area |

@@ -9237,6 +9237,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/synthetics/ai-testing/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Starts a job: an Assist run of kind `testing`, run by the worker as the member who started it. */
+        post: operations["ai_testing_start_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/ai-testing/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ai_testing_list_profiles"];
+        put?: never;
+        post: operations["ai_testing_create_profile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/ai-testing/profiles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["ai_testing_update_profile"];
+        post?: never;
+        delete: operations["ai_testing_delete_profile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/ai-testing/proposals/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accepts proposals: each becomes a browser test (every 15 minutes), and each job's suite a test suite of them. */
+        post: operations["ai_testing_accept_proposals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/ai-testing/proposals/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ignores proposals, with optional feedback. */
+        post: operations["ai_testing_reject_proposals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/ai-testing/proposals/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The org's proposals, newest first (Suites to review: status pending). */
+        post: operations["ai_testing_search_proposals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/synthetics/coverage": {
         parameters: {
             query?: never;
@@ -9432,6 +9532,23 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get_synthetic_result"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests/{id}/results/{result_id}/artifacts/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One screenshot (`step-<n>.jpg`) or the video (`video.webm`) of a browser test result. */
+        get: operations["get_synthetic_result_artifact"];
         put?: never;
         post?: never;
         delete?: never;
@@ -11742,6 +11859,13 @@ export interface components {
             /** @description IANA zone of the schedule (default UTC). */
             timezone?: string | null;
         };
+        /** @description What an agent profile lends a job: a credential's use and the global variable holding it. */
+        AgentProfileVariable: {
+            /** @description username | email | password | otp | other */
+            usage: string;
+            /** @description The global variable (Synthetics → Settings → Global Variables). */
+            variable: string;
+        };
         AgentView: {
             allowActions: boolean;
             /** Format: int64 */
@@ -12009,6 +12133,70 @@ export interface components {
             tokens: number;
             /** Format: int64 */
             unsafeCount: number;
+        };
+        AiTestingAccepted: {
+            suiteIds: string[];
+            testIds: string[];
+        };
+        AiTestingDecision: {
+            /** @description Why they were ignored (rejecting only). */
+            feedback?: string;
+            ids: string[];
+        };
+        /** @description A new AI Testing job. */
+        AiTestingJobInput: {
+            /** @description chrome.laptop_large (default), chrome.tablet or chrome.mobile_small. */
+            deviceId?: string;
+            /** @description The agent profile lending credentials; none: an anonymous visitor. */
+            profileId?: string | null;
+            /** @description What to test (empty: explore the site and find its key journeys). */
+            prompt?: string;
+            /** @description Keep the browser on the starting URL's domain and its subdomains (default true). */
+            restrictDomain?: boolean;
+            startUrl: string;
+        };
+        AiTestingProfile: {
+            /** Format: int64 */
+            createdAt: number;
+            id: string;
+            name: string;
+            /** Format: int64 */
+            updatedAt: number;
+            variables: components["schemas"]["AgentProfileVariable"][];
+        };
+        AiTestingProfileInput: {
+            name: string;
+            variables?: components["schemas"]["AgentProfileVariable"][];
+        };
+        AiTestingProposal: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            /** Format: int64 */
+            decidedAt?: number | null;
+            description: string;
+            deviceId: string;
+            feedback: string;
+            id: string;
+            name: string;
+            runId: string;
+            startUrl: string;
+            /** @description pending | accepted | rejected */
+            status: string;
+            steps: components["schemas"]["BrowserStep"][];
+            /** @description The journey it belongs to; accepted tests of a job's suite become a test suite. */
+            suite: string;
+            /** @description The test made from it, once accepted. */
+            testId?: string | null;
+            verification?: components["schemas"]["SyntheticRunDetail"] | null;
+        };
+        AiTestingProposalSearch: {
+            /** @description One job's proposals. */
+            runId?: string | null;
+            /** @description pending | accepted | rejected; all when absent. */
+            status?: string | null;
         };
         AnalyticsItem: {
             name: string;
@@ -12897,6 +13085,120 @@ export interface components {
         AzureAccountStatus: {
             /** @description One per subscription; scope `""` is the discovery of the subscriptions. */
             subscriptions: components["schemas"]["ScopeStatus"][];
+        };
+        /** @enum {string} */
+        BrowserClickType: "primary" | "double" | "contextual";
+        BrowserDevice: {
+            /** Format: int32 */
+            height: number;
+            id: string;
+            isMobile?: boolean;
+            /** Format: int32 */
+            width: number;
+        };
+        BrowserElement: {
+            /** @description What the element looked like when the step was made (for people reading the test). */
+            description?: string;
+            userLocator?: components["schemas"]["BrowserUserLocator"];
+        };
+        BrowserError: {
+            description: string;
+            name: string;
+            /** Format: int32 */
+            status?: number | null;
+            type: string;
+        };
+        BrowserFailure: {
+            /** @description Datadog's failure codes: LOCATE_ELEMENT, ASSERTION_FAILURE, OPEN_URL, … */
+            code: string;
+            message: string;
+        };
+        BrowserLocator: {
+            type: components["schemas"]["BrowserLocatorType"];
+            value: string;
+        };
+        /** @enum {string} */
+        BrowserLocatorType: "css" | "xpath";
+        /** @description A browser test run, as oc-browser reports it. */
+        BrowserRunResult: {
+            browserVersion?: string;
+            device: components["schemas"]["BrowserDevice"];
+            /** Format: double */
+            durationMs: number;
+            error?: string | null;
+            failure?: components["schemas"]["BrowserFailure"] | null;
+            /** @description A video is stored for the run. */
+            hasVideo?: boolean;
+            passed: boolean;
+            startUrl: string;
+            steps: components["schemas"]["BrowserStepResult"][];
+        };
+        BrowserStep: {
+            /** @description A failure doesn't stop the test. */
+            allowFailure?: boolean;
+            /** @description With `allowFailure`: the test still fails when this step does. */
+            isCritical?: boolean;
+            name?: string;
+            noScreenshot?: boolean;
+            params?: components["schemas"]["BrowserStepParams"];
+            /**
+             * Format: int32
+             * @description Seconds to wait for the element or assertion (default 60).
+             */
+            timeout?: number | null;
+            type: components["schemas"]["BrowserStepType"];
+        };
+        /**
+         * @description How a value is compared (Datadog's `check`).
+         * @enum {string}
+         */
+        BrowserStepCheck: "equals" | "notEquals" | "contains" | "notContains" | "startsWith" | "notStartsWith" | "greater" | "lower" | "greaterEquals" | "lowerEquals" | "matchRegex" | "isEmpty" | "notIsEmpty";
+        /** @description A step's parameters; each type uses some of them (see [`check_step`]). */
+        BrowserStepParams: {
+            appendToContent?: boolean | null;
+            attribute?: string | null;
+            check?: components["schemas"]["BrowserStepCheck"] | null;
+            clickType?: components["schemas"]["BrowserClickType"] | null;
+            code?: string | null;
+            element?: components["schemas"]["BrowserElement"] | null;
+            modifiers?: string[] | null;
+            /** @description The URL, text, option, key or expected value; seconds for `wait`. */
+            value?: string | null;
+            variable?: components["schemas"]["BrowserStepVariable"] | null;
+            /** Format: int32 */
+            x?: number | null;
+            /** Format: int32 */
+            y?: number | null;
+        };
+        /** @description One step of a run, as oc-browser reports it; the screenshot travels apart from the stored result. */
+        BrowserStepResult: {
+            allowFailure?: boolean;
+            browserErrors?: components["schemas"]["BrowserError"][];
+            /** Format: double */
+            durationMs: number;
+            error?: string | null;
+            failure?: components["schemas"]["BrowserFailure"] | null;
+            /** @description A screenshot is stored for the step. */
+            hasScreenshot?: boolean;
+            isCritical?: boolean;
+            name: string;
+            /** @description passed | failed | skipped */
+            status: string;
+            type: string;
+            url?: string;
+            /** @description The extracted value of extract steps. */
+            value?: string | null;
+        };
+        /** @enum {string} */
+        BrowserStepType: "goToUrl" | "click" | "typeText" | "selectOption" | "hover" | "pressKey" | "scroll" | "refresh" | "wait" | "assertElementPresent" | "assertElementContent" | "assertElementAttribute" | "assertPageContains" | "assertPageLacks" | "assertCurrentUrl" | "assertFromJavascript" | "extractVariable" | "extractFromJavascript";
+        BrowserStepVariable: {
+            name?: string;
+            secure?: boolean;
+        };
+        /** @description The element's locators, tried in order; the first that finds a visible element wins. */
+        BrowserUserLocator: {
+            failTestOnCannotLocate?: boolean;
+            values?: components["schemas"]["BrowserLocator"][];
         };
         Bucket: {
             /** @description Each facet's value (`{"@http.status_code": "500"}`). */
@@ -24197,6 +24499,8 @@ export interface components {
             value: string;
         };
         SyntheticLocation: {
+            /** @description Browser tests can run here (oc-browser is deployed, `OC_BROWSER_URL`). */
+            browser: boolean;
             id: string;
             name: string;
             /** @description The operator allows tests of loopback, private and link-local addresses (`OC_SYNTHETICS_ALLOW_PRIVATE`). */
@@ -24223,6 +24527,11 @@ export interface components {
              * @default
              */
             bodyType: string;
+            /**
+             * @description Browser: the device emulated (chrome.laptop_large, chrome.tablet, chrome.mobile_small).
+             * @default
+             */
+            deviceId: string;
             /**
              * @description DNS: IP address of the server to ask; empty for the ObserveCraft server's resolver.
              * @default
@@ -24439,6 +24748,8 @@ export interface components {
              */
             bodyTruncated: boolean;
             /** @default null */
+            browser: components["schemas"]["BrowserRunResult"] | null;
+            /** @default null */
             certificate: components["schemas"]["SyntheticCertificate"] | null;
             /** @default null */
             dnsServer: string | null;
@@ -24585,6 +24896,7 @@ export interface components {
             retry: components["schemas"]["SyntheticRetry"];
             /** @description The alert state of the test's monitor. */
             status: components["schemas"]["MonitorStatus"];
+            steps: components["schemas"]["BrowserStep"][];
             tags: string[];
             team: string;
             type: components["schemas"]["SyntheticTestType"];
@@ -24625,6 +24937,8 @@ export interface components {
             priority?: number | null;
             request: components["schemas"]["SyntheticRequest"];
             retry?: components["schemas"]["SyntheticRetry"];
+            /** @description Browser tests: the steps after the start URL (`request.url`). */
+            steps?: components["schemas"]["BrowserStep"][];
             tags?: string[];
             team?: string;
             type: components["schemas"]["SyntheticTestType"];
@@ -24636,7 +24950,7 @@ export interface components {
             range: components["schemas"]["TimeRange"];
         };
         /** @enum {string} */
-        SyntheticTestType: "http" | "ssl" | "dns" | "tcp";
+        SyntheticTestType: "http" | "ssl" | "dns" | "tcp" | "browser";
         SyntheticTestsPage: {
             location: components["schemas"]["SyntheticLocation"];
             tests: components["schemas"]["SyntheticTest"][];
@@ -24687,13 +25001,19 @@ export interface components {
         SyntheticTryRequest: {
             assertions?: components["schemas"]["SyntheticAssertion"][];
             request: components["schemas"]["SyntheticRequest"];
+            /** @description Browser tests. */
+            steps?: components["schemas"]["BrowserStep"][];
             type: components["schemas"]["SyntheticTestType"];
         };
         SyntheticTryResult: {
             location: components["schemas"]["SyntheticLocation"];
             result: components["schemas"]["SyntheticRunDetail"];
+            /** @description Browser runs: each step's screenshot (JPEG, base64), in the order of `result.browser.steps`. */
+            screenshots: (string | null)[];
             /** @description Assertions matching this response, to start the test from. */
             suggestedAssertions: components["schemas"]["SyntheticAssertion"][];
+            /** @description Browser runs: the video (WebM, base64). */
+            video?: string | null;
         };
         SyntheticUptimeSegment: {
             /**
@@ -44921,6 +45241,230 @@ export interface operations {
             };
         };
     };
+    ai_testing_start_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiTestingJobInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunSummary"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    ai_testing_list_profiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiTestingProfile"][];
+                };
+            };
+        };
+    };
+    ai_testing_create_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiTestingProfileInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiTestingProfile"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    ai_testing_update_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiTestingProfileInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiTestingProfile"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    ai_testing_delete_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    ai_testing_accept_proposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiTestingDecision"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiTestingAccepted"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    ai_testing_reject_proposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiTestingDecision"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    ai_testing_search_proposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiTestingProposalSearch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiTestingProposal"][];
+                };
+            };
+        };
+    };
     get_synthetic_coverage: {
         parameters: {
             query?: never;
@@ -45421,6 +45965,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyntheticResult"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_synthetic_result_artifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                result_id: number;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image or video */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
                 };
             };
             404: {

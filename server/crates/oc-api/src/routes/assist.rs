@@ -376,7 +376,7 @@ fn stream(reply: Reply, model: HttpModel, first: Option<AssistEvent>) -> Sse<imp
             can_write: tools::may_write(ctx.access),
         });
         let org_tools = OrgTools { st: st.clone(), ctx: ctx.clone(), disabled: settings.disabled_skills };
-        let l = Loop { model: &model, tools: &org_tools, system: &system, auto_approve };
+        let l = Loop { model: &model, tools: &org_tools, system: &system, auto_approve, max_steps: crate::assist::agent::MAX_STEPS };
         let mut usage = Usage::default();
         let calls_before = count_calls(&msgs);
         let mut emit = |e: agent::Event| send(e.into());

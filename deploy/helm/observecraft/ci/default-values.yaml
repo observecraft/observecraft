@@ -7,3 +7,4 @@ vector: { replicas: 1, persistence: { size: 1Gi }, resources: { requests: { cpu:
 clickhouse: { bundled: { persistence: { size: 2Gi }, resources: { requests: { cpu: 100m, memory: 1Gi } } } }
 cache: { bundled: { resources: { requests: { cpu: 20m, memory: 64Mi }, limits: { memory: 128Mi } } } }
 postgres: { bundled: { persistence: { size: 1Gi }, resources: { requests: { cpu: 20m, memory: 64Mi } } } }
+browser: { resources: { requests: { cpu: 50m, memory: 256Mi } } }

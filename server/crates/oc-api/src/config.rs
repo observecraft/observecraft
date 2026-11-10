@@ -107,6 +107,9 @@ pub struct Config {
     /// Synthetic tests may reach loopback, private, link-local and other internal addresses
     /// (`OC_SYNTHETICS_ALLOW_PRIVATE`; off by default: user-chosen targets are an SSRF risk).
     pub synthetics_allow_private: bool,
+    /// The browser runner for browser tests and AI Testing (`OC_BROWSER_URL`, `OC_BROWSER_TOKEN`); `None`
+    /// when not deployed (browser tests can't be created then).
+    pub browser: Option<crate::browser::client::BrowserSettings>,
     /// Developer Portal connectors may call GitHub, GitLab, Jira or Linear servers on internal
     /// addresses, over http too (`OC_PORTAL_ALLOW_PRIVATE`; off by default, for self-hosted
     /// instances inside the network).
@@ -247,6 +250,7 @@ impl Config {
             kev_url: Some(var("OC_KEV_URL", "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json")).filter(|s| !s.is_empty() && s != "off"),
             smtp_from: var("OC_SMTP_FROM", "ObserveCraft <alerts@observecraft.local>"),
             synthetics_allow_private: var("OC_SYNTHETICS_ALLOW_PRIVATE", "false") == "true",
+            browser: crate::browser::client::BrowserSettings::from_env(|k| env::var(k).ok()).unwrap_or_else(|e| panic!("{e}")),
             portal_allow_private: var("OC_PORTAL_ALLOW_PRIVATE", "false") == "true",
             log_forward_allow_private: var("OC_LOG_FORWARD_ALLOW_PRIVATE", "false") == "true",
             datadog_api_allow_app_key_creation: var("OC_DATADOG_API_ALLOW_APP_KEY_CREATION", "false") == "true",

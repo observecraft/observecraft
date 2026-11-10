@@ -21,6 +21,9 @@
 {{- if eq .Values.cache.mode "bundled" }}
 {{- $_ := set $rules "valkey" (list (list 6379 (list "server"))) }}
 {{- end }}
+{{- if .Values.browser.enabled }}
+{{- $_ := set $rules "browser" (list (list 8095 (list "server"))) }}
+{{- end }}
 {{- if .Values.kafka.enabled }}
 {{- $_ := set $rules "kafka" (list (list 9092 (list "intake" "server" "collector" "vector" "kafka" "kafka-topics")) (list 9093 (list "kafka"))) }}
 {{- if .Values.kafka.jmx.enabled }}

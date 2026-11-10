@@ -513,11 +513,11 @@ and where in the code it comes from.\n\n{}",
     Ok(format!("{kind}: {title}"))
 }
 
-struct Done {
-    status: &'static str,
-    conclusion: Option<Conclusion>,
-    error: Option<String>,
-    change: Option<CodeChange>,
+pub(crate) struct Done {
+    pub(crate) status: &'static str,
+    pub(crate) conclusion: Option<Conclusion>,
+    pub(crate) error: Option<String>,
+    pub(crate) change: Option<CodeChange>,
 }
 
 /// Runs one claimed run to its end and stores what it did.
@@ -605,9 +605,12 @@ async fn run(st: &AppState, org: &str, id: &str, steps: &Arc<Mutex<Vec<RunStep>>
         None => (String::new(), Vec::new(), false),
     };
     let system = run_prompt(&RunPrompt { kind, today: &chrono::Utc::now().format("%Y-%m-%d").to_string(), knowledge: &settings.knowledge, memories: &memories, instructions: &instructions });
+    if kind == Kind::Testing {
+        return crate::routes::ai_testing::run_job(st, org, id, &row.subject.0, &model, &system, steps, msgs, usage).await;
+    }
     msgs.push(Msg::User(opening(st, &ctx, &row.kind, &row.title, &row.subject.0).await.map_err(e)?));
     let tools = RunTools::new(OrgTools { st: st.clone(), ctx, disabled }, kind, actions);
-    let l = Loop { model: &model, tools: &tools, system: &system, auto_approve: actions };
+    let l = Loop { model: &model, tools: &tools, system: &system, auto_approve: actions, max_steps: crate::assist::agent::MAX_STEPS };
     let cancelled = AtomicBool::new(false);
     let outcome = {
         let sink = steps.clone();
@@ -639,7 +642,7 @@ async fn run(st: &AppState, org: &str, id: &str, steps: &Arc<Mutex<Vec<RunStep>>
 }
 
 /// Saves the steps and the heartbeat every two seconds; returns once the run is cancelled.
-async fn watch(st: &AppState, org: &str, id: &str, steps: &Arc<Mutex<Vec<RunStep>>>, cancelled: &AtomicBool) {
+pub(crate) async fn watch(st: &AppState, org: &str, id: &str, steps: &Arc<Mutex<Vec<RunStep>>>, cancelled: &AtomicBool) {
     loop {
         tokio::time::sleep(Duration::from_secs(2)).await;
         let snapshot = steps.lock().unwrap().clone();

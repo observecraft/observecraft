@@ -381,7 +381,7 @@ agent with define_agent: a short name, a one-sentence description, clear step-by
 what to report) and only the skills it needs. Give a cron schedule only if the description asks for regular runs.\n\nSkills:\n{skills}\n"
     );
     let tools = DraftTools(Mutex::new(None));
-    let l = Loop { model: &model, tools: &tools, system: &system, auto_approve: false };
+    let l = Loop { model: &model, tools: &tools, system: &system, auto_approve: false, max_steps: crate::assist::agent::MAX_STEPS };
     let mut msgs = vec![Msg::User(description.to_string())];
     let outcome = l.run(&mut msgs, &mut Usage::default(), &mut |_| {}).await;
     match (tools.0.into_inner().unwrap(), outcome) {

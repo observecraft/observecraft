@@ -9,6 +9,7 @@ mod assist;
 mod auth;
 mod aws;
 mod bills;
+mod browser;
 mod azure;
 mod entra;
 mod cloud;

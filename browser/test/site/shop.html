@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Example Shop</title>
+  </head>
+  <body>
+    <h1 id="title">Example Shop</h1>
+    <p class="empty"></p>
+    <a id="product" href="/product.html?id=42">Blue mug</a>
+    <form
+      id="search"
+      onsubmit="
+        event.preventDefault();
+        document.getElementById('result').textContent = 'Results for ' + document.getElementById('q').value;
+      "
+    >
+      <input id="q" name="q" value="old" />
+      <button type="submit">Search</button>
+    </form>
+    <p id="result"></p>
+    <select id="size">
+      <option value="s">Small</option>
+      <option value="l">Large</option>
+    </select>
+    <p id="chosen"></p>
+    <script>
+      document.getElementById('size').addEventListener('change', (e) => (document.getElementById('chosen').textContent = 'Size ' + e.target.value));
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') document.getElementById('result').textContent = 'escaped';
+      });
+    </script>
+    <div id="menu" onmouseover="document.getElementById('submenu').style.display = 'block'">Menu</div>
+    <div id="submenu" style="display: none">Mugs</div>
+    <button
+      id="later"
+      onclick="
+        setTimeout(() => {
+          const p = document.createElement('p');
+          p.id = 'late';
+          p.textContent = 'Order 1234 placed';
+          document.body.appendChild(p);
+        }, 700)
+      "
+    >
+      Place order
+    </button>
+    <div style="height: 3000px"></div>
+    <p id="bottom">Bottom</p>
+  </body>
+</html>

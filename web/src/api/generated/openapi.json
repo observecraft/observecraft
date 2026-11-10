@@ -24456,6 +24456,282 @@
         }
       }
     },
+    "/api/v1/synthetics/ai-testing/jobs": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Starts a job: an Assist run of kind `testing`, run by the worker as the member who started it.",
+        "operationId": "ai_testing_start_job",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiTestingJobInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/ai-testing/profiles": {
+      "get": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "ai_testing_list_profiles",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AiTestingProfile"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "ai_testing_create_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiTestingProfileInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiTestingProfile"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/ai-testing/profiles/{id}": {
+      "put": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "ai_testing_update_profile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiTestingProfileInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiTestingProfile"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "ai_testing_delete_profile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/ai-testing/proposals/accept": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Accepts proposals: each becomes a browser test (every 15 minutes), and each job's suite a test suite of them.",
+        "operationId": "ai_testing_accept_proposals",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiTestingDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiTestingAccepted"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/ai-testing/proposals/reject": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Ignores proposals, with optional feedback.",
+        "operationId": "ai_testing_reject_proposals",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiTestingDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/ai-testing/proposals/search": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "The org's proposals, newest first (Suites to review: status pending).",
+        "operationId": "ai_testing_search_proposals",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiTestingProposalSearch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AiTestingProposal"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/synthetics/coverage": {
       "post": {
         "tags": [
@@ -25095,6 +25371,59 @@
                   "$ref": "#/components/schemas/SyntheticResult"
                 }
               }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/tests/{id}/results/{result_id}/artifacts/{name}": {
+      "get": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "One screenshot (`step-<n>.jpg`) or the video (`video.webm`) of a browser test result.",
+        "operationId": "get_synthetic_result_artifact",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image or video",
+            "content": {
+              "application/octet-stream": {}
             }
           },
           "404": {
@@ -33815,6 +34144,24 @@
           }
         }
       },
+      "AgentProfileVariable": {
+        "type": "object",
+        "description": "What an agent profile lends a job: a credential's use and the global variable holding it.",
+        "required": [
+          "usage",
+          "variable"
+        ],
+        "properties": {
+          "usage": {
+            "type": "string",
+            "description": "username | email | password | otp | other"
+          },
+          "variable": {
+            "type": "string",
+            "description": "The global variable (Synthetics → Settings → Global Variables)."
+          }
+        }
+      },
       "AgentView": {
         "type": "object",
         "required": [
@@ -34789,6 +35136,227 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          }
+        }
+      },
+      "AiTestingAccepted": {
+        "type": "object",
+        "required": [
+          "testIds",
+          "suiteIds"
+        ],
+        "properties": {
+          "suiteIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "testIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AiTestingDecision": {
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "feedback": {
+            "type": "string",
+            "description": "Why they were ignored (rejecting only)."
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AiTestingJobInput": {
+        "type": "object",
+        "description": "A new AI Testing job.",
+        "required": [
+          "startUrl"
+        ],
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "description": "chrome.laptop_large (default), chrome.tablet or chrome.mobile_small."
+          },
+          "profileId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The agent profile lending credentials; none: an anonymous visitor."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "What to test (empty: explore the site and find its key journeys)."
+          },
+          "restrictDomain": {
+            "type": "boolean",
+            "description": "Keep the browser on the starting URL's domain and its subdomains (default true)."
+          },
+          "startUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "AiTestingProfile": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "variables",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "variables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentProfileVariable"
+            }
+          }
+        }
+      },
+      "AiTestingProfileInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "variables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentProfileVariable"
+            }
+          }
+        }
+      },
+      "AiTestingProposal": {
+        "type": "object",
+        "required": [
+          "id",
+          "runId",
+          "suite",
+          "name",
+          "description",
+          "startUrl",
+          "deviceId",
+          "steps",
+          "status",
+          "feedback",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "decidedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "description": {
+            "type": "string"
+          },
+          "deviceId": {
+            "type": "string"
+          },
+          "feedback": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "startUrl": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "pending | accepted | rejected"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BrowserStep"
+            }
+          },
+          "suite": {
+            "type": "string",
+            "description": "The journey it belongs to; accepted tests of a job's suite become a test suite."
+          },
+          "testId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The test made from it, once accepted."
+          },
+          "verification": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SyntheticRunDetail",
+                "description": "The sample run."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "AiTestingProposalSearch": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "One job's proposals."
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "pending | accepted | rejected; all when absent."
           }
         }
       },
@@ -37734,6 +38302,439 @@
               "$ref": "#/components/schemas/ScopeStatus"
             },
             "description": "One per subscription; scope `\"\"` is the discovery of the subscriptions."
+          }
+        }
+      },
+      "BrowserClickType": {
+        "type": "string",
+        "enum": [
+          "primary",
+          "double",
+          "contextual"
+        ]
+      },
+      "BrowserDevice": {
+        "type": "object",
+        "required": [
+          "id",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "isMobile": {
+            "type": "boolean"
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "BrowserElement": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "What the element looked like when the step was made (for people reading the test)."
+          },
+          "userLocator": {
+            "$ref": "#/components/schemas/BrowserUserLocator"
+          }
+        }
+      },
+      "BrowserError": {
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "BrowserFailure": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Datadog's failure codes: LOCATE_ELEMENT, ASSERTION_FAILURE, OPEN_URL, …"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "BrowserLocator": {
+        "type": "object",
+        "required": [
+          "type",
+          "value"
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/BrowserLocatorType"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "BrowserLocatorType": {
+        "type": "string",
+        "enum": [
+          "css",
+          "xpath"
+        ]
+      },
+      "BrowserRunResult": {
+        "type": "object",
+        "description": "A browser test run, as oc-browser reports it.",
+        "required": [
+          "passed",
+          "durationMs",
+          "startUrl",
+          "device",
+          "steps"
+        ],
+        "properties": {
+          "browserVersion": {
+            "type": "string"
+          },
+          "device": {
+            "$ref": "#/components/schemas/BrowserDevice"
+          },
+          "durationMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failure": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BrowserFailure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasVideo": {
+            "type": "boolean",
+            "description": "A video is stored for the run."
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "startUrl": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BrowserStepResult"
+            }
+          }
+        }
+      },
+      "BrowserStep": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "allowFailure": {
+            "type": "boolean",
+            "description": "A failure doesn't stop the test."
+          },
+          "isCritical": {
+            "type": "boolean",
+            "description": "With `allowFailure`: the test still fails when this step does."
+          },
+          "name": {
+            "type": "string"
+          },
+          "noScreenshot": {
+            "type": "boolean"
+          },
+          "params": {
+            "$ref": "#/components/schemas/BrowserStepParams"
+          },
+          "timeout": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Seconds to wait for the element or assertion (default 60).",
+            "minimum": 0
+          },
+          "type": {
+            "$ref": "#/components/schemas/BrowserStepType"
+          }
+        }
+      },
+      "BrowserStepCheck": {
+        "type": "string",
+        "description": "How a value is compared (Datadog's `check`).",
+        "enum": [
+          "equals",
+          "notEquals",
+          "contains",
+          "notContains",
+          "startsWith",
+          "notStartsWith",
+          "greater",
+          "lower",
+          "greaterEquals",
+          "lowerEquals",
+          "matchRegex",
+          "isEmpty",
+          "notIsEmpty"
+        ]
+      },
+      "BrowserStepParams": {
+        "type": "object",
+        "description": "A step's parameters; each type uses some of them (see [`check_step`]).",
+        "properties": {
+          "appendToContent": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "attribute": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "check": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BrowserStepCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clickType": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BrowserClickType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "element": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BrowserElement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "modifiers": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The URL, text, option, key or expected value; seconds for `wait`."
+          },
+          "variable": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BrowserStepVariable"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "x": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "y": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "BrowserStepResult": {
+        "type": "object",
+        "description": "One step of a run, as oc-browser reports it; the screenshot travels apart from the stored result.",
+        "required": [
+          "name",
+          "type",
+          "status",
+          "durationMs"
+        ],
+        "properties": {
+          "allowFailure": {
+            "type": "boolean"
+          },
+          "browserErrors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BrowserError"
+            }
+          },
+          "durationMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failure": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BrowserFailure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasScreenshot": {
+            "type": "boolean",
+            "description": "A screenshot is stored for the step."
+          },
+          "isCritical": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "passed | failed | skipped"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The extracted value of extract steps."
+          }
+        }
+      },
+      "BrowserStepType": {
+        "type": "string",
+        "enum": [
+          "goToUrl",
+          "click",
+          "typeText",
+          "selectOption",
+          "hover",
+          "pressKey",
+          "scroll",
+          "refresh",
+          "wait",
+          "assertElementPresent",
+          "assertElementContent",
+          "assertElementAttribute",
+          "assertPageContains",
+          "assertPageLacks",
+          "assertCurrentUrl",
+          "assertFromJavascript",
+          "extractVariable",
+          "extractFromJavascript"
+        ]
+      },
+      "BrowserStepVariable": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "secure": {
+            "type": "boolean"
+          }
+        }
+      },
+      "BrowserUserLocator": {
+        "type": "object",
+        "description": "The element's locators, tried in order; the first that finds a visible element wins.",
+        "properties": {
+          "failTestOnCannotLocate": {
+            "type": "boolean"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BrowserLocator"
+            }
           }
         }
       },
@@ -74284,9 +75285,14 @@
         "required": [
           "id",
           "name",
-          "privateTargets"
+          "privateTargets",
+          "browser"
         ],
         "properties": {
+          "browser": {
+            "type": "boolean",
+            "description": "Browser tests can run here (oc-browser is deployed, `OC_BROWSER_URL`)."
+          },
           "id": {
             "type": "string"
           },
@@ -74340,6 +75346,11 @@
           "bodyType": {
             "type": "string",
             "description": "Content type sent with a body (`application/json`, `text/plain`, …).",
+            "default": ""
+          },
+          "deviceId": {
+            "type": "string",
+            "description": "Browser: the device emulated (chrome.laptop_large, chrome.tablet, chrome.mobile_small).",
             "default": ""
           },
           "dnsServer": {
@@ -74857,6 +75868,18 @@
             "description": "The body was larger than the 1 MiB read.",
             "default": false
           },
+          "browser": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BrowserRunResult",
+                "description": "Browser tests: the steps as they ran (screenshots and video are stored apart)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "certificate": {
             "oneOf": [
               {
@@ -75161,6 +76184,7 @@
           "domain",
           "request",
           "assertions",
+          "steps",
           "locations",
           "frequencySeconds",
           "retry",
@@ -75279,6 +76303,12 @@
             "$ref": "#/components/schemas/MonitorStatus",
             "description": "The alert state of the test's monitor."
           },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BrowserStep"
+            }
+          },
           "tags": {
             "type": "array",
             "items": {
@@ -75374,6 +76404,13 @@
           "retry": {
             "$ref": "#/components/schemas/SyntheticRetry"
           },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BrowserStep"
+            },
+            "description": "Browser tests: the steps after the start URL (`request.url`)."
+          },
           "tags": {
             "type": "array",
             "items": {
@@ -75410,7 +76447,8 @@
           "http",
           "ssl",
           "dns",
-          "tcp"
+          "tcp",
+          "browser"
         ]
       },
       "SyntheticTestsPage": {
@@ -75493,6 +76531,13 @@
           "request": {
             "$ref": "#/components/schemas/SyntheticRequest"
           },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BrowserStep"
+            },
+            "description": "Browser tests."
+          },
           "type": {
             "$ref": "#/components/schemas/SyntheticTestType"
           }
@@ -75503,7 +76548,8 @@
         "required": [
           "location",
           "result",
-          "suggestedAssertions"
+          "suggestedAssertions",
+          "screenshots"
         ],
         "properties": {
           "location": {
@@ -75512,12 +76558,29 @@
           "result": {
             "$ref": "#/components/schemas/SyntheticRunDetail"
           },
+          "screenshots": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "description": "Browser runs: each step's screenshot (JPEG, base64), in the order of `result.browser.steps`."
+          },
           "suggestedAssertions": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SyntheticAssertion"
             },
             "description": "Assertions matching this response, to start the test from."
+          },
+          "video": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Browser runs: the video (WebM, base64)."
           }
         }
       },

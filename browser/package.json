@@ -1,0 +1,23 @@
+{
+  "name": "oc-browser",
+  "private": true,
+  "description": "ObserveCraft's browser runner: runs browser test steps and agent sessions in Chromium with Playwright.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test --test-concurrency=1 'test/**/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "install-browser": "playwright-core install chromium"
+  },
+  "dependencies": {
+    "playwright-core": "1.65.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.3"
+  }
+}

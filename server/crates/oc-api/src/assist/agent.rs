@@ -54,13 +54,15 @@ pub struct Loop<'a, M: Model, T: Tools> {
     pub tools: &'a T,
     pub system: &'a str,
     pub auto_approve: bool,
+    /// Model turns per reply, at most ([`MAX_STEPS`] unless a run needs more, as exploring a site does).
+    pub max_steps: usize,
 }
 
 impl<M: Model + Sync, T: Tools + Sync> Loop<'_, M, T> {
     /// Answers the conversation's last message, appending the turns to `msgs`.
     pub async fn run(&self, msgs: &mut Vec<Msg>, usage: &mut Usage, emit: &mut (dyn FnMut(Event) + Send)) -> Outcome {
         let specs = self.tools.specs();
-        for _ in 0..MAX_STEPS {
+        for _ in 0..self.max_steps {
             let mut on_text = |t: &str| emit(Event::Text { text: t.to_string() });
             let turn = match self.model.turn(self.system, &specs, msgs, &mut on_text).await {
                 Ok(t) => t,
@@ -88,7 +90,7 @@ impl<M: Model + Sync, T: Tools + Sync> Loop<'_, M, T> {
             let results = self.execute(&calls, &[], emit).await;
             msgs.push(Msg::Results(results));
         }
-        Outcome::Failed(format!("Stopped after {MAX_STEPS} steps without an answer."))
+        Outcome::Failed(format!("Stopped after {} steps without an answer.", self.max_steps))
     }
 
     /// Runs the paused calls with the user's decisions (`approved` ids), then continues the reply.
@@ -202,7 +204,7 @@ mod tests {
     async fn run(model: &Script, auto_approve: bool, msgs: &mut Vec<Msg>) -> (Outcome, Vec<Event>, Usage) {
         let mut events = Vec::new();
         let mut usage = Usage::default();
-        let outcome = Loop { model, tools: &Fake, system: "s", auto_approve }.run(msgs, &mut usage, &mut |e| events.push(e)).await;
+        let outcome = Loop { model, tools: &Fake, system: "s", auto_approve, max_steps: MAX_STEPS }.run(msgs, &mut usage, &mut |e| events.push(e)).await;
         (outcome, events, usage)
     }
 
@@ -240,14 +242,14 @@ mod tests {
         assert_eq!(msgs.len(), 2);
         // Approved: both run, then the reply continues.
         let mut usage = Usage::default();
-        let outcome = Loop { model: &model, tools: &Fake, system: "s", auto_approve: false }.resume(&mut msgs, &pending, &["w".into()], &mut usage, &mut |_| {}).await;
+        let outcome = Loop { model: &model, tools: &Fake, system: "s", auto_approve: false, max_steps: MAX_STEPS }.resume(&mut msgs, &pending, &["w".into()], &mut usage, &mut |_| {}).await;
         assert_eq!(outcome, Outcome::Done);
         assert_eq!(msgs[2], Msg::Results(vec![ToolResult { id: "r".into(), content: "3 logs for x".into(), is_error: false }, ToolResult { id: "w".into(), content: "Monitor 7 created".into(), is_error: false }]));
         // Declined: the model is told, the read still runs.
         let model = Script::new(vec![create(), text("Okay.")]);
         let mut msgs = vec![Msg::User("Create a monitor".into())];
         let Outcome::Paused(pending) = run(&model, false, &mut msgs).await.0 else { panic!() };
-        Loop { model: &model, tools: &Fake, system: "s", auto_approve: false }.resume(&mut msgs, &pending, &[], &mut usage, &mut |_| {}).await;
+        Loop { model: &model, tools: &Fake, system: "s", auto_approve: false, max_steps: MAX_STEPS }.resume(&mut msgs, &pending, &[], &mut usage, &mut |_| {}).await;
         let Msg::Results(results) = &msgs[2] else { panic!() };
         assert!(!results[0].is_error && results[1].is_error && results[1].content.starts_with("The user declined"));
         // Auto-approve: no pause.

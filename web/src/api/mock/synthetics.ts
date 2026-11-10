@@ -35,6 +35,8 @@ import type {
 import { endpointOf, enforcementProblem, matchesResultQuery, matchesSuiteQuery, routeMatches, substitute, suiteStatus, testTarget, usedVariables, validVariableName } from '../synthetics/model';
 import type { components } from '../generated/schema';
 import { listResources } from './apm';
+import { browserRun, browserRunError, mockScreenshot } from './syntheticsBrowser';
+import { cssElement, stepProblem } from '../synthetics/browserSteps';
 
 type MonitorStatus = components['schemas']['MonitorStatus'];
 
@@ -95,7 +97,7 @@ const fail = (message: string): never => {
 
 export function mockLocation(): SyntheticLocation {
   const host = (globalThis as { location?: { hostname?: string } }).location?.hostname || 'localhost';
-  return { id: LOCATION_ID, name: `ObserveCraft server (${host})`, privateTargets: false };
+  return { id: LOCATION_ID, name: `ObserveCraft server (${host})`, privateTargets: false, browser: true };
 }
 
 /** A stable pseudo-random number in [0, 1) for (seed, t). */
@@ -140,7 +142,7 @@ function db(): Db {
       updatedAt: t.updatedAt ?? t.createdAt,
     });
   };
-  const common = { retry: { count: 0, intervalMs: 300 }, minLocationFailed: 1, priority: null, paused: false, createdBy: 'Priya Shah' };
+  const common = { retry: { count: 0, intervalMs: 300 }, minLocationFailed: 1, priority: null, paused: false, createdBy: 'Priya Shah', steps: [] };
   const byDaniel = { createdBy: 'Daniel Kim' };
   add({
     ...common,
@@ -304,6 +306,54 @@ function db(): Db {
     createdAt: now - age,
     updatedAt: now - age,
   });
+  add({
+    ...common,
+    id: 'f1d2c3b4-0009-4a00-8000-00000000a009',
+    name: 'Checkout flow',
+    type: 'browser',
+    request: req('browser', { url: 'https://shop.example.com/' }),
+    assertions: [],
+    steps: [
+      { name: 'Search for mugs', type: 'typeText', params: { element: cssElement('input[name="q"]'), value: 'mug' } },
+      { name: 'Submit the search', type: 'pressKey', params: { value: 'Enter' } },
+      { name: 'Open the first product', type: 'click', params: { element: cssElement('.product-card:first-child a') } },
+      { name: 'Add to cart', type: 'click', params: { element: cssElement('button.add-to-cart') } },
+      { name: 'Cart shows one item', type: 'assertElementContent', params: { element: cssElement('.cart-count'), check: 'equals', value: '1' } },
+      { name: 'Go to checkout', type: 'click', params: { element: cssElement('a[href="/checkout"]') } },
+      { name: 'Checkout page opened', type: 'assertCurrentUrl', params: { check: 'contains', value: '/checkout' } },
+    ],
+    frequencySeconds: 900,
+    minFailureDurationMinutes: 0,
+    env: 'prod',
+    team: 'checkout',
+    tags: ['service:storefront-api', 'journey:checkout'],
+    message: "{{#is_alert}}Shoppers can't reach checkout. @slack-checkout{{/is_alert}}",
+    createdAt: now - 12 * DAY,
+    outages: [[now - 6 * HOUR, now - 5 * HOUR - 15 * MIN]],
+    baseMs: 420,
+  });
+  add({
+    ...common,
+    ...byDaniel,
+    id: 'f1d2c3b4-0010-4a00-8000-00000000a010',
+    name: 'Account sign-in page',
+    type: 'browser',
+    request: req('browser', { url: 'https://shop.example.com/account/login', deviceId: 'chrome.mobile_small' }),
+    assertions: [],
+    steps: [
+      { name: 'Sign-in form is shown', type: 'assertElementPresent', params: { element: cssElement('form#login') } },
+      { name: 'No error banner', type: 'assertPageLacks', params: { value: 'Something went wrong' } },
+    ],
+    frequencySeconds: 1800,
+    minFailureDurationMinutes: 30,
+    env: 'prod',
+    team: 'storefront',
+    tags: ['service:storefront-api'],
+    message: '{{#is_alert}}The sign-in page is broken on mobile. @slack-storefront-alerts{{/is_alert}}',
+    createdAt: now - 5 * DAY,
+    outages: [],
+    baseMs: 300,
+  });
   s.suites = [
     suite('5a1e0000-0001-4b00-8000-00000000b001', 'Checkout journey', 'Cart, payment and order confirmation APIs', 'prod', 'checkout', ['service:order-service', 'tier:critical'], [2, 3, 1], 20 * DAY),
     suite('5a1e0000-0002-4b00-8000-00000000b002', 'Storefront availability', 'Homepage, certificate and DNS of the shop', 'prod', 'storefront', ['service:storefront-api'], [1, 4, 5], 30 * DAY),
@@ -369,6 +419,7 @@ function respond(type: SyntheticTestType, r: SyntheticRequest, seed: number, at:
     records: [],
     timings: null,
     httpVersion: null,
+    browser: null,
   };
   const host = testDomain(type, r);
   if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.)/.test(host)) {
@@ -480,7 +531,18 @@ function runWithVariables(type: SyntheticTestType, r: SyntheticRequest, assertio
   return masked(runOf(type, filled.request, filled.assertions, seed, at, failing, baseMs));
 }
 
+/** A browser run of a test's steps, the start URL's variables filled in. */
+function browserRunWithVariables(r: SyntheticRequest, steps: SyntheticTest['steps'], seed: number, failing: boolean, baseMs: number, keepVideo: boolean): SyntheticRunDetail {
+  try {
+    const { request } = substitute(r, [], variableValues());
+    return masked(browserRun(request.url, request.deviceId, steps, seed, failing, baseMs, keepVideo));
+  } catch (e) {
+    return browserRunError((e as Error).message);
+  }
+}
+
 function scheduledRun(t: MockTest, at: number): SyntheticRunDetail {
+  if (t.type === 'browser') return browserRunWithVariables(t.request, t.steps, seedOf(t.id) ^ Math.floor(at / 1000), failingAt(t, at), t.baseMs, false);
   return runWithVariables(t.type, t.request, t.assertions, seedOf(t.id), at, failingAt(t, at), t.baseMs);
 }
 
@@ -553,6 +615,11 @@ function check(input: SyntheticTestInput, before?: MockTest): void {
   const problem = requestProblem(input.type, input.request);
   if (problem) fail(problem);
   if (!FREQUENCIES.includes(input.frequencySeconds)) fail('Run every 1, 5, 15 or 30 minutes, 1, 6 or 12 hours, daily or weekly');
+  if (input.type === 'browser') {
+    if (input.frequencySeconds < 300) fail('Browser tests run every 5 minutes or less often');
+    const bad = (input.steps ?? []).map((st, i) => [i, stepProblem(st)] as const).find(([, p]) => p);
+    if (bad) fail(`Step ${bad[0] + 1}: ${bad[1]}`);
+  } else if ((input.steps ?? []).length) fail('Only browser tests have steps');
   if ((input.retry?.count ?? 0) < 0 || (input.retry?.count ?? 0) > 3) fail('Retry 0–3 times, 0–60000 ms apart');
   const tags = input.tags ?? [];
   const env = input.env ?? '';
@@ -570,6 +637,7 @@ function stored(input: SyntheticTestInput, base: Pick<MockTest, 'id' | 'createdA
     domain: testDomain(input.type, input.request),
     request: input.request,
     assertions: input.assertions ?? [],
+    steps: input.steps ?? [],
     locations: [LOCATION_ID],
     frequencySeconds: input.frequencySeconds,
     retry: { count: input.retry?.count ?? 0, intervalMs: input.retry?.intervalMs ?? 300 },
@@ -670,7 +738,10 @@ export async function runSyntheticTest(id: string): Promise<SyntheticResult> {
   const t = find(id);
   const s = db();
   const at = Date.now();
-  const detail = runWithVariables(t.type, t.request, t.assertions, seedOf(t.id), at, failingAt(t, at), t.baseMs);
+  const detail =
+    t.type === 'browser'
+      ? browserRunWithVariables(t.request, t.steps, seedOf(t.id) ^ at, failingAt(t, at), t.baseMs, true)
+      : runWithVariables(t.type, t.request, t.assertions, seedOf(t.id), at, failingAt(t, at), t.baseMs);
   const result: SyntheticResult = { id: 1e15 + s.seq++, testId: id, location: LOCATION_ID, startedAt: at, attempts: 1, trigger: 'manual', detail };
   s.manual.push(result);
   return delay(result, 400);
@@ -681,11 +752,28 @@ export async function trySyntheticRequest(r: SyntheticTryRequest): Promise<Synth
   if (problem) fail(problem);
   const at = Date.now();
   const host = testDomain(r.type, r.request);
+  if (r.type === 'browser') {
+    const failing = /(^|[.-])(down|fail|broken)([.-]|$)/.test(host);
+    const result = browserRunWithVariables(r.request, r.steps ?? [], seedOf(host) ^ at, failing, 300, true);
+    const screenshots = (result.browser?.steps ?? []).map((st, i) => (st.hasScreenshot ? mockScreenshot(`try-${at}-${i}`, st, i).replace(/^data:image\/jpeg;base64,/, '') : null));
+    return delay({ location: mockLocation(), result, suggestedAssertions: [], screenshots, video: null }, 900);
+  }
   // Hosts that say so fail, to show a failing response.
   const filled = substitute(r.request, r.assertions ?? [], variableValues());
   const failing = /(^|[.-])(down|fail|broken)([.-]|$)/.test(testDomain(r.type, filled.request));
   const result = masked(runOf(r.type, filled.request, filled.assertions, seedOf(host), at, failing, r.type === 'dns' ? 15 : r.type === 'tcp' ? 20 : 150));
-  return delay({ location: mockLocation(), result, suggestedAssertions: result.error ? [] : suggestAssertions(r.type, result) }, 450);
+  return delay({ location: mockLocation(), result, suggestedAssertions: result.error ? [] : suggestAssertions(r.type, result), screenshots: [], video: null }, 450);
+}
+
+/** A stored screenshot of a browser run (`step-<n>.jpg`), drawn for the mock; mock runs keep no video. */
+export function syntheticArtifactUrl(testId: string, resultId: number, name: string): string {
+  const n = /^step-(\d+)\.jpg$/.exec(name);
+  if (!n) return '';
+  const t = db().tests.find((x) => x.id === testId);
+  const manual = db().manual.find((r) => r.id === resultId && r.testId === testId);
+  const detail = manual?.detail ?? (t ? scheduledRun(t, (resultId % ID_SPAN) * t.frequencySeconds * 1000) : null);
+  const step = detail?.browser?.steps[Number(n[1])];
+  return step ? mockScreenshot(`${testId}-${resultId}-${n[1]}`, step, Number(n[1])) : '';
 }
 
 export async function listSyntheticLocations(): Promise<SyntheticLocation[]> {

@@ -336,6 +336,26 @@ function add(kind: RunKind, title: string, subject: Record<string, unknown>, scr
   return summaryOf(r);
 }
 
+/**
+ * AI Testing (mock/aiTesting.ts): a `testing` run playing its browser actions, `ago` ms ago (seeded jobs took
+ * `tookMs`). Returns the run and when it concludes, for its proposals to appear then.
+ */
+export function addTestingRun(
+  title: string,
+  subject: Record<string, unknown>,
+  steps: ([string, Record<string, unknown>, string] | string)[],
+  conclusion: Conclusion,
+  ago = 0,
+  tookMs?: number,
+): { id: string; doneAt: number } {
+  if (ago === 0) checkLimits();
+  const script: Script = { steps: steps.map((s) => (typeof s === 'string' ? text(s) : tool(s[0], s[1], s[2]))), conclusion };
+  const r = seed('testing', title, subject, script, ago);
+  r.tookMs = tookMs;
+  db().unshift(r);
+  return { id: r.summary.id, doneAt: r.summary.createdAt + (tookMs ?? QUEUED_MS + script.steps.length * STEP_MS) };
+}
+
 // ---------------------------------------------------------------- runs
 
 function monitorsList() {

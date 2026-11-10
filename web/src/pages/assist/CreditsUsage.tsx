@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EChartsOption } from 'echarts';
-import { Activity, Bot, CircleAlert, Code2, Coins, MessageSquare, ShieldCheck, Sparkles } from 'lucide-react';
+import { Activity, Bot, CircleAlert, Code2, Coins, MessageSquare, MousePointerClick, ShieldCheck, Sparkles } from 'lucide-react';
 import type { CreditSettings } from '../../api/assist/client';
 import { Chart } from '../../components/charts/Chart';
 import { TimePicker } from '../../components/shell/PageHeader';
@@ -110,6 +110,7 @@ const APPS: Record<string, { label: string; icon: typeof Bot; to: string }> = {
   security: { label: 'Assist Security Analyst', icon: ShieldCheck, to: '/assist/security-analyst' },
   agent: { label: 'Assist Agent Builder', icon: Bot, to: '/automation/agents' },
   code: { label: 'Assist Code', icon: Code2, to: '/assist/code' },
+  testing: { label: 'AI Testing', icon: MousePointerClick, to: '/synthetics/ai-testing' },
 };
 
 function line(points: { at: number; v: number }[], name: string, color: string): EChartsOption {

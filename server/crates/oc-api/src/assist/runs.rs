@@ -23,6 +23,8 @@ pub enum Kind {
     Agent,
     /// A coding session: a change proposed to a repository.
     Code,
+    /// AI Testing: a site explored in a browser and browser tests proposed for its journeys.
+    Testing,
 }
 
 impl Kind {
@@ -32,11 +34,12 @@ impl Kind {
             Kind::Security => "security",
             Kind::Agent => "agent",
             Kind::Code => "code",
+            Kind::Testing => "testing",
         }
     }
 
     pub fn parse(s: &str) -> Option<Kind> {
-        [Kind::Investigation, Kind::Security, Kind::Agent, Kind::Code].into_iter().find(|k| k.as_str() == s)
+        [Kind::Investigation, Kind::Security, Kind::Agent, Kind::Code, Kind::Testing].into_iter().find(|k| k.as_str() == s)
     }
 
     /// The verdicts `conclude` accepts.
@@ -46,6 +49,7 @@ impl Kind {
             Kind::Security => &["benign", "suspicious", "malicious", "inconclusive"],
             Kind::Agent => &["done", "needs_attention", "failed"],
             Kind::Code => &["change_proposed", "no_change", "failed"],
+            Kind::Testing => &["tests_proposed", "no_tests", "failed"],
         }
     }
 }
@@ -149,6 +153,11 @@ pub struct RunTools<T: Tools> {
 impl<T: Tools> RunTools<T> {
     pub fn new(base: T, kind: Kind, actions: bool) -> Self {
         RunTools { base, kind, actions, conclusion: Mutex::new(None), change: Mutex::new(None) }
+    }
+
+    /// The tools it wraps.
+    pub fn base(&self) -> &T {
+        &self.base
     }
 
     pub fn conclusion(&self) -> Option<Conclusion> {
@@ -275,6 +284,12 @@ mod tests {
         s.run("conclude", &json!({"summary": "Known VPN", "verdict": "benign"})).await.unwrap();
         assert_eq!(s.conclusion().unwrap().verdict, "benign");
         assert_eq!(s.conclusion().unwrap().confidence, "medium", "defaults to medium");
+    }
+
+    #[test]
+    fn testing_runs_conclude_with_proposed_tests() {
+        assert_eq!(Kind::parse("testing"), Some(Kind::Testing));
+        assert_eq!(Kind::Testing.verdicts(), &["tests_proposed", "no_tests", "failed"]);
     }
 
     #[tokio::test]

@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Sign in - Example Shop</title>
+  </head>
+  <body>
+    <nav><a href="/shop.html">Shop</a> <a href="https://elsewhere.example.net/">Partner site</a></nav>
+    <h1>Sign in</h1>
+    <form
+      id="login"
+      onsubmit="
+        event.preventDefault();
+        location.href = '/account.html';
+      "
+    >
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" />
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" />
+      <button type="submit" data-testid="sign-in">Sign in</button>
+    </form>
+    <button class="x1f9a">Forgot password?</button>
+    <ul>
+      <li><button>Details</button></li>
+      <li><button>Details</button></li>
+    </ul>
+  </body>
+</html>

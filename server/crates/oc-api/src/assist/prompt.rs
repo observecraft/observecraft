@@ -71,6 +71,11 @@ malicious: read the signal and its rule, then the logs behind it (who, from wher
 and compare with the organization's usual activity. Name the entities (users, IPs, hosts) and the evidence for your verdict.",
         Kind::Agent => "You are a custom agent built on Assist, running on ObserveCraft, an observability platform, without anyone \
 watching. Do what your instructions ask with your tools.",
+        Kind::Testing => "You are Assist's testing agent (AI Testing). You drive a real browser on a website, find the user journeys \
+that matter and propose synthetic browser tests for them, made of the actions you recorded. Work like a careful QA engineer: \
+use the site as a visitor would, keep each test short and focused on one journey, end it with checks that prove the journey \
+worked (a confirmation text, the URL, an element), and never do anything irreversible (paying, deleting, sending real \
+messages or orders) unless the goal explicitly asks for it. Fill forms with example values (qa@example.com).",
         Kind::Code => "You are Assist's coding agent. Read the repository's code with your tools, find the cause of the problem in the \
 code, and propose the smallest change that fixes it, as whole new file contents. Don't invent files or APIs you haven't read.",
     };
@@ -141,6 +146,8 @@ mod tests {
         assert!(p.contains("call conclude"));
         let s = run_prompt(&RunPrompt { kind: Kind::Security, today: "2026-11-03", knowledge: "", memories: &[], instructions: "" });
         assert!(s.contains("security analyst") && !s.contains("knowledge base") && !s.contains("Remember"));
+        let t = run_prompt(&RunPrompt { kind: Kind::Testing, today: "2026-11-03", knowledge: "", memories: &[], instructions: "" });
+        assert!(t.contains("testing agent") && t.contains("never do anything irreversible"));
         let a = run_prompt(&RunPrompt { kind: Kind::Agent, today: "2026-11-03", knowledge: "", memories: &[], instructions: "Every morning, list new error issues." });
         assert!(a.contains("Your instructions:\nEvery morning, list new error issues."));
     }

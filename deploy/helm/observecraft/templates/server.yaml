@@ -76,6 +76,11 @@ spec:
             {{- end }}
             - { name: OC_SMTP_FROM, value: {{ .Values.smtp.from | quote }} }
             - { name: OC_SYNTHETICS_ALLOW_PRIVATE, value: {{ .Values.synthetics.allowPrivateTargets | quote }} }
+            {{- if .Values.browser.enabled }}
+            - { name: OC_BROWSER_URL, value: "http://{{ include "oc.fullname" . }}-browser:8095" }
+            - name: OC_BROWSER_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: browser-token } }
+            {{- end }}
             - { name: OC_ORG_QUERY_TIMEOUT_SECONDS, value: {{ .Values.query.timeoutSeconds | quote }} }
             - { name: OC_ORG_QUERY_MAX_MEMORY_BYTES, value: {{ .Values.query.maxMemoryBytes | int64 | quote }} }
             - { name: OC_ORG_QUERY_MAX_ROWS_TO_READ, value: {{ .Values.query.maxRowsToRead | int64 | quote }} }

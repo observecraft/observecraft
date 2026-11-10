@@ -67,6 +67,9 @@ export const listSyntheticResults = (id: string, range: TimeRange, signal?: Abor
   live ? postTo('/api/v1/synthetics/tests/{id}/results', { id }, { range }, signal) : mock.listSyntheticResults(id, range);
 export const getSyntheticResult = (id: string, resultId: number, signal?: AbortSignal): Promise<SyntheticResult> =>
   live ? get('/api/v1/synthetics/tests/{id}/results/{result_id}', { id, result_id: String(resultId) }, signal) : mock.getSyntheticResult(id, resultId);
+/** A stored screenshot (`step-<n>.jpg`) or video (`video.webm`) of a browser test run, for <img> and <video>. */
+export const syntheticArtifactUrl = (id: string, resultId: number, name: string): string =>
+  live ? `/api/v1/synthetics/tests/${encodeURIComponent(id)}/results/${resultId}/artifacts/${name}` : mock.syntheticArtifactUrl(id, resultId, name);
 /** Sends a request once from the editor (nothing is stored) and suggests assertions for the response. */
 export const trySyntheticRequest = (req: SyntheticTryRequest): Promise<SyntheticTryResult> => (live ? post('/api/v1/synthetics/try', req) : mock.trySyntheticRequest(req));
 
