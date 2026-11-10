@@ -119,7 +119,8 @@ impl Grok {
             let mut values: Vec<(String, Value)> = Vec::new();
             let mut repeated: Vec<bool> = Vec::new();
             for cap in &rule.captures {
-                let Some(m) = c.name(&cap.group) else { continue };
+                // An empty match sets nothing, as in Datadog's parser.
+                let Some(m) = c.name(&cap.group).filter(|m| !m.as_str().is_empty()) else { continue };
                 let Some(v) = cap.kind.convert(m.as_str(), now_ms) else { continue };
                 let Some(v) = (match &cap.filter {
                     Some(f) => f.apply(v),
@@ -713,6 +714,14 @@ mod tests {
         assert_eq!(parsed, json!({"error.kind": "java.net.UnknownHostException", "error.message": "zookeeper: Name or service not known"}));
         // A final line break isn't part of the last value.
         assert_eq!(parse(r"rule %{word:a} %{data:b}", "x tail\n"), Some(json!({"a": "x", "b": "tail"})));
+    }
+
+    /// An empty match sets no attribute, as in Datadog's parser (PostgreSQL's `log_line_prefix` without a user or database,
+    /// `postgresql_tests.yaml`).
+    #[test]
+    fn empty_matches_set_nothing() {
+        assert_eq!(parse(r#"r <%{regex("\\S*"):user}@%{regex("\\S*"):db}> %{data:rest}"#, "<@orders> vacuum"), Some(json!({"db": "orders", "rest": "vacuum"})));
+        assert_eq!(parse(r"r %{word:a}:%{data:b}", "x:"), Some(json!({"a": "x"})));
     }
 
     #[test]

@@ -536,7 +536,8 @@ export function grokParse(rules: Rule[], input: string, nowMs: number): { rule: 
     const repeated = new Set<number>();
     for (const c of rule.captures) {
       const raw = m.groups?.[c.group];
-      if (raw === undefined) continue;
+      // An empty match sets nothing, as in Datadog's parser (and the server's).
+      if (raw === undefined || raw === '') continue;
       let v = convert(c.kind, raw, nowMs);
       if (v !== undefined && c.filter) v = c.filter(v);
       if (v === undefined) continue;
