@@ -29,6 +29,16 @@ test('group alignment does not combine unrelated pods', () => {
   );
   assert.equal(formula('count_nonzero(a)', inputs)[0].points[0][1], 2);
 });
+test('series grouped by the same tags in another order combine (Argo Rollouts: by {host,namespace,name} / by {host,name,namespace})', () => {
+  const inputs = { a: [...s('host:h1, ns:x, name:r1', [6]), ...s('host:h1, ns:x, name:r2', [8])], b: [...s('host:h1, name:r2, ns:x', [2]), ...s('host:h1, name:r1, ns:x', [3])] };
+  assert.deepEqual(
+    formula('a / b', inputs).map((s) => [s.name, s.points[0][1]]),
+    [
+      ['host:h1, ns:x, name:r1', 2],
+      ['host:h1, ns:x, name:r2', 4],
+    ],
+  );
+});
 test('query modifiers remain explicit and unknown modifiers are rejected', () => {
   const p = metricPlan('sum:kubernetes.cpu.requests{$cluster} by {kube_node}.fill(null).rollup(avg, 20)');
   assert.deepEqual(

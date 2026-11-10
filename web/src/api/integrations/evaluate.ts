@@ -217,7 +217,8 @@ type Vector = MetricSeries[];
 
 /** Time units (as metadata.csv names them) in seconds. */
 const TIME_UNITS: Record<string, number> = { nanosecond: 1e-9, microsecond: 1e-6, millisecond: 1e-3, second: 1, minute: 60, hour: 3600, day: 86_400, week: 604_800 };
-const key = (s: MetricSeries) => (s.name.includes(':') ? s.name : '*');
+/** A series' group, whatever order its query listed the tags in (`by {host,name}` joins `by {name,host}`). */
+const key = (s: MetricSeries) => (s.name.includes(':') ? s.name.split(/,\s*/).sort().join(', ') : '*');
 
 function binary(a: Vector, b: Vector, fn: (a: number, b: number) => number, op?: string): Vector {
   const out: Vector = [];
