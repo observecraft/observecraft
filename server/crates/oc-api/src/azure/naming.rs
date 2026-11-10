@@ -30,8 +30,9 @@ pub fn count_name(resource_type: &str) -> String {
 
 /// The dimensions the crawler splits metrics by, per resource type: the most used ones (App Service instances,
 /// Storage API names and response types, Cosmos DB databases and collections, Redis shards, Event Hubs and
-/// Service Bus entities, …). Others are read aggregated over their dimensions, keeping the series count bounded.
-const SPLITS: [(&str, &[&str]); 20] = [
+/// Service Bus entities, backup jobs' health, model deployments, …). Others are read aggregated over their
+/// dimensions, keeping the series count bounded.
+const SPLITS: [(&str, &[&str]); 27] = [
     ("microsoft.web/sites", &["Instance"]),
     ("microsoft.web/sites/slots", &["Instance"]),
     ("microsoft.web/serverfarms", &["Instance"]),
@@ -45,13 +46,20 @@ const SPLITS: [(&str, &[&str]); 20] = [
     ("microsoft.eventhub/namespaces", &["EntityName"]),
     ("microsoft.servicebus/namespaces", &["EntityName"]),
     ("microsoft.network/loadbalancers", &["FrontendIPAddress", "BackendIPAddress"]),
-    ("microsoft.network/applicationgateways", &["Listener", "BackendSettingsPool"]),
+    ("microsoft.network/applicationgateways", &["Listener", "BackendSettingsPool", "HttpStatusGroup"]),
     ("microsoft.keyvault/vaults", &["ActivityType", "ActivityName", "StatusCode"]),
-    ("microsoft.apimanagement/service", &["Location", "ApiId"]),
-    ("microsoft.containerservice/managedclusters", &["nodepool", "node"]),
+    ("microsoft.apimanagement/service", &["Location", "ApiId", "GatewayResponseCodeCategory"]),
+    ("microsoft.containerservice/managedclusters", &["nodepool", "node", "phase"]),
     ("microsoft.network/frontdoors", &["HttpStatusGroup", "Backend"]),
     ("microsoft.cdn/profiles", &["Endpoint", "HttpStatusGroup"]),
     ("microsoft.sql/servers/elasticpools", &["DatabaseResourceId"]),
+    ("microsoft.recoveryservices/vaults", &["healthStatus", "dataSourceType"]),
+    ("microsoft.dataprotection/backupvaults", &["healthStatus", "dataSourceType"]),
+    ("microsoft.app/containerapps", &["revisionName", "statusCodeCategory"]),
+    ("microsoft.cognitiveservices/accounts", &["ModelDeploymentName", "StatusCode"]),
+    ("microsoft.eventgrid/topics", &["EventSubscriptionName"]),
+    ("microsoft.eventgrid/systemtopics", &["EventSubscriptionName"]),
+    ("microsoft.synapse/workspaces", &["Result"]),
 ];
 
 /// Which of a metric's dimensions (its definition's) the crawler splits it by.
@@ -160,6 +168,18 @@ mod tests {
         assert_eq!(splits("Microsoft.Cache/Redis", &s(&["ShardId", "Port", "Primary"])), ["ShardId"]);
         assert_eq!(splits("Microsoft.EventHub/namespaces", &s(&["EntityName", "OperationResult"])), ["EntityName"]);
         assert!(splits("Microsoft.Compute/virtualMachines", &s(&["LUN"])).is_empty());
+        // Backup jobs by health state and workload, container app requests by status class, model deployments.
+        let backup = s(&["dataSourceURL", "backupInstanceUrl", "dataSourceType", "healthStatus", "backupInstanceName"]);
+        assert_eq!(splits("Microsoft.RecoveryServices/vaults", &backup), ["healthStatus", "dataSourceType"]);
+        assert_eq!(splits("Microsoft.DataProtection/backupVaults", &backup), ["healthStatus", "dataSourceType"]);
+        assert_eq!(splits("Microsoft.App/containerApps", &s(&["revisionName", "podName", "statusCodeCategory", "statusCode"])), ["revisionName", "statusCodeCategory"]);
+        assert_eq!(splits("Microsoft.CognitiveServices/accounts", &s(&["ApiName", "ModelDeploymentName", "StatusCode"])), ["ModelDeploymentName", "StatusCode"]);
+        assert_eq!(splits("Microsoft.EventGrid/systemTopics", &s(&["EventSubscriptionName"])), ["EventSubscriptionName"]);
+        assert_eq!(splits("Microsoft.Network/applicationGateways", &s(&["HttpStatusGroup"])), ["HttpStatusGroup"]);
+        assert_eq!(splits("Microsoft.ApiManagement/service", &s(&["Location", "Hostname", "GatewayResponseCodeCategory", "ApiId"])), ["Location", "ApiId", "GatewayResponseCodeCategory"]);
+        assert_eq!(splits("Microsoft.ContainerService/managedClusters", &s(&["phase", "namespace", "pod"])), ["phase"]);
+        assert_eq!(splits("Microsoft.Synapse/workspaces", &s(&["Result", "FailureType", "Pipeline"])), ["Result"]);
+        assert_eq!(dimension_tag("healthStatus"), "healthstatus");
         assert_eq!(dimension_tag("ApiName"), "apiname");
         assert_eq!(dimension_tag("Microsoft.ResourceId"), "microsoft_resourceid");
     }
@@ -216,13 +236,16 @@ mod tests {
         let resource_tags: HashSet<&str> = HashSet::from(["subscription_id", "resource_group", "region", "name", "status"]);
         let strings = |v: &Value| v.as_array().map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect::<Vec<_>>()).unwrap_or_default();
         // Every name the crawler gives each documented metric (the documented aggregations), and the overview's `.max` of gauges.
-        let (mut names, mut gauges) = (HashSet::new(), HashSet::new());
+        // Each name's tags beside the resource's: the dimensions the crawler splits it by.
+        let (mut names, mut gauges, mut split_tags) = (HashSet::new(), HashSet::new(), std::collections::HashMap::<String, Vec<String>>::new());
         for (kind, spec) in doc["resource_types"].as_object().unwrap() {
             names.insert(count_name(kind));
             for m in spec["metrics"].as_array().unwrap() {
                 let (name, primary) = (m["name"].as_str().unwrap(), m["aggregation"].as_str().unwrap());
+                let tags: Vec<String> = splits(kind, &strings(&m["dimensions"])).iter().map(|d| dimension_tag(d)).collect();
                 for (_, suffix) in aggregations(primary, &strings(&m["aggregations"])) {
                     names.insert(format!("{}{suffix}", metric_name(kind, name)));
+                    split_tags.insert(format!("{}{suffix}", metric_name(kind, name)), tags.clone());
                 }
                 if primary == "Average" {
                     gauges.insert(format!("{}.max", metric_name(kind, name)));
@@ -236,7 +259,8 @@ mod tests {
             for c in query.captures_iter(&line["dashboards"][0]["widgets"].to_string()) {
                 assert!(names.contains(&c[1]), "{}: {} isn't published by the crawler", t["type"], &c[1]);
                 for tag in c.get(2).map(|g| g.as_str()).unwrap_or_default().split(',').filter(|t| !t.is_empty()) {
-                    assert!(resource_tags.contains(tag), "{}: {} splits by {tag}", t["type"], &c[1]);
+                    let split = split_tags.get(&c[1]).is_some_and(|ts| ts.iter().any(|x| x == tag));
+                    assert!(resource_tags.contains(tag) || split, "{}: {} splits by {tag}", t["type"], &c[1]);
                 }
             }
             checked += 1;

@@ -4,8 +4,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
-import { MOCK_SERVICES, buildServiceDashboards, metricOf, publishedNames } from './cloud-service-dashboards.mjs';
+import { MOCK_SERVICES, azurePublishedNames, buildServiceDashboards, metricOf, publishedNames } from './cloud-service-dashboards.mjs';
 import { AWS_LAYOUTS } from './aws-service-layouts.mjs';
+import { AZURE_LAYOUTS } from './azure-service-layouts.mjs';
 import { gcpPage, withDatadogNamespaces } from './import-cloud-metrics.mjs';
 
 const seed = (path) => JSON.parse(readFileSync(new URL(`../server/seeds/${path}`, import.meta.url), 'utf8'));
@@ -373,8 +374,8 @@ test('services without a design get their key numbers and their metrics grouped 
   const [about] = d.widgets;
   assert.ok(about.definition.widgets.some((w) => w.definition.type === 'monitor_summary'));
   assert.ok(about.definition.widgets.filter((w) => kind(w.definition) === 'query_value').length >= 2);
-  const vm = bundle().find((l) => l.logo === 'tile:azure-compute-virtualmachines').dashboards[0];
-  assert.ok(vm.widgets.filter((w) => w.definition.type === 'group').length >= 3);
+  const relay = bundle().find((l) => l.logo === 'tile:azure-relay-namespaces').dashboards[0];
+  assert.ok(relay.widgets.filter((w) => w.definition.type === 'group').length >= 3);
 });
 
 test('designed dashboards’ metrics carry their units', () => {
@@ -389,4 +390,153 @@ test('designed dashboards’ metrics carry their units', () => {
   assert.equal(units.get('aws.s3.bucket_size_bytes'), 'byte');
   assert.equal(units.get('aws.applicationelb.target_response_time.p99'), 'second');
   assert.equal(units.get('aws.ec2.cpuutilization.maximum'), 'percent');
+});
+
+// ---------------------------------------------------------------- hand-designed Azure dashboards (scripts/azure-service-layouts.mjs)
+
+const azureLine = (type) => {
+  const id = seed('azure_integration.json').resource_types.find((t) => t.type === type).id;
+  return bundle().find((l) => l.logo === `tile:${id}`);
+};
+const DESIGNED_AZURE = [
+  'Microsoft.Compute/virtualMachines',
+  'Microsoft.Compute/virtualMachineScaleSets',
+  'Microsoft.ContainerService/managedClusters',
+  'Microsoft.Web/sites',
+  'Microsoft.Web/serverFarms',
+  'Microsoft.Sql/servers/databases',
+  'Microsoft.Sql/managedInstances',
+  'Microsoft.DBforPostgreSQL/flexibleServers',
+  'Microsoft.DBforMySQL/flexibleServers',
+  'Microsoft.DocumentDB/databaseAccounts',
+  'Microsoft.Storage/storageAccounts',
+  'Microsoft.KeyVault/vaults',
+  'Microsoft.Cache/redis',
+  'Microsoft.Cache/redisEnterprise',
+  'Microsoft.Network/loadBalancers',
+  'Microsoft.Network/applicationGateways',
+  'Microsoft.Network/frontDoors',
+  'Microsoft.Network/dnszones',
+  'Microsoft.Network/privateDnsZones',
+  'Microsoft.Network/natGateways',
+  'Microsoft.Network/publicIPAddresses',
+  'Microsoft.Network/virtualNetworkGateways',
+  'Microsoft.Network/expressRouteCircuits',
+  'Microsoft.Network/azureFirewalls',
+  'Microsoft.EventHub/namespaces',
+  'Microsoft.ServiceBus/namespaces',
+  'Microsoft.EventGrid/topics',
+  'Microsoft.EventGrid/systemTopics',
+  'Microsoft.ApiManagement/service',
+  'Microsoft.ContainerRegistry/registries',
+  'Microsoft.App/containerApps',
+  'Microsoft.ContainerInstance/containerGroups',
+  'Microsoft.OperationalInsights/workspaces',
+  'Microsoft.Insights/components',
+  'Microsoft.RecoveryServices/vaults',
+  'Microsoft.DataProtection/backupVaults',
+  'Microsoft.CognitiveServices/accounts',
+  'Microsoft.Search/searchServices',
+  'Microsoft.MachineLearningServices/workspaces',
+  'Microsoft.Synapse/workspaces',
+  'Microsoft.DataFactory/factories',
+  'Microsoft.Insights/dataCollectionRules',
+];
+
+test('the most used Azure services have a dashboard designed for them', () => {
+  for (const type of DESIGNED_AZURE) assert.ok(AZURE_LAYOUTS[type], `${type} has a layout`);
+  for (const type of Object.keys(AZURE_LAYOUTS)) {
+    const prefix = seed('azure_integration.json').resource_types.find((t) => t.type === type).prefix;
+    const [d] = azureLine(type).dashboards;
+    const [about, ...groups] = d.widgets;
+    assert.equal(about.definition.type, 'group', `${type}: starts with its About group`);
+    const inAbout = about.definition.widgets.map((w) => w.definition);
+    assert.ok(
+      inAbout.some((w) => w.type === 'image' && w.logo === d.logo),
+      `${type}: its logo`,
+    );
+    assert.ok(
+      inAbout.some((w) => w.type === 'note' && w.content.length > 40),
+      `${type}: what it shows`,
+    );
+    const kpis = inAbout.filter((w) => kind(w) === 'query_value');
+    assert.ok(kpis.length >= 3, `${type}: a row of key numbers`);
+    // Its resources by Resource Health's status, as Datadog's Azure dashboards count them.
+    assert.ok(
+      kpis.some((w) => JSON.stringify(w).includes(`${prefix}.count{`)),
+      `${type}: counts its resources`,
+    );
+    const summary = inAbout.find((w) => w.type === 'monitor_summary');
+    assert.match(summary?.query ?? '', new RegExp(`^tag:\\(integration:azure_[a-z0-9_]+\\) OR ${prefix.replace(/\./g, '\\.')}\\.$`), `${type}: its monitors`);
+    assert.ok(groups.filter((g) => g.definition.type === 'group').length >= 3, `${type}: themed groups`);
+    assert.ok(new Set(widgetsOf(d).map(kind)).size >= 3, `${type}: more than one kind of widget`);
+    assert.deepEqual(
+      d.templateVariables.slice(0, 4).map((v) => v.prefix),
+      ['subscription_id', 'resource_group', 'region', 'name'],
+      `${type}: filters by the crawler's resource tags`,
+    );
+  }
+});
+
+test('designed Azure dashboards follow their service’s model, not one template, and not AWS’s', () => {
+  const titles = (type) =>
+    azureLine(type)
+      .dashboards[0].widgets.slice(1)
+      .map((g) => g.definition.title)
+      .join('|');
+  const all = DESIGNED_AZURE.map(titles);
+  assert.equal(new Set(all).size, all.length, 'each service has its own groups');
+  const aws = Object.keys(AWS_LAYOUTS).map((ns) =>
+    awsLine(ns)
+      .dashboards[0].widgets.slice(1)
+      .map((g) => g.definition.title)
+      .join('|'),
+  );
+  for (const t of all) assert.ok(!aws.includes(t), t);
+  const text = (type) => JSON.stringify(azureLine(type).dashboards[0]);
+  const vars = (type) => azureLine(type).dashboards[0].templateVariables.map((v) => v.prefix);
+  // VMs: CPU, memory, disks, network and their availability.
+  assert.match(text('Microsoft.Compute/virtualMachines'), /avg:azure\.vm\.percentage_cpu\{\$subscription_id,\$resource_group,\$region,\$name\} by \{name\}/);
+  assert.match(text('Microsoft.Compute/virtualMachines'), /azure\.vm\.available_memory_percentage/);
+  assert.match(text('Microsoft.Compute/virtualMachines'), /sum:azure\.vm\.count\{[^}]*\} by \{status\}/);
+  // App Service: requests and status codes per instance, response time, function executions.
+  assert.match(text('Microsoft.Web/sites'), /sum:azure\.app_services\.http5xx\{/);
+  assert.match(text('Microsoft.Web/sites'), /azure\.app_services\.http_response_time/);
+  assert.match(text('Microsoft.Web/sites'), /by \{instance\}/);
+  assert.match(text('Microsoft.Web/sites'), /azure\.app_services\.function_execution_count/);
+  assert.deepEqual(vars('Microsoft.Web/sites'), ['subscription_id', 'resource_group', 'region', 'name', 'instance']);
+  // Storage: transactions by API and response type, end-to-end against server latency, capacity.
+  assert.match(text('Microsoft.Storage/storageAccounts'), /sum:azure\.storage\.transactions\{[^}]*\} by \{apiname\}/);
+  assert.match(text('Microsoft.Storage/storageAccounts'), /by \{responsetype\}/);
+  assert.match(text('Microsoft.Storage/storageAccounts'), /azure\.storage\.success_e2elatency/);
+  assert.match(text('Microsoft.Storage/storageAccounts'), /azure\.storage\.used_capacity/);
+  // Cosmos DB: requests by status code, throttled 429s, normalized RU consumption.
+  assert.match(text('Microsoft.DocumentDB/databaseAccounts'), /sum:azure\.cosmosdb\.total_requests\{[^}]*\} by \{statuscode\}/);
+  assert.match(text('Microsoft.DocumentDB/databaseAccounts'), /statuscode:429/);
+  assert.match(text('Microsoft.DocumentDB/databaseAccounts'), /azure\.cosmosdb\.normalized_ruconsumption/);
+  // Key Vault: API hits by activity type, availability, latency, saturation.
+  assert.match(text('Microsoft.KeyVault/vaults'), /azure\.keyvault_vaults\.service_api_hit\{[^}]*\} by \{activitytype\}/);
+  assert.match(text('Microsoft.KeyVault/vaults'), /azure\.keyvault_vaults\.saturation_shoebox/);
+  // Redis: hits and misses, server load by shard, memory.
+  assert.match(text('Microsoft.Cache/redis'), /azure\.cache_redis\.cachemisses/);
+  assert.match(text('Microsoft.Cache/redis'), /max:azure\.cache_redis\.server_load\{[^}]*\} by \{shardid\}/);
+  // Event Hubs and Service Bus: messages in and out per entity, throttled requests.
+  assert.match(text('Microsoft.EventHub/namespaces'), /sum:azure\.eventhub_namespaces\.incoming_messages\{[^}]*\} by \{entityname\}/);
+  assert.match(text('Microsoft.ServiceBus/namespaces'), /azure\.servicebus_namespaces\.deadlettered_messages/);
+  // Backup: jobs by health state.
+  assert.match(text('Microsoft.RecoveryServices/vaults'), /sum:azure\.recoveryservices_vaults\.backup_health_event\{[^}]*\} by \{healthstatus\}/);
+  assert.match(text('Microsoft.DataProtection/backupVaults'), /azure\.dataprotection_backupvaults\.restore_health_event/);
+});
+
+test('every Azure service dashboard charts only names and tags the crawler publishes', () => {
+  assert.ok(azurePublishedNames('Microsoft.Web/sites').has('azure.app_services.cpu_time.max'));
+  assert.ok(azurePublishedNames('Microsoft.Web/sites').has('azure.app_services.count'));
+  assert.ok(!azurePublishedNames('Microsoft.Web/sites').has('azure.app_services.http5xx.max'), 'Http5xx has no maximum');
+  assert.ok(azurePublishedNames('Microsoft.Network/dnszones').has('azure.network_dnszones.record_set_count'), 'no primary aggregation: averaged');
+  for (const t of seed('azure_integration.json').resource_types) {
+    const line = bundle().find((l) => l.logo === `tile:${t.id}`);
+    if (!line) continue;
+    const names = azurePublishedNames(t.type);
+    for (const [, name] of JSON.stringify(line.dashboards[0].widgets).matchAll(/[a-z]+:(azure\.[a-z0-9_.]+)\{/g)) assert.ok(names.has(name), `${t.type}: ${name}`);
+  }
 });

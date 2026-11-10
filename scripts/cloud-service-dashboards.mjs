@@ -1,6 +1,7 @@
 // A dashboard per AWS service, Azure resource type and Google Cloud service, as Datadog has one for each service of its cloud
 // integrations: the service's icon, what it shows, its monitors and key numbers, then groups of charts. The most used AWS
-// services have a layout designed for them (scripts/aws-service-layouts.mjs); the others chart every metric the service
+// services and Azure resource types have a layout designed for them (scripts/aws-service-layouts.mjs,
+// scripts/azure-service-layouts.mjs); the others chart every metric the service
 // publishes (scripts/import-cloud-metrics.mjs) by the service's resource, grouped by what it measures. Our own
 // dashboards: Datadog's aren't open.
 // They join the integration dashboards an org gets once the service's metrics arrive (routes/integration_dashboards.rs).
@@ -9,6 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { AWS_LAYOUTS, queriesOver } from './aws-service-layouts.mjs';
+import { AZURE_LAYOUTS } from './azure-service-layouts.mjs';
 import { convertDashboard } from './import-integration-dashboards.mjs';
 
 const seeds = new URL('../server/seeds/', import.meta.url);
@@ -306,7 +308,89 @@ const AZURE_AGGREGATIONS = { Total: 'sum', Count: 'sum', Maximum: 'max', Minimum
 /** `Percentage CPU` of a VM → `azure.vm.percentage_cpu` (azure/naming.rs metric_name; the primary aggregation). */
 export const azureMetricOf = (prefix, metric) => `${prefix}.${snake(metric)}`;
 
+/** The aggregations the Azure crawler publishes a metric with and their suffixes (azure/naming.rs `aggregations`): its
+ *  primary one bare (none: the average, else its first), and `.max` where Azure Monitor has a maximum beside it. */
+export function azureSuffixes(primary, supported) {
+  const all = supported.map((a) => a.toLowerCase());
+  let own = primary.toLowerCase();
+  if (own === '' || own === 'none') own = !all.length || all.includes('average') ? 'average' : all[0];
+  return ['', ...(own !== 'maximum' && all.includes('maximum') ? ['.max'] : [])];
+}
+
+/** The dimensions the Azure crawler splits metrics by (azure/naming.rs SPLITS, lowercase types), tagged in lowercase;
+ *  the Rust test every_azure_dashboard_charts_what_the_crawler_publishes checks the dashboards against the crawler's. */
+const AZURE_SPLITS = {
+  'microsoft.web/sites': ['Instance'],
+  'microsoft.web/serverfarms': ['Instance'],
+  'microsoft.storage/storageaccounts': ['ApiName', 'ResponseType'],
+  'microsoft.documentdb/databaseaccounts': ['DatabaseName', 'CollectionName', 'Region', 'StatusCode'],
+  'microsoft.cache/redis': ['ShardId'],
+  'microsoft.eventhub/namespaces': ['EntityName'],
+  'microsoft.servicebus/namespaces': ['EntityName'],
+  'microsoft.network/loadbalancers': ['FrontendIPAddress', 'BackendIPAddress'],
+  'microsoft.network/applicationgateways': ['Listener', 'BackendSettingsPool', 'HttpStatusGroup'],
+  'microsoft.keyvault/vaults': ['ActivityType', 'ActivityName', 'StatusCode'],
+  'microsoft.apimanagement/service': ['Location', 'ApiId', 'GatewayResponseCodeCategory'],
+  'microsoft.containerservice/managedclusters': ['nodepool', 'node', 'phase'],
+  'microsoft.network/frontdoors': ['HttpStatusGroup', 'Backend'],
+  'microsoft.cdn/profiles': ['Endpoint', 'HttpStatusGroup'],
+  'microsoft.sql/servers/elasticpools': ['DatabaseResourceId'],
+  'microsoft.recoveryservices/vaults': ['healthStatus', 'dataSourceType'],
+  'microsoft.dataprotection/backupvaults': ['healthStatus', 'dataSourceType'],
+  'microsoft.app/containerapps': ['revisionName', 'statusCodeCategory'],
+  'microsoft.cognitiveservices/accounts': ['ModelDeploymentName', 'StatusCode'],
+  'microsoft.eventgrid/topics': ['EventSubscriptionName'],
+  'microsoft.eventgrid/systemtopics': ['EventSubscriptionName'],
+  'microsoft.synapse/workspaces': ['Result'],
+};
+/** Tags every Azure series carries: the resource's (and the resource count's Resource Health status). */
+const AZURE_RESOURCE_TAGS = ['subscription_id', 'resource_group', 'region', 'name', 'status'];
+
+/** Every name the Azure crawler publishes for a resource type (its metrics and `azure.<type>.count`), with the tags
+ *  each name splits by beside the resource's. */
+export function azurePublished(type) {
+  const prefix = json('azure_integration.json').resource_types.find((t) => t.type === type).prefix;
+  const wanted = AZURE_SPLITS[type.toLowerCase()] ?? [];
+  const out = new Map([[`${prefix}.count`, []]]);
+  for (const m of json('integrations/cloud/azure-metrics.json').resource_types[type]?.metrics ?? []) {
+    const tags = wanted.filter((w) => (m.dimensions ?? []).some((d) => d.toLowerCase() === w.toLowerCase())).map(underscored);
+    for (const suffix of azureSuffixes(m.aggregation, m.aggregations ?? [])) out.set(`${azureMetricOf(prefix, m.name)}${suffix}`, tags);
+  }
+  return out;
+}
+export const azurePublishedNames = (type) => new Set(azurePublished(type).keys());
+
+/** A designed Azure dashboard (scripts/azure-service-layouts.mjs); every metric it charts, and every tag it splits by,
+ *  must be published. */
+function designedAzureDashboard(type, layout, source) {
+  const variables = ['subscription_id', 'resource_group', 'region', 'name', ...layout.vars].map((n) => ({ name: n, prefix: n }));
+  const f = variables.map((v) => `$${v.name}`).join(',');
+  const q = queriesOver(f);
+  const { kpis, groups } = layout.build({ ...q, f, prefix: type.prefix, count: (by, ...filters) => q.sum(`${type.prefix}.count`, by, ...filters) });
+  const d = serviceDoc({
+    cloud: 'azure',
+    service: type,
+    note: `${layout.note} Collected by the [Azure integration](/integrations/azure).`,
+    variables,
+    monitors: `tag:(integration:${layout.monitor}) OR ${type.prefix}.`,
+    kpis,
+    groups,
+    logs: layout.logs,
+    color: 'vivid_blue',
+    description: `${type.name}: ${layout.note.split(':')[0].toLowerCase()} and their health, from Azure Monitor.`,
+    source: { repository: 'observecraft', path: 'scripts/azure-service-layouts.mjs', metrics: source },
+  });
+  const published = azurePublished(type.type);
+  for (const [, name, by] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{[^}]*\}(?: by \{([a-z0-9_,]+)\})?/g)) {
+    if (!published.has(name)) throw new Error(`${type.type}: ${name} isn't a name the Azure crawler publishes (azure-metrics.json)`);
+    for (const tag of (by ?? '').split(',').filter(Boolean))
+      if (!AZURE_RESOURCE_TAGS.includes(tag) && !published.get(name).includes(tag)) throw new Error(`${type.type}: ${name} isn't split by ${tag} (azure/naming.rs SPLITS)`);
+  }
+  return d;
+}
+
 function azureDashboard(type, spec, source) {
+  if (AZURE_LAYOUTS[type.type]) return designedAzureDashboard(type, AZURE_LAYOUTS[type.type], source);
   return serviceDashboard({
     cloud: 'azure',
     service: type,
@@ -412,6 +496,8 @@ export const MOCK_SERVICES = [
   'tile:aws-sqs',
   'tile:aws-wafv2',
   'tile:azure-compute-virtualmachines',
+  'tile:azure-keyvault-vaults',
+  'tile:azure-sql-servers-databases',
   'tile:azure-storage-storageaccounts',
   'tile:azure-web-sites',
   'tile:gcp-cloudsql',

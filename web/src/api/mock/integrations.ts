@@ -962,7 +962,7 @@ const GCP_SERVICES: Entry[] = gcpCatalog.services.map((s) => ({
 }));
 
 /** Azure services the demo app registration collects (mock mode). */
-const DEMO_AZURE = new Set(['Microsoft.Compute/virtualMachines', 'Microsoft.Web/sites', 'Microsoft.Sql/servers/databases', 'Microsoft.Storage/storageAccounts']);
+const DEMO_AZURE = new Set(['Microsoft.Compute/virtualMachines', 'Microsoft.Web/sites', 'Microsoft.Sql/servers/databases', 'Microsoft.Storage/storageAccounts', 'Microsoft.KeyVault/vaults']);
 
 /** One tile per resource type of the Azure integration's catalog (server/seeds/azure_integration.json). */
 const AZURE_SERVICES: Entry[] = azureCatalog.resource_types.map((t) => ({

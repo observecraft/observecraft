@@ -185,6 +185,17 @@
       ]
     },
     {
+      "type": "Microsoft.Cache/redisEnterprise",
+      "name": "Azure Managed Redis",
+      "id": "azure-cache-redisenterprise",
+      "prefix": "azure.cache_redisenterprise",
+      "categories": [
+        "Azure",
+        "Caching",
+        "Data Stores"
+      ]
+    },
+    {
       "type": "Microsoft.Network/loadBalancers",
       "name": "Azure Load Balancer",
       "id": "azure-network-loadbalancers",
@@ -278,6 +289,16 @@
       ]
     },
     {
+      "type": "Microsoft.Network/privateDnsZones",
+      "name": "Azure Private DNS",
+      "id": "azure-network-privatednszones",
+      "prefix": "azure.network_privatednszones",
+      "categories": [
+        "Azure",
+        "Network"
+      ]
+    },
+    {
       "type": "Microsoft.Network/trafficManagerProfiles",
       "name": "Azure Traffic Manager",
       "id": "azure-network-trafficmanagerprofiles",
@@ -323,6 +344,16 @@
       "name": "Azure Event Grid",
       "id": "azure-eventgrid-topics",
       "prefix": "azure.eventgrid_topics",
+      "categories": [
+        "Azure",
+        "Message Queues"
+      ]
+    },
+    {
+      "type": "Microsoft.EventGrid/systemTopics",
+      "name": "Azure Event Grid System Topics",
+      "id": "azure-eventgrid-systemtopics",
+      "prefix": "azure.eventgrid_systemtopics",
       "categories": [
         "Azure",
         "Message Queues"
@@ -510,6 +541,16 @@
       ]
     },
     {
+      "type": "Microsoft.DataProtection/backupVaults",
+      "name": "Azure Backup Vault",
+      "id": "azure-dataprotection-backupvaults",
+      "prefix": "azure.dataprotection_backupvaults",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
       "type": "Microsoft.Insights/components",
       "name": "Azure Application Insights",
       "id": "azure-insights-components",
@@ -524,6 +565,16 @@
       "name": "Azure Log Analytics",
       "id": "azure-operationalinsights-workspaces",
       "prefix": "azure.operationalinsights_workspaces",
+      "categories": [
+        "Azure",
+        "Log Collection"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "name": "Azure Monitor Data Collection Rules",
+      "id": "azure-insights-datacollectionrules",
+      "prefix": "azure.insights_datacollectionrules",
       "categories": [
         "Azure",
         "Log Collection"

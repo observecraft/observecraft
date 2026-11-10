@@ -9683,6 +9683,430 @@
     }
    ]
   },
+  "Microsoft.Cache/redisEnterprise": {
+   "metrics": [
+    {
+     "name": "cachehits",
+     "display": "Cache Hits",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ]
+    },
+    {
+     "name": "cacheLatency",
+     "display": "Cache Latency",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "InstanceId"
+     ]
+    },
+    {
+     "name": "cachemisses",
+     "display": "Cache Misses",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ]
+    },
+    {
+     "name": "cacheRead",
+     "display": "Cache Read",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "unit": "byte/second",
+     "dimensions": [
+      "InstanceId"
+     ]
+    },
+    {
+     "name": "cacheWrite",
+     "display": "Cache Write",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "unit": "byte/second",
+     "dimensions": [
+      "InstanceId"
+     ]
+    },
+    {
+     "name": "connectedclients",
+     "display": "Connected Clients",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId"
+     ]
+    },
+    {
+     "name": "evictedkeys",
+     "display": "Evicted Keys",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ]
+    },
+    {
+     "name": "expiredkeys",
+     "display": "Expired Keys",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ]
+    },
+    {
+     "name": "geoReplicationHealthy",
+     "display": "Geo Replication Healthy",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ]
+    },
+    {
+     "name": "getcommands",
+     "display": "Gets",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ]
+    },
+    {
+     "name": "operationsPerSecond",
+     "display": "Operations Per Second",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ]
+    },
+    {
+     "name": "percentProcessorTime",
+     "display": "CPU",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "InstanceId"
+     ]
+    },
+    {
+     "name": "serverLoad",
+     "display": "Server Load",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "unit": "percent"
+    },
+    {
+     "name": "setcommands",
+     "display": "Sets",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ]
+    },
+    {
+     "name": "ShardHashesItems1MTo8M",
+     "display": "Shard Hashes Items 1M to 8M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardHashesItemsOver8M",
+     "display": "Shard Hashes Items Over 8M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardHashesItemsUnder1M",
+     "display": "Shard Hashes Items Under 1M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardKeyCount",
+     "display": "Shard Key Count (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardListsItems1MTo8M",
+     "display": "Shard Lists Items 1M to 8M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardListsItemsOver8M",
+     "display": "Shard Lists Items Over 8M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardListsItemsUnder1M",
+     "display": "Shard Lists Items Under 1M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardMemoryClientsNormalBytes",
+     "display": "Shard Memory Clients Normal (Bytes) (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardMemoryClientsReplicaBytes",
+     "display": "Shard Memory Clients Replica (Bytes) (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardMemoryUsedBytes",
+     "display": "Shard Memory Used (Bytes) (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardReplicationLinkUp",
+     "display": "Shard Replication Link Up (Preview)",
+     "aggregation": "Minimum",
+     "aggregations": [
+      "Minimum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardSetsItems1MTo8M",
+     "display": "Shard Sets Items 1M to 8M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardSetsItemsOver8M",
+     "display": "Shard Sets Items Over 8M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardSetsItemsUnder1M",
+     "display": "Shard Sets Items Under 1M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardStringsSizesUnder128M",
+     "display": "Shard Strings Sizes Under 128 MB (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardZSetsItems1MTo8M",
+     "display": "Shard Sorted Sets Items 1M to 8M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardZSetsItemsOver8M",
+     "display": "Shard Sorted Sets Items Over 8M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "ShardZSetsItemsUnder1M",
+     "display": "Shard Sorted Sets Items Under 1M Elements (Preview)",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "InstanceId",
+      "Slots",
+      "Shard",
+      "Role"
+     ]
+    },
+    {
+     "name": "totalcommandsprocessed",
+     "display": "Total Operations",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ]
+    },
+    {
+     "name": "totalkeys",
+     "display": "Total Keys",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ]
+    },
+    {
+     "name": "usedmemory",
+     "display": "Used Memory",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "unit": "byte"
+    },
+    {
+     "name": "usedmemorypercentage",
+     "display": "Used Memory Percentage",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "unit": "percent"
+    }
+   ]
+  },
   "Microsoft.Network/loadBalancers": {
    "metrics": [
     {
@@ -11653,6 +12077,93 @@
     }
    ]
   },
+  "Microsoft.Network/privateDnsZones": {
+   "metrics": [
+    {
+     "name": "QueryVolume",
+     "display": "Query Volume",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ]
+    },
+    {
+     "name": "RecordSetCapacityUtilization",
+     "display": "Record Set Capacity Utilization",
+     "aggregation": "None",
+     "aggregations": [
+      "None",
+      "Average",
+      "Minimum",
+      "Maximum",
+      "Count"
+     ],
+     "unit": "percent"
+    },
+    {
+     "name": "RecordSetCount",
+     "display": "Record Set Count",
+     "aggregation": "None",
+     "aggregations": [
+      "None",
+      "Average",
+      "Minimum",
+      "Maximum",
+      "Count"
+     ]
+    },
+    {
+     "name": "VirtualNetworkLinkCapacityUtilization",
+     "display": "Virtual Network Link Capacity Utilization",
+     "aggregation": "None",
+     "aggregations": [
+      "None",
+      "Average",
+      "Minimum",
+      "Maximum",
+      "Count"
+     ],
+     "unit": "percent"
+    },
+    {
+     "name": "VirtualNetworkLinkCount",
+     "display": "Virtual Network Link Count",
+     "aggregation": "None",
+     "aggregations": [
+      "None",
+      "Average",
+      "Minimum",
+      "Maximum",
+      "Count"
+     ]
+    },
+    {
+     "name": "VirtualNetworkWithRegistrationCapacityUtilization",
+     "display": "Virtual Network Registration Link Capacity Utilization",
+     "aggregation": "None",
+     "aggregations": [
+      "None",
+      "Average",
+      "Minimum",
+      "Maximum",
+      "Count"
+     ],
+     "unit": "percent"
+    },
+    {
+     "name": "VirtualNetworkWithRegistrationLinkCount",
+     "display": "Virtual Network Registration Link Count",
+     "aggregation": "None",
+     "aggregations": [
+      "None",
+      "Average",
+      "Minimum",
+      "Maximum",
+      "Count"
+     ]
+    }
+   ]
+  },
   "Microsoft.Network/trafficManagerProfiles": {
    "metrics": [
     {
@@ -12812,6 +13323,140 @@
       "Total"
      ],
      "unit": "millisecond"
+    },
+    {
+     "name": "UnmatchedEventCount",
+     "display": "Unmatched Events",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ]
+    }
+   ]
+  },
+  "Microsoft.EventGrid/systemTopics": {
+   "metrics": [
+    {
+     "name": "AdvancedFilterEvaluationCount",
+     "display": "Advanced Filter Evaluations",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "EventSubscriptionName"
+     ]
+    },
+    {
+     "name": "DeadLetteredCount",
+     "display": "Dead Lettered Events",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "DeadLetterReason",
+      "EventSubscriptionName"
+     ]
+    },
+    {
+     "name": "DeliveryAttemptFailCount",
+     "display": "Delivery Failed Events",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Error",
+      "ErrorType",
+      "EventSubscriptionName"
+     ]
+    },
+    {
+     "name": "DeliverySuccessCount",
+     "display": "Delivered Events",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "EventSubscriptionName"
+     ]
+    },
+    {
+     "name": "DestinationProcessingDurationInMs",
+     "display": "Destination Processing Duration",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "millisecond",
+     "dimensions": [
+      "EventSubscriptionName"
+     ]
+    },
+    {
+     "name": "DroppedEventCount",
+     "display": "Dropped Events",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "DropReason",
+      "EventSubscriptionName"
+     ]
+    },
+    {
+     "name": "MatchedEventCount",
+     "display": "Matched Events",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "EventSubscriptionName"
+     ]
+    },
+    {
+     "name": "PublishFailCount",
+     "display": "Publish Failed Events",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "ErrorType",
+      "Error"
+     ]
+    },
+    {
+     "name": "PublishSuccessCount",
+     "display": "Published Events",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ]
+    },
+    {
+     "name": "PublishSuccessLatencyInMs",
+     "display": "Publish Success Latency",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "millisecond"
+    },
+    {
+     "name": "ServerDeliverySuccessRate",
+     "display": "Server Delivery Success Rate",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "EventSubscriptionName"
+     ]
     },
     {
      "name": "UnmatchedEventCount",
@@ -20117,6 +20762,42 @@
     }
    ]
   },
+  "Microsoft.DataProtection/backupVaults": {
+   "metrics": [
+    {
+     "name": "BackupHealthEvent",
+     "display": "Backup Health Events",
+     "aggregation": "Count",
+     "aggregations": [
+      "Count"
+     ],
+     "dimensions": [
+      "dataSourceURL",
+      "backupInstanceUrl",
+      "dataSourceType",
+      "healthStatus",
+      "backupInstanceName",
+      "isResourceMetricReady"
+     ]
+    },
+    {
+     "name": "RestoreHealthEvent",
+     "display": "Restore Health Events",
+     "aggregation": "Count",
+     "aggregations": [
+      "Count"
+     ],
+     "dimensions": [
+      "dataSourceURL",
+      "backupInstanceUrl",
+      "dataSourceType",
+      "healthStatus",
+      "backupInstanceName",
+      "isResourceMetricReady"
+     ]
+    }
+   ]
+  },
   "Microsoft.Insights/components": {
    "metrics": [
     {
@@ -21590,6 +22271,150 @@
      ],
      "dimensions": [
       "IsUserQuery"
+     ]
+    }
+   ]
+  },
+  "Microsoft.Insights/dataCollectionRules": {
+   "metrics": [
+    {
+     "name": "ApiCallReceived_Count",
+     "display": "Logs Ingestion Requests per Min",
+     "aggregation": "Count",
+     "aggregations": [
+      "Count"
+     ],
+     "dimensions": [
+      "InputStreamId",
+      "ResponseCode"
+     ]
+    },
+    {
+     "name": "BytesReceived_Count",
+     "display": "Logs Ingestion Bytes per Min",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "InputStreamId"
+     ]
+    },
+    {
+     "name": "ColumnsDroppedCount",
+     "display": "Log Columns Dropped",
+     "aggregation": "Count",
+     "aggregations": [
+      "Count",
+      "Maximum"
+     ],
+     "dimensions": [
+      "InputStreamId",
+      "ColumnsDroppedAt"
+     ]
+    },
+    {
+     "name": "MetricIngestionRequest_Count",
+     "display": "Metrics Ingestion Requests per Min",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "dimensions": [
+      "InputStreamId",
+      "ResponseCode"
+     ]
+    },
+    {
+     "name": "RowsDropped_Count",
+     "display": "Logs Rows Dropped per Min",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "dimensions": [
+      "InputStreamId"
+     ]
+    },
+    {
+     "name": "RowsReceived_Count",
+     "display": "Logs Rows Received per Min",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "dimensions": [
+      "InputStreamId"
+     ]
+    },
+    {
+     "name": "TransformationErrors_Count",
+     "display": "Logs Transform Errors per Min",
+     "aggregation": "Count",
+     "aggregations": [
+      "Count"
+     ],
+     "dimensions": [
+      "InputStreamId",
+      "ErrorType"
+     ]
+    },
+    {
+     "name": "TransformationRuntime_DurationMs",
+     "display": "Logs Transform Duration per Min",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "millisecond",
+     "dimensions": [
+      "InputStreamId"
+     ]
+    },
+    {
+     "name": "UncompressedBytesIn",
+     "display": "Logs Ingestion Bytes In (Uncompressed)",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "InputStreamId"
+     ]
+    },
+    {
+     "name": "UncompressedBytesOut",
+     "display": "Logs Ingestion Bytes Out (Uncompressed)",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "InputStreamId",
+      "DestinationTable"
      ]
     }
    ]

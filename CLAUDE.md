@@ -294,7 +294,12 @@ or SDK features.
   The most used AWS services (~37: EC2, S3, RDS, the load balancers, Lambda, SQS, …) have a layout designed per service
   in `scripts/aws-service-layouts.mjs` (Datadog's widget format: an Overview group with logo, note, monitor summary
   `tag:(integration:amazon_<svc>) OR aws.<svc>.` and key numbers, then themed groups and the service's logs; our own
-  titles and notes); the generator fails on a name the crawler doesn't publish. The other services get the generated
+  titles and notes); the generator fails on a name the crawler doesn't publish. The most used Azure resource types (~42:
+  VMs, AKS, App Service, SQL, Cosmos DB, Storage, Key Vault, Redis, the network services, Event Hubs, Service Bus,
+  Backup, OpenAI, …) are designed the same way in `scripts/azure-service-layouts.mjs` (KPIs start with
+  `azure.<type>.count` by Resource Health `status`; monitors `tag:(integration:azure_<svc>) OR azure.<type>.`); the
+  generator also fails on a `by {tag}` that is neither a resource tag nor a dimension `azure/naming.rs` SPLITS (mirrored
+  as `AZURE_SPLITS`; the Rust test `every_azure_dashboard_charts_what_the_crawler_publishes` checks both). The other services get the generated
   layout: key numbers, then their metrics grouped as errors / latency / saturation / throughput / capacity.
 - **Integration dashboards are listed once their integration is enabled** (`routes/dashboards.rs`, by the dashboard's
   `logo`): AWS / Azure / GCP with an account, synthetics with a test, Kubernetes / hosts / APM with data in the last

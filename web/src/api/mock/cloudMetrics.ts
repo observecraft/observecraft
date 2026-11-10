@@ -44,9 +44,18 @@ export const CLOUD_SETS: Record<string, Tags[]> = {
   // The VMs' resource count (azure.vm.count), with Resource Health's status.
   azure_vm_count: APPS.map((app, i) => ({ ...AZ, resource_group: 'storefront', region: i % 2 ? 'northeurope' : 'westeurope', name: `${app}-vm`, status: i === 5 ? 'Degraded' : 'Running' })),
   azure_sql: ['orders', 'catalog', 'billing'].map((n) => ({ ...AZ, resource_group: 'storefront', region: 'westeurope', name: n })),
-  azure_app: ['storefront-web', 'api-gateway', 'order-functions'].map((n) => ({ ...AZ, resource_group: 'storefront', region: 'westeurope', name: n })),
+  // Two App Service instances per app (the instance dimension the crawler splits by).
+  azure_app: ['storefront-web', 'api-gateway', 'order-functions'].flatMap((n, i) =>
+    ['A', 'B'].map((x) => ({ ...AZ, resource_group: 'storefront', region: 'westeurope', name: n, instance: `lw0sdlwk000${i}${x}` })),
+  ),
   azure_lb: ['storefront-lb', 'internal-lb'].map((n) => ({ ...AZ, resource_group: 'network', region: 'westeurope', name: n })),
   azure_storage: ['storefrontassets', 'orderexports'].map((n) => ({ ...AZ, resource_group: 'storefront', region: 'westeurope', name: n })),
+  // Storage transactions by API and response type (the dimensions the crawler splits by).
+  azure_storage_tx: ['storefrontassets', 'orderexports'].flatMap((n) =>
+    ['GetBlob', 'PutBlob', 'ListBlobs'].flatMap((apiname) =>
+      ['Success', 'ClientOtherError'].map((responsetype) => ({ ...AZ, resource_group: 'storefront', region: 'westeurope', name: n, apiname, responsetype })),
+    ),
+  ),
   gcp_gce: each(8, (i) => ({ ...GCP, zone: i % 2 ? 'europe-west1-c' : 'europe-west1-b', instance_id: `71234567890123${String(i).padStart(4, '0')}` })),
   gcp_cloudsql: ['example-storefront:orders', 'example-storefront:catalog'].map((n) => ({ ...GCP, region: 'europe-west1', database_id: n })),
   gcp_gke: APPS.slice(0, 5).map((app, i) => ({ ...GCP, cluster_name: i < 3 ? 'storefront-prod' : 'storefront-staging', namespace_name: 'shop', container_name: app })),
@@ -140,7 +149,7 @@ export const CLOUD_METRICS: Record<string, CloudMetricDef> = {
   'azure.network_loadbalancers.byte_count': m('azure_lb', 'Bytes', 'byte', range(1e8, 2e9), 0.3),
   'azure.storage.availability': m('azure_storage', 'Availability', 'percent', range(99.9, 100), 0.0005, { max: 100 }),
   'azure.storage.used_capacity': m('azure_storage', 'Used capacity', 'byte', range(50 * GIB, 2_000 * GIB), 0.002),
-  'azure.storage.transactions': m('azure_storage', 'Transactions', undefined, range(1_000, 80_000), 0.3),
+  'azure.storage.transactions': m('azure_storage_tx', 'Transactions', undefined, (e, r) => (e.responsetype === 'Success' ? 500 + r() * 25_000 : r() * 120), 0.3),
   'azure.storage.success_server_latency': m('azure_storage', 'Server latency', 'millisecond', range(2, 25), 0.3),
   'gcp.gce.instance.cpu.utilization': m('gcp_gce', 'Instance CPU utilization', 'fraction', range(0.05, 0.75), 0.25, { max: 1 }),
   'gcp.gce.instance.network.received_bytes_count': m('gcp_gce', 'Bytes received', 'byte', range(1e7, 3e8), 0.35),
