@@ -1,0 +1,104 @@
+[
+  {
+    "finding_id": "f1a10000-0000-4000-8000-000000000001",
+    "severity": "high",
+    "severity_id": 3,
+    "severity_default_id": 3,
+    "severity_modification_type": "NONE",
+    "state": "OPEN",
+    "source": "NESSUS",
+    "first_found": "2026-10-02T22:31:05.407Z",
+    "last_found": "2026-11-09T22:31:05.407Z",
+    "indexed": "2026-11-09T22:31:05.407500Z",
+    "output": "\nThe remote service on port 443 answered with an outdated version.\n",
+    "asset": {
+      "uuid": "a5500000-0000-4000-8000-000000000001",
+      "hostname": "i-0a1b2c3d4e5f60001.shop.example.com",
+      "fqdn": "i-0a1b2c3d4e5f60001.shop.example.com",
+      "ipv4": "10.0.11.20",
+      "last_scan_target": "10.0.11.20",
+      "network_id": "00000000-0000-0000-0000-000000000000",
+      "tracked": true
+    },
+    "plugin": {
+      "id": 142960,
+      "name": "OpenSSL 3.0.x < 3.0.15 Multiple Vulnerabilities",
+      "family": "General",
+      "family_id": 23,
+      "cve": [
+        "CVE-2026-0101",
+        "CVE-2026-0102"
+      ],
+      "risk_factor": "high",
+      "cvss3_base_score": 7.5,
+      "has_patch": true,
+      "exploit_available": false,
+      "vpr": {
+        "score": 7.4
+      },
+      "synopsis": "OpenSSL 3.0.x < 3.0.15 Multiple Vulnerabilities on the remote host.",
+      "solution": "Upgrade to the latest version.",
+      "publication_date": "2026-03-01T00:00:00Z",
+      "type": "remote"
+    },
+    "port": {
+      "port": 443,
+      "protocol": "TCP",
+      "service": "www"
+    },
+    "scan": {
+      "uuid": "308395d4-72cb-4a8b-8987-2b79f8db1be6",
+      "schedule_uuid": "template-0a1b2c3d-weekly",
+      "started_at": "2026-11-09T22:00:00.000Z",
+      "target": "10.0.11.20"
+    }
+  },
+  {
+    "finding_id": "f1a10000-0000-4000-8000-000000000002",
+    "severity": "medium",
+    "severity_id": 2,
+    "severity_default_id": 2,
+    "severity_modification_type": "NONE",
+    "state": "FIXED",
+    "source": "NESSUS",
+    "first_found": "2026-09-14T22:10:00.000Z",
+    "last_found": "2026-11-09T22:40:12.000Z",
+    "indexed": "2026-11-09T22:40:12.000500Z",
+    "output": "\nThe remote service on port 8443 answered with an outdated version.\n",
+    "asset": {
+      "uuid": "a5500000-0000-4000-8000-000000000002",
+      "hostname": "i-0a1b2c3d4e5f60002.shop.example.com",
+      "fqdn": "i-0a1b2c3d4e5f60002.shop.example.com",
+      "ipv4": "10.0.12.34",
+      "last_scan_target": "10.0.12.34",
+      "network_id": "00000000-0000-0000-0000-000000000000",
+      "tracked": true
+    },
+    "plugin": {
+      "id": 57582,
+      "name": "SSL Self-Signed Certificate",
+      "family": "General",
+      "family_id": 23,
+      "cve": [],
+      "risk_factor": "medium",
+      "cvss3_base_score": 5.3,
+      "has_patch": true,
+      "exploit_available": false,
+      "synopsis": "SSL Self-Signed Certificate on the remote host.",
+      "solution": "Upgrade to the latest version.",
+      "publication_date": "2026-03-01T00:00:00Z",
+      "type": "remote"
+    },
+    "port": {
+      "port": 8443,
+      "protocol": "TCP",
+      "service": "www"
+    },
+    "scan": {
+      "uuid": "308395d4-72cb-4a8b-8987-2b79f8db1be6",
+      "schedule_uuid": "template-0a1b2c3d-weekly",
+      "started_at": "2026-11-09T22:00:00.000Z",
+      "target": "10.0.12.34"
+    }
+  }
+]
