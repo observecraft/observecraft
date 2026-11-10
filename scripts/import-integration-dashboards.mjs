@@ -346,6 +346,7 @@ const MOCK_INTEGRATIONS = [
   'keda',
   'karpenter',
   'temporal',
+  'vllm',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */

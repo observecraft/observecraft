@@ -390,6 +390,20 @@ mod tests {
         assert_eq!(log.timestamp_ms, Some(1_794_302_102_921));
     }
 
+    /// vLLM's log lines (`source:vllm`), as integrations-core's `vllm_tests.yaml` expects: the level, the logger and
+    /// its line, the date without a year.
+    #[test]
+    fn vllm_engine_logs() {
+        use serde_json::json;
+        let line = "WARNING 11-10 09:15:02 scheduler.py:1560] Sequence group 0 is preempted by PreemptionMode.RECOMPUTE mode because there is not enough KV cache space.";
+        let log = agent_log("vllm", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60006", "service": "vllm", "ddsource": "vllm"}));
+        assert_eq!((log.status.as_str(), log.get("logger.name"), log.get("logger.lineno")), ("warn", Some(json!("scheduler.py")), Some(json!(1560))));
+        assert!(log.message.starts_with("Sequence group 0 is preempted"), "{}", log.message);
+        let line = "INFO 06-11-2024 21:02:01 cpu_executor.py:72] # CPU blocks: 7281";
+        let log = agent_log("vllm", json!({"message": line, "service": "vllm", "ddsource": "vllm"}));
+        assert_eq!((log.message.as_str(), log.timestamp_ms), ("# CPU blocks: 7281", Some(1_718_139_721_000)));
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};

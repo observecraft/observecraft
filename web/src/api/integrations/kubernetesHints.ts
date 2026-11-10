@@ -503,6 +503,17 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
     ],
   },
   {
+    check: 'vllm',
+    variants: [
+      {
+        label: 'vLLM’s OpenAI-compatible server (vllm/vllm-openai) in a Deployment',
+        text: 'vLLM serves its Prometheus metrics at `/metrics` on its API port (8000 by default; `--port`), outside the `/v1` routes an API key (`--api-key`, `VLLM_API_KEY`) protects. Put the annotations on the pod template (`spec.template.metadata.annotations`), here for a container named `vllm`. The logs annotation names the `vllm` source the integration’s pipeline reads (otherwise `vllm-openai`, the image).',
+        filename: POD_ANNOTATIONS,
+        code: [checkAnnotation('vllm', 'vllm', { instances: [{ openmetrics_endpoint: 'http://%%host%%:8000/metrics' }] }), logsAnnotation('vllm', 'vllm', 'vllm')].join('\n'),
+      },
+    ],
+  },
+  {
     check: 'coredns',
     variants: [
       {

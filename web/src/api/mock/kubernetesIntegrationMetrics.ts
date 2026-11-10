@@ -138,6 +138,11 @@ export const INFRA_VALUES: Record<string, Record<string, string[]>> = {
     error_type: ['serviceerror_NotFound', 'serviceerror_WorkflowExecutionAlreadyStarted', 'context_deadline_exceeded', 'serviceerror_ResourceExhausted'],
     resource_exhausted_cause: ['RpsLimit', 'ConcurrentLimit', 'BusyWorkflow', 'PersistenceLimit'],
   },
+  vllm: {
+    model_name: ['meta-llama/Llama-3.1-8B-Instruct', 'meta-llama/Llama-3.1-8B-Instruct', 'Qwen/Qwen2.5-14B-Instruct', 'Qwen/Qwen2.5-14B-Instruct'],
+    process: ['1', '1', '1', '1'],
+    generation: ['0', '1', '2', '0'],
+  },
 };
 
 export const INFRA_OVERRIDES: Record<string, Override> = {
@@ -275,6 +280,30 @@ export const INFRA_OVERRIDES: Record<string, Override> = {
   'temporal.server.service.error_with_type.count': rare(4, 0.15),
   'temporal.server.persistence.error_with_type.count': rare(2, 0.05),
   'temporal.server.service.errors.resource_exhausted': rare(3, 0.05),
+  // A few dozen chat requests a minute per replica, a few seconds each, ~200 generated tokens.
+  'vllm.e2e_request_latency.seconds.count': between(20, 80, 0.2),
+  'vllm.e2e_request_latency.seconds.sum': between(80, 360, 0.2),
+  'vllm.request.success.count': between(20, 80, 0.2),
+  'vllm.time_to_first_token.seconds.count': between(20, 80, 0.2),
+  'vllm.time_to_first_token.seconds.sum': between(4, 24, 0.3),
+  'vllm.time_per_output_token.seconds.count': between(4000, 14000, 0.2),
+  'vllm.time_per_output_token.seconds.sum': between(90, 330, 0.2),
+  'vllm.request.generation_tokens.count': between(20, 80, 0.2),
+  'vllm.request.generation_tokens.sum': between(4000, 16000, 0.2),
+  'vllm.avg.generation_throughput.toks_per_s': between(150, 900, 0.25),
+  'vllm.num_requests.running': between(2, 24, 0.3, true),
+  'vllm.num_requests.waiting': rare(5, 0.2),
+  'vllm.num_requests.swapped': fixed(0),
+  // vLLM reports the KV cache usage as a fraction (0–1), whatever its name says.
+  'vllm.gpu_cache_usage_perc': between(0.2, 0.85, 0.15),
+  'vllm.cpu_cache_usage_perc': fixed(0),
+  'vllm.process.open_fds': between(90, 220, 0.05, true),
+  'vllm.process.max_fds': fixed(1048576),
+  'vllm.process.virtual_memory_bytes': between(32e9, 58e9, 0.01),
+  'vllm.process.resident_memory_bytes': between(3.5e9, 8e9, 0.02),
+  'vllm.process.cpu_seconds.count': between(0.6, 2.4, 0.3),
+  'vllm.python.gc.collections.count': byTag('generation', { '0': 40, '1': 4, '2': 0.4 }, 0.4),
+  'vllm.python.gc.objects.uncollectable.count': fixed(0),
   'kube_apiserver.registered_watchers': between(5, 180, 0.05, true),
   'kube_apiserver.process_virtual_memory_bytes': between(1.6e9, 2.1e9, 0.01),
   'kube_apiserver.process_resident_memory_bytes': between(650e6, 1.2e9, 0.03),

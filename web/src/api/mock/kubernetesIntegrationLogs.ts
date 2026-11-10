@@ -68,7 +68,46 @@ const temporal = (service: string, lines: Line[], count: number): Source => ({
   lines,
 });
 
+const MODELS = ['meta-llama/Llama-3.1-8B-Instruct', 'Qwen/Qwen2.5-14B-Instruct'];
+/** vLLM's log line (`INFO 11-10 09:15:02 loggers.py:123] …`) as its pipeline leaves it. */
+const vllmLine = (status: LogStatus, at: string, text: (r: Rand) => string, weight = 1): Line => ({
+  status,
+  message: text,
+  attributes: () => ({ level: status === 'warn' ? 'WARNING' : status.toUpperCase(), logger: { name: at.split(':')[0], lineno: Number(at.split(':')[1]) } }),
+  weight,
+});
+
 const SOURCES: Source[] = [
+  {
+    source: 'vllm',
+    service: 'vllm',
+    namespace: 'vllm',
+    pod: (i) => `vllm-${['llama-3-1-8b', 'llama-3-1-8b', 'qwen2-5-14b', 'qwen2-5-14b'][i]}-6c9f8d7b5-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+    count: 240,
+    lines: [
+      vllmLine(
+        'info',
+        'loggers.py:123',
+        (r) =>
+          `Engine 000: Avg prompt throughput: ${(300 + r() * 900).toFixed(1)} tokens/s, Avg generation throughput: ${(150 + r() * 700).toFixed(1)} tokens/s, Running: ${2 + Math.floor(r() * 20)} reqs, Waiting: ${Math.floor(r() * 3)} reqs, GPU KV cache usage: ${(20 + r() * 60).toFixed(1)}%, Prefix cache hit rate: ${(40 + r() * 40).toFixed(1)}%`,
+        6,
+      ),
+      vllmLine(
+        'info',
+        'logger.py:41',
+        (r) =>
+          `Received request chatcmpl-${Math.floor(r() * 1e12).toString(16)}: prompt: '<|start_header_id|>user<|end_header_id|>', params: SamplingParams(n=1, temperature=0.2, max_tokens=512), lora_request: None`,
+        3,
+      ),
+      vllmLine('info', 'api_server.py:1880', (r) => `Starting vLLM API server on http://0.0.0.0:8000 for ${pick(r, MODELS)}`, 1),
+      vllmLine(
+        'warn',
+        'scheduler.py:1560',
+        () => 'Sequence group 0 is preempted by PreemptionMode.RECOMPUTE mode because there is not enough KV cache space. This can affect the end-to-end performance.',
+        1,
+      ),
+    ],
+  },
   temporal(
     'frontend',
     [
