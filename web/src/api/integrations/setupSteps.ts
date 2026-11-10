@@ -25,6 +25,14 @@ const AGENT_LOG_SENDERS: Record<string, string[]> = {
   ],
 };
 
+/** What an Agent check needs on the software's side, by catalog id: shown before restarting the Agent. */
+const CHECK_NOTES: Record<string, string[]> = {
+  postgres: [
+    "Give the check a user of its own: CREATE USER datadog WITH PASSWORD '<PASSWORD>'; GRANT pg_monitor TO datadog; (PostgreSQL 10 and later). On Azure Database for PostgreSQL and RDS the check can sign in with a managed identity or IAM instead (azure.managed_authentication, aws.managed_authentication; see On Kubernetes below).",
+    'Database Monitoring (query metrics, query samples, explain plans) is not supported: ObserveCraft does not receive the Agent’s Database Monitoring payloads, and with dbm: true the Agent sends them to Datadog’s own intake rather than to ObserveCraft. Leave dbm off (dbm: false, the default); the metrics, logs, dashboards, monitors and the Database Monitoring page’s instances work without it.',
+  ],
+};
+
 /** How an integrations-core entry is set up to send to ObserveCraft. */
 export function coreSteps(c: Core): string[] {
   const own = AGENT_LOG_SENDERS[c.id];
@@ -54,6 +62,7 @@ export function coreSteps(c: Core): string[] {
         c.configurable
           ? `Fill in the settings below and save the result as conf.d/${c.check}.d/conf.yaml in the Agent's configuration directory.`
           : `Configure the ${c.name} integration as its integrations-core documentation describes.`,
+        ...(CHECK_NOTES[c.id] ?? []),
         'Restart the Agent. Data appears within a few minutes; detection uses metrics received during the last 24 hours.',
       ];
   }

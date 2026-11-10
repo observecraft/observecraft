@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, Ban, Check, ChevronDown, Clock, ExternalLink, GitBranch, LayoutDashboard, Newspaper, Plus, Search, Siren, TriangleAlert, X } from 'lucide-react';
 import type { IntegrationDocs } from '../../api/integrations/catalog';
 import { kubernetesHint } from '../../api/integrations/kubernetesHints';
+import { TEMPLATES } from '../monitors/templates';
 import { unavailableReason, webhookUrl } from '../../api/integrations/collection';
 import type { IntegrationDetail, IntegrationStatus } from '../../api/integrations/types';
 import { CodeBlock } from '../../components/code/CodeBlock';
@@ -272,13 +273,15 @@ function KubernetesHintSection({ check }: { check: string }) {
       <h3>On Kubernetes</h3>
       <p>
         With the Datadog Agent deployed by its Helm chart or the Datadog Operator (see <Link to="/integrations/kubernetes">Kubernetes</Link>), no configuration file is needed: annotate the pods and
-        the Agent on their node runs the check against them (Autodiscovery). <code>%%host%%</code> is the pod&apos;s address.
+        the Agent on their node runs the check against them (Autodiscovery). <code>%%host%%</code> is the pod&apos;s address. A database outside the cluster runs as a cluster check on the chart&apos;s
+        cluster checks runners.
       </p>
       {hint.variants.map((v) => (
         <div key={v.label}>
           <h4>{v.label}</h4>
           <ReadmeMarkdown source={v.text} />
-          <CodeBlock code={v.annotations} filename="Pod annotations" />
+          {v.annotations && <CodeBlock code={v.annotations} filename="Pod annotations" />}
+          {v.values && <CodeBlock code={v.values} filename="Datadog Helm chart values" />}
         </div>
       ))}
     </div>
@@ -629,14 +632,18 @@ function Resources({ d, docs, installed }: { d: IntegrationDetail; docs: Integra
               </tr>
             </thead>
             <tbody>
-              {docs?.monitors.map((m) => (
-                <tr key={m.title} title={m.description}>
-                  <td>{m.title}</td>
-                  <td>
-                    <Siren size={14} /> {m.type}
-                  </td>
-                </tr>
-              ))}
+              {docs?.monitors.map((m) => {
+                // The recommended monitors we can run are monitor templates (pages/monitors/templates.ts).
+                const template = TEMPLATES.find((t) => t.title === m.title && t.id.startsWith(`${d.agent?.check}-`));
+                return (
+                  <tr key={m.title} title={m.description}>
+                    <td>{template ? <Link to={`/monitors/create/${template.type}?template=${template.id}`}>{m.title}</Link> : m.title}</td>
+                    <td>
+                      <Siren size={14} /> {m.type}
+                    </td>
+                  </tr>
+                );
+              })}
               {monitors.map((r) => (
                 <tr key={r.name} title={r.description}>
                   <td>{r.name}</td>

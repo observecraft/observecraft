@@ -38,3 +38,12 @@ test('the Agent steps point every signal at the intake, never at a Datadog site'
     assert.doesNotMatch(steps, /DD_SITE/, c.id);
   }
 });
+
+test('PostgreSQL: the check’s user, and Database Monitoring said to be unsupported (and kept off)', () => {
+  const steps = stepsOf('postgres');
+  assert.match(steps, /conf\.d\/postgres\.d\/conf\.yaml/);
+  assert.match(steps, /pg_monitor/);
+  assert.match(steps, /Database Monitoring/);
+  assert.match(steps, /dbm: false|leave dbm off|dbm off/i);
+  assert.match(steps, /not supported|isn't supported|does not receive/i);
+});

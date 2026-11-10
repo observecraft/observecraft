@@ -24,4 +24,49 @@ for (const [check, endpoint] of [
   });
 }
 
-test('checks without a hint have none', () => assert.equal(kubernetesHint('redisdb'), undefined));
+test('checks without a hint have none', () => assert.equal(kubernetesHint('mysql'), undefined));
+
+/** The check's instance in a variant: from its pod annotations, or from the cluster check in the chart's values. */
+function instanceOf(check, v) {
+  if (v.annotations) {
+    const annotations = yaml.load(v.annotations);
+    const key = Object.keys(annotations).find((k) => k.endsWith('.checks'));
+    assert.match(key, /^ad\.datadoghq\.com\/[a-z0-9-]+\.checks$/, v.label);
+    const logs = Object.keys(annotations).find((k) => k.endsWith('.logs'));
+    if (logs) assert.ok(JSON.parse(annotations[logs])[0].source, v.label);
+    const config = JSON.parse(annotations[key])[check];
+    assert.ok(config && config.instances.length === 1, v.label);
+    return config.instances[0];
+  }
+  const values = yaml.load(v.values);
+  assert.equal(values.clusterChecksRunner?.enabled, true, `${v.label}: runs on the cluster checks runners`);
+  const confd = yaml.load(values.clusterAgent.confd[`${check}.yaml`]);
+  assert.equal(confd.cluster_check, true, v.label);
+  assert.equal(confd.instances.length, 1, v.label);
+  return confd.instances[0];
+}
+
+test('PostgreSQL: Bitnami, CloudNativePG, Azure flexible server (managed identity) and RDS (IAM), never DBM', () => {
+  const hint = kubernetesHint('postgres');
+  const labels = hint.variants.map((v) => v.label).join(' | ');
+  for (const name of ['Bitnami', 'CloudNativePG', 'Azure Database for PostgreSQL', 'RDS']) assert.match(labels, new RegExp(name));
+  for (const v of hint.variants) {
+    const i = instanceOf('postgres', v);
+    assert.ok(i.host && i.port === 5432 && i.username, v.label);
+    assert.notEqual(i.dbm, true, v.label);
+  }
+  const azure = instanceOf(
+    'postgres',
+    hint.variants.find((v) => /Azure/.test(v.label)),
+  );
+  assert.equal(azure.ssl, 'require');
+  assert.deepEqual(azure.azure.managed_authentication.enabled, true);
+  assert.match(azure.azure.managed_authentication.auth_type, /^(managed_identity|workload_identity)$/);
+  assert.equal(azure.azure.deployment_type, 'flexible_server');
+  const rds = instanceOf(
+    'postgres',
+    hint.variants.find((v) => /RDS/.test(v.label)),
+  );
+  assert.equal(rds.aws.managed_authentication.enabled, true);
+  assert.ok(rds.aws.region);
+});
