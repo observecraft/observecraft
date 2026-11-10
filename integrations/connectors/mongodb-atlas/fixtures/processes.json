@@ -1,0 +1,5 @@
+{
+  "links": [], "totalCount": 1,
+  "results": [ { "id": "orders-prod-shard-00-00.ab1cd.mongodb.net:27017", "hostname": "orders-prod-shard-00-00.ab1cd.mongodb.net", "port": 27017, "typeName": "REPLICA_PRIMARY",
+    "replicaSetName": "atlas-xyz123-shard-0", "userAlias": "orders-prod-shard-00-00.ab1cd.mongodb.net", "version": "8.0.4", "groupId": "5f1a2b3c4d5e6f7a8b9c0d1e", "created": "2026-01-15T10:00:00Z" } ]
+}

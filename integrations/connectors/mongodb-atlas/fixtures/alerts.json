@@ -1,0 +1,6 @@
+{
+  "links": [], "totalCount": 1,
+  "results": [ { "id": "6730ab00bb22cc33dd44ee66", "alertConfigId": "5f2b3c4d5e6f7a8b9c0d1e2f", "eventTypeName": "OUTSIDE_METRIC_THRESHOLD", "metricName": "CONNECTIONS_PERCENT",
+    "status": "OPEN", "created": "2026-11-10T11:50:00Z", "updated": "2026-11-10T11:55:00Z", "clusterName": "orders-prod", "hostnameAndPort": "orders-prod-shard-00-00.ab1cd.mongodb.net:27017",
+    "replicaSetName": "atlas-xyz123-shard-0", "currentValue": { "number": 82.5, "units": "RAW" }, "groupId": "5f1a2b3c4d5e6f7a8b9c0d1e" } ]
+}

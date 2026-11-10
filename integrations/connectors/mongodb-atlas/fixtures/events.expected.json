@@ -1,0 +1,46 @@
+{
+  "costs": [],
+  "events": [
+    {
+      "aggregation_key": "orders-prod",
+      "alert_type": "info",
+      "host": "",
+      "priority": "normal",
+      "source_type_name": "mongodb_atlas",
+      "tags": [
+        "cluster_name:orders-prod",
+        "event_type:CLUSTER_UPDATE_COMPLETED",
+        "project_id:5f1a2b3c4d5e6f7a8b9c0d1e",
+        "source:mongodb_atlas"
+      ],
+      "text": "CLUSTER_UPDATE_COMPLETED",
+      "time_ms": 1794310812000,
+      "title": "MongoDB Atlas: cluster update completed on orders-prod"
+    },
+    {
+      "aggregation_key": "orders-prod",
+      "alert_type": "info",
+      "host": "",
+      "priority": "normal",
+      "source_type_name": "mongodb_atlas",
+      "tags": [
+        "cluster_name:orders-prod",
+        "event_type:CLUSTER_UPDATE_SUBMITTED",
+        "project_id:5f1a2b3c4d5e6f7a8b9c0d1e",
+        "source:mongodb_atlas"
+      ],
+      "text": "CLUSTER_UPDATE_SUBMITTED by jordan.patel@example.com (198.51.100.7)",
+      "time_ms": 1794310262000,
+      "title": "MongoDB Atlas: cluster update submitted on orders-prod"
+    }
+  ],
+  "logs": [],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

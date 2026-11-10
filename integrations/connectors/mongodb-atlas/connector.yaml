@@ -1,0 +1,229 @@
+# yaml-language-server: $schema=../connector.schema.json
+# MongoDB Atlas Administration API v2 (https://www.mongodb.com/docs/api/doc/atlas-admin-api-v2/): a project's
+# processes' measurements per minute as mongodb.atlas.* gauges, its activity feed and open alerts as events, read
+# with a service account. Atlas's own Datadog integration pushes only to Datadog's sites; this package reads the same
+# data from the API instead. Datadog has no integrations-core tile for it, so the package adds its own tile and
+# dashboard. The measurement → metric names follow Datadog's mongodb.atlas.* scheme (tables.measurements) and
+# weren't checked against its metadata. Disk partitions' measurements (one request per partition) aren't read.
+schema_version: 1
+id: mongodb-atlas
+source: mongodb_atlas
+name: MongoDB Atlas
+publisher: ObserveCraft
+vendor: MongoDB
+description: >-
+  A MongoDB Atlas project's processes (connections, operations, CPU, memory, network, cache, query targeting,
+  replication lag) as metrics every minute, and its activity feed and alerts as events, read from the Atlas
+  Administration API.
+logo: mongodb
+categories: [Data Stores, Cloud, Alerting]
+docs_url: https://www.mongodb.com/docs/api/doc/atlas-admin-api-v2/
+setup: |
+  1. In Atlas, open the organization's **Access Manager → Applications → Service Accounts** and create one, e.g.
+     `observecraft`, with the organization role **Organization Read Only** (or the project role **Project Read Only**
+     on the project). Copy its client id and secret.
+  2. Add ObserveCraft's outgoing IP addresses to the service account's **API Access List**.
+  3. Copy the project id from **Project Settings**.
+links:
+  - { label: Atlas service accounts, url: "https://cloud.mongodb.com/v2#/org" }
+instance: "{{ config.project_id }}"
+
+config:
+  - { key: project_id, label: Project id, type: string, required: true, pattern: "[0-9a-f]{24}" }
+  - { key: client_id, label: Client id, type: string, required: true, placeholder: mdb_sa_id_… }
+  - { key: client_secret, label: Client secret, type: string, secret: true, required: true, placeholder: mdb_sa_sk_… }
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: https://cloud.mongodb.com/api/oauth/token
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+
+headers:
+  Accept: application/vnd.atlas.2023-01-01+json
+
+# Monitoring endpoints allow 100 requests a minute per project.
+rate_limit: { requests_per_minute: 60 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: "Atlas refused the service account ({{ response.detail ?? response.reason ?? 'unauthorized' }})"
+  - status: [403]
+    when: "{{ response.errorCode == 'IP_ADDRESS_NOT_ON_ACCESS_LIST' || response.errorCode == 'ORG_REQUIRES_ACCESS_LIST' }}"
+    kind: access_denied
+    message: "Atlas refused ObserveCraft's IP address: add it to the service account's API access list ({{ response.detail }})"
+  - status: [403, 404]
+    kind: access_denied
+    message: "The service account can't read project {{ config.project_id }} ({{ response.detail ?? response.errorCode }}): give it Project Read Only"
+  - status: [429]
+    kind: throttled
+    message: Rate limited by Atlas
+
+tables:
+  measurements:
+    CONNECTIONS: mongodb.atlas.connections.current
+    OPCOUNTER_CMD: mongodb.atlas.opcounters.command
+    OPCOUNTER_QUERY: mongodb.atlas.opcounters.query
+    OPCOUNTER_INSERT: mongodb.atlas.opcounters.insert
+    OPCOUNTER_UPDATE: mongodb.atlas.opcounters.update
+    OPCOUNTER_DELETE: mongodb.atlas.opcounters.delete
+    OPCOUNTER_GETMORE: mongodb.atlas.opcounters.getmore
+    OPCOUNTER_REPL_CMD: mongodb.atlas.opcountersrepl.command
+    OPCOUNTER_REPL_INSERT: mongodb.atlas.opcountersrepl.insert
+    OPCOUNTER_REPL_UPDATE: mongodb.atlas.opcountersrepl.update
+    OPCOUNTER_REPL_DELETE: mongodb.atlas.opcountersrepl.delete
+    SYSTEM_NORMALIZED_CPU_USER: mongodb.atlas.system.cpu.norm.user
+    SYSTEM_NORMALIZED_CPU_KERNEL: mongodb.atlas.system.cpu.norm.kernel
+    SYSTEM_NORMALIZED_CPU_IOWAIT: mongodb.atlas.system.cpu.norm.iowait
+    PROCESS_NORMALIZED_CPU_USER: mongodb.atlas.process.cpu.norm.user
+    PROCESS_NORMALIZED_CPU_KERNEL: mongodb.atlas.process.cpu.norm.kernel
+    SYSTEM_MEMORY_USED: mongodb.atlas.system.memory.used
+    SYSTEM_MEMORY_AVAILABLE: mongodb.atlas.system.memory.available
+    MEMORY_RESIDENT: mongodb.atlas.mem.resident
+    MEMORY_VIRTUAL: mongodb.atlas.mem.virtual
+    NETWORK_BYTES_IN: mongodb.atlas.network.bytesin
+    NETWORK_BYTES_OUT: mongodb.atlas.network.bytesout
+    NETWORK_NUM_REQUESTS: mongodb.atlas.network.numrequests
+    CACHE_BYTES_READ_INTO: mongodb.atlas.wiredtiger.cache.bytes_read_into_cache
+    CACHE_BYTES_WRITTEN_FROM: mongodb.atlas.wiredtiger.cache.bytes_written_from_cache
+    CACHE_USED_BYTES: mongodb.atlas.wiredtiger.cache.bytes_currently_in_cache
+    CACHE_DIRTY_BYTES: mongodb.atlas.wiredtiger.cache.tracked_dirty_bytes_in_cache
+    QUERY_TARGETING_SCANNED_PER_RETURNED: mongodb.atlas.query_targeting.scanned_per_returned
+    QUERY_TARGETING_SCANNED_OBJECTS_PER_RETURNED: mongodb.atlas.query_targeting.scanned_objects_per_returned
+    OPLOG_SLAVE_LAG_MASTER_TIME: mongodb.atlas.replset.replication_lag
+    OPLOG_MASTER_TIME: mongodb.atlas.oplog.master_time
+    OP_EXECUTION_TIME_READS: mongodb.atlas.op_execution_time.reads
+    OP_EXECUTION_TIME_WRITES: mongodb.atlas.op_execution_time.writes
+    OP_EXECUTION_TIME_COMMANDS: mongodb.atlas.op_execution_time.commands
+    GLOBAL_LOCK_CURRENT_QUEUE_READERS: mongodb.atlas.global_lock.current_queue.readers
+    GLOBAL_LOCK_CURRENT_QUEUE_WRITERS: mongodb.atlas.global_lock.current_queue.writers
+    TICKETS_AVAILABLE_READS: mongodb.atlas.tickets.available.reads
+    TICKETS_AVAILABLE_WRITES: mongodb.atlas.tickets.available.write
+    DOCUMENT_METRICS_RETURNED: mongodb.atlas.document.returned
+    DOCUMENT_METRICS_INSERTED: mongodb.atlas.document.inserted
+    DOCUMENT_METRICS_UPDATED: mongodb.atlas.document.updated
+    DOCUMENT_METRICS_DELETED: mongodb.atlas.document.deleted
+  units:
+    BYTES: byte
+    BYTES_PER_SECOND: byte
+    PERCENT: percent
+    MILLISECONDS: millisecond
+    SECONDS: second
+    SCALAR_PER_SECOND: operation
+
+discover:
+  - name: processes
+    request: { url: "https://cloud.mongodb.com/api/atlas/v2/groups/{{ config.project_id }}/processes", query: { itemsPerPage: 500 } }
+    value: "{{ response.results | pluck('id') }}"
+    ttl: 1h
+
+streams:
+  - id: process_measurements
+    name: Process metrics
+    description: >-
+      Each mongod and mongos process's measurements per minute as gauges (mongodb.atlas.connections.current,
+      opcounters.*, system.cpu.norm.*, mem.*, network.*, wiredtiger.cache.*, query_targeting.*,
+      replset.replication_lag, …), tagged process_id, hostname, type, replica_set_name and cluster_name. Atlas
+      settles a minute a few seconds after it ends: windows end two minutes behind.
+    for_each: "{{ discovery.processes }}"
+    lookups:
+      - name: processes
+        request: { url: "https://cloud.mongodb.com/api/atlas/v2/groups/{{ config.project_id }}/processes", query: { itemsPerPage: 500 } }
+        records: "{{ response.results }}"
+        key: "{{ record.id }}"
+        ttl: 1h
+    request:
+      url: "https://cloud.mongodb.com/api/atlas/v2/groups/{{ config.project_id }}/processes/{{ item }}/measurements"
+      query:
+        granularity: PT1M
+        start: "{{ window.start | rfc3339_s }}"
+        end: "{{ window.end | rfc3339_s }}"
+        m: [CONNECTIONS, OPCOUNTER_CMD, OPCOUNTER_QUERY, OPCOUNTER_INSERT, OPCOUNTER_UPDATE, OPCOUNTER_DELETE, OPCOUNTER_GETMORE, SYSTEM_NORMALIZED_CPU_USER, SYSTEM_NORMALIZED_CPU_KERNEL, SYSTEM_NORMALIZED_CPU_IOWAIT, PROCESS_NORMALIZED_CPU_USER, SYSTEM_MEMORY_USED, SYSTEM_MEMORY_AVAILABLE, MEMORY_RESIDENT, NETWORK_BYTES_IN, NETWORK_BYTES_OUT, NETWORK_NUM_REQUESTS, CACHE_USED_BYTES, CACHE_DIRTY_BYTES, QUERY_TARGETING_SCANNED_OBJECTS_PER_RETURNED, OPLOG_SLAVE_LAG_MASTER_TIME, OP_EXECUTION_TIME_READS, OP_EXECUTION_TIME_WRITES, GLOBAL_LOCK_CURRENT_QUEUE_READERS, GLOBAL_LOCK_CURRENT_QUEUE_WRITERS]
+    records: "{{ response.measurements | explode('dataPoints') }}"
+    filter: "{{ record.dataPoints.value != null }}"
+    record_id: "{{ record.name + '|' + record.dataPoints.timestamp }}"
+    incremental: { kind: time, record_time: "{{ record.dataPoints.timestamp }}", order: oldest_first, lookback: 10m, settle: 2m, max_window: 1h }
+    vars:
+      process: "{{ lookups.processes[item] }}"
+    output:
+      metrics:
+        - name: "{{ tables.measurements[record.name] }}"
+          value: "{{ record.dataPoints.value }}"
+          time: "{{ record.dataPoints.timestamp }}"
+          unit: "{{ tables.units[record.units] }}"
+          tags:
+            process_id: "{{ item }}"
+            hostname: "{{ vars.process.hostname }}"
+            type: "{{ vars.process.typeName }}"
+            replica_set_name: "{{ vars.process.replicaSetName }}"
+            cluster_name: "{{ (vars.process.userAlias | split('-shard-') | first) ?? null }}"
+            project_id: "{{ config.project_id }}"
+
+  - id: events
+    name: Activity feed
+    description: >-
+      The project's activity feed as events (source mongodb_atlas): cluster changes, backups, user and access
+      changes, alerts opened and closed, maintenance; tagged event_type and cluster_name.
+    interval: 5m
+    request:
+      url: "https://cloud.mongodb.com/api/atlas/v2/groups/{{ config.project_id }}/events"
+      query: { minDate: "{{ window.start | rfc3339 }}", maxDate: "{{ window.end | rfc3339 }}", itemsPerPage: 500, pageNum: "{{ page.number }}", includeRaw: "false" }
+    records: "{{ response.results }}"
+    pagination: { kind: page, size: 500 }
+    record_id: "{{ record.id }}"
+    incremental: { kind: time, record_time: "{{ record.created }}", order: newest_first, lookback: 1d, overlap: 5m }
+    output:
+      events:
+        title: "MongoDB Atlas: {{ record.eventTypeName | lower | replace('_', ' ') }}{{ ' on ' + record.clusterName ?? '' }}"
+        text: "{{ record.eventTypeName }}{{ ' by ' + (record.username ?? record.publicKey) ?? '' }}{{ ' (' + record.remoteAddress + ')' ?? '' }}"
+        alert_type: "{{ (record.eventTypeName | matches('(FAILED|FAILURE|DELETED|OPENED|OUTAGE)')) ? 'warning' : 'info' }}"
+        date: "{{ record.created }}"
+        aggregation_key: "{{ record.clusterName ?? record.eventTypeName }}"
+        tags: { event_type: "{{ record.eventTypeName }}", cluster_name: "{{ record.clusterName }}", project_id: "{{ config.project_id }}" }
+
+  - id: alerts
+    name: Open alerts
+    description: >-
+      Each alert as it opens, as an error event (source mongodb_atlas), with the metric and its value; tagged
+      event_type, metric_name and cluster_name.
+    interval: 2m
+    request:
+      url: "https://cloud.mongodb.com/api/atlas/v2/groups/{{ config.project_id }}/alerts"
+      query: { status: OPEN, itemsPerPage: 500, pageNum: "{{ page.number }}" }
+    records: "{{ response.results }}"
+    pagination: { kind: page, size: 500 }
+    record_id: "{{ record.id }}"
+    incremental: { kind: new_records }
+    output:
+      events:
+        title: "MongoDB Atlas alert: {{ record.metricName ?? record.eventTypeName }}{{ ' on ' + (record.clusterName ?? record.hostnameAndPort) ?? '' }}"
+        text: "{{ record.eventTypeName }}{{ ': ' + record.metricName + ' = ' + (record.currentValue.number | str) + ' ' + record.currentValue.units ?? '' }}"
+        alert_type: error
+        date: "{{ record.created }}"
+        aggregation_key: "{{ record.id }}"
+        tags: { event_type: "{{ record.eventTypeName }}", metric_name: "{{ record.metricName }}", cluster_name: "{{ record.clusterName }}", project_id: "{{ config.project_id }}", alert_status: "{{ record.status | lower }}" }
+
+test:
+  request: { url: "https://cloud.mongodb.com/api/atlas/v2/groups/{{ config.project_id }}" }
+  message: "Connected to project {{ response.name }} ({{ response.clusterCount }} clusters)"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { project_id: 5f1a2b3c4d5e6f7a8b9c0d1e, client_id: mdb_sa_id_6730aa00bb11cc22dd33ee44 }
+  secrets: { client_secret: mdb_sa_sk_testsecret00000000000000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://cloud.mongodb.com/api/oauth/token", body_contains: "client_credentials", body: { access_token: atlas-test-token, token_type: Bearer, expires_in: 3600 } }
+    - { url: "https://cloud.mongodb.com/api/atlas/v2/groups/5f1a2b3c4d5e6f7a8b9c0d1e/processes", file: fixtures/processes.json }
+    - { url: "https://cloud.mongodb.com/api/atlas/v2/groups/5f1a2b3c4d5e6f7a8b9c0d1e/processes/orders-prod-shard-00-00.ab1cd.mongodb.net:27017/measurements", file: fixtures/measurements.json }
+    - { url: "https://cloud.mongodb.com/api/atlas/v2/groups/5f1a2b3c4d5e6f7a8b9c0d1e/events", file: fixtures/events.json }
+    - { url: "https://cloud.mongodb.com/api/atlas/v2/groups/5f1a2b3c4d5e6f7a8b9c0d1e/alerts", file: fixtures/alerts.json }
+    - { url: "https://cloud.mongodb.com/api/atlas/v2/groups/5f1a2b3c4d5e6f7a8b9c0d1e", body: { id: 5f1a2b3c4d5e6f7a8b9c0d1e, name: storefront-prod, orgId: 5e0a1b2c3d4e5f6a7b8c9d0e, clusterCount: 1 } }
+  expect:
+    process_measurements: { records: 5, metrics: 5, rerun: 0, golden: fixtures/process_measurements.expected.json }
+    events: { records: 2, events: 2, rerun: 0, golden: fixtures/events.expected.json }
+    alerts: { records: 1, events: 1, rerun: 0, golden: fixtures/alerts.expected.json }
+    test: { ok: true, message: "Connected to project storefront-prod (1 clusters)" }
