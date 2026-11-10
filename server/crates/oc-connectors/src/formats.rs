@@ -101,7 +101,8 @@ pub fn prometheus(text: &str) -> Vec<Value> {
         };
         let mut fields = rest.split_whitespace();
         let Some(v) = fields.next().and_then(value).filter(|v| v.is_finite()) else { continue };
-        let timestamp = fields.next().and_then(|t| t.parse::<i64>().ok());
+        // Prometheus' text format has integer milliseconds, OpenMetrics (fractional) seconds; `epoch_ms` tells them apart.
+        let timestamp = fields.next().and_then(|t| t.parse::<i64>().map(Value::from).ok().or_else(|| t.parse::<f64>().ok().filter(|f| f.is_finite()).map(crate::expr::number)));
         // A histogram's or summary's series carry their family's type.
         let family = ["_bucket", "_sum", "_count", "_total", "_created"].iter().find_map(|s| name.strip_suffix(s).filter(|f| types.contains_key(*f))).unwrap_or(name);
         out.push(json!({
@@ -163,6 +164,12 @@ mod tests {
         assert_eq!((s[0]["value"].as_f64(), s[0]["type"].as_str(), s[0]["help"].as_str()), (Some(12.5), Some("gauge"), Some("Messages in per second")));
         assert_eq!((s[1]["family"].as_str(), s[1]["type"].as_str(), s[1]["labels"]["le"].as_str()), (Some("http_request_duration_seconds"), Some("histogram"), Some("0.5")));
         assert_eq!(s[2]["timestamp"], json!(1_794_301_079_641i64));
+    }
+
+    #[test]
+    fn openmetrics_timestamps_in_fractional_seconds_are_kept() {
+        let s = prometheus("# TYPE temporal_cloud_v1_action_limit gauge\ntemporal_cloud_v1_action_limit 500 1794311820.5\n# EOF\n");
+        assert_eq!(s[0]["timestamp"].as_f64(), Some(1_794_311_820.5));
     }
 
     #[test]
