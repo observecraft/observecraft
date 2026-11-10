@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "gid": "1208000000001003",
+      "created_at": "2026-11-10T10:05:51.120Z",
+      "event_type": "project_privacy_settings_changed",
+      "event_category": "roles",
+      "actor": { "actor_type": "user", "gid": "1208000000000101", "name": "Jane Doe", "email": "jane.doe@example.com" },
+      "resource": { "resource_type": "project", "gid": "1208000000000701", "name": "Checkout redesign" },
+      "details": { "old_value": "public_to_workspace", "new_value": "private" },
+      "context": { "context_type": "web", "client_ip_address": "203.0.113.10", "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15" }
+    },
+    {
+      "gid": "1208000000001004",
+      "created_at": "2026-11-10T11:31:02.500Z",
+      "event_type": "user_login_failed",
+      "event_category": "logins",
+      "actor": { "actor_type": "anonymous" },
+      "resource": { "resource_type": "user", "gid": "1208000000000103", "name": "Alex Kim", "email": "alex.kim@example.com" },
+      "details": { "method": ["password"] },
+      "context": { "context_type": "web", "client_ip_address": "192.0.2.77", "user_agent": "curl/8.7.1" }
+    }
+  ],
+  "next_page": { "offset": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.page3", "path": "/workspaces/1208000000000000/audit_log_events?offset=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.page3", "uri": "https://app.asana.com/api/1.0/workspaces/1208000000000000/audit_log_events?offset=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.page3" }
+}

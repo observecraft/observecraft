@@ -1,0 +1,158 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c49f-a848-7293-90ae-7a6d1a4dd507"
+      },
+      "actor": {
+        "actor_type": "user",
+        "email": "jane.doe@example.com",
+        "gid": "1208000000000101",
+        "name": "Jane Doe"
+      },
+      "context": {
+        "client_ip_address": "203.0.113.10",
+        "context_type": "web",
+        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+      },
+      "created_at": "2026-11-10T08:42:40.072Z",
+      "date": "2026-11-10T08:42:40.072Z",
+      "ddsource": "asana",
+      "details": {
+        "method": [
+          "SAML"
+        ]
+      },
+      "event_category": "logins",
+      "event_type": "user_login_succeeded",
+      "gid": "1208000000001001",
+      "host": "1208000000000000",
+      "message": "user_login_succeeded by Jane Doe",
+      "resource": {
+        "email": "jane.doe@example.com",
+        "gid": "1208000000000101",
+        "name": "Jane Doe",
+        "resource_type": "user"
+      },
+      "service": "asana",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bc-827f-7446-951f-f2bb0f47d99c"
+      },
+      "actor": {
+        "actor_type": "user",
+        "email": "sam.lee@example.com",
+        "gid": "1208000000000102",
+        "name": "Sam Lee"
+      },
+      "context": {
+        "client_ip_address": "198.51.100.23",
+        "context_type": "web",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+      },
+      "created_at": "2026-11-10T09:14:10.943Z",
+      "date": "2026-11-10T09:14:10.943Z",
+      "ddsource": "asana",
+      "details": {
+        "app_gid": "1208000000000501",
+        "app_name": "Storefront Release Bot",
+        "app_type": "oauth",
+        "app_url": ""
+      },
+      "event_category": "apps",
+      "event_type": "user_app_authorized",
+      "gid": "1208000000001002",
+      "host": "1208000000000000",
+      "message": "user_app_authorized by Sam Lee",
+      "resource": {
+        "email": "sam.lee@example.com",
+        "gid": "1208000000000102",
+        "name": "Sam Lee",
+        "resource_type": "user"
+      },
+      "service": "asana",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4eb-d090-75f9-9b78-0a0a51890a91"
+      },
+      "actor": {
+        "actor_type": "user",
+        "email": "jane.doe@example.com",
+        "gid": "1208000000000101",
+        "name": "Jane Doe"
+      },
+      "context": {
+        "client_ip_address": "203.0.113.10",
+        "context_type": "web",
+        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+      },
+      "created_at": "2026-11-10T10:05:51.120Z",
+      "date": "2026-11-10T10:05:51.120Z",
+      "ddsource": "asana",
+      "details": {
+        "new_value": "private",
+        "old_value": "public_to_workspace"
+      },
+      "event_category": "roles",
+      "event_type": "project_privacy_settings_changed",
+      "gid": "1208000000001003",
+      "host": "1208000000000000",
+      "message": "project_privacy_settings_changed by Jane Doe",
+      "resource": {
+        "gid": "1208000000000701",
+        "name": "Checkout redesign",
+        "resource_type": "project"
+      },
+      "service": "asana",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c539-cee4-77ac-a60a-ac955a3aa28e"
+      },
+      "actor": {
+        "actor_type": "anonymous"
+      },
+      "context": {
+        "client_ip_address": "192.0.2.77",
+        "context_type": "web",
+        "user_agent": "curl/8.7.1"
+      },
+      "created_at": "2026-11-10T11:31:02.500Z",
+      "date": "2026-11-10T11:31:02.500Z",
+      "ddsource": "asana",
+      "details": {
+        "method": [
+          "password"
+        ]
+      },
+      "event_category": "logins",
+      "event_type": "user_login_failed",
+      "gid": "1208000000001004",
+      "host": "1208000000000000",
+      "message": "user_login_failed by anonymous",
+      "resource": {
+        "email": "alex.kim@example.com",
+        "gid": "1208000000000103",
+        "name": "Alex Kim",
+        "resource_type": "user"
+      },
+      "service": "asana",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}
