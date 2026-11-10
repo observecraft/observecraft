@@ -492,7 +492,10 @@ fn sign(signer: Signer, params: &BTreeMap<String, String>, req: &mut HttpRequest
                 None => url.path().to_string(),
             };
             let body = String::from_utf8_lossy(req.body.as_deref().unwrap_or_default()).into_owned();
-            let checksum = b64(&sha2::Sha256::digest(format!("{}{}{body}", method_name(req.method), uri.to_lowercase()).as_bytes()));
+            // METHOD|path and query, lowercased|the `API*` headers (lowercased, sorted, `name:value` joined by `&`)|body.
+            let mut api_headers: Vec<String> = req.headers.iter().filter(|(k, _)| k.to_ascii_lowercase().starts_with("api")).map(|(k, v)| format!("{}:{v}", k.to_ascii_lowercase())).collect();
+            api_headers.sort();
+            let checksum = b64(&sha2::Sha256::digest(format!("{}|{}|{}|{body}", method_name(req.method), uri.to_lowercase(), api_headers.join("&")).as_bytes()));
             let header = json!({ "alg": "HS256", "typ": "JWT" });
             let claims = json!({ "appid": app, "iat": now_ms / 1000, "version": "V1", "checksum": checksum });
             let signed = format!("{}.{}", b64url(header.to_string().as_bytes()), b64url(claims.to_string().as_bytes()));
@@ -706,6 +709,9 @@ mod tests {
         let jwt = r.header("authorization").unwrap().strip_prefix("Bearer ").unwrap();
         let claims: Value = serde_json::from_slice(&base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(jwt.split('.').nth(1).unwrap()).unwrap()).unwrap();
         assert_eq!((claims["appid"].as_str(), claims["version"].as_str(), claims["iat"].as_i64()), (Some("app-1"), Some("V1"), Some(1_794_301_079)));
+        // Trend's checksum: METHOD|lowercased path and query|canonical API* headers (none)|body.
+        let expected = b64(&sha2::Sha256::digest(b"GET|/webapp/api/v1/logs/officescan_virus?output_format=1||"));
+        assert_eq!(claims["checksum"].as_str(), Some(expected.as_str()));
         assert!(sign(Signer::CortexXdrAdvanced, &BTreeMap::new(), &mut req("https://x.example.com"), 0).unwrap_err().contains("key_id"));
     }
 
