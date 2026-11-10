@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseMetricQuery, resolveQuery, resolveSearchQuery, resolveTitle } from '../web/src/lib/metricQuery.ts';
+import { escapeQuoted, formatQuery, parseQuery, parseSearch, quoteValue, tokenize } from '../web/src/lib/searchQuery.ts';
 
 const vault = [
   { name: 'vault_cluster', prefix: 'vault_cluster', default: '*' },
@@ -51,6 +52,41 @@ test('a search naming no variable (our own widgets) gets every variable that is 
 
 test('a search value with spaces or colons is quoted', () => {
   assert.equal(resolveSearchQuery('source:vault $logs.request.path', vault, { 'logs.request.path': 'auth/token/lookup self' }), 'source:vault @request.path:"auth/token/lookup self"');
+});
+
+test('quotes and backslashes in a value are escaped, and the search reads the value back whole', () => {
+  const values = ['say "hi": now', 'C:\\temp\\logs', 'a\\"b', 'ends with \\', '"quoted"'];
+  for (const value of values) {
+    const query = resolveSearchQuery('source:vault $logs.request.path', vault, { 'logs.request.path': value });
+    assert.deepEqual(tokenize(query), ['source:vault', query.slice('source:vault '.length)], query);
+    assert.deepEqual(parseQuery(query)[1], { kind: 'tag', key: '@request.path', values: [value], negate: false }, query);
+    assert.deepEqual(parseSearch(`${query} timeout`)[2], { kind: 'text', text: 'timeout', negate: false }, query);
+  }
+  assert.equal(resolveSearchQuery('$logs.request.path', vault, { 'logs.request.path': 'C:\\a "b"' }), '@request.path:"C:\\\\a \\"b\\""');
+});
+
+test('search values are quoted only when they need it, backslashes escaped before quotes', () => {
+  assert.equal(quoteValue('web-1'), 'web-1');
+  assert.equal(quoteValue('a b'), '"a b"');
+  assert.equal(quoteValue('C:\\a "b"'), '"C:\\\\a \\"b\\""');
+  assert.equal(escapeQuoted('x\\"y'), 'x\\\\\\"y');
+  assert.deepEqual(parseQuery(`@sql:"${escapeQuoted('SELECT "a" FROM t\\')}"`)[0].values, ['SELECT "a" FROM t\\']);
+});
+
+test('a formatted search reads back the same values', () => {
+  const terms = [
+    { kind: 'tag', key: '@sql', values: ['SELECT "a" FROM t'], negate: false },
+    { kind: 'tag', key: '@path', values: ['C:\\dir with space\\', 'x'], negate: true },
+    { kind: 'text', text: 'say "hi"', negate: false },
+  ];
+  assert.deepEqual(parseQuery(formatQuery(terms)), terms);
+});
+
+test('a quoted search value keeps backslashes that escape nothing', () => {
+  assert.deepEqual(parseQuery('@file:"C:\\temp" "x \\"y\\""'), [
+    { kind: 'tag', key: '@file', values: ['C:\\temp'], negate: false },
+    { kind: 'text', text: 'x "y"', negate: false },
+  ]);
 });
 
 test('a longer variable name wins over a shorter one it starts with', () => {

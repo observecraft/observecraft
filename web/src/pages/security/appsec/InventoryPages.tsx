@@ -5,7 +5,7 @@ import type { ApiEndpointView, AppsecService } from '../../../api/appsec/client'
 import { FacetPanel } from '../../../components/facets/FacetPanel';
 import { Empty, ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { compact, timeAgo } from '../../../lib/format';
-import { formatQuery, parseQuery, type Term } from '../../../lib/searchQuery';
+import { escapeQuoted, formatQuery, parseQuery, type Term } from '../../../lib/searchQuery';
 import { LANGUAGE_LABEL, useStars } from '../../apm/visuals';
 import { AapTabs, INVENTORY_TABS } from './AppsecLayout';
 import { ActivitySpark, downloadCsv, ExplorerToolbar, localFacets, MethodPath, ServiceChip } from './common';
@@ -167,7 +167,7 @@ export function EndpointsPage() {
                     </td>
                     <td className="num">{compact(e.hits)}</td>
                     <td className="num">
-                      {e.attacks ? <Link to={`/security/appsec/investigate?q=${encodeURIComponent(`service:${e.service} @http.route:"${e.route}"`)}`}>{compact(e.attacks)}</Link> : 0}
+                      {e.attacks ? <Link to={`/security/appsec/investigate?q=${encodeURIComponent(`service:${e.service} @http.route:"${escapeQuoted(e.route)}"`)}`}>{compact(e.attacks)}</Link> : 0}
                     </td>
                     <td className="nowrap">
                       {['critical', 'high', 'medium', 'low'].map((s) =>

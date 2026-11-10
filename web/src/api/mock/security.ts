@@ -22,7 +22,7 @@ import type {
   Suppression,
   SuppressionInput,
 } from '../security/types';
-import { parseQuery, type Term } from '../../lib/searchQuery';
+import { parseQuery, quoteValue, type Term } from '../../lib/searchQuery';
 import { rng } from './generator';
 import * as cs from './codeSecurity';
 import { allMisconfigs, allVulns } from './cloudSecurity';
@@ -1259,7 +1259,7 @@ function hash(s: string): number {
 }
 
 function term(k: string, v: string) {
-  return /[\s():"]/.test(v) ? `${k}:"${v}"` : `${k}:${v}`;
+  return `${k}:${quoteValue(v)}`;
 }
 
 function makeSignal(sch: Schedule, slot: number, now: number): SecuritySignal | null {

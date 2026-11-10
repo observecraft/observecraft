@@ -122,10 +122,10 @@ const SELECT: &str = "SELECT s.id, s.rule_id, s.rule_name, s.rule_type, s.title,
     (extract(epoch FROM s.state_updated_at) * 1000)::bigint AS state_updated_at, u.name AS state_updated_by, s.incident_ids \
     FROM security_signals s LEFT JOIN users a ON a.id = s.assignee_id AND a.org_id = s.org_id LEFT JOIN users u ON u.id = s.state_updated_by AND u.org_id = s.org_id";
 
-/// `key:"value"` with quotes when the value needs them.
+/// `key:"value"` with quotes (and its `\` and `"` escaped) when the value needs them.
 fn term(key: &str, value: &str) -> String {
     if value.chars().any(|c| c.is_whitespace() || "():\"".contains(c)) {
-        format!("{key}:\"{}\"", value.replace('"', "\\\""))
+        format!("{key}:\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
     } else {
         format!("{key}:{value}")
     }
@@ -597,5 +597,6 @@ mod tests {
     fn logs_query_adds_the_group() {
         assert_eq!(term("@usr.email", "ana@example.com"), "@usr.email:ana@example.com");
         assert_eq!(term("@usr.name", "system:anonymous"), "@usr.name:\"system:anonymous\"");
+        assert_eq!(term("@file", r#"C:\a "b""#), r#"@file:"C:\\a \"b\"""#);
     }
 }

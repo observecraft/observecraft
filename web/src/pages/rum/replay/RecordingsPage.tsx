@@ -10,6 +10,7 @@ import { compact } from '../../../lib/format';
 import { useSelectedApplication } from '../common';
 import { useReplayHistory, useRumEvents } from '../queries';
 import { RecordingsTable } from './common';
+import { escapeQuoted } from '../../../lib/searchQuery';
 
 const minute = 60_000;
 
@@ -61,7 +62,7 @@ export function RecordingsPage() {
   };
   // A user is found by name, or by email when the search has an @.
   const who = user.trim().replace(/[\\"]/g, '');
-  const query = [who && `@usr.${who.includes('@') ? 'email' : 'name'}:"${who}"`, did.trim()].filter(Boolean).join(' ');
+  const query = [who && `@usr.${who.includes('@') ? 'email' : 'name'}:"${escapeQuoted(who)}"`, did.trim()].filter(Boolean).join(' ');
   const list = useRumEvents({ range: r, query, eventType: 'session', applicationId: selected, limit: 100, sessions });
   const history = useReplayHistory();
   const watched = useMemo(() => new Set((history.data ?? []).map((w) => w.sessionId)), [history.data]);

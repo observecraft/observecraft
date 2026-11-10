@@ -184,7 +184,8 @@ export function resolveQuery(query: string, tvs: TemplateVariable[], values: Tem
 export function resolveSearchQuery(query: string, tvs: TemplateVariable[], values: TemplateVarValues, appendUnnamed = true): string {
   const byName = new Map(tvs.map((t) => [t.name, t]));
   const names = [...byName.keys()].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  const quote = (v: string) => (/[\s:"()]/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : v);
+  // searchQuery's `quoteValue` (`\` escaped before `"`), kept here: this module loads without runtime imports in node tests.
+  const quote = (v: string) => (/[\s:"()]/.test(v) ? `"${v.replace(/[\\"]/g, '\\$&')}"` : v);
   const term = (tv: TemplateVariable) => {
     const value = values[tv.name] ?? tv.default;
     if (!value || value === '*') return '';
