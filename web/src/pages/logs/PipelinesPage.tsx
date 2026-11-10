@@ -78,6 +78,7 @@ export function processorSummary(p: Processor): string {
     case 'arithmetic-processor':
       return `${p.expression} → ${p.target}`;
     case 'url-parser':
+    case 'user-agent-parser':
     case 'geo-ip-parser':
       return arrow(p.sources, p.target);
     case 'schema-processor':

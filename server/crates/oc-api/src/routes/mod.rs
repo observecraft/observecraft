@@ -2662,6 +2662,7 @@ mod tests {
             ("../pipelines/grok.rs", include_str!("../pipelines/grok.rs")),
             ("../pipelines/rubyhash.rs", include_str!("../pipelines/rubyhash.rs")),
             ("../pipelines/samples.rs", include_str!("../pipelines/samples.rs")),
+            ("../pipelines/useragent.rs", include_str!("../pipelines/useragent.rs")),
             ("../pipelines/xml.rs", include_str!("../pipelines/xml.rs")),
             ("../pipelines/library.rs", include_str!("../pipelines/library.rs")),
             ("../pipelines/log.rs", include_str!("../pipelines/log.rs")),

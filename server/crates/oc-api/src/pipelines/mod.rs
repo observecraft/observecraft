@@ -12,6 +12,7 @@ pub mod processors;
 pub mod rubyhash;
 #[cfg(test)]
 mod samples;
+pub mod useragent;
 pub mod xml;
 
 use serde_json::Value;

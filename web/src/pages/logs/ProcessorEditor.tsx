@@ -24,6 +24,8 @@ export function blankProcessor(type: ProcessorType): Processor {
       return { type, name: '', enabled: true, sources: ['http.url'], target: 'http.url_details' };
     case 'geo-ip-parser':
       return { type, name: '', enabled: true, sources: ['network.client.ip'], target: 'network.client.geoip' };
+    case 'user-agent-parser':
+      return { type, name: '', enabled: true, sources: ['http.useragent'], target: 'http.useragent_details', encoded: false };
     case 'array-processor':
       return { type, name: '', enabled: true, operation: { type: 'length', source: '', target: '' } };
     case 'pipeline':
@@ -254,6 +256,14 @@ function Fields({ draft, onChange }: { draft: Processor; onChange: (p: Processor
         <>
           <SourcesInput value={draft.sources} onChange={(sources) => onChange({ ...draft, sources })} label="URL attribute" />
           {input('Target attribute (gets scheme, host, port, path and queryString)', draft.target, (target) => onChange({ ...draft, target }), 'http.url_details')}
+        </>
+      );
+    case 'user-agent-parser':
+      return (
+        <>
+          <SourcesInput value={draft.sources} onChange={(sources) => onChange({ ...draft, sources })} label="User agent attribute" />
+          {input('Target attribute (gets browser, os and device)', draft.target, (target) => onChange({ ...draft, target }), 'http.useragent_details')}
+          {check('The user agent is URL-encoded', draft.encoded, (encoded) => onChange({ ...draft, encoded }))}
         </>
       );
     case 'geo-ip-parser':

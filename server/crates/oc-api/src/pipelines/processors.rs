@@ -28,6 +28,7 @@ pub enum Step {
     Arithmetic { expr: Expr, target: String, replace_missing: bool },
     Url { sources: Vec<String>, target: String },
     GeoIp { sources: Vec<String>, target: String },
+    UserAgent { sources: Vec<String>, target: String, encoded: bool },
     Array(ArrayOp),
     Schema(Box<Schema>),
     Pipeline(Box<Pipeline>),
@@ -280,6 +281,16 @@ struct ArrayOpDef {
 }
 
 #[derive(Deserialize)]
+struct UserAgentDef {
+    #[serde(default)]
+    sources: Vec<String>,
+    #[serde(default)]
+    target: Option<String>,
+    #[serde(default, alias = "is_encoded")]
+    encoded: bool,
+}
+
+#[derive(Deserialize)]
 struct NestedDef {
     #[serde(default)]
     name: Option<String>,
@@ -330,6 +341,7 @@ pub const SUPPORTED: &[&str] = &[
     "arithmetic-processor",
     "url-parser",
     "geo-ip-parser",
+    "user-agent-parser",
     "array-processor",
     "schema-processor",
     "pipeline",
@@ -386,6 +398,11 @@ pub fn compile(def: &Value, depth: usize) -> Result<Option<Step>, String> {
             let mappers = d.mappers.iter().map(Mapper::compile).collect::<Result<Vec<_>, _>>()?;
             let SchemaInfo { class_name, class_uid, version, profiles } = d.schema;
             Step::Schema(Box::new(Schema { class_uid, class_name, version, profiles, mappers }))
+        }
+        "user-agent-parser" => {
+            let d: UserAgentDef = de(def)?;
+            let sources = if d.sources.is_empty() { vec!["http.useragent".to_string()] } else { d.sources };
+            Step::UserAgent { sources, target: d.target.filter(|t| !t.is_empty()).unwrap_or_else(|| "http.useragent_details".into()), encoded: d.encoded }
         }
         "array-processor" => {
             let ArrayDef { operation: o } = de(def)?;
@@ -496,6 +513,11 @@ pub fn apply(step: &Step, log: &mut Log, now_ms: i64) {
             }
             let geo = if ip.trim().parse::<std::net::IpAddr>().is_ok() { serde_json::json!({}) } else { serde_json::json!({ "invalidAddress": ip }) };
             log.set(target, geo);
+        }
+        Step::UserAgent { sources, target, encoded } => {
+            let Some(Value::String(ua)) = sources.iter().find_map(|s| log.get(s)).filter(|v| v.as_str().is_some_and(|s| !s.trim().is_empty())) else { return };
+            let ua = if *encoded { super::grok::decode_uri(&ua) } else { ua };
+            log.set(target, super::useragent::parse(&ua));
         }
         Step::Array(op) => op.apply(log),
         Step::Schema(schema) => schema.apply(log),
@@ -1108,6 +1130,17 @@ mod tests {
     }
 
     #[test]
+    fn user_agent_parser() {
+        let p = json!([{"type": "user-agent-parser", "sources": ["ua", "http.useragent"], "target": "http.useragent_details", "encoded": true}]);
+        let out = run(p, log("m", json!({"ua": "Mozilla/5.0%20(Windows%20NT%2010.0;%20Win64;%20x64)%20Chrome/120.0.0.0%20Safari/537.36"})));
+        assert_eq!(out.get("http.useragent_details.browser.family"), Some(json!("Chrome")));
+        assert_eq!(out.get("http.useragent_details.os.family"), Some(json!("Windows")));
+        assert_eq!(out.get("http.useragent_details.device.category"), Some(json!("Desktop")));
+        let p = json!([{"type": "user-agent-parser", "sources": ["http.useragent"], "target": "ua"}]);
+        assert_eq!(run(p, log("m", json!({"http": {"useragent": ""}}))).get("ua"), None, "an empty user agent isn't parsed");
+    }
+
+    #[test]
     fn array_processor_selects_appends_and_counts() {
         let p = json!([
             {"type": "array-processor", "operation": {"type": "select", "source": "entries", "target": "outcome", "filter": "name:login ", "valueToExtract": "outcome"}},
@@ -1156,7 +1189,7 @@ mod tests {
         let defs = json!([
             {"type": "grok-parser", "name": "broken", "grok": {"matchRules": "r %{nope:x}"}},
             {"type": "arithmetic-processor", "name": "math", "expression": "a +", "target": "b"},
-            {"type": "user-agent-parser", "sources": ["http.useragent"]},
+            {"type": "decoder-processor", "source": "payload"},
             {"type": "string-builder-processor", "template": "kept", "target": "t"}
         ]);
         let (p, errors) = Pipeline::compile("p", "", defs.as_array().unwrap());

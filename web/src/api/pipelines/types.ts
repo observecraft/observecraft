@@ -71,6 +71,14 @@ export interface UrlParser extends Base {
   target: string;
 }
 
+export interface UserAgentParser extends Base {
+  type: 'user-agent-parser';
+  sources: string[];
+  target: string;
+  /** The user agent is URL-encoded. */
+  encoded?: boolean;
+}
+
 export interface GeoIpParser extends Base {
   type: 'geo-ip-parser';
   sources: string[];
@@ -107,6 +115,7 @@ export type Processor =
   | LookupProcessor
   | ArithmeticProcessor
   | UrlParser
+  | UserAgentParser
   | GeoIpParser
   | ArrayProcessor
   | SchemaProcessor
@@ -127,6 +136,7 @@ export const PROCESSOR_TYPES: { type: ProcessorType; label: string; hint: string
   { type: 'lookup-processor', label: 'Lookup Processor', hint: 'Map values through a table' },
   { type: 'arithmetic-processor', label: 'Arithmetic Processor', hint: 'Compute a number from attributes' },
   { type: 'url-parser', label: 'URL Parser', hint: 'Split a URL into its parts' },
+  { type: 'user-agent-parser', label: 'User-Agent Parser', hint: 'Read the browser, OS and device of a user agent' },
   { type: 'geo-ip-parser', label: 'GeoIP Parser', hint: 'Locate an IP address (no location database ships: addresses get no location)' },
   { type: 'array-processor', label: 'Array Processor', hint: 'Select from, append to or count an array' },
   { type: 'pipeline', label: 'Nested Pipeline', hint: 'Processors for a subset of the logs' },
