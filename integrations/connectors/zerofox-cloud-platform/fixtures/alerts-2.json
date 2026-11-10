@@ -1,0 +1,32 @@
+{
+  "count": 3,
+  "num_pages": 2,
+  "page_size": 2,
+  "next": null,
+  "previous": "https://api.zerofox.com/1.0/alerts/?limit=2&sort_direction=asc&sort_field=last_modified",
+  "alerts": [
+    {
+      "id": 2210000090,
+      "alert_type": "search query",
+      "rule_id": 50001,
+      "rule_group_id": 150,
+      "rule_name": "Dark Web Credential Mention",
+      "severity": 5,
+      "status": "Closed",
+      "network": "dark web",
+      "offending_content_url": "hxxp://forum.example.onion/t/4411",
+      "content_created_at": "2026-11-08T03:00:00+00:00",
+      "timestamp": "2026-11-08T05:00:00+00:00",
+      "last_modified": "2026-11-10T10:45:00Z",
+      "escalated": true,
+      "reviewed": true,
+      "assignee": "analyst@example.com",
+      "notes": "Passwords rotated",
+      "tags": ["credentials"],
+      "perpetrator": { "id": 3100000003, "name": "unknown", "display_name": "unknown", "type": "post", "url": "hxxp://forum.example.onion/t/4411", "network": "dark web", "timestamp": "2026-11-08T03:00:00+00:00" },
+      "asset": { "id": 10419120, "name": "Web Domains", "entity_group": { "id": 4321, "name": "Default" } },
+      "entity": { "id": 10419120, "name": "Web Domains", "entity_group": { "id": 4321, "name": "Default" } },
+      "logs": [ { "id": 5500000020, "actor": "analyst@example.com", "action": "close", "subject": "", "detail": "", "timestamp": "2026-11-10T10:45:00+00:00" } ]
+    }
+  ]
+}
