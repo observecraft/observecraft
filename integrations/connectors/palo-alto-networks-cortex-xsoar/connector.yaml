@@ -60,12 +60,10 @@ auth:
 
 rate_limit: { requests_per_minute: 60 }
 
-# The tile's pipeline maps the numeric severity and status the same way. An incident's own `status` (0, 1, 2) is
-# replaced by the log's status, so its value is set here as status_value, which the dashboards read.
+# The tile's pipeline maps the numeric severity the same way, and looks up severity_value and status_value from the
+# incident's own `severity` and `status` (0, 1, 2), which stay at the top.
 tables:
   severity: { "0": info, "0.5": info, "1": notice, "2": warning, "3": warning, "4": critical }
-  severity_value: { "0": Unknown, "0.5": Informational, "1": Low, "2": Medium, "3": High, "4": Critical }
-  status_value: { "0": Pending, "1": Active, "2": Closed }
 
 errors:
   - status: [401]
@@ -109,9 +107,7 @@ streams:
         status: "{{ tables.severity[record.severity | str] ?? 'info' }}"
         message: "{{ record.details | nonempty ?? record.name }}"
         date: "{{ record.created }}"
-        attributes: >-
-          {{ record + {vendor: {endpoint: 'incidents'}, severity_value: tables.severity_value[record.severity | str],
-             status_value: tables.status_value[record.status | str]} }}
+        attributes: "{{ record + {vendor: {endpoint: 'incidents'}} }}"
 
   - id: audit_logs
     name: Audit logs

@@ -30,11 +30,9 @@
       "playbookId": "Phishing - Generic v3",
       "service": "palo-alto-networks-cortex-xsoar",
       "severity": 2,
-      "severity_value": "Medium",
       "sla": 0,
       "sourceBrand": "Mail Listener v2",
       "sourceInstance": "Mail_Listener_1",
-      "status_value": "Active",
       "type": "Phishing",
       "vendor": {
         "endpoint": "incidents"
@@ -65,11 +63,9 @@
       "playbookId": "Access Investigation - Generic",
       "service": "palo-alto-networks-cortex-xsoar",
       "severity": 3,
-      "severity_value": "High",
       "sla": 0,
       "sourceBrand": "Okta v2",
       "sourceInstance": "Okta_instance_1",
-      "status_value": "Pending",
       "type": "Access",
       "vendor": {
         "endpoint": "incidents"
