@@ -113,43 +113,6 @@
     {
       "host": null,
       "kind": "gauge",
-      "name": "blazemeter.performance.assertions_failures",
-      "tags": [
-        [
-          "assertion",
-          "Order id present"
-        ],
-        [
-          "labelid",
-          "3b6d1bf0989a1c2d"
-        ],
-        [
-          "labelname",
-          "POST /api/checkout"
-        ],
-        [
-          "masterid",
-          "40000001"
-        ],
-        [
-          "message",
-          "Test failed: text expected to contain /orderId/"
-        ],
-        [
-          "projectid",
-          "800001"
-        ],
-        [
-          "testname",
-          "Checkout load test"
-        ]
-      ],
-      "time_ms": 1794299400000,
-      "value": 40.0
-    },
-    {
-      "host": null,
-      "kind": "gauge",
       "name": "blazemeter.performance.failedEmbeddedResources_count",
       "tags": [
         [
@@ -183,6 +146,43 @@
       ],
       "time_ms": 1794299400000,
       "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.assertions_failures",
+      "tags": [
+        [
+          "assertion",
+          "Order id present"
+        ],
+        [
+          "labelid",
+          "3b6d1bf0989a1c2d"
+        ],
+        [
+          "labelname",
+          "POST /api/checkout"
+        ],
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "message",
+          "Test failed: text expected to contain /orderId/"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 40.0
     }
   ],
   "state": {
@@ -191,11 +191,7 @@
         "cursor": 1794312000000,
         "seen": [
           {
-            "id": "764c12ef1b73eb9f",
-            "t": 1794297600000
-          },
-          {
-            "id": "4a8eba95d200b805",
+            "id": "98c92e9253c87e4e",
             "t": 1794297600000
           }
         ]

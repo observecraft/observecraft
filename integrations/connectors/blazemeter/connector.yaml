@@ -6,7 +6,8 @@
 # labelid / labelname. The tile's integrations-core dashboards and monitors read them, so this package ships none.
 #
 # Each stream lists the runs created in its window (a day back, so runs that end later are caught) and reads the
-# reports of those that ended; a run's points are sent once, timed at its end.
+# report of each that ended once (`expand`: a run's id and time are its own, so a run sent before isn't requested
+# again); a run's points are sent once, timed at its end. A report is one record: label lists are walked by `each`.
 schema_version: 1
 id: blazemeter
 name: BlazeMeter
@@ -125,11 +126,12 @@ streams:
     # Runs still going are left for a later run (their window comes back while it overlaps).
     records: &ended "{{ response.result | where('ended') }}"
     pagination: &pages { kind: offset, size: 50 }
-    incremental: &window { kind: time, record_time: "{{ parent.created ?? record.created }}", order: unordered, lookback: 1d, overlap: 1d }
+    incremental: &window { kind: time, record_time: "{{ parent.created }}", order: unordered, lookback: 1d, overlap: 1d }
     expand:
       request: { url: "{{ 'https://a.blazemeter.com/api/v4/masters/' + (parent.id | str) + '/reports/default/summary' }}" }
-      records: "{{ response.result.summary }}"
-    record_id: "{{ (parent.id | str) + ':' + (record.id ?? 'ALL') }}"
+      # The run's overall summary (id ALL).
+      records: "{{ response.result.summary | slice(0, 1) }}"
+    record_id: &run_id "{{ parent.id | str }}"
     output:
       metrics:
         - name: "{{ tables.summary[entry.key] }}"
@@ -149,15 +151,16 @@ streams:
     incremental: *window
     expand:
       request: { url: "{{ 'https://a.blazemeter.com/api/v4/masters/' + (parent.id | str) + '/reports/aggregatereport/data' }}" }
-      records: "{{ response.result }}"
-    record_id: "{{ (parent.id | str) + ':' + record.labelId }}"
+      records: "{{ [response.result] }}"
+    record_id: *run_id
     output:
       metrics:
+        # Every field of every label, with its label.
         - name: "{{ tables.request[entry.key] }}"
-          each: "{{ record }}"
+          each: "{{ record | map(it | entries | with('label', it)) | flatten }}"
           value: "{{ entry.value }}"
           time: "{{ parent.ended }}"
-          tags: &label { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testid: "{{ parent.testId | str }}", testname: "{{ parent.name }}", labelid: "{{ record.labelId }}", labelname: "{{ record.labelName ?? record.name }}" }
+          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testid: "{{ parent.testId | str }}", testname: "{{ parent.name }}", labelid: "{{ entry.label.labelId }}", labelname: "{{ entry.label.labelName ?? entry.label.name }}" }
 
   - id: errors
     name: Errors and assertions
@@ -172,30 +175,30 @@ streams:
     incremental: *window
     expand:
       request: { url: "{{ 'https://a.blazemeter.com/api/v4/masters/' + (parent.id | str) + '/reports/errorsreport/data' }}" }
-      records: "{{ response.result }}"
-    record_id: "{{ (parent.id | str) + ':' + (record.labelId ?? record.name) }}"
+      records: "{{ [response.result] }}"
+    record_id: *run_id
     output:
       metrics:
         - name: blazemeter.performance.errors_count
-          each: "{{ record.errors }}"
+          each: "{{ record | map(it.errors | with('label', it)) | flatten }}"
           value: "{{ entry.count }}"
           time: "{{ parent.ended }}"
-          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ record.labelId }}", labelname: "{{ record.name }}", rc: "{{ entry.rc }}", message: "{{ entry.m }}" }
+          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ entry.label.labelId }}", labelname: "{{ entry.label.name }}", rc: "{{ entry.rc }}", message: "{{ entry.m }}" }
         - name: blazemeter.performance.errors_url_count
-          each: "{{ record.urls }}"
+          each: "{{ record | map(it.urls | with('label', it)) | flatten }}"
           value: "{{ entry.count }}"
           time: "{{ parent.ended }}"
-          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ record.labelId }}", labelname: "{{ record.name }}", url: "{{ entry.url }}" }
+          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ entry.label.labelId }}", labelname: "{{ entry.label.name }}", url: "{{ entry.url }}" }
         - name: blazemeter.performance.failedEmbeddedResources_count
-          each: "{{ record.failedEmbeddedResources }}"
+          each: "{{ record | map(it.failedEmbeddedResources | with('label', it)) | flatten }}"
           value: "{{ entry.count }}"
           time: "{{ parent.ended }}"
-          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ record.labelId }}", labelname: "{{ record.name }}", rc: "{{ entry.rc }}", message: "{{ entry.rm }}" }
+          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ entry.label.labelId }}", labelname: "{{ entry.label.name }}", rc: "{{ entry.rc }}", message: "{{ entry.rm }}" }
         - name: blazemeter.performance.assertions_failures
-          each: "{{ record.assertions }}"
+          each: "{{ record | map(it.assertions | with('label', it)) | flatten }}"
           value: "{{ entry.failures }}"
           time: "{{ parent.ended }}"
-          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ record.labelId }}", labelname: "{{ record.name }}", assertion: "{{ entry.name }}", message: "{{ entry.failureMessage }}" }
+          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ entry.label.labelId }}", labelname: "{{ entry.label.name }}", assertion: "{{ entry.name }}", message: "{{ entry.failureMessage }}" }
 
   - id: functional
     name: Functional test results
@@ -217,7 +220,7 @@ streams:
     expand:
       request: { url: "{{ 'https://a.blazemeter.com/api/v4/masters/' + (parent.id | str) }}" }
       records: "{{ response.result.gridSummary }}"
-    record_id: "{{ parent.id | str }}"
+    record_id: *run_id
     output:
       metrics:
         - name: "{{ tables.grid[entry.key] }}"
@@ -245,7 +248,7 @@ mock:
     - { url: "https://a.blazemeter.com/api/v4/masters/40000010", file: fixtures/master-40000010.json }
   expect:
     performance_summary: { records: 1, metrics: 13, rerun: 0, golden: fixtures/performance_summary.expected.json }
-    request_stats: { records: 2, metrics: 32, rerun: 0, golden: fixtures/request_stats.expected.json }
-    errors: { records: 2, metrics: 5, rerun: 0, golden: fixtures/errors.expected.json }
+    request_stats: { records: 1, metrics: 32, rerun: 0, golden: fixtures/request_stats.expected.json }
+    errors: { records: 1, metrics: 5, rerun: 0, golden: fixtures/errors.expected.json }
     functional: { records: 1, metrics: 8, rerun: 0, golden: fixtures/functional.expected.json }
     test: { ok: true, message: "qa-lead@example.com" }
