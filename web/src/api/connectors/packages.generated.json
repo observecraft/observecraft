@@ -5180,6 +5180,59 @@
   {
     "entry": {
       "categories": [
+        "Cloud",
+        "AI/ML",
+        "Metrics",
+        "Log Collection"
+      ],
+      "config": [],
+      "dashboards": [],
+      "description": "A Modal workspace's Function logs, audit logs and container metrics (CPU, memory, GPUs, containers, inputs), pushed by Modal's OpenTelemetry integration.",
+      "docsUrl": "https://modal.com/docs/guide/otel-integration",
+      "id": "modal",
+      "kind": "push",
+      "links": [],
+      "logo": "modal",
+      "monitors": [],
+      "name": "Modal",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": {
+        "canCreate": false,
+        "endpoints": [],
+        "headers": {
+          "DD-API-KEY": "{{ api_key }}"
+        },
+        "instructions": "1. In Modal, open **Secrets → Create new secret → Custom** and add one key, `OTEL_HEADER_DD-API-KEY`, with the value\n   `{{ api_key }}`. Name the secret, e.g. `observecraft-otel`.\n2. Open [Settings → Metrics](https://modal.com/settings/metrics), choose **OpenTelemetry**, enter the push URL\n   `{{ intake }}` (the base URL: Modal adds `/v1/logs` and `/v1/metrics`) and pick the secret from step 1.\n3. **Test** the connection: a test log appears in Logs, then Function logs, audit logs and the `modal.*` metrics\n   (tagged app_name, function_name, environment_name, workspace_name, container_id) every minute.\n",
+        "kind": "otlp",
+        "signatureHeader": null,
+        "signatureSecret": null,
+        "url": "{{ intake }}",
+        "webhook": null
+      },
+      "setup": null,
+      "source": "modal",
+      "streams": [],
+      "testable": false,
+      "thirdParty": false,
+      "tiles": [
+        "modal"
+      ],
+      "vendor": "Modal Labs",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": null,
+      "secrets": null,
+      "test": null
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
         "Metrics"
       ],
       "config": [
