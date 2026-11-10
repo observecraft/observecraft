@@ -17,6 +17,16 @@ export const logs = (search, { name = 'query1', groupBy = [], limit = 10, aggreg
   storage: 'hot',
 });
 
+/** A Cloud SIEM signal count (the signal search), grouped by a facet (`status`, `@workflow.rule.name`). */
+export const signals = (search, { name = 'query1', groupBy = [] } = {}) => ({
+  data_source: 'security_signals',
+  name,
+  search: { query: search },
+  indexes: ['*'],
+  compute: { aggregation: 'count' },
+  group_by: groupBy.map((f) => ({ facet: f, limit: 10, sort: { aggregation: 'count', order: 'desc' } })),
+});
+
 /** `@evt.name:(a OR b)`. */
 export const anyOf = (types, attribute = '@evt.name') => `${attribute}:(${types.join(' OR ')})`;
 

@@ -199,6 +199,15 @@ or SDK features.
   `oc.otlp-json.metrics` (hosts aren't `host`s). Saving the connection installs its library pipeline
   (`fleetdm.category`); its dashboard is ours (`scripts/fleetdm-dashboard.mjs` → `seeds/integrations/fleetdm/`),
   listed once connected.
+- **GitLab Audit Events** (Integrations → GitLab Audit Events, `oc-api/src/gitlab_audit/`,
+  `routes/gitlab_audit_integration.rs`; Datadog's tile is its own crawler): the server polls GitLab's audit events API
+  (Premium/Ultimate; `/audit_events` with an administrator's token, or a group's or project's; token in Postgres
+  `gitlab_audit_connections`, sealed) on the cloud crawlers' jobs (provider `gitlab_audit`, scope `events`): GitLab
+  answers newest first, so a run walks `created_before` back from the window's end (first pages only, no `Link`
+  header or offset pages) and a backlog past a run's pages is carried on by the next runs (`backlog_*_ms`); each event
+  is a log (`source:gitlab-audit-events`, `service:gitlab`, `gitlab.*`) to `oc.logs.json`. Saving the connection
+  installs its library pipeline (`gitlab.category`); its dashboard is ours (`scripts/gitlab-audit-events-dashboard.mjs`
+  → `seeds/integrations/gitlab-audit-events/`), listed once connected; Cloud SIEM pack `gitlab-audit-events`.
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **Slack** (`routes/slack.rs`, `datadog_api/slack_integration.rs`, page `web/src/pages/integrations/slack/`): workspaces

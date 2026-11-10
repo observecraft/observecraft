@@ -3,6 +3,7 @@ pub mod apm_settings;
 pub mod authentik_integration;
 pub mod netbird_integration;
 pub mod fleetdm_integration;
+pub mod gitlab_audit_integration;
 pub mod aws_integration;
 pub mod azure_integration;
 pub mod gcp_integration;
@@ -880,6 +881,11 @@ use crate::state::AppState;
         fleetdm_integration::delete_fleetdm,
         fleetdm_integration::test_fleetdm,
         fleetdm_integration::sync_fleetdm,
+        gitlab_audit_integration::get_gitlab_audit,
+        gitlab_audit_integration::put_gitlab_audit,
+        gitlab_audit_integration::delete_gitlab_audit,
+        gitlab_audit_integration::test_gitlab_audit,
+        gitlab_audit_integration::sync_gitlab_audit,
         integration_installs::list,
         integration_installs::install,
         integration_installs::uninstall,
@@ -1670,6 +1676,12 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/integrations/fleetdm", get(fleetdm_integration::get_fleetdm).put(fleetdm_integration::put_fleetdm).delete(fleetdm_integration::delete_fleetdm))
         .route("/api/v1/integrations/fleetdm/test", axum::routing::post(fleetdm_integration::test_fleetdm))
         .route("/api/v1/integrations/fleetdm/sync", axum::routing::post(fleetdm_integration::sync_fleetdm))
+        .route(
+            "/api/v1/integrations/gitlab-audit-events",
+            get(gitlab_audit_integration::get_gitlab_audit).put(gitlab_audit_integration::put_gitlab_audit).delete(gitlab_audit_integration::delete_gitlab_audit),
+        )
+        .route("/api/v1/integrations/gitlab-audit-events/test", axum::routing::post(gitlab_audit_integration::test_gitlab_audit))
+        .route("/api/v1/integrations/gitlab-audit-events/sync", axum::routing::post(gitlab_audit_integration::sync_gitlab_audit))
         .route("/api/v1/integrations/installed", get(integration_installs::list))
         .route("/api/v1/integrations/checks/{check}/hosts", get(fleet::integration_hosts))
         .route("/api/v1/integrations/{id}/install", axum::routing::put(integration_installs::install).delete(integration_installs::uninstall))
@@ -2025,6 +2037,7 @@ mod tests {
             include_str!("authentik_integration.rs"),
             include_str!("netbird_integration.rs"),
             include_str!("fleetdm_integration.rs"),
+            include_str!("gitlab_audit_integration.rs"),
             include_str!("sso.rs"),
             include_str!("spans.rs"),
             include_str!("dashboards.rs"),
@@ -2348,6 +2361,7 @@ mod tests {
             ("authentik_integration.rs", include_str!("authentik_integration.rs")),
             ("netbird_integration.rs", include_str!("netbird_integration.rs")),
             ("fleetdm_integration.rs", include_str!("fleetdm_integration.rs")),
+            ("gitlab_audit_integration.rs", include_str!("gitlab_audit_integration.rs")),
             ("aws_integration.rs", include_str!("aws_integration.rs")),
             ("azure_integration.rs", include_str!("azure_integration.rs")),
             ("gcp_integration.rs", include_str!("gcp_integration.rs")),
@@ -2386,6 +2400,11 @@ mod tests {
             ("../gitlab/crawler.rs", include_str!("../gitlab/crawler.rs")),
             ("../gitlab/fixtures.rs", include_str!("../gitlab/fixtures.rs")),
             ("../gitlab/otlp.rs", include_str!("../gitlab/otlp.rs")),
+            ("../gitlab_audit/mod.rs", include_str!("../gitlab_audit/mod.rs")),
+            ("../gitlab_audit/api.rs", include_str!("../gitlab_audit/api.rs")),
+            ("../gitlab_audit/crawler.rs", include_str!("../gitlab_audit/crawler.rs")),
+            ("../gitlab_audit/fixtures.rs", include_str!("../gitlab_audit/fixtures.rs")),
+            ("../gitlab_audit/logs.rs", include_str!("../gitlab_audit/logs.rs")),
             ("../azure/mod.rs", include_str!("../azure/mod.rs")),
             ("../azure/api.rs", include_str!("../azure/api.rs")),
             ("../azure/crawler.rs", include_str!("../azure/crawler.rs")),

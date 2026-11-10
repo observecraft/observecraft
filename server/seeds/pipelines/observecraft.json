@@ -614,5 +614,284 @@
       "path": "server/seeds/pipelines/observecraft.json",
       "license": "MIT"
     }
+  },
+  {
+    "id": "gitlab-audit-events",
+    "integration": "gitlab-audit-events",
+    "name": "GitLab Audit Events",
+    "filter": "source:gitlab-audit-events",
+    "processors": [
+      {
+        "type": "date-remapper",
+        "name": "Define `created_at` as the official date of the log",
+        "enabled": true,
+        "sources": [
+          "created_at"
+        ]
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `event_name`, `event_type`, `details.event_name` to `evt.name`",
+        "enabled": true,
+        "sources": [
+          "event_name",
+          "event_type",
+          "details.event_name"
+        ],
+        "target": "evt.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `author_id` to `usr.id`",
+        "enabled": true,
+        "sources": [
+          "author_id"
+        ],
+        "target": "usr.id",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.author_name`, `author_name` to `usr.name`",
+        "enabled": true,
+        "sources": [
+          "details.author_name",
+          "author_name"
+        ],
+        "target": "usr.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.author_email`, `author_email` to `usr.email`",
+        "enabled": true,
+        "sources": [
+          "details.author_email",
+          "author_email"
+        ],
+        "target": "usr.email",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.ip_address`, `ip_address` to `network.client.ip`",
+        "enabled": true,
+        "sources": [
+          "details.ip_address",
+          "ip_address"
+        ],
+        "target": "network.client.ip",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `entity_type` to `gitlab.entity_type`",
+        "enabled": true,
+        "sources": [
+          "entity_type"
+        ],
+        "target": "gitlab.entity_type",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.entity_path`, `entity_path` to `gitlab.entity_path`",
+        "enabled": true,
+        "sources": [
+          "details.entity_path",
+          "entity_path"
+        ],
+        "target": "gitlab.entity_path",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.target_type`, `target_type` to `gitlab.target_type`",
+        "enabled": true,
+        "sources": [
+          "details.target_type",
+          "target_type"
+        ],
+        "target": "gitlab.target_type",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.target_details`, `target_details` to `gitlab.target_details`",
+        "enabled": true,
+        "sources": [
+          "details.target_details",
+          "target_details"
+        ],
+        "target": "gitlab.target_details",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "category-processor",
+        "name": "Categorise the audit event",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:(*login* OR *authentication* OR *two_factor* OR *otp* OR *webauthn* OR *passkey* OR user_access_locked OR user_access_unlocked OR password_reset_* OR user_password_updated)"
+            },
+            "name": "authentication"
+          },
+          {
+            "filter": {
+              "query": "@gitlab.details.failed_login:*"
+            },
+            "name": "authentication"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*token*)"
+            },
+            "name": "token"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*merge_request* OR *approval* OR *approver*)"
+            },
+            "name": "merge_request"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(member_* OR *_member_* OR *_members_* OR *access_level* OR *user_access_* OR *saml_group_link* OR user_access_added OR user_access_removed)"
+            },
+            "name": "membership"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*oauth_application* OR user_authorized_* OR user_rejected_*)"
+            },
+            "name": "authorization"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(user_* OR *_user_* OR registration_*)"
+            },
+            "name": "user_management"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(ci_* OR *runner* OR *variable* OR *pipeline* OR *environment* OR *deploy_key* OR *deploy_token*)"
+            },
+            "name": "ci_cd"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*protected_branch* OR *protected_tag* OR *push_rule* OR *repository* OR *branch*)"
+            },
+            "name": "repository"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(project_*)"
+            },
+            "name": "project"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(group_*)"
+            },
+            "name": "group"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*audit* OR *compliance* OR *streaming_destination*)"
+            },
+            "name": "compliance"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "other"
+          }
+        ],
+        "target": "gitlab.category"
+      },
+      {
+        "type": "category-processor",
+        "name": "Severity of the audit event: failed logins and creations are errors, accounts locked or blocked, administrators and impersonation warnings",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:*failed*"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@evt.outcome:failure"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@gitlab.details.failed_login:*"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*locked* OR *blocked* OR *banned* OR *admin_status* OR *impersonat* OR *two_factor_disabled* OR *disable_two_factor*)"
+            },
+            "name": "warn"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "info"
+          }
+        ],
+        "target": "gitlab.severity"
+      },
+      {
+        "type": "status-remapper",
+        "name": "Define `gitlab.severity` as the official status of the log",
+        "enabled": true,
+        "sources": [
+          "gitlab.severity"
+        ]
+      }
+    ],
+    "source": {
+      "repository": "observecraft/observecraft",
+      "revision": "",
+      "path": "server/seeds/pipelines/observecraft.json",
+      "license": "MIT"
+    }
   }
 ]

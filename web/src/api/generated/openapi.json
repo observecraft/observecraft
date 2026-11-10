@@ -11466,6 +11466,142 @@
         }
       }
     },
+    "/api/v1/integrations/gitlab-audit-events": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The GitLab Audit Events connection and its sync's status (no token).",
+        "operationId": "gitlab_audit_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabAuditStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Saves the GitLab Audit Events connection (admins). The token is sealed; leave it out to keep the saved one (only\nwhile the URL stays the same). A new URL or scope reads from the first sync's lookback again.",
+        "operationId": "gitlab_audit_save",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitlabAuditInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabAuditStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Removes the GitLab Audit Events connection, its token and its polling (admins). Stored logs stay.",
+        "operationId": "gitlab_audit_delete",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/gitlab-audit-events/sync": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Polls GitLab now instead of within the minute (admins).",
+        "operationId": "gitlab_audit_sync",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/gitlab-audit-events/test": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Tests a connection before or after saving it (admins): the token's user and whether it can read the scope's audit\nevents.",
+        "operationId": "gitlab_audit_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitlabAuditInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabAuditTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/integrations/installed": {
       "get": {
         "tags": [
@@ -47308,6 +47444,149 @@
           "template": {
             "type": "string",
             "description": "standard | brief"
+          }
+        }
+      },
+      "GitlabAuditConnection": {
+        "type": "object",
+        "description": "The connection as saved; the token is never answered.",
+        "required": [
+          "baseUrl",
+          "scope",
+          "path",
+          "updatedAt"
+        ],
+        "properties": {
+          "baseUrl": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "The group or project path; empty for the instance."
+          },
+          "scope": {
+            "type": "string",
+            "description": "`instance`, `group` or `project`."
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          }
+        }
+      },
+      "GitlabAuditInput": {
+        "type": "object",
+        "description": "What an admin enters.",
+        "properties": {
+          "baseUrl": {
+            "type": "string",
+            "description": "https://gitlab.com or the self-managed instance's URL.",
+            "default": ""
+          },
+          "path": {
+            "type": "string",
+            "description": "The group or project path (`example-org`, `example-org/storefront-api`), for those scopes.",
+            "default": ""
+          },
+          "scope": {
+            "type": "string",
+            "description": "`instance` (an administrator's token), `group` or `project`.",
+            "default": ""
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A personal, group or project access token with `read_api`; leave it out to keep the saved one.",
+            "default": null
+          }
+        }
+      },
+      "GitlabAuditStatus": {
+        "type": "object",
+        "required": [
+          "eventsLastSync",
+          "catchingUp"
+        ],
+        "properties": {
+          "catchingUp": {
+            "type": "boolean",
+            "description": "Whether a backlog (more events than a poll reads) is being read over several polls."
+          },
+          "connection": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GitlabAuditConnection",
+                "description": "None until an admin connects GitLab."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CrawlIssue",
+                "description": "Why the last poll failed (token refused, not an administrator, no Premium), or its warning."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eventsLastSync": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Events sent by the last poll."
+          },
+          "lastSyncAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last successful poll."
+          },
+          "syncedUntil": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms: events created up to here were read."
+          }
+        }
+      },
+      "GitlabAuditTest": {
+        "type": "object",
+        "description": "A connection test's result.",
+        "required": [
+          "ok",
+          "message"
+        ],
+        "properties": {
+          "admin": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether the user is an instance administrator."
+          },
+          "message": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "user": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The token's user."
           }
         }
       },

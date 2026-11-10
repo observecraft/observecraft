@@ -4484,6 +4484,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/gitlab-audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The GitLab Audit Events connection and its sync's status (no token). */
+        get: operations["gitlab_audit_status"];
+        /**
+         * Saves the GitLab Audit Events connection (admins). The token is sealed; leave it out to keep the saved one (only
+         *     while the URL stays the same). A new URL or scope reads from the first sync's lookback again.
+         */
+        put: operations["gitlab_audit_save"];
+        post?: never;
+        /** Removes the GitLab Audit Events connection, its token and its polling (admins). Stored logs stay. */
+        delete: operations["gitlab_audit_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/gitlab-audit-events/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Polls GitLab now instead of within the minute (admins). */
+        post: operations["gitlab_audit_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/gitlab-audit-events/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests a connection before or after saving it (admins): the token's user and whether it can read the scope's audit
+         *     events.
+         */
+        post: operations["gitlab_audit_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/installed": {
         parameters: {
             query?: never;
@@ -15848,6 +15907,72 @@ export interface components {
         GeneratePostmortem: {
             /** @description standard | brief */
             template: string;
+        };
+        /** @description The connection as saved; the token is never answered. */
+        GitlabAuditConnection: {
+            baseUrl: string;
+            /** @description The group or project path; empty for the instance. */
+            path: string;
+            /** @description `instance`, `group` or `project`. */
+            scope: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+        };
+        /** @description What an admin enters. */
+        GitlabAuditInput: {
+            /**
+             * @description https://gitlab.com or the self-managed instance's URL.
+             * @default
+             */
+            baseUrl: string;
+            /**
+             * @description The group or project path (`example-org`, `example-org/storefront-api`), for those scopes.
+             * @default
+             */
+            path: string;
+            /**
+             * @description `instance` (an administrator's token), `group` or `project`.
+             * @default
+             */
+            scope: string;
+            /**
+             * @description A personal, group or project access token with `read_api`; leave it out to keep the saved one.
+             * @default null
+             */
+            token: string | null;
+        };
+        GitlabAuditStatus: {
+            /** @description Whether a backlog (more events than a poll reads) is being read over several polls. */
+            catchingUp: boolean;
+            connection?: components["schemas"]["GitlabAuditConnection"] | null;
+            error?: components["schemas"]["CrawlIssue"] | null;
+            /**
+             * Format: int32
+             * @description Events sent by the last poll.
+             */
+            eventsLastSync: number;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful poll.
+             */
+            lastSyncAt?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms: events created up to here were read.
+             */
+            syncedUntil?: number | null;
+        };
+        /** @description A connection test's result. */
+        GitlabAuditTest: {
+            /** @description Whether the user is an instance administrator. */
+            admin?: boolean | null;
+            message: string;
+            ok: boolean;
+            /** @description The token's user. */
+            user?: string | null;
         };
         /** @description The connection as saved; the token is never answered. */
         GitlabCiConnection: {
@@ -34270,6 +34395,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GcpSetup"];
+                };
+            };
+        };
+    };
+    gitlab_audit_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitlabAuditStatus"];
+                };
+            };
+        };
+    };
+    gitlab_audit_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitlabAuditInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitlabAuditStatus"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    gitlab_audit_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    gitlab_audit_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    gitlab_audit_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitlabAuditInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitlabAuditTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

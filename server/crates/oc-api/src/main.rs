@@ -16,6 +16,7 @@ mod authentik;
 mod netbird;
 mod fleetdm;
 mod gitlab;
+mod gitlab_audit;
 mod cache;
 mod config;
 mod demo;
@@ -245,6 +246,10 @@ async fn main() -> anyhow::Result<()> {
         let metrics: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(fleetdm::crawler::FleetCrawler { api: Arc::new(fleetdm::api::Rest { allow_private: state.config.portal_allow_private }), logs, metrics });
         tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, fleetdm::crawler::INTERVAL_SECS, concurrency)));
+        // The GitLab Audit Events integration's poller: the instances' (groups', projects') audit events as logs.
+        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, gitlab_audit::crawler::LOGS_TOPIC));
+        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(gitlab_audit::crawler::GitlabAuditCrawler { api: Arc::new(gitlab::api::Rest { allow_private: state.config.portal_allow_private }), sink: logs });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, gitlab_audit::crawler::INTERVAL_SECS, concurrency)));
     }
     // Cloud Cost Management's provider bills (`cost_bill_configs`), for the same clouds; written to ClickHouse directly.
     if state.config.cloud_crawlers.iter().any(|c| c == "aws") {

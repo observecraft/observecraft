@@ -87,7 +87,7 @@ pub fn check_path(raw: &str) -> Result<String, String> {
 }
 
 /// A path or id as one URL path segment (`/` encoded).
-fn enc(s: &str) -> String {
+pub(crate) fn enc(s: &str) -> String {
     url::form_urlencoded::byte_serialize(s.as_bytes()).collect()
 }
 

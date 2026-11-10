@@ -169,6 +169,48 @@ mod tests {
     }
 
     #[test]
+    fn gitlab_audit_events_get_categories_users_and_statuses() {
+        use crate::gitlab_audit::{fixtures, logs::log_of};
+        use serde_json::json;
+        assert_eq!(get("gitlab-audit-events").unwrap().integration, "gitlab-audit-events", "installed with the integration");
+        let attrs = |event: Value| {
+            let mut log = log_of(&event, "gitlab.example.com");
+            for k in ["date", "message", "status", "service", "ddsource", "host", "_oc_ingest"] {
+                log.as_object_mut().unwrap().remove(k);
+            }
+            log
+        };
+        let run = |event: Value| with_attrs("gitlab-audit-events", "gitlab-audit-events", attrs(event));
+        let category = |name: &str| run(fixtures::event(1, name, "2026-11-06T10:00:00Z", json!({}))).get("gitlab.category");
+        for (name, want) in [
+            ("personal_access_token_created", "token"),
+            ("group_deploy_token_revoked", "token"),
+            ("merge_request_approval_operation", "merge_request"),
+            ("member_created", "membership"),
+            ("user_authorized_oauth_application", "authorization"),
+            ("user_blocked", "user_management"),
+            ("ci_variable_updated", "ci_cd"),
+            ("protected_branch_allow_force_push_updated", "repository"),
+            ("project_visibility_level_updated", "project"),
+            ("group_created", "group"),
+            ("audit_events_streaming_headers_create", "compliance"),
+            ("something_new", "other"),
+        ] {
+            assert_eq!(category(name), Some(json!(want)), "{name}");
+        }
+        let failed = run(fixtures::failed_login(2, "2026-11-06T10:00:00Z", "root"));
+        assert_eq!((failed.get("gitlab.category"), failed.get("usr.name"), failed.status.as_str()), (Some(json!("authentication")), Some(json!("root")), "error"));
+        let locked = run(fixtures::event(3, "user_access_locked", "2026-11-06T10:00:00Z", json!({})));
+        assert_eq!((locked.get("gitlab.category"), locked.status.as_str()), (Some(json!("authentication")), "warn"));
+        assert_eq!(run(fixtures::changed(4, "2026-11-06T10:00:00Z")).status, "info");
+        // An event as GitLab's API serializes it, shipped another way (a streaming destination, a log shipper): remapped.
+        let raw = with_attrs("gitlab-audit-events", "gitlab-audit-events", fixtures::event(5, "personal_access_token_created", "2026-11-06T10:00:00.250Z", json!({})));
+        assert_eq!((raw.get("evt.name"), raw.get("usr.id"), raw.get("usr.name"), raw.get("usr.email")), (Some(json!("personal_access_token_created")), Some(json!(42)), Some(json!("Jordan Patel")), Some(json!("jordan.patel@example.com"))));
+        assert_eq!((raw.get("network.client.ip"), raw.get("gitlab.entity_path"), raw.get("gitlab.category")), (Some(json!("203.0.113.24")), Some(json!("example-org/storefront-api")), Some(json!("token"))));
+        assert_eq!(raw.timestamp_ms, Some(1_793_959_200_250), "GitLab's time");
+    }
+
+    #[test]
     fn every_integrations_pipelines_are_listed() {
         assert!(all().len() >= 240, "{} pipelines", all().len());
         for id in ["nginx", "postgres", "mysql", "redisdb", "cisco_asa", "mongo", "symantec_endpoint_protection"] {
