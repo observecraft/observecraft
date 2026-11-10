@@ -1,0 +1,135 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Okta (https://developer.okta.com/docs/api/openapi/okta-management/management/tag/SystemLog/): an org's System Log,
+# as the logs Datadog's Okta integration sends (source:okta, Okta's LogEvent fields at the top level, plus the standard
+# evt.*, usr.* and network.client.* attributes the Okta Cloud SIEM pack reads). Datadog has no integrations-core tile
+# for it (its Okta integration is collected by its own service), so the package adds its own tile, with our dashboard.
+schema_version: 1
+id: okta
+name: Okta
+publisher: ObserveCraft
+vendor: Okta
+description: >-
+  An Okta org's System Log (sign-ins, MFA, password and session events, admin changes, app assignments, policy
+  evaluations) as logs, read every minute through Okta's System Log API.
+logo: okta
+categories: [Security, SIEM, Log Collection]
+docs_url: https://developer.okta.com/docs/reference/system-log-query/
+setup: |
+  1. In the Okta Admin Console, sign in as (or create) an administrator with the **Read-Only Administrator** role:
+     its token can read the System Log and nothing else.
+  2. As that administrator, open **Security → API → Tokens** and **Create token**, e.g. `observecraft`; copy it, Okta
+     shows it once. A token unused for 30 days expires, and its requests share the administrator's rate limits.
+  3. Enter your org's Okta domain (`example.okta.com`, `example.okta-emea.com` or a custom domain).
+links:
+  - { label: API tokens, url: "https://{{ config.domain }}/admin/access/api/tokens" }
+instance: "{{ config.domain }}"
+
+config:
+  - key: domain
+    label: Okta domain
+    type: string
+    required: true
+    placeholder: example.okta.com
+    pattern: "[A-Za-z0-9.-]+"
+    help: Your org's domain without https:// (example.okta.com, example.oktapreview.com or a custom domain).
+  - key: api_token
+    label: API token
+    type: string
+    secret: true
+    required: true
+    help: An API token of a Read-Only Administrator.
+
+auth:
+  kind: api_key
+  name: Authorization
+  value: "SSWS {{ secrets.api_token }}"
+
+headers:
+  Accept: application/json
+
+# The System Log's own limit is per org (60 to 120 requests a minute by plan); leave room for the customer's tools.
+rate_limit: { requests_per_minute: 30 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Okta refused the API token (revoked, expired after 30 days unused, or for another org)
+  - status: [403]
+    kind: access_denied
+    message: "The token's administrator can't read the System Log: give it the Read-Only Administrator role"
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Okta (resets at {{ headers['x-rate-limit-reset'] ?? '?' }})"
+
+streams:
+  - id: system_log
+    name: System Log
+    description: >-
+      Every System Log event as a log (source:okta, service:okta): evt.name is the eventType, evt.outcome the
+      outcome's result, usr.* the actor, network.client.* the client's IP and location. Failures and denials are
+      warnings, Okta's ERROR severity errors.
+    # A bounded query (since and until) in ascending order: Okta's Link header stops at the window's end.
+    request:
+      url: "https://{{ config.domain }}/api/v1/logs"
+      query:
+        since: "{{ window.start | rfc3339 }}"
+        until: "{{ window.end | rfc3339 }}"
+        sortOrder: ASCENDING
+        limit: 1000
+    pagination: { kind: link_header }
+    max_pages: 30
+    record_id: "{{ record.uuid }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.published }}"
+      order: oldest_first
+      lookback: 1d
+      # Okta is eventually consistent: events can be listed a minute or two after their time.
+      overlap: 5m
+      settle: 30s
+    vars:
+      outcome: "{{ record.outcome.result }}"
+    output:
+      logs:
+        service: okta
+        message: "{{ record.displayMessage ?? record.eventType }}"
+        status: >-
+          {{ record.severity == 'ERROR' ? 'error'
+             : (record.severity == 'WARN' || vars.outcome in ['FAILURE', 'DENY']) ? 'warn'
+             : 'info' }}
+        date: "{{ record.published }}"
+        attributes: >-
+          {{ record + {
+               evt: {name: record.eventType, outcome: vars.outcome},
+               usr: {id: record.actor.id, email: record.actor.alternateId, name: record.actor.displayName},
+               network: {client: {ip: record.client.ipAddress, geoip: record.client.geographicalContext}},
+               http: {useragent: record.client.userAgent.rawUserAgent}
+             } }}
+
+test:
+  request:
+    url: "https://{{ config.domain }}/api/v1/logs"
+    query: { limit: 1, since: "{{ (now - 3600000) | rfc3339 }}" }
+  message: "Connected to {{ config.domain }}: the token can read the System Log"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { domain: example.okta.com }
+  secrets: { api_token: 00aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789ab }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - url: https://example.okta.com/api/v1/logs
+      query: { after: "1762775700000_1" }
+      file: fixtures/logs-2.json
+    - url: https://example.okta.com/api/v1/logs
+      query: { limit: "1" }
+      body: []
+    - url: https://example.okta.com/api/v1/logs
+      file: fixtures/logs-1.json
+      headers:
+        Link: '<https://example.okta.com/api/v1/logs?since=2026-11-09T11%3A59%3A30.000Z&until=2026-11-10T11%3A59%3A30.000Z&sortOrder=ASCENDING&limit=1000&after=1762775700000_1>; rel="next"'
+  expect:
+    system_log: { records: 4, logs: 4, rerun: 0, golden: fixtures/system_log.expected.json }
+    test: { ok: true, message: "Connected to example.okta.com" }
