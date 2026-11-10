@@ -3,10 +3,11 @@
 // replaced by our own artwork (web/public/images/integrations/<integration>-banner.svg).
 // node scripts/import-integration-dashboards.mjs [integration] [commit SHA]
 // node scripts/import-integration-dashboards.mjs --all --source <integrations-core checkout> [--extras <integrations-extras checkout>]
+// node scripts/import-integration-dashboards.mjs --mock   (only the mock subset, from the imported bundle)
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { gzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
 import { formulaQueries, parseMetricQuery } from '../web/src/lib/metricQuery.ts';
 // The last revision with every integration: from 9afe6c8 (2026-10-30) Datadog moves integrations to a private
@@ -310,7 +311,26 @@ export function metricDescriptions(csv) {
 /** Integrations with a bundle of their own (Kubernetes, the clouds): not repeated in the core bundle. */
 const OWN_BUNDLES = new Set(['kubernetes', 'aws', 'azure', 'gcp']);
 /** Integrations the mock shows installed: their dashboards are bundled with the UI for `make web-mock`. */
-const MOCK_INTEGRATIONS = ['postgres', 'mysql', 'redisdb', 'nginx', 'kafka', 'mongo', 'elastic', 'rabbitmq', 'cisco-asa', 'traefik-mesh', 'bind9', 'gitea', 'emqx'];
+const MOCK_INTEGRATIONS = [
+  'postgres',
+  'mysql',
+  'redisdb',
+  'nginx',
+  'kafka',
+  'mongo',
+  'elastic',
+  'rabbitmq',
+  'cisco-asa',
+  'traefik-mesh',
+  'bind9',
+  'gitea',
+  'emqx',
+  'vault',
+  'gatekeeper',
+  'external-secrets',
+  'argocd',
+  'cert-manager',
+];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */
 export function bannerFor(id) {
@@ -351,6 +371,36 @@ export async function coreBundle(source, catalog, revision = PINNED_REVISION, ex
   return bundle.sort((a, b) => a.logo.localeCompare(b.logo));
 }
 
+/** The dashboards of the integrations the mock shows installed, with the units of the metrics they chart (the server reads units.csv). */
+async function writeMockSubset(bundle, units) {
+  const dashboards = bundle.filter((b) => MOCK_INTEGRATIONS.includes(b.logo)).flatMap((b) => b.dashboards);
+  const charted = new Set([...JSON.stringify(dashboards).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{/g)].map((m) => m[1]));
+  const mockUnits = Object.fromEntries(
+    [...charted]
+      .filter((m) => units.has(m))
+      .sort()
+      .map((m) => [m, units.get(m)]),
+  );
+  await writeFile(new URL('../web/src/api/integrations/coreDashboards.generated.json', import.meta.url), JSON.stringify({ dashboards, units: mockUnits }) + '\n');
+}
+
+/** `--mock`: the mock subset again from the imported bundle and units.csv (after changing MOCK_INTEGRATIONS), without a checkout. */
+async function importMock() {
+  const target = new URL('../server/seeds/integrations/core/', import.meta.url);
+  const bundle = gunzipSync(await readFile(new URL('dashboards.ndjson.gz', target)))
+    .toString('utf8')
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line));
+  const units = new Map(
+    (await readFile(new URL('units.csv', target), 'utf8'))
+      .split('\n')
+      .filter((l) => l && !l.startsWith('#'))
+      .map((l) => [l.slice(0, l.indexOf(',')), l.slice(l.indexOf(',') + 1)]),
+  );
+  await writeMockSubset(bundle, units);
+}
+
 /** `--all --source <checkout> [--extras <checkout>]`: the bundle (gzip NDJSON), the units of every metric and the mock subset. */
 async function importAll(source, revision, extras) {
   const license = await readFile(join(source, 'LICENSE'), 'utf8');
@@ -378,20 +428,12 @@ async function importAll(source, revision, extras) {
   );
   await writeFile(new URL('LICENSE', target), license);
   if (extrasLicense) await writeFile(new URL('LICENSE-integrations-extras', target), extrasLicense);
-  const dashboards = bundle.filter((b) => MOCK_INTEGRATIONS.includes(b.logo)).flatMap((b) => b.dashboards);
-  // The units of the metrics they chart, for the mock's series (the server reads units.csv).
-  const charted = new Set([...JSON.stringify(dashboards).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{/g)].map((m) => m[1]));
-  const mockUnits = Object.fromEntries(
-    [...charted]
-      .filter((m) => units.has(m))
-      .sort()
-      .map((m) => [m, units.get(m)]),
-  );
-  await writeFile(new URL('../web/src/api/integrations/coreDashboards.generated.json', import.meta.url), JSON.stringify({ dashboards, units: mockUnits }) + '\n');
+  await writeMockSubset(bundle, units);
   console.log(`Imported ${bundle.reduce((n, b) => n + b.dashboards.length, 0)} dashboards of ${bundle.length} integrations and ${units.size} metric units.`);
 }
 
 async function main() {
+  if (process.argv.includes('--mock')) return importMock();
   if (process.argv.includes('--all')) {
     const source = process.argv[process.argv.indexOf('--source') + 1];
     if (!process.argv.includes('--source') || !source) throw new Error('usage: --all --source <integrations-core checkout> [--extras <integrations-extras checkout>]');
