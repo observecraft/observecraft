@@ -487,6 +487,22 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
     ],
   },
   {
+    check: 'temporal',
+    variants: [
+      {
+        label: 'Temporal Helm chart (temporalio/helm-charts)',
+        text: 'Each service serves its Prometheus metrics on port 9090 (the chart’s `server.config.metrics.prometheus`, histogram timers). Put the annotations in `server.podAnnotations`, which every service’s pod gets; each reads its own container’s (`temporal-frontend`, `temporal-history`, `temporal-matching`, `temporal-worker`). The logs annotations name the `temporal` source the integration’s pipeline reads and one service per Temporal service, as the dashboard’s log streams expect.',
+        filename: POD_ANNOTATIONS,
+        code: ['frontend', 'history', 'matching', 'worker']
+          .flatMap((service) => [
+            checkAnnotation(`temporal-${service}`, 'temporal', { instances: [{ openmetrics_endpoint: 'http://%%host%%:9090/metrics' }] }),
+            logsAnnotation(`temporal-${service}`, 'temporal', service === 'worker' ? 'temporal' : `temporal-${service}`),
+          ])
+          .join('\n'),
+      },
+    ],
+  },
+  {
     check: 'coredns',
     variants: [
       {

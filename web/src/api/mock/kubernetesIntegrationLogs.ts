@@ -44,7 +44,80 @@ const RESOURCES = ['pods', 'deployments', 'configmaps', 'leases', 'endpointslice
 const APPS = ['storefront-api', 'order-service', 'billing', 'catalog-service', 'inventory-service'];
 const NAMESPACES = ['storefront', 'checkout', 'billing', 'catalog'];
 
+/** A zap JSON line of Temporal's server as its pipeline leaves it (`msg` the message, `level`, the call site). */
+const temporalLine = (status: LogStatus, msg: string, at: string, extra: (r: Rand) => Record<string, JsonValue> = () => ({}), weight = 1): Line => ({
+  status,
+  message: () => msg,
+  attributes: (r) => ({ level: status === 'warn' ? 'warn' : status, 'logging-call-at': at, ...extra(r) }),
+  weight,
+});
+const TEMPORAL_NAMESPACES = ['default', 'orders', 'billing', 'storefront'];
+const TASK_QUEUES = ['order-processing', 'payment-capture', 'email-notifications', 'inventory-sync'];
+const workflow = (r: Rand): Record<string, JsonValue> => ({
+  'wf-namespace': pick(r, TEMPORAL_NAMESPACES),
+  'wf-task-queue-name': pick(r, TASK_QUEUES),
+  'wf-id': `order-${100000 + Math.floor(r() * 900000)}`,
+});
+/** Temporal's services, each with its own `service` (temporal-frontend, …) as the dashboard's log streams read. */
+const temporal = (service: string, lines: Line[], count: number): Source => ({
+  source: 'temporal',
+  service: `temporal${service ? `-${service}` : ''}`,
+  namespace: 'temporal',
+  pod: (i) => `temporal-${service || 'worker'}-6b8d9c7f5-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+  count,
+  lines,
+});
+
 const SOURCES: Source[] = [
+  temporal(
+    'frontend',
+    [
+      temporalLine('info', 'Frontend is now healthy', 'service.go:245', () => ({}), 1),
+      temporalLine(
+        'warn',
+        'Namespace rate limit exceeded',
+        'telemetry.go:419',
+        (r) => ({ 'wf-namespace': pick(r, TEMPORAL_NAMESPACES), 'grpc-method': '/temporal.api.workflowservice.v1.WorkflowService/StartWorkflowExecution' }),
+        2,
+      ),
+      temporalLine('info', 'Workflow execution already started', 'telemetry.go:385', workflow, 3),
+      temporalLine('error', 'Unable to call matching.PollWorkflowTaskQueue.', 'workflow_handler.go:921', (r) => ({ ...workflow(r), error: 'context deadline exceeded' }), 1),
+    ],
+    160,
+  ),
+  temporal(
+    'matching',
+    [
+      temporalLine('info', 'Task queue manager started', 'task_queue_manager.go:264', workflow, 3),
+      temporalLine('info', 'Unloaded task queue', 'matching_engine.go:1204', workflow, 2),
+      temporalLine(
+        'error',
+        'Persistent store operation failure',
+        'task_reader.go:212',
+        (r) => ({ ...workflow(r), 'store-operation': 'update-task-queue', error: 'Failed to lock task queue. Error: driver: bad connection' }),
+        1,
+      ),
+    ],
+    120,
+  ),
+  temporal(
+    'history',
+    [
+      temporalLine('info', 'Acquired shard', 'context_impl.go:1968', (r) => ({ 'shard-id': 1 + Math.floor(r() * 512) }), 2),
+      temporalLine('warn', 'history size exceeds warn limit.', 'workflow_size_checker.go:123', workflow, 1),
+      temporalLine('info', 'Workflow task timed out', 'timer_queue_active_task_executor.go:327', workflow, 2),
+      temporalLine('error', 'Fail to process task', 'lazy_logger.go:68', (r) => ({ ...workflow(r), error: 'context deadline exceeded', 'queue-task-type': 'TransferActivityTask' }), 1),
+    ],
+    160,
+  ),
+  temporal(
+    '',
+    [
+      temporalLine('info', 'Scanner workflow started', 'scanner.go:292', () => ({ 'wf-type': 'temporal-sys-tq-scanner-workflow' }), 1),
+      temporalLine('info', 'none', 'worker.go:96', () => ({ component: 'worker-manager', lifecycle: 'Started' }), 1),
+    ],
+    40,
+  ),
   {
     source: 'kube-apiserver',
     service: 'kube-apiserver',

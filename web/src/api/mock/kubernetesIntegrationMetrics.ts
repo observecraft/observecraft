@@ -9,6 +9,12 @@ type Override = { base: (e: Tags, r: Rand) => number; noise: number; integer?: b
 const HOSTS = ['i-0a1b2c3d4e5f60001', 'i-0a1b2c3d4e5f60002', 'i-0a1b2c3d4e5f60003', 'i-0a1b2c3d4e5f60006'];
 const CLUSTER = ['shop-prod-eks', 'shop-prod-eks', 'shop-prod-eks', 'shop-qa-eks'];
 
+/** A number in [0, 1) fixed per instance (its tags), for values that must agree across metrics. */
+const seeded = (e: Tags) => {
+  let h = 2166136261;
+  for (const c of JSON.stringify(e)) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return (h >>> 0) / 2 ** 32;
+};
 /** A value between `lo` and `hi` per instance, varying by `noise`. */
 const between = (lo: number, hi: number, noise = 0.15, integer = false): Override => ({ base: (_e, r) => lo + r() * (hi - lo), noise, ...(integer ? { integer } : {}) });
 /** Always `v` (versions, info gauges, configured limits). */
@@ -114,6 +120,23 @@ export const INFRA_VALUES: Record<string, Record<string, string[]>> = {
     action_type: ['CordonAndDrain', 'CordonAndDrain', 'NoAction', 'CordonAndDrain'],
     message_type: ['SpotInterruptionKind', 'RebalanceRecommendationKind', 'ScheduledChangeKind', 'StateChangeKind'],
     controller: ['nodeclaim.lifecycle', 'provisioner', 'disruption', 'nodepool.counter'],
+  },
+  temporal: {
+    namespace: ['default', 'orders', 'billing', 'storefront'],
+    operation: [
+      'startworkflowexecution',
+      'respondworkflowtaskcompleted',
+      'pollworkflowtaskqueue',
+      'pollactivitytaskqueue',
+      'visibilitytaskupsertexecution',
+      'visibilitytaskstartexecution',
+      'shardinfo',
+      'historycachegetorcreate',
+      'createtasks',
+    ],
+    taskqueue: ['order-processing', 'payment-capture', 'email-notifications', 'inventory-sync'],
+    error_type: ['serviceerror_NotFound', 'serviceerror_WorkflowExecutionAlreadyStarted', 'context_deadline_exceeded', 'serviceerror_ResourceExhausted'],
+    resource_exhausted_cause: ['RpsLimit', 'ConcurrentLimit', 'BusyWorkflow', 'PersistenceLimit'],
   },
 };
 
@@ -233,6 +256,25 @@ export const INFRA_OVERRIDES: Record<string, Override> = {
   'karpenter.go_goroutines': between(380, 720, 0.05, true),
   'karpenter.go.memstats.alloc_bytes': between(60e6, 160e6, 0.15),
   'karpenter.process.cpu_seconds.count': between(0.05, 0.4, 0.3),
+  // Latencies in milliseconds: sums over counts of a few to tens of milliseconds.
+  'temporal.server.service.latency.sum': between(1200, 6000, 0.3),
+  'temporal.server.service.latency.count': between(120, 260, 0.2),
+  'temporal.server.persistence.latency.sum': between(600, 2400, 0.3),
+  'temporal.server.persistence.latency.count': between(150, 300, 0.2),
+  'temporal.server.lock.latency.sum': between(2, 12, 0.3),
+  'temporal.server.lock.latency.count': between(80, 160, 0.2),
+  'temporal.server.cache.latency.sum': between(4, 20, 0.3),
+  'temporal.server.cache.latency.count': between(200, 400, 0.2),
+  'temporal.server.task.latency.sum': between(900, 3600, 0.3),
+  'temporal.server.task.latency.count': between(80, 200, 0.2),
+  // Most polls are matched synchronously.
+  'temporal.server.poll.success.count': { base: (e) => 80 + seeded(e) * 140, noise: 0.03 },
+  'temporal.server.poll.success_sync.count': { base: (e) => (80 + seeded(e) * 140) * 0.93, noise: 0.03 },
+  'temporal.server.persistence.requests.count': between(150, 420, 0.2),
+  'temporal.server.service.requests.count': between(100, 380, 0.2),
+  'temporal.server.service.error_with_type.count': rare(4, 0.15),
+  'temporal.server.persistence.error_with_type.count': rare(2, 0.05),
+  'temporal.server.service.errors.resource_exhausted': rare(3, 0.05),
   'kube_apiserver.registered_watchers': between(5, 180, 0.05, true),
   'kube_apiserver.process_virtual_memory_bytes': between(1.6e9, 2.1e9, 0.01),
   'kube_apiserver.process_resident_memory_bytes': between(650e6, 1.2e9, 0.03),

@@ -377,6 +377,19 @@ mod tests {
         assert_eq!(agent_log("karpenter", json!({"message": line.to_string(), "service": "karpenter", "ddsource": "karpenter"})).status, "error");
     }
 
+    /// Temporal's server logs (zap JSON, `source:temporal`), as integrations-core's `temporal_tests.yaml` expects:
+    /// `msg` as the message, `level` as the status, the service as `temporal-<service>`.
+    #[test]
+    fn temporal_server_logs() {
+        use serde_json::json;
+        let line = json!({"level": "error", "ts": "2026-11-10T09:15:02.921Z", "msg": "Persistent store operation failure", "service": "matching", "component": "matching-engine",
+            "wf-namespace": "orders", "wf-task-queue-name": "order-processing", "store-operation": "update-task-queue", "error": "Failed to lock task queue. Error: driver: bad connection", "logging-call-at": "task_reader.go:212"});
+        let log = agent_log("temporal", json!({"message": line.to_string(), "hostname": "i-0a1b2c3d4e5f60003", "service": "temporal-matching", "ddsource": "temporal"}));
+        assert_eq!((log.message.as_str(), log.status.as_str(), log.service.as_str()), ("Persistent store operation failure", "error", "temporal-matching"));
+        assert_eq!((log.get("wf-namespace"), log.get("store-operation"), log.get("msg")), (Some(json!("orders")), Some(json!("update-task-queue")), None));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_921));
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};

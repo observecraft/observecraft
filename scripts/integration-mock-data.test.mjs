@@ -86,6 +86,7 @@ for (const title of [
   'CoreDNS [V2]',
   'KEDA Overview',
   'Karpenter Overview',
+  'Temporal Server Overview',
 ]) {
   test(`every widget of ${title} has data in mock mode`, async () => {
     const d = mock.dashboards.find((x) => x.title === title);
