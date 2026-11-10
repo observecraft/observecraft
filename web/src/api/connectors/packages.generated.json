@@ -9104,6 +9104,56 @@
   {
     "entry": {
       "categories": [
+        "Security",
+        "Developer Tools",
+        "Log Collection"
+      ],
+      "config": [],
+      "dashboards": [],
+      "description": "Sym's audit log (access requests, approvals, denials, escalations and their actors and flows) sent by a Sym HTTP log destination as it happens.",
+      "docsUrl": "https://github.com/symopsio/terraform-provider-sym/blob/main/docs/resources/log_destination.md",
+      "id": "sym",
+      "kind": "push",
+      "links": [],
+      "logo": "sym",
+      "monitors": [],
+      "name": "Sym",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": {
+        "canCreate": false,
+        "endpoints": [],
+        "headers": {},
+        "instructions": "Add an HTTP log destination to your Sym environment's Terraform, then `terraform apply`:\n\n```hcl\nresource \"sym_log_destination\" \"observecraft\" {\n  type           = \"http\"\n  integration_id = sym_integration.runtime_context.id\n\n  settings = {\n    url = \"{{ intake }}/api/v2/logs?ddsource=sym&service=sym&api_key={{ api_key }}\"\n  }\n}\n```\n\nList it in the environment's `log_destination_ids` (`sym_environment`), then make a request in Sym: its events\nappear in Logs as `source:sym`. The URL holds the ingest key: keep the Terraform state private.\n",
+        "kind": "logs",
+        "signatureHeader": null,
+        "signatureSecret": null,
+        "url": "{{ intake }}/api/v2/logs?ddsource=sym&service=sym&api_key={{ api_key }}",
+        "webhook": null
+      },
+      "setup": null,
+      "source": "sym",
+      "streams": [],
+      "testable": false,
+      "thirdParty": false,
+      "tiles": [
+        "sym"
+      ],
+      "vendor": "Sym",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": null,
+      "secrets": null,
+      "test": null
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
         "Log Collection",
         "Security",
         "SIEM"

@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Sym (https://docs.symops.com): push-only. Sym has no API to read its audit log; a `sym_log_destination` of type
+# `http` posts every platform event (request, approve, deny, escalate, …: actor, run, event, fields, meta) to a URL.
+# Its settings take only a URL, so the ingest key goes in the query (`api_key=`), with ddsource and service, giving
+# the logs Datadog's Sym integration receives (source:sym, service:sym) for integrations-extras' pipeline and
+# "Sym Overview" dashboard. Sym's documentation doesn't describe the HTTP body; it is taken to be the event's JSON
+# (one object, or an array), which the Datadog logs API accepts either way.
+schema_version: 1
+id: sym
+name: Sym
+publisher: ObserveCraft
+vendor: Sym
+description: >-
+  Sym's audit log (access requests, approvals, denials, escalations and their actors and flows) sent by a Sym HTTP log
+  destination as it happens.
+tiles: [sym]
+categories: [Security, Developer Tools, Log Collection]
+source: sym
+docs_url: https://github.com/symopsio/terraform-provider-sym/blob/main/docs/resources/log_destination.md
+
+push:
+  kind: logs
+  url: "{{ intake }}/api/v2/logs?ddsource=sym&service=sym&api_key={{ api_key }}"
+  instructions: |
+    Add an HTTP log destination to your Sym environment's Terraform, then `terraform apply`:
+
+    ```hcl
+    resource "sym_log_destination" "observecraft" {
+      type           = "http"
+      integration_id = sym_integration.runtime_context.id
+
+      settings = {
+        url = "{{ intake }}/api/v2/logs?ddsource=sym&service=sym&api_key={{ api_key }}"
+      }
+    }
+    ```
+
+    List it in the environment's `log_destination_ids` (`sym_environment`), then make a request in Sym: its events
+    appear in Logs as `source:sym`. The URL holds the ingest key: keep the Terraform state private.
