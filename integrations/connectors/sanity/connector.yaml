@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Sanity (https://www.sanity.io/docs/http-reference/activity-log): the activity log of the projects and organizations a
+# token can see, and document changes pushed by a GROQ-powered webhook, as the logs Datadog's integration sends
+# (source:sanity, service:activity-logs, the event's fields at the top). integrations-core's Sanity pipeline (action →
+# evt.name, actor* → usr.*), "Sanity Activity Overview" dashboard and monitors read them as they are, so this package
+# ships none: saving a connection installs the tile's.
+#
+# The document webhook is declared under `webhook` (the intake's /intake/webhook/sanity). The intake doesn't read
+# package webhook mappings yet (docs/connectors.md, push-only vendors): until it does, only the activity log is
+# collected.
+schema_version: 1
+id: sanity
+name: Sanity
+publisher: ObserveCraft
+vendor: Sanity
+description: >-
+  The activity log of your Sanity projects and organization (members, roles, datasets, CORS origins, tokens, studio
+  hosts, plans) read from Sanity's Activity Log API, and document creates, updates and deletes (comments and tasks
+  included) sent by a Sanity webhook, as logs.
+tiles: [sanity]
+categories: [Log Collection, Developer Tools, Security]
+docs_url: https://www.sanity.io/docs/http-reference/activity-log
+setup: |
+  1. In [sanity.io/manage](https://www.sanity.io/manage), open the project, then **API → Tokens → Add API token**
+     with the **Viewer** permission (the log shows only the activity the token's user can see; an organization
+     admin's token sees the organization's events too).
+  2. Document changes: in **API → Webhooks**, create a webhook to ObserveCraft's intake
+     (`/intake/webhook/sanity` with your ingest key as `?dd-api-key=`), trigger on **Create, Update, Delete**, filter
+     empty for every document, HTTP method POST, API version `v2021-03-25` or later, **Drafts** off, and this
+     projection:
+
+     ```groq
+     {
+       "documentId": _id,
+       "documentType": _type,
+       "projectId": sanity::projectId(),
+       "datasetName": sanity::dataset(),
+       "action": "document." + delta::operation(),
+       "beforeValues": before(),
+       "afterValues": after(),
+       "timestamp": now()
+     }
+     ```
+links:
+  - { label: Manage your projects, url: "https://www.sanity.io/manage" }
+instance: sanity
+
+config:
+  - key: project_ids
+    label: Projects
+    type: list
+    pattern: "[a-z0-9]+"
+    placeholder: abcd1234
+    help: Leave empty to read every project and organization the token can see.
+  - key: api_token
+    label: API token
+    type: string
+    secret: true
+    required: true
+    help: A project token with the Viewer permission.
+
+auth:
+  kind: bearer
+  token: "{{ secrets.api_token }}"
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Sanity refused the API token
+  - status: [403]
+    kind: access_denied
+    message: "The token can't read the activity log{{ ': ' + response.message ?? '' }}"
+
+streams:
+  - id: activity
+    name: Activity log
+    description: >-
+      Every activity event as a log (service:activity-logs): action (evt.name after the tile's pipeline), actorId /
+      actorName / actorEmail, projectId, projectDisplayName, datasetName, description, metadata.
+    interval: 5m
+    request:
+      url: "https://api.sanity.io/v2021-02-01/activity"
+      query:
+        startTime: "{{ window.start | rfc3339 }}"
+        endTime: "{{ window.end | rfc3339 }}"
+        projectId: "{{ config.project_ids }}"
+        limit: 100
+        offset: "{{ page.offset }}"
+    pagination: { kind: offset, size: 100 }
+    max_pages: 50
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.timestamp }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        service: activity-logs
+        message: "{{ record.description ?? record.action }}"
+        status: "{{ record.action | matches('\\.(delete|remove)$') ? 'warn' : 'info' }}"
+        date: "{{ record.timestamp }}"
+        attributes: "{{ record }}"
+
+webhook:
+  name: sanity
+  logs:
+    service: activity-logs
+    message: "{{ record.action }} {{ record.documentType }} {{ record.documentId }} in {{ record.datasetName }}"
+    status: "{{ record.action == 'document.delete' ? 'warn' : 'info' }}"
+    date: "{{ record.timestamp }}"
+    attributes: "{{ record }}"
+
+test:
+  request:
+    url: "https://api.sanity.io/v2021-02-01/activity"
+    query: { limit: 1, projectId: "{{ config.project_ids }}" }
+  message: "Connected: the token reads the activity log ({{ response | len }} recent event)"
+
+mock:
+  secrets: { api_token: sk-test-token }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.sanity.io/v2021-02-01/activity", query: { limit: "100" }, file: fixtures/activity.json }
+    - { url: "https://api.sanity.io/v2021-02-01/activity", query: { limit: "1" }, file: fixtures/activity-latest.json }
+  expect:
+    activity: { records: 3, logs: 3, rerun: 0, golden: fixtures/activity.expected.json }
+    test: { ok: true, message: "1 recent event" }
