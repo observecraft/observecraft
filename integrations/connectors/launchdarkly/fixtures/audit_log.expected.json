@@ -1,0 +1,67 @@
+{
+  "costs": [],
+  "events": [
+    {
+      "aggregation_key": "flag:new-checkout-flow",
+      "alert_type": "info",
+      "host": "",
+      "priority": "normal",
+      "source_type_name": "launchdarkly",
+      "tags": [
+        "env:production",
+        "flag:new-checkout-flow",
+        "kind:flag",
+        "member:jordan.patel@example.com",
+        "project:storefront",
+        "source:launchdarkly"
+      ],
+      "text": "* Turned on targeting\n\n\nRolling out to all storefront users",
+      "time_ms": 1794310200000,
+      "title": "jordan.patel@example.com turned on the flag new-checkout-flow"
+    },
+    {
+      "aggregation_key": "flag:fast-inventory-sync",
+      "alert_type": "warning",
+      "host": "",
+      "priority": "normal",
+      "source_type_name": "launchdarkly",
+      "tags": [
+        "env:production",
+        "flag:fast-inventory-sync",
+        "kind:flag",
+        "member:sam.lee@example.com",
+        "project:inventory-service",
+        "source:launchdarkly"
+      ],
+      "text": "* Turned off targeting\n",
+      "time_ms": 1794306600000,
+      "title": "sam.lee@example.com turned off the flag fast-inventory-sync"
+    },
+    {
+      "aggregation_key": "segment:beta-testers",
+      "alert_type": "info",
+      "host": "",
+      "priority": "normal",
+      "source_type_name": "launchdarkly",
+      "tags": [
+        "env:test",
+        "kind:segment",
+        "member:jordan.patel@example.com",
+        "project:storefront",
+        "source:launchdarkly"
+      ],
+      "text": "* Added 12 users\n",
+      "time_ms": 1794297600000,
+      "title": "jordan.patel@example.com updated the segment beta-testers"
+    }
+  ],
+  "logs": [],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

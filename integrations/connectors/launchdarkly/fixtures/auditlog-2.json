@@ -1,0 +1,10 @@
+{
+  "items": [
+    { "_id": "6730aa00bb11cc22dd33ee46", "_accountId": "5f0e1d2c3b4a596877665544", "date": 1794297600000, "kind": "segment", "name": "beta-testers",
+      "description": "* Added 12 users\n", "shortDescription": "updated", "titleVerb": "updated the segment",
+      "member": { "_id": "5f0e1d2c3b4a596877660001", "email": "jordan.patel@example.com" },
+      "target": { "name": "beta-testers", "resources": ["proj/storefront:env/test:segment/beta-testers"] },
+      "accesses": [ { "action": "updateIncluded", "resource": "proj/storefront:env/test:segment/beta-testers" } ] }
+  ],
+  "_links": {}
+}

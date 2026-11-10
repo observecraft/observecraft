@@ -1,0 +1,136 @@
+# yaml-language-server: $schema=../connector.schema.json
+# LaunchDarkly (https://launchdarkly.com/docs/api/audit-log): an account's audit log (flags turned on and off,
+# targeting, segments, environments, members) as the events Datadog's LaunchDarkly integration creates (source
+# launchdarkly, tags env, project, kind, flag; integrations-extras/launchdarkly, whose catalog listing we leave
+# out), read every minute. LaunchDarkly can push the same entries instead: a webhook in its Integrations page,
+# signed with a secret (push below; the intake side of webhooks isn't built yet, docs/connectors.md). The Relay
+# Proxy's metrics come through the OpenTelemetry Collector, not this package.
+schema_version: 1
+id: launchdarkly
+name: LaunchDarkly
+publisher: ObserveCraft
+vendor: LaunchDarkly
+description: >-
+  A LaunchDarkly account's change history (feature flags turned on or off, targeting and rollouts changed,
+  segments, environments, projects and members) as events, read every minute from its audit log API.
+logo: launchdarkly
+categories: [Configuration & Deployment, Developer Tools, Notifications]
+docs_url: https://launchdarkly.com/docs/api/audit-log
+setup: |
+  1. In LaunchDarkly, open **Organization settings → Authorization** and **Create token**: a service token, e.g.
+     `observecraft`, with the **Reader** role (or a custom role allowing `viewAuditLog`). Copy it.
+  2. Pick your instance: commercial (app.launchdarkly.com), EU (app.eu.launchdarkly.com) or Federal
+     (app.launchdarkly.us).
+links:
+  - { label: Access tokens, url: "{{ config.base_url }}/settings/authorization" }
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: Instance
+    type: url
+    required: true
+    default: https://app.launchdarkly.com
+    placeholder: https://app.launchdarkly.com
+    help: https://app.launchdarkly.com, https://app.eu.launchdarkly.com or https://app.launchdarkly.us.
+  - { key: token, label: Access token, type: string, secret: true, required: true, placeholder: api-…, help: A Reader service token. }
+  - key: spec
+    label: Resources
+    type: string
+    placeholder: "proj/*:env/production:flag/*"
+    help: A resource specifier to read only some changes (default every resource).
+  - key: signing_secret
+    label: Webhook secret
+    type: string
+    secret: true
+    help: For the push alternative only, the secret LaunchDarkly signs its webhook with.
+
+auth:
+  kind: api_key
+  name: Authorization
+  value: "{{ secrets.token }}"
+
+errors:
+  - status: [401]
+    kind: auth
+    message: LaunchDarkly refused the access token (revoked, expired or for another instance)
+  - status: [403]
+    kind: access_denied
+    message: "The token's role can't read the audit log: give it the Reader role or a role allowing viewAuditLog"
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by LaunchDarkly (resets at {{ headers['x-ratelimit-reset'] ?? '?' }})"
+
+streams:
+  - id: audit_log
+    name: Audit log
+    description: >-
+      Every change as an event (source launchdarkly): the member, what changed and where, tagged with env,
+      project, kind and flag. Turning a flag off or deleting a resource is a warning.
+    # Newest first, at most 20 entries a page.
+    request:
+      url: "{{ config.base_url }}/api/v2/auditlog"
+      query:
+        after: "{{ window.start }}"
+        before: "{{ window.end }}"
+        limit: 20
+        spec: "{{ config.spec }}"
+    records: "{{ response.items }}"
+    pagination: { kind: next_url, next: "{{ response._links.next.href }}" }
+    max_pages: 50
+    record_id: "{{ record._id }}"
+    incremental: { kind: time, record_time: "{{ record.date }}", order: newest_first, lookback: 1d, overlap: 1m }
+    vars:
+      resource: "{{ record.target.resources | first ?? '' }}"
+      verb: "{{ record.titleVerb ?? record.shortDescription }}"
+    output:
+      events:
+        title: "{{ record.member.email ?? record.member.firstName ?? 'LaunchDarkly' }} {{ vars.verb }} {{ record.name }}"
+        text: "{{ record.description ?? record.title ?? vars.verb }}{{ '\n\n' + record.comment ?? '' }}"
+        alert_type: "{{ (vars.verb | lower | matches('turned off|deleted|archived')) ? 'warning' : 'info' }}"
+        aggregation_key: "{{ record.kind + ':' + record.name }}"
+        date: "{{ record.date | rfc3339 }}"
+        tags:
+          kind: "{{ record.kind }}"
+          env: "{{ (vars.resource | split(':env/'))[1] | split(':') | first }}"
+          project: "{{ (vars.resource | split('proj/'))[1] | split(':') | first }}"
+          flag: "{{ (vars.resource | split(':flag/'))[1] | split(';') | first }}"
+          member: "{{ record.member.email }}"
+
+test:
+  request: { url: "{{ config.base_url }}/api/v2/auditlog", query: { limit: 1 } }
+  message: "Connected to {{ config.base_url | host }}: the token can read the audit log"
+
+push:
+  kind: webhook
+  instructions: |
+    Instead of polling, LaunchDarkly can send each change as it happens. In LaunchDarkly, open **Integrations →
+    Webhooks → Add integration**, set the **URL** to `{{ intake }}/intake/webhook/launchdarkly?api_key={{ api_key }}`,
+    turn on **Sign this webhook**, and paste its secret as the connection's **Webhook secret**. Use a policy to send
+    only some resources. Don't run both: turn the Audit log stream off once the webhook is on.
+  url: "{{ intake }}/intake/webhook/launchdarkly?api_key={{ api_key }}"
+  signature: { header: X-LD-Signature, algorithm: hmac_sha256, secret: signing_secret }
+
+# The webhook's body is the audit log entry (only logs can come from a webhook: the same fields, as a log).
+webhook:
+  name: launchdarkly
+  logs:
+    service: launchdarkly
+    message: "{{ record.member.email ?? 'LaunchDarkly' }} {{ record.titleVerb ?? record.shortDescription }} {{ record.name }}"
+    date: "{{ record.date | rfc3339 }}"
+    attributes: "{{ record + {evt: {name: record.kind + '.' + (record.accesses | first).action}, usr: {email: record.member.email}} }}"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { base_url: "https://app.launchdarkly.com" }
+  secrets: { token: api-example-token }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://app.launchdarkly.com/api/v2/auditlog", query: { limit: "1" }, body: { items: [], _links: {} } }
+    - { url: "https://app.launchdarkly.com/api/v2/auditlog", query: { before: "1794304800000" }, file: fixtures/auditlog-2.json }
+    - { url: "https://app.launchdarkly.com/api/v2/auditlog", file: fixtures/auditlog-1.json }
+  expect:
+    audit_log: { records: 3, events: 3, rerun: 0, golden: fixtures/audit_log.expected.json }
+    test: { ok: true, message: "the token can read the audit log" }
