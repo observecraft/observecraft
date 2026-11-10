@@ -1,0 +1,136 @@
+{
+  "Meta": {
+    "attributes": {
+      "org_id": 91234
+    },
+    "result_set": {
+      "count": 5,
+      "limit": 100,
+      "offset": 0,
+      "total": 5
+    }
+  },
+  "data": [
+    {
+      "test_id": "Z17EF-OPUKH-BDAE8-YEP01",
+      "build_id": 1142,
+      "build_name": "storefront-e2e-1142",
+      "user_id": 250563,
+      "username": "qa-team",
+      "status_ind": "running",
+      "create_timestamp": "2026-11-10T11:58:10.000Z",
+      "start_timestamp": "2026-11-10T11:58:20.000Z",
+      "end_timestamp": null,
+      "remark": "running",
+      "browser": "chrome",
+      "platform": "Windows 11",
+      "version": "130.0",
+      "name": "checkout flow",
+      "session_id": "e7f2d78de1a8822c98e91e4942800001",
+      "device": "",
+      "duration": "",
+      "test_type": "selenium",
+      "tag": [
+        "smoke"
+      ],
+      "customdata": {},
+      "selenium_logs": "https://api.lambdatest.com/automation/api/v1/sessions/e7f2d78de1a8822c98e91e4942800001/log/selenium"
+    },
+    {
+      "test_id": "Z17EF-OPUKH-BDAE8-YEP02",
+      "build_id": 1142,
+      "build_name": "storefront-e2e-1142",
+      "user_id": 250563,
+      "username": "qa-team",
+      "status_ind": "passed",
+      "create_timestamp": "2026-11-10T11:50:00.000Z",
+      "start_timestamp": "2026-11-10T11:50:12.000Z",
+      "end_timestamp": "2026-11-10T11:52:31.000Z",
+      "remark": "passed",
+      "browser": "chrome",
+      "platform": "Windows 11",
+      "version": "130.0",
+      "name": "checkout flow",
+      "session_id": "e7f2d78de1a8822c98e91e4942800002",
+      "device": "",
+      "duration": "139",
+      "test_type": "selenium",
+      "tag": [],
+      "customdata": {},
+      "selenium_logs": "https://api.lambdatest.com/automation/api/v1/sessions/e7f2d78de1a8822c98e91e4942800002/log/selenium"
+    },
+    {
+      "test_id": "Z17EF-OPUKH-BDAE8-YEP03",
+      "build_id": 1142,
+      "build_name": "storefront-e2e-1142",
+      "user_id": 250563,
+      "username": "qa-team",
+      "status_ind": "failed",
+      "create_timestamp": "2026-11-10T11:41:05.000Z",
+      "start_timestamp": "2026-11-10T11:41:15.000Z",
+      "end_timestamp": "2026-11-10T11:44:02.000Z",
+      "remark": "failed",
+      "browser": "safari",
+      "platform": "macOS Sequoia",
+      "version": "18.0",
+      "name": "cart: apply coupon",
+      "session_id": "e7f2d78de1a8822c98e91e4942800003",
+      "device": "",
+      "duration": "177",
+      "test_type": "selenium",
+      "tag": [
+        "smoke"
+      ],
+      "customdata": {},
+      "selenium_logs": "https://api.lambdatest.com/automation/api/v1/sessions/e7f2d78de1a8822c98e91e4942800003/log/selenium"
+    },
+    {
+      "test_id": "Z17EF-OPUKH-BDAE8-YEP04",
+      "build_id": 1142,
+      "build_name": "storefront-e2e-1142",
+      "user_id": 250563,
+      "username": "qa-team",
+      "status_ind": "error",
+      "create_timestamp": "2026-11-10T10:12:00.000Z",
+      "start_timestamp": "2026-11-10T10:12:30.000Z",
+      "end_timestamp": "2026-11-10T10:13:00.000Z",
+      "remark": "error",
+      "browser": "",
+      "platform": "Android 15",
+      "version": "",
+      "name": "mobile web login",
+      "session_id": "e7f2d78de1a8822c98e91e4942800004",
+      "device": "Galaxy S24",
+      "duration": "30",
+      "test_type": "selenium",
+      "tag": [],
+      "customdata": {},
+      "selenium_logs": "https://api.lambdatest.com/automation/api/v1/sessions/e7f2d78de1a8822c98e91e4942800004/log/selenium"
+    },
+    {
+      "test_id": "Z17EF-OPUKH-BDAE8-YEP05",
+      "build_id": 1142,
+      "build_name": "storefront-e2e-1142",
+      "user_id": 250563,
+      "username": "qa-team",
+      "status_ind": "passed",
+      "create_timestamp": "2026-11-08T09:00:00.000Z",
+      "start_timestamp": "2026-11-08T09:00:10.000Z",
+      "end_timestamp": "2026-11-08T09:02:00.000Z",
+      "remark": "passed",
+      "browser": "firefox",
+      "platform": "Windows 10",
+      "version": "131.0",
+      "name": "checkout flow",
+      "session_id": "e7f2d78de1a8822c98e91e4942800005",
+      "device": "",
+      "duration": "110",
+      "test_type": "selenium",
+      "tag": [
+        "smoke"
+      ],
+      "customdata": {},
+      "selenium_logs": "https://api.lambdatest.com/automation/api/v1/sessions/e7f2d78de1a8822c98e91e4942800005/log/selenium"
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c54d-7818-7804-9334-faab58361a03"
+      },
+      "build_id": 1142,
+      "build_name": "storefront-e2e-1142",
+      "date": "2026-11-10T11:52:31.000Z",
+      "ddsource": "lambdatest",
+      "ddtags": "build:storefront-e2e-1142",
+      "duration_in_secs": 139,
+      "host": "qa-team",
+      "id": "e7f2d78de1a8822c98e91e4942800002",
+      "message": "checkout flow: passed on chrome 130.0 (Windows 11), build storefront-e2e-1142",
+      "product": "Web Automation",
+      "remark": "passed",
+      "service": "LambdaTest",
+      "status": "Completed",
+      "test_created_at": "2026-11-10 11:50:00",
+      "test_ended_at": "2026-11-10 11:52:31",
+      "test_env_browser": "chrome 130.0",
+      "test_env_os": "Windows 11",
+      "test_id": "Z17EF-OPUKH-BDAE8-YEP02",
+      "test_name": "checkout flow",
+      "test_started_at": "2026-11-10 11:50:12",
+      "test_type": "selenium",
+      "username": "qa-team"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c545-b3d0-79b7-9109-9c2ad3946cf4"
+      },
+      "build_id": 1142,
+      "build_name": "storefront-e2e-1142",
+      "date": "2026-11-10T11:44:02.000Z",
+      "ddsource": "lambdatest",
+      "ddtags": "build:storefront-e2e-1142",
+      "duration_in_secs": 177,
+      "host": "qa-team",
+      "id": "e7f2d78de1a8822c98e91e4942800003",
+      "message": "cart: apply coupon: failed on safari 18.0 (macOS Sequoia), build storefront-e2e-1142",
+      "product": "Web Automation",
+      "remark": "failed",
+      "service": "LambdaTest",
+      "status": "Failed",
+      "tags": [
+        "smoke"
+      ],
+      "test_created_at": "2026-11-10 11:41:05",
+      "test_ended_at": "2026-11-10 11:44:02",
+      "test_env_browser": "safari 18.0",
+      "test_env_os": "macOS Sequoia",
+      "test_id": "Z17EF-OPUKH-BDAE8-YEP03",
+      "test_name": "cart: apply coupon",
+      "test_started_at": "2026-11-10 11:41:15",
+      "test_type": "selenium",
+      "username": "qa-team"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f2-5be0-749e-8a8b-ee82d52cafbd"
+      },
+      "build_id": 1142,
+      "build_name": "storefront-e2e-1142",
+      "date": "2026-11-10T10:13:00.000Z",
+      "ddsource": "lambdatest",
+      "ddtags": "build:storefront-e2e-1142",
+      "duration_in_secs": 30,
+      "host": "qa-team",
+      "id": "e7f2d78de1a8822c98e91e4942800004",
+      "message": "mobile web login: error on Galaxy S24 (Android 15), build storefront-e2e-1142",
+      "product": "Web Automation Real Device",
+      "remark": "error",
+      "service": "LambdaTest",
+      "status": "Failed",
+      "test_created_at": "2026-11-10 10:12:00",
+      "test_ended_at": "2026-11-10 10:13:00",
+      "test_env_device": "Galaxy S24",
+      "test_env_os": "Android 15",
+      "test_id": "Z17EF-OPUKH-BDAE8-YEP04",
+      "test_name": "mobile web login",
+      "test_started_at": "2026-11-10 10:12:30",
+      "test_type": "selenium",
+      "username": "qa-team"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000,
+        "seen": [
+          {
+            "id": "305fe73c1ac8147a",
+            "t": 1794311400000
+          },
+          {
+            "id": "305fe83c1ac8162d",
+            "t": 1794310865000
+          },
+          {
+            "id": "305fe13c1ac80a48",
+            "t": 1794305520000
+          }
+        ]
+      }
+    }
+  }
+}

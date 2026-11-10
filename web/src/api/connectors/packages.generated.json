@@ -3960,6 +3960,114 @@
   {
     "entry": {
       "categories": [
+        "Automation",
+        "Testing"
+      ],
+      "config": [
+        {
+          "default": "us",
+          "help": null,
+          "key": "region",
+          "label": "Region",
+          "options": [
+            {
+              "label": "United States (api.lambdatest.com)",
+              "value": "us"
+            },
+            {
+              "label": "Europe (eu-api.lambdatest.com)",
+              "value": "eu"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "username",
+          "label": "Username",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "access_key",
+          "label": "Access key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The finished web automation test sessions of a TestMu AI (LambdaTest) account (outcome, duration, browser, operating system, device, build, tunnel) as logs, read every five minutes from its Automation API.",
+      "docsUrl": "https://www.testmuai.com/support/api-doc/",
+      "id": "lambdatest",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Access key",
+          "url": "https://accounts.lambdatest.com/security"
+        }
+      ],
+      "logo": "lambdatest",
+      "monitors": [],
+      "name": "TestMu AI (formerly LambdaTest)",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In TestMu AI, open **Account Settings → Password & Security** (or the profile menu's **Access Key**) and copy\n   your username and access key. Sessions of the whole organization are read when the user is an admin.\n",
+      "source": "lambdatest",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every finished web automation session as a log (source:lambdatest, service:LambdaTest), sent once it has ended; sessions still queued or running are read again on later runs.",
+          "events": false,
+          "id": "sessions",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Test sessions"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "lambdatest"
+      ],
+      "vendor": "TestMu AI",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "region": "us",
+        "username": "qa-team"
+      },
+      "secrets": [
+        "access_key"
+      ],
+      "test": "412 sessions"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
         "Log Collection",
         "Security",
         "SIEM"
