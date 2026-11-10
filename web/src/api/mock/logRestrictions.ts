@@ -63,12 +63,15 @@ function db(): State {
   return state;
 }
 
-/** Quotes close, and parentheses outside quotes close in order. */
+/** Quotes close (`\"` inside them doesn't), and parentheses outside quotes close in order. */
 function balanced(q: string): boolean {
   let depth = 0;
   let quoted = false;
+  let escaped = false;
   for (const c of q) {
-    if (c === '"') quoted = !quoted;
+    if (escaped) escaped = false;
+    else if (quoted && c === '\\') escaped = true;
+    else if (c === '"') quoted = !quoted;
     else if (!quoted && c === '(') depth++;
     else if (!quoted && c === ')' && --depth < 0) return false;
   }

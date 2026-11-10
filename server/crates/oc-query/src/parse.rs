@@ -9,7 +9,8 @@ pub enum Term {
     Any { alternatives: Vec<Vec<Term>>, negate: bool },
 }
 
-/// Splits on whitespace, keeping quoted strings, parenthesised groups and escaped spaces (`\ `) intact.
+/// Splits on whitespace, keeping quoted strings (with their escaped `\"` and `\\`), parenthesised groups and escaped
+/// spaces (`\ `) intact.
 pub fn tokenize(q: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
@@ -19,6 +20,11 @@ pub fn tokenize(q: &str) -> Vec<String> {
     while let Some(ch) = chars.next() {
         match ch {
             '\\' if !quoted && chars.peek().is_some_and(|c| c.is_whitespace()) => {
+                cur.push(ch);
+                cur.extend(chars.next());
+                continue;
+            }
+            '\\' if quoted => {
                 cur.push(ch);
                 cur.extend(chars.next());
                 continue;
@@ -42,10 +48,22 @@ pub fn tokenize(q: &str) -> Vec<String> {
     out
 }
 
-/// A value as written: without its quotes, or with its escaped spaces (`\ `) as spaces.
+/// A value as written: without its quotes (`\"` and `\\` inside them decoded), or with its escaped spaces (`\ `) as
+/// spaces.
 fn unquote(s: &str) -> String {
     if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
-        s[1..s.len() - 1].to_string()
+        let mut out = String::new();
+        let mut chars = s[1..s.len() - 1].chars().peekable();
+        while let Some(ch) = chars.next() {
+            match chars.peek() {
+                Some(&next @ ('"' | '\\')) if ch == '\\' => {
+                    out.push(next);
+                    chars.next();
+                }
+                _ => out.push(ch),
+            }
+        }
+        out
     } else {
         s.replace("\\ ", " ")
     }
@@ -155,6 +173,24 @@ mod tests {
             ]
         );
         assert_eq!(parse_query(r"@a:(x\ y OR z)"), vec![Term::Tag { key: "@a".into(), values: vec!["x y".into(), "z".into()], negate: false }]);
+    }
+
+    #[test]
+    fn escaped_quotes_and_backslashes_stay_in_quoted_values() {
+        // Datadog's syntax: inside a quoted value `\"` is a quote and `\\` a backslash.
+        let t = parse_query(r#"@msg:"say \"hi\": a\\b" host:web-1 "C:\\dir \"x\"""#);
+        assert_eq!(
+            t,
+            vec![
+                Term::Tag { key: "@msg".into(), values: vec![r#"say "hi": a\b"#.into()], negate: false },
+                Term::Tag { key: "host".into(), values: vec!["web-1".into()], negate: false },
+                Term::Text { text: r#"C:\dir "x""#.into(), negate: false },
+            ]
+        );
+        // A value ending in a backslash closes its quotes.
+        assert_eq!(parse_query(r#"@path:"a\\" b"#), vec![Term::Tag { key: "@path".into(), values: vec![r"a\".into()], negate: false }, Term::Text { text: "b".into(), negate: false }]);
+        assert_eq!(parse_query(r#"@file:"C:\temp""#), vec![Term::Tag { key: "@file".into(), values: vec![r"C:\temp".into()], negate: false }]);
+        assert_eq!(parse_query(r#"@a:("x \"y\"" OR z)"#), vec![Term::Tag { key: "@a".into(), values: vec![r#"x "y""#.into(), "z".into()], negate: false }]);
     }
 
     #[test]

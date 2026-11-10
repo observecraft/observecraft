@@ -11,13 +11,19 @@
 
 export type Term = { kind: 'tag'; key: string; values: string[]; negate: boolean } | { kind: 'text'; text: string; negate: boolean };
 
-/** Splits on whitespace, keeping quoted strings and parenthesised groups intact. */
+/** Splits on whitespace, keeping quoted strings (with their escaped `\"` and `\\`) and parenthesised groups intact. */
 export function tokenize(q: string): string[] {
   const out: string[] = [];
   let cur = '';
   let depth = 0;
   let quoted = false;
-  for (const ch of q) {
+  const chars = [...q];
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i];
+    if (quoted && ch === '\\' && i + 1 < chars.length) {
+      cur += ch + chars[++i];
+      continue;
+    }
     if (ch === '"') quoted = !quoted;
     else if (!quoted && ch === '(') depth++;
     else if (!quoted && ch === ')') depth = Math.max(0, depth - 1);
@@ -32,8 +38,15 @@ export function tokenize(q: string): string[] {
   return out;
 }
 
+/** A value's inside between quotes: its `\` and `"` escaped (Datadog's syntax). */
+export const escapeQuoted = (v: string): string => v.replace(/[\\"]/g, '\\$&');
+
+/** A search value: quoted (see [`escapeQuoted`]) when it holds spaces, colons, quotes or parentheses. */
+export const quoteValue = (v: string): string => (/[\s:"()]/.test(v) ? `"${escapeQuoted(v)}"` : v);
+
+/** A value as written: without its quotes, `\"` and `\\` inside them decoded (Datadog's escapes). */
 function unquote(s: string): string {
-  return s.length >= 2 && s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1) : s;
+  return s.length >= 2 && s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1).replace(/\\(["\\])/g, '$1') : s;
 }
 
 export function parseTerm(token: string): Term {
@@ -90,7 +103,7 @@ export function parseSearch(q: string): SearchTerm[] {
 }
 
 function formatValue(v: string): string {
-  return /[\s()"]/.test(v) ? `"${v}"` : v;
+  return /[\s()"]/.test(v) ? `"${escapeQuoted(v)}"` : v;
 }
 
 export function formatTerm(t: Term): string {

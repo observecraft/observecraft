@@ -113,11 +113,15 @@ pub fn validate_query(query: &str) -> Result<Vec<Term>, String> {
     Ok(terms)
 }
 
-/// Quotes close, and parentheses outside quotes close in order.
+/// Quotes close (`\"` inside them doesn't), and parentheses outside quotes close in order.
 fn balanced(q: &str) -> bool {
     let (mut depth, mut quoted) = (0i32, false);
-    for c in q.chars() {
+    let mut chars = q.chars();
+    while let Some(c) = chars.next() {
         match c {
+            '\\' if quoted => {
+                chars.next();
+            }
             '"' => quoted = !quoted,
             '(' if !quoted => depth += 1,
             ')' if !quoted => {
@@ -294,7 +298,8 @@ mod tests {
     fn restriction_queries_are_validated() {
         assert_eq!(validate_query("  service:billing env:prod ").unwrap().len(), 2);
         assert!(validate_query("@http.status_code:5* -status:debug \"card declined\"").is_ok());
-        for bad in ["", "   ", "AND", "index:main", "service:billing -index:rehydrated", "service:(billing", "\"unterminated", "service:billing)"] {
+        assert!(validate_query(r#"@msg:"a \"(quoted\" \\" service:billing"#).is_ok(), "escaped quotes and backslashes stay inside the value");
+        for bad in ["", "   ", "AND", "index:main", "service:billing -index:rehydrated", "service:(billing", "\"unterminated", "service:billing)", r#"@a:"x\""#] {
             assert!(validate_query(bad).is_err(), "{bad:?}");
         }
         assert!(validate_query(&format!("service:{}", "a".repeat(MAX_QUERY_CHARS))).is_err());
