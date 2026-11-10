@@ -55,6 +55,15 @@ errors:
   - status: [404]
     kind: access_denied
     message: "No Dagster+ deployment {{ config.deployment ?? 'prod' }} in organization {{ config.organization }}"
+  # GraphQL answers its errors with HTTP 200: a request error, or a PythonError in place of the runs or events.
+  - status: [200]
+    when: "{{ response.errors | len > 0 }}"
+    kind: other
+    message: "Dagster+'s GraphQL API answered: {{ response.errors[0].message }}"
+  - status: [200]
+    when: "{{ (response.data.runsOrError ?? response.data.logsForRun).__typename == 'PythonError' }}"
+    kind: other
+    message: "Dagster+ failed to answer: {{ (response.data.runsOrError ?? response.data.logsForRun).message }}"
 
 streams:
   - id: run_events
@@ -72,7 +81,7 @@ streams:
           body:
             query: >-
               query Runs($filter: RunsFilter, $limit: Int) { runsOrError(filter: $filter, limit: $limit) {
-              ... on Runs { results { runId jobName status updateTime } } } }
+              __typename ... on Runs { results { runId jobName status updateTime } } ... on PythonError { message } } }
             variables: { filter: { statuses: [STARTING, STARTED, CANCELING] }, limit: 100 }
         records: "{{ response.data.runsOrError.results }}"
         key: "{{ record.runId }}"
@@ -84,7 +93,7 @@ streams:
           body:
             query: >-
               query Runs($filter: RunsFilter, $limit: Int) { runsOrError(filter: $filter, limit: $limit) {
-              ... on Runs { results { runId jobName status updateTime } } } }
+              __typename ... on Runs { results { runId jobName status updateTime } } ... on PythonError { message } } }
             variables: { filter: { updatedAfter: "{{ (now - 3600000) / 1000 }}" }, limit: 100 }
         records: "{{ response.data.runsOrError.results }}"
         key: "{{ record.runId }}"
@@ -96,7 +105,7 @@ streams:
       body:
         query: >-
           query RunEvents($runId: ID!, $after: String) { logsForRun(runId: $runId, afterCursor: $after, limit: 1000) {
-          ... on EventConnection { cursor hasMore events { __typename
+          __typename ... on PythonError { message } ... on EventConnection { cursor hasMore events { __typename
           ... on MessageEvent { runId message timestamp level stepKey eventType }
           ... on MaterializationEvent { assetKey { path } partition }
           ... on ObservationEvent { assetKey { path } partition }
