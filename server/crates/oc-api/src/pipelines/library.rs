@@ -303,6 +303,22 @@ mod tests {
         assert_eq!((log.get("ide_shepherd.activity_name"), log.get("ide_shepherd.class_name"), log.timestamp_ms), (Some(json!("Update")), Some(json!("Application Security Posture Finding")), Some(1_769_418_941_951)));
     }
 
+    /// ingress-nginx's access and error logs (`ad.datadoghq.com/controller.logs` naming the source
+    /// `nginx-ingress-controller`), as integrations-core's `nginx-ingress-controller_tests.yaml` expects.
+    #[test]
+    fn ingress_nginx_access_and_error_logs() {
+        use serde_json::json;
+        let line = r#"10.0.12.34 - - [10/Nov/2026:09:15:02 +0000] "GET /api/cart?id=7&q=red%20shoes HTTP/1.1" 503 605 "-" "curl/8.4.0" 412 0.002 [storefront-storefront-api-80] 10.0.14.71:8080 0 0.002 503 7f2a9c4e1b8d6a3f"#;
+        let log = agent_log("nginx_ingress_controller", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60001", "service": "ingress-nginx", "ddsource": "nginx-ingress-controller"}));
+        assert_eq!((log.get("http.status_code"), log.get("http.method"), log.get("network.client.ip")), (Some(json!(503)), Some(json!("GET")), Some(json!("10.0.12.34"))));
+        assert_eq!(log.get("http.url_details"), Some(json!({"path": "/api/cart", "queryString": {"id": "7", "q": "red%20shoes"}})), "query values as sent");
+        assert_eq!((log.get("http.upstream_status_code"), log.get("duration"), log.status.as_str()), (Some(json!(503)), Some(json!(2_000_000)), "error"));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_000));
+        let line = r#"2026/11/10 09:15:03 [error] 31#31: *4812 connect() failed (111: Connection refused) while connecting to upstream, client: 10.0.12.34, server: shop.example.com, request: "GET /api/cart HTTP/1.1", host: "shop.example.com""#;
+        let log = agent_log("nginx_ingress_controller", json!({"message": line, "service": "ingress-nginx", "ddsource": "nginx-ingress-controller"}));
+        assert_eq!((log.status.as_str(), log.get("network.client.ip"), log.get("server")), ("error", Some(json!("10.0.12.34")), Some(json!("shop.example.com"))));
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};

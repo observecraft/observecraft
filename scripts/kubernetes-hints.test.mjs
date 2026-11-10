@@ -1,11 +1,36 @@
 // The Kubernetes hints of Agent checks (web/src/api/integrations/kubernetesHints.ts): valid Autodiscovery annotations
-// (anywhere in the shown manifests or chart values) or Cluster Agent cluster checks, running the tile's check.
+// (anywhere in the shown manifests or chart values) or cluster checks, running the tile's check, whose logs carry the
+// source their integration's log pipeline reads.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import test from 'node:test';
-import { kubernetesHint } from '../web/src/api/integrations/kubernetesHints.ts';
+import { kubernetesHint, kubernetesHints } from '../web/src/api/integrations/kubernetesHints.ts';
 
 const yaml = createRequire(new URL('../web/package.json', import.meta.url))('js-yaml');
+const catalog = JSON.parse(readFileSync(new URL('../web/src/api/integrations/catalog.generated.json', import.meta.url), 'utf8')).integrations;
+const pipelines = JSON.parse(readFileSync(new URL('../server/seeds/integrations/core/pipelines.json', import.meta.url), 'utf8'));
+/** The sources an integration's log pipelines read (`source:(keda OR keda-metrics-apiserver)`). */
+const sources = (check) => {
+  const id = catalog.find((c) => c.check === check)?.id;
+  return pipelines.filter((p) => p.integration === id).flatMap((p) => /source:\(?([^)\s]+(?: OR [^)\s]+)*)\)?/.exec(p.filter)?.[1].split(' OR ') ?? []);
+};
+/** The endpoint option of a check's instance, when it has a URL one. */
+const endpoint = (i) =>
+  i.openmetrics_endpoint ?? i.prometheus_url ?? i.prometheus_endpoint ?? i.istiod_endpoint ?? i.app_controller_endpoint ?? i.api_server_endpoint ?? i.repo_server_endpoint ?? i.api_url;
+/** The `ad.datadoghq.com/<container>.logs` annotations anywhere in a variant's YAML. */
+function logConfigs(code) {
+  const found = [];
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') return;
+    for (const [key, value] of Object.entries(node)) {
+      if (/^ad\.datadoghq\.com\/[a-z0-9-]+\.logs$/.test(key)) found.push(...JSON.parse(value));
+      else walk(value);
+    }
+  };
+  for (const doc of yaml.loadAll(code)) walk(doc);
+  return found;
+}
 
 /** Every check configuration in a variant's YAML: `ad.datadoghq.com/<container>.checks` annotations and `<check>.yaml` confd entries. */
 function checkConfigs(code) {
@@ -154,4 +179,36 @@ test('ClickHouse runs its check against the HTTP interface of its pods', () => {
 
 test('PgBouncer runs its check against the admin console of its pods', () => {
   for (const v of kubernetesHint('pgbouncer').variants) assert.match(instanceOf('pgbouncer', v).database_url, /^postgresql:\/\/datadog:.+@%%host%%:6432\/pgbouncer$/, v.label);
+});
+
+for (const hint of kubernetesHints()) {
+  test(`${hint.check}: every variant runs the check or says the Agent does, its logs named for the integration's pipeline`, () => {
+    assert.ok(
+      catalog.some((c) => c.check === hint.check),
+      `${hint.check} is in the catalog`,
+    );
+    assert.ok(hint.variants.length > 0);
+    for (const v of hint.variants) {
+      assert.ok(v.label && v.text, hint.check);
+      if (!v.code) {
+        assert.equal(v.filename, undefined, v.label);
+        assert.match(v.text, /automatically|by itself|nothing to|can’t run/i, `${v.label}: says how the check runs`);
+        continue;
+      }
+      assert.ok(v.filename, v.label);
+      const configs = checkConfigs(v.code).filter((c) => c.check === hint.check);
+      assert.ok(configs.length > 0, `${v.label} runs the check`);
+      for (const { config } of configs) {
+        assert.ok(config.instances?.length >= 1, v.label);
+        const url = endpoint(config.instances[0]);
+        if (url) assert.match(url, /^https?:\/\/%%host%%(:(\d+|%%port%%))?\//, v.label);
+      }
+      for (const l of logConfigs(v.code)) assert.ok(sources(hint.check).includes(l.source), `${v.label}: source ${l.source} of ${sources(hint.check)}`);
+    }
+  });
+}
+
+test('GitLab and GitLab Runner keep their variants', () => {
+  assert.equal(kubernetesHint('gitlab').variants.length, 2);
+  assert.equal(kubernetesHint('gitlab_runner').variants.length, 1);
 });

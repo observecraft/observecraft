@@ -1,6 +1,7 @@
-// Mock mode (make web-mock) draws every widget of the Vault, Gatekeeper, External Secrets, Argo CD, Traefik Mesh,
-// cert-manager, PostgreSQL, PgBouncer, Redis, ClickHouse, Kafka, Strimzi and Confluent Platform dashboards: their metrics,
-// service checks, logs, security signals and Data Streams topologies, template variables at `*`.
+// Mock mode (make web-mock) draws every widget of the Kubernetes tools' dashboards (Vault, Gatekeeper, External Secrets,
+// Argo CD, Traefik Mesh, cert-manager, ingress-nginx, …), the datastores' (PostgreSQL, PgBouncer, Redis, ClickHouse) and
+// Kafka's (Kafka, Strimzi, Confluent Platform): their metrics, service checks, logs, security signals and Data Streams
+// topologies, template variables at their defaults.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -47,7 +48,7 @@ async function hasData(d, def) {
   const range = { from: Date.now() - 3_600_000, to: Date.now() };
   const resolve = (q) => web.resolveQuery(q, d.templateVariables, {});
   if (def.type === 'log_stream') return (await web.searchLogPage({ range, query: web.resolveSearchQuery(def.query, d.templateVariables, {}) }, 50)).logs.length > 0;
-  if (def.type !== 'integration') return true;
+  if (def.type !== 'integration' || def.original.type === 'free_text') return true;
   const o = def.original;
   if (o.type === 'list_stream' && o.requests?.[0]?.query?.data_source === 'logs_pattern_stream')
     return (await web.logPatterns({ range, query: web.resolveSearchQuery(o.requests[0].query.query_string, d.templateVariables, {}) })).length > 0;
@@ -75,6 +76,7 @@ for (const title of [
   'Kafka KRaft Overview',
   'Strimzi Overview',
   'Confluent Platform Overview',
+  'Kubernetes NGINX Ingress Controller - Overview',
 ]) {
   test(`every widget of ${title} has data in mock mode`, async () => {
     const d = mock.dashboards.find((x) => x.title === title);

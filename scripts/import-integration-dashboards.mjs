@@ -338,6 +338,7 @@ const MOCK_INTEGRATIONS = [
   'supply-chain-firewall',
   'strimzi',
   'confluent-platform',
+  'nginx-ingress-controller',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */

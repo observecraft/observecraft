@@ -5,14 +5,14 @@
 // words and examples; shown on the integration's Configure tab below the Agent configuration form.
 
 export interface KubernetesHintVariant {
-  /** How the software is deployed (its Helm chart, the Omnibus image). */
+  /** How the software is deployed (its Helm chart, the Omnibus image, a managed control plane). */
   label: string;
   /** Where the configuration goes and what to set on the software's side. */
   text: string;
-  /** What the YAML is: pod annotations, the chart's values, the operator's resources. */
-  filename: string;
+  /** What the YAML is: pod annotations, the chart's values, the operator's resources; none when the Agent runs the check by itself. */
+  filename?: string;
   /** The pod annotations, or the manifest or values carrying them (YAML). */
-  code: string;
+  code?: string;
 }
 
 export interface KubernetesHint {
@@ -418,9 +418,28 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
       },
     ],
   },
+  {
+    check: 'nginx_ingress_controller',
+    variants: [
+      {
+        label: 'ingress-nginx Helm chart (kubernetes/ingress-nginx)',
+        text: 'The controller serves its Prometheus metrics on port 10254, next to its health checks; `controller.metrics.enabled: true` also gives them a Service. Put the annotations in the chart’s `controller.podAnnotations` value (the container is `controller`). The logs annotation names the source the integration’s log pipeline reads; without it the Agent would name them after the image (`controller`).',
+        filename: POD_ANNOTATIONS,
+        code: [
+          checkAnnotation('controller', 'nginx_ingress_controller', { instances: [{ prometheus_url: 'http://%%host%%:10254/metrics' }] }),
+          logsAnnotation('controller', 'nginx-ingress-controller', 'ingress-nginx'),
+        ].join('\n'),
+      },
+    ],
+  },
 ];
 
 /** The Kubernetes hint of an Agent check, if there is one. */
 export function kubernetesHint(check: string): KubernetesHint | undefined {
   return HINTS.find((h) => h.check === check);
+}
+
+/** Every Agent check's Kubernetes hint. */
+export function kubernetesHints(): readonly KubernetesHint[] {
+  return HINTS;
 }

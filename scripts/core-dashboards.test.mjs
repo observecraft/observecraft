@@ -2,9 +2,22 @@
 // an org once the integration sends data.
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { registerHooks } from 'node:module';
 import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
 import { bannerFor, convertDashboard } from './import-integration-dashboards.mjs';
+
+// The web sources use extensionless relative imports (bundler resolution); resolve them to `.ts` here.
+registerHooks({
+  resolve(specifier, context, next) {
+    try {
+      return next(specifier, context);
+    } catch (err) {
+      if (specifier.startsWith('.')) return next(`${specifier}.ts`, context);
+      throw err;
+    }
+  },
+});
 
 const dir = new URL('../server/seeds/integrations/core/', import.meta.url);
 const bundle = () =>

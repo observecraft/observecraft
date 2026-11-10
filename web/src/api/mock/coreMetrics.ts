@@ -4,6 +4,7 @@
 // variables, sized by the metric's unit from metadata.csv.
 import core from '../integrations/coreDashboards.generated.json' with { type: 'json' };
 import cloudServices from '../integrations/cloudServiceDashboards.generated.json' with { type: 'json' };
+import { INFRA_OVERRIDES, INFRA_VALUES } from './kubernetesIntegrationMetrics';
 
 type Tags = Record<string, string>;
 
@@ -160,6 +161,7 @@ Object.assign(LOGO_VALUES, {
     status: ['200', '201', '200', '400'],
   },
 });
+Object.assign(LOGO_VALUES, INFRA_VALUES);
 /** The Azure services' tags (cloudServiceDashboards.generated.json): Resource Health's status and the split dimensions. */
 const AZURE_VALUES: Record<string, string[]> = {
   status: ['Running', 'Running', 'Degraded', 'Running'],
@@ -505,6 +507,7 @@ Object.assign(OVERRIDES, {
   'redis.keys.evicted': { base: (_e, r) => 20 + r() * 300, noise: 0 },
   'redis.key.length': span(10, 1e5, 0.05, true),
 } satisfies Record<string, Pick<CoreMetricDef, 'base' | 'noise'> & Partial<CoreMetricDef>>);
+Object.assign(OVERRIDES, INFRA_OVERRIDES);
 for (const [metric, def] of Object.entries(OVERRIDES)) if (CORE_METRICS[metric]) CORE_METRICS[metric] = { ...CORE_METRICS[metric], max: undefined, integer: undefined, ...def };
 
 /** The Process Agent's containers of Gatekeeper and cert-manager (their dashboards' pod maps). */

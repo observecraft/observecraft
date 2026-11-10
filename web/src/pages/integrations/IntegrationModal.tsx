@@ -280,7 +280,7 @@ function KubernetesHintSection({ check }: { check: string }) {
         <div key={v.label}>
           <h4>{v.label}</h4>
           <ReadmeMarkdown source={v.text} />
-          <CodeBlock code={v.code} filename={v.filename} />
+          {v.code && <CodeBlock code={v.code} filename={v.filename} />}
         </div>
       ))}
     </div>
