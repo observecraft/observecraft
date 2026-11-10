@@ -21,6 +21,7 @@ const OWN_PAGES: Record<string, string> = {
   authentik: '/integrations/authentik',
   netbird: '/integrations/netbird',
   fleetdm: '/integrations/fleetdm',
+  'gitlab-audit-events': '/integrations/gitlab-audit-events',
 };
 
 const STATUSES: Option<IntegrationStatus | 'all'>[] = [

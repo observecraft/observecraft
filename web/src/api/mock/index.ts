@@ -6,6 +6,7 @@ import { generateLog, rng } from './generator';
 import { netbirdLogs } from './netbird';
 import { fleetdmLogs } from './fleetdm';
 import { authentikLogs } from './authentik';
+import { gitlabAuditLogs } from './gitlabAudit';
 import { kubernetesToolLogs } from './kubernetesToolLogs';
 import { logField, matchLog } from './match';
 import { standardPaths } from './standardAttributes';
@@ -37,6 +38,8 @@ function logs(): LogEvent[] {
   out.push(...fleetdmLogs(rng(11), now));
   // The authentik integration's events (its dashboard and Logs → source:authentik).
   out.push(...authentikLogs(rng(13), now));
+  // The GitLab Audit Events integration's audit log (its dashboard and Logs → source:gitlab-audit-events).
+  out.push(...gitlabAuditLogs(rng(19), now));
   // Vault's audit log, Gatekeeper's, Argo CD's and cert-manager's (their integration dashboards).
   out.push(...kubernetesToolLogs(rng(17), now));
   out.sort((a, b) => b.timestamp - a.timestamp);

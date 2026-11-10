@@ -6,6 +6,7 @@ import type { CollectedMetric, CollectorConfig, IntegrationDetail, IntegrationHo
 import { rng } from './generator';
 import { authentikConnected } from './authentik';
 import { fleetdmConnected } from './fleetdm';
+import { gitlabAuditConnected } from './gitlabAudit';
 import { coreCatalog, type CoreIntegration } from '../integrations/catalog';
 import { linkCore } from '../integrations/coreLink';
 import { availableHere, installable, ownIntegration, unavailableReason, type Collection, type CollectionInfo } from '../integrations/collection';
@@ -820,6 +821,20 @@ const CURATED: Entry[] = [
     },
   },
   {
+    id: 'gitlab-audit-events',
+    name: 'GitLab Audit Events',
+    categories: ['Security', 'Source Control', 'Log Collection'],
+    about:
+      "Audit events of a GitLab instance, group or project (Premium or Ultimate): failed logins, access tokens, members and their roles, OAuth applications authorized, merge request approvals and merges, project, group and CI/CD settings, read through GitLab's API and stored as logs, with a log pipeline, Cloud SIEM rules and a dashboard.",
+    collect: {
+      kind: 'notify',
+      settings: [
+        { key: 'base_url', label: 'GitLab URL', placeholder: 'https://gitlab.com' },
+        { key: 'token', label: 'Access token (read_api)', placeholder: '••••', secret: true },
+      ],
+    },
+  },
+  {
     id: 'okta',
     name: 'Okta',
     categories: ['Security'],
@@ -1007,7 +1022,7 @@ function entryInstallable(e: Entry): boolean {
 }
 
 /** Integrations set up on their own page: installed while their mock connection is saved, as the server counts one. */
-const CONNECTED: Record<string, () => boolean> = { authentik: authentikConnected, fleetdm: fleetdmConnected };
+const CONNECTED: Record<string, () => boolean> = { authentik: authentikConnected, fleetdm: fleetdmConnected, 'gitlab-audit-events': gitlabAuditConnected };
 
 function statusOf(e: Entry): IntegrationStatus {
   if (!availableHere(collectionInfo(e))) return 'unavailable';
@@ -1029,7 +1044,8 @@ function summary(e: Entry): IntegrationSummary {
     logo: e.logo ?? e.id,
     status,
     categories: e.categories,
-    description: e.core?.description || `Monitor the health and performance of ${e.name}.`,
+    // Our own entries (authentik, GitLab Audit Events, …) describe themselves in their first sentence.
+    description: e.core?.description || e.about?.replace(/\. .*$/s, '.') || `Monitor the health and performance of ${e.name}.`,
     warning: status === 'warning' ? e.warning : undefined,
     repository: e.core?.repository,
     waitingForData: waitingForData(e) || undefined,
