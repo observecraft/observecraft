@@ -61,6 +61,21 @@ errors:
   - status: [429]
     kind: throttled
     message: Rate limited by Cloudflare
+  # The GraphQL Analytics API answers its errors with HTTP 200 (extensions.code: authz, quota or rate limits).
+  - status: [200]
+    when: >-
+      {{ response.errors | len > 0 && (((response.errors | first).extensions.code ?? '') + ' ' + (response.errors | first).message) | lower | matches('rate.?limit|limit (reached|exceeded)|budget|quota') }}
+    kind: throttled
+    message: "Cloudflare's GraphQL query limit was reached ({{ (response.errors | first).message }})"
+  - status: [200]
+    when: >-
+      {{ response.errors | len > 0 && ((response.errors | first).extensions.code == 'authz' || (response.errors | first).message | lower | contains('does not have access')) }}
+    kind: access_denied
+    message: "Cloudflare refused the analytics query ({{ (response.errors | first).message }}): the token needs Analytics Read, the dataset a plan that includes it"
+  - status: [200]
+    when: "{{ response.errors | len > 0 }}"
+    kind: other
+    message: "Cloudflare's GraphQL API answered: {{ (response.errors | first).message }}"
 
 discover:
   - name: zones
