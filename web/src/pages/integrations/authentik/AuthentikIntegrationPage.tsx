@@ -1,6 +1,7 @@
 // Integrations → authentik: connects an authentik instance with an API token; ObserveCraft polls its events
 // (logins, access requests, users and objects changed, policy and system errors) every minute and stores them
-// as logs (`source:authentik`). authentik needs no access to ObserveCraft.
+// as logs (`source:authentik`), completed by the authentik log pipeline and charted by the authentik Overview
+// dashboard. authentik needs no access to ObserveCraft.
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Check, ChevronRight, CircleCheck, RefreshCw } from 'lucide-react';
@@ -10,6 +11,7 @@ import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { timeAgo } from '../../../lib/format';
 import { useAccess } from '../../settings/queries';
 import { IntegrationLogo } from '../IntegrationLogo';
+import { useIntegrationDashboards } from '../queries';
 import { Step } from '../Step';
 import '../../settings/settings.css';
 import '../integrations.css';
@@ -17,7 +19,7 @@ import '../aws/aws.css';
 import '../../delivery/delivery.css';
 
 const DESCRIPTION =
-  'authentik is an open-source identity provider (SSO, MFA, application access). ObserveCraft reads its event log through the API every minute: logins and failed logins, application authorizations, access requests, users, groups and policies changed, and the instance’s errors, stored as logs you can search, chart and alert on.';
+  'authentik is an open-source identity provider (SSO, MFA, application access). ObserveCraft reads its event log through the API every minute: logins and failed logins, application authorizations, access requests, users, groups and policies changed, and the instance’s errors, stored as logs you can search, chart and alert on, with a dashboard over them.';
 
 const TABS = [
   { id: 'configure', label: 'Configuration' },
@@ -46,8 +48,19 @@ const ATTRIBUTES: [string, string][] = [
   ['network.client.ip', 'The client’s address, with its geoip country and city and its ASN'],
   ['http.method, http.url_details.path, http.useragent', 'The request that caused the event'],
   ['authentik.app, authentik.application, authentik.brand', 'The authentik module, the application and the brand involved'],
+  [
+    'authentik.category',
+    'authentication, mfa, password, impersonation, application_access, access_request, suspicious, policy, configuration_change, user_lifecycle, system or other (the log pipeline)',
+  ],
   ['authentik.context', 'The rest of the event’s context, as authentik records it'],
 ];
+
+/** The org's authentik dashboard (its id carries the org), once authentik is connected. */
+function useDashboardLink(): string {
+  const dashboards = useIntegrationDashboards(['authentik']);
+  const id = dashboards.data?.[0]?.id;
+  return id ? `/dashboards/${id}` : '/dashboards?preset=integrations';
+}
 
 const statusKey = ['integrations', 'authentik'];
 
@@ -94,9 +107,13 @@ export function AuthentikIntegrationPage() {
 
 function Configure() {
   const qc = useQueryClient();
-  const refresh = () => qc.invalidateQueries({ queryKey: statusKey });
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: statusKey });
+    qc.invalidateQueries({ queryKey: ['dashboards'] });
+  };
   const status = useQuery({ queryKey: statusKey, queryFn: authentikStatus });
   const { isAdmin } = useAccess();
+  const dashboard = useDashboardLink();
   const test = useMutation({ mutationFn: (input: AuthentikInput) => testAuthentik(input) });
   const save = useMutation({ mutationFn: (input: AuthentikInput) => saveAuthentik(input), onSuccess: refresh });
   const remove = useMutation({ mutationFn: deleteAuthentik, onSuccess: refresh });
@@ -175,7 +192,7 @@ function Configure() {
             {(e as Error).message}
           </p>
         ))}
-        {save.isSuccess && !save.isPending && <p className="muted">Saved. The first sync starts within a minute.</p>}
+        {save.isSuccess && !save.isPending && <p className="muted">Saved. The first sync starts within a minute; the authentik log pipeline and dashboard are installed.</p>}
         <div className="rt-create-actions">
           <button type="button" className="btn" disabled={!isAdmin || !ready || test.isPending} onClick={() => test.mutate(input)}>
             {test.isPending ? 'Testing…' : 'Test connection'}
@@ -228,8 +245,11 @@ function Configure() {
               <button type="button" className="btn" disabled={!isAdmin || sync.isPending} onClick={() => sync.mutate()}>
                 <RefreshCw size={14} /> {sync.isPending ? 'Syncing…' : 'Sync now'}
               </button>
-              <Link className="btn btn-primary" to={`/logs?query=${encodeURIComponent('source:authentik')}`}>
+              <Link className="btn" to={`/logs?query=${encodeURIComponent('source:authentik')}`}>
                 View events
+              </Link>
+              <Link className="btn btn-primary" to={dashboard}>
+                Open the dashboard
               </Link>
             </div>
           </>
@@ -240,8 +260,20 @@ function Configure() {
 }
 
 function DataCollected() {
+  const dashboard = useDashboardLink();
   return (
     <div className="ci-setup">
+      <h3>Dashboard</h3>
+      <p className="muted">
+        <Link to={dashboard}>authentik Overview</Link> charts logins (over time, by method, country, city and network, the users logging in most), failed logins (by address, user, stage and country),
+        security events (suspicious requests, impersonation, MFA authenticators enrolled or removed, passwords changed), the applications authorized and access requests, administrators&apos; changes
+        and the instance&apos;s errors. It appears in Dashboards once authentik is connected.
+      </p>
+      <h3>Log pipeline</h3>
+      <p className="muted">
+        Saving the connection installs the <Link to="/logs/pipelines">authentik</Link> pipeline: it files each event under <code>authentik.category</code>, takes a failed login&apos;s user from the
+        name that was tried, and gives authentik events sent another way (a notification webhook, a log shipper) the same attributes.
+      </p>
       <h3>Events</h3>
       <p className="muted">
         Every authentik event becomes a log with <code>source:authentik</code> and <code>service:authentik</code>, timed when authentik recorded it, with the instance&apos;s host name as{' '}

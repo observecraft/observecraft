@@ -55,5 +55,320 @@
       "path": "server/seeds/pipelines/observecraft.json",
       "license": "MIT"
     }
+  },
+  {
+    "id": "authentik",
+    "integration": "authentik",
+    "name": "authentik",
+    "filter": "source:authentik",
+    "processors": [
+      {
+        "type": "date-remapper",
+        "name": "Define `created` as the official date of the log",
+        "enabled": true,
+        "sources": [
+          "created"
+        ]
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `action` to `evt.name`",
+        "enabled": true,
+        "sources": [
+          "action"
+        ],
+        "target": "evt.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `user.username` to `usr.name`",
+        "enabled": true,
+        "sources": [
+          "user.username"
+        ],
+        "target": "usr.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `user.email` to `usr.email`",
+        "enabled": true,
+        "sources": [
+          "user.email"
+        ],
+        "target": "usr.email",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `user.pk` to `usr.id`",
+        "enabled": true,
+        "sources": [
+          "user.pk"
+        ],
+        "target": "usr.id",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `client_ip` to `network.client.ip`",
+        "enabled": true,
+        "sources": [
+          "client_ip"
+        ],
+        "target": "network.client.ip",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `context` to `authentik.context`",
+        "enabled": true,
+        "sources": [
+          "context"
+        ],
+        "target": "authentik.context",
+        "preserveSource": false,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `app` to `authentik.app`",
+        "enabled": true,
+        "sources": [
+          "app"
+        ],
+        "target": "authentik.app",
+        "preserveSource": false,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `authentik.context.geo.country` to `network.client.geoip.country.iso_code`",
+        "enabled": true,
+        "sources": [
+          "authentik.context.geo.country"
+        ],
+        "target": "network.client.geoip.country.iso_code",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `authentik.context.geo.city` to `network.client.geoip.city.name`",
+        "enabled": true,
+        "sources": [
+          "authentik.context.geo.city"
+        ],
+        "target": "network.client.geoip.city.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `authentik.context.geo.continent` to `network.client.geoip.continent.code`",
+        "enabled": true,
+        "sources": [
+          "authentik.context.geo.continent"
+        ],
+        "target": "network.client.geoip.continent.code",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `authentik.context.asn.as_org` to `network.client.asn.organization`",
+        "enabled": true,
+        "sources": [
+          "authentik.context.asn.as_org"
+        ],
+        "target": "network.client.asn.organization",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `authentik.context.http_request.user_agent` to `http.useragent`",
+        "enabled": true,
+        "sources": [
+          "authentik.context.http_request.user_agent"
+        ],
+        "target": "http.useragent",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "pipeline",
+        "name": "Failed logins: the user is the one who tried",
+        "enabled": true,
+        "filter": {
+          "query": "@evt.name:login_failed"
+        },
+        "processors": [
+          {
+            "type": "attribute-remapper",
+            "name": "Map the attempted `authentik.context.username` to `usr.name`",
+            "enabled": true,
+            "sources": [
+              "authentik.context.username"
+            ],
+            "target": "usr.name",
+            "preserveSource": true,
+            "overrideOnConflict": true,
+            "sourceType": "attribute",
+            "targetType": "attribute"
+          }
+        ]
+      },
+      {
+        "type": "category-processor",
+        "name": "Categorise the event",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:(model_created OR model_updated OR model_deleted) @authentik.context.model.model_name:(totpdevice OR webauthndevice OR staticdevice OR duodevice OR smsdevice OR emaildevice OR endpointdevice)"
+            },
+            "name": "mfa"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(login OR login_failed OR logout)"
+            },
+            "name": "authentication"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(password_set OR secret_view OR secret_rotate)"
+            },
+            "name": "password"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(impersonation_started OR impersonation_ended)"
+            },
+            "name": "impersonation"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:authorize_application"
+            },
+            "name": "application_access"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:access_request_*"
+            },
+            "name": "access_request"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:suspicious_request"
+            },
+            "name": "suspicious"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(policy_execution OR policy_exception)"
+            },
+            "name": "policy"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(model_created OR model_updated OR model_deleted)"
+            },
+            "name": "configuration_change"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(user_write OR invitation_used OR source_linked OR email_sent)"
+            },
+            "name": "user_lifecycle"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(system_exception OR system_task_exception OR system_task_execution OR configuration_error OR configuration_warning OR property_mapping_exception OR update_available)"
+            },
+            "name": "system"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "other"
+          }
+        ],
+        "target": "authentik.category"
+      },
+      {
+        "type": "category-processor",
+        "name": "Severity of the event: failures and exceptions are errors, denials and impersonation warnings",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:(login_failed OR suspicious_request OR system_exception OR system_task_exception OR policy_exception OR property_mapping_exception OR configuration_error)"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(configuration_warning OR access_request_denied OR impersonation_started)"
+            },
+            "name": "warn"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "info"
+          }
+        ],
+        "target": "authentik.severity"
+      },
+      {
+        "type": "status-remapper",
+        "name": "Define `authentik.severity` as the official status of the log",
+        "enabled": true,
+        "sources": [
+          "authentik.severity"
+        ]
+      }
+    ],
+    "source": {
+      "repository": "observecraft/observecraft",
+      "revision": "",
+      "path": "server/seeds/pipelines/observecraft.json",
+      "license": "MIT"
+    }
   }
 ]

@@ -92,6 +92,50 @@ mod tests {
         }
     }
 
+    /// A log of `source` with these attributes.
+    fn with_attrs(id: &str, source: &str, attrs: serde_json::Value) -> super::super::Log {
+        let p = get(id).unwrap();
+        let (pipeline, errors) = Pipeline::compile(&p.name, &p.filter, &p.processors);
+        assert!(errors.is_empty(), "{errors:?}");
+        let mut log = super::super::Log::from_row(&serde_json::json!({"status": "info", "service": source, "source": source, "message": "event", "attributes": attrs.to_string()}));
+        assert!(pipeline.apply(&mut log, 1_792_933_200_000), "{id} matches source:{source}");
+        log
+    }
+
+    #[test]
+    fn authentik_events_get_categories_users_and_statuses() {
+        use crate::authentik::{fixtures, logs::log_of};
+        use serde_json::json;
+        assert_eq!(get("authentik").unwrap().integration, "authentik", "installed with the integration");
+        // The poller's logs: categorized.
+        let attrs = |event: Value| {
+            let mut log = log_of(&event, "portal.example.com");
+            for k in ["date", "message", "status", "service", "ddsource", "host", "_oc_ingest"] {
+                log.as_object_mut().unwrap().remove(k);
+            }
+            log
+        };
+        let login = with_attrs("authentik", "authentik", attrs(fixtures::login("1", "2026-11-06T10:00:00Z")));
+        assert_eq!((login.get("authentik.category"), login.status.as_str()), (Some(json!("authentication")), "info"));
+        let device = fixtures::event("2", "model_created", "2026-11-06T10:00:00Z", json!({ "model": { "app": "authentik_stages_authenticator_totp", "model_name": "totpdevice", "name": "phone" } }));
+        assert_eq!(with_attrs("authentik", "authentik", attrs(device)).get("authentik.category"), Some(json!("mfa")));
+        let group = fixtures::event("3", "model_updated", "2026-11-06T10:00:00Z", json!({ "model": { "app": "authentik_core", "model_name": "group", "name": "admins" } }));
+        assert_eq!(with_attrs("authentik", "authentik", attrs(group)).get("authentik.category"), Some(json!("configuration_change")));
+        let mut failed = fixtures::event("4", "login_failed", "2026-11-06T10:00:00Z", json!({ "username": "admin", "stage": { "name": "default-authentication-password" } }));
+        failed["user"] = json!({ "pk": 1, "username": "AnonymousUser" });
+        let failed = with_attrs("authentik", "authentik", attrs(failed));
+        assert_eq!((failed.get("authentik.category"), failed.get("usr.name"), failed.status.as_str()), (Some(json!("authentication")), Some(json!("admin")), "error"), "the user who tried");
+        let impersonation = with_attrs("authentik", "authentik", attrs(fixtures::event("5", "impersonation_started", "2026-11-06T10:00:00Z", json!({}))));
+        assert_eq!((impersonation.get("authentik.category"), impersonation.status.as_str()), (Some(json!("impersonation")), "warn"));
+        assert_eq!(with_attrs("authentik", "authentik", attrs(fixtures::event("6", "custom_thing", "2026-11-06T10:00:00Z", json!({})))).get("authentik.category"), Some(json!("other")));
+        // An event as authentik's API serializes it, shipped another way (a notification webhook): remapped.
+        let raw = with_attrs("authentik", "authentik", fixtures::event("7", "suspicious_request", "2026-11-06T10:00:00.250Z", json!({ "geo": { "country": "RO", "city": "Bucharest" }, "message": "too many attempts" })));
+        assert_eq!((raw.get("evt.name"), raw.get("usr.name"), raw.get("usr.email")), (Some(json!("suspicious_request")), Some(json!("jordan.patel")), Some(json!("jordan.patel@example.com"))));
+        assert_eq!((raw.get("network.client.ip"), raw.get("network.client.geoip.country.iso_code"), raw.get("network.client.geoip.city.name")), (Some(json!("203.0.113.24")), Some(json!("RO")), Some(json!("Bucharest"))));
+        assert_eq!((raw.get("authentik.category"), raw.status.as_str(), raw.get("authentik.context.message")), (Some(json!("suspicious")), "error", Some(json!("too many attempts"))));
+        assert_eq!(raw.timestamp_ms, Some(1_793_959_200_250), "authentik's time");
+    }
+
     #[test]
     fn every_integrations_pipelines_are_listed() {
         assert!(all().len() >= 240, "{} pipelines", all().len());

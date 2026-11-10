@@ -4,6 +4,7 @@
 // Generated configs are templates — verify field names against the pinned collector version.
 import type { CollectedMetric, CollectorConfig, IntegrationDetail, IntegrationHost, IntegrationStatus, IntegrationSummary } from '../integrations/types';
 import { rng } from './generator';
+import { authentikConnected } from './authentik';
 import { coreCatalog, type CoreIntegration } from '../integrations/catalog';
 import { linkCore } from '../integrations/coreLink';
 import { availableHere, installable, ownIntegration, unavailableReason, type Collection, type CollectionInfo } from '../integrations/collection';
@@ -779,7 +780,8 @@ const CURATED: Entry[] = [
     id: 'authentik',
     name: 'authentik',
     categories: ['Security', 'Log Collection'],
-    about: 'Events of an authentik identity provider (logins, access requests, users and policies changed, errors), read through its API and stored as logs.',
+    about:
+      'Events of an authentik identity provider (logins and failed logins, MFA, passwords, impersonation, applications authorized, access requests, users and policies changed, errors), read through its API and stored as logs, with a log pipeline and a dashboard.',
     collect: {
       kind: 'notify',
       settings: [
@@ -1003,8 +1005,12 @@ function entryInstallable(e: Entry): boolean {
   return installable(collectionInfo(e).collection) && installable(e.core?.collection);
 }
 
+/** Integrations set up on their own page: installed while their mock connection is saved, as the server counts one. */
+const CONNECTED: Record<string, () => boolean> = { authentik: authentikConnected };
+
 function statusOf(e: Entry): IntegrationStatus {
   if (!availableHere(collectionInfo(e))) return 'unavailable';
+  if (CONNECTED[e.id]?.()) return 'installed';
   return statusOverride.get(e.id) ?? e.status ?? 'available';
 }
 

@@ -107,6 +107,17 @@ pub async fn installed(st: &AppState, org: &str) -> Result<Vec<String>, ApiError
     Ok(sqlx::query_scalar(sqlx::AssertSqlSafe(sql)).bind(org).fetch_all(&st.postgres).await?)
 }
 
+/// Installs an integration's library log pipelines for the org (those it has are kept): on Install, and when an
+/// integration set up on its own page (authentik, FleetDM) saves its connection.
+pub async fn install_pipelines(st: &AppState, org: &str, id: &str) -> Result<(), ApiError> {
+    for p in pipelines_of(id) {
+        let input = LogPipelineInput { name: p.name.clone(), filter: p.filter.clone(), enabled: true, processors: p.processors.clone() };
+        // None: the org installed it before (Logs → Pipelines).
+        insert(st, org, &input, &format!("integration:{}", p.id)).await?;
+    }
+    Ok(())
+}
+
 /// The installed integrations (catalog ids): from Integrations → Install, or set up on their own page.
 #[utoipa::path(get, path = "/api/v1/integrations/installed", operation_id = "list_installed_integrations", responses((status = 200, body = Vec<String>)), tag = "integrations")]
 pub async fn list(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<Vec<String>> {
@@ -124,11 +135,7 @@ pub async fn install(State(st): State<AppState>, Writer(ctx): Writer, Path(id): 
         .bind(&ctx.user_id)
         .execute(&st.postgres)
         .await?;
-    for p in pipelines_of(&id) {
-        let input = LogPipelineInput { name: p.name.clone(), filter: p.filter.clone(), enabled: true, processors: p.processors.clone() };
-        // None: the org installed it before (Logs → Pipelines).
-        insert(&st, &ctx.org_id, &input, &format!("integration:{}", p.id)).await?;
-    }
+    install_pipelines(&st, &ctx.org_id, &id).await?;
     super::integration_dashboards::install_missing(&st.postgres, &ctx.org_id, &[id.as_str()]).await.map_err(ApiError::Internal)?;
     ctx.audit(&st, "integration.installed", &id, "").await;
     Ok(Json(state(&id, true)))

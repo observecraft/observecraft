@@ -182,7 +182,10 @@ or SDK features.
   Unsupported SPL (eval, rex, join, OR across fields, numeric comparisons) is reported, not guessed.
 - **authentik** (Integrations → authentik, `oc-api/src/authentik/`, `routes/authentik_integration.rs`): the server polls an
   instance's events API (`/api/v3/events/events/`, token in Postgres `authentik_connections`, sealed) on the cloud
-  crawlers' jobs (provider `authentik`) and sends each event as a log (`source:authentik`) to `oc.logs.json`.
+  crawlers' jobs (provider `authentik`; pages oldest first, from the cursor, so a backlog is read on by the next runs) and
+  sends each event as a log (`source:authentik`) to `oc.logs.json`. Saving the connection installs its library pipeline
+  (`seeds/pipelines/observecraft.json`, `authentik.category`); its dashboard is ours (`scripts/authentik-dashboard.mjs`
+  → `seeds/integrations/authentik/`), listed once connected.
 - **NetBird** (Integrations → NetBird, `oc-api/src/netbird/`, `routes/netbird_integration.rs`; Datadog has no NetBird
   integration): the server polls a NetBird Cloud or self-hosted management API (token in Postgres
   `netbird_connections`, sealed) on the cloud crawlers' jobs (provider `netbird`, scopes `events` and `peers`): audit

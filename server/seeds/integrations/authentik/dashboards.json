@@ -1,0 +1,2940 @@
+[
+  {
+    "id": "authentik-overview",
+    "title": "authentik Overview",
+    "description": "An authentik instance's event log: logins and failed logins, MFA, passwords, impersonation, suspicious requests, applications authorized, administrative changes and errors.",
+    "kind": "integration",
+    "logo": "authentik",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "authentik-2",
+        "definition": {
+          "type": "group",
+          "title": "authentik Overview",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "authentik-2-banner",
+              "definition": {
+                "type": "image",
+                "title": "authentik",
+                "logo": "authentik",
+                "background": "#ffffff"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
+            {
+              "id": "authentik-1",
+              "definition": {
+                "type": "note",
+                "content": "**authentik** is an open-source identity provider: single sign-on (OAuth2/OIDC, SAML, LDAP, proxy), MFA and application access. This dashboard follows the connected instance's event log: who logs in and from where, failed logins and the users, addresses and countries behind them, MFA authenticators enrolled or removed, passwords changed, impersonation, suspicious requests, the applications users are authorized to, administrators' changes to users, groups, applications, providers, flows and policies, and the instance's own errors.\n\nConnect an instance in [Integrations → authentik](/integrations/authentik): ObserveCraft reads its events API every minute, with no access to ObserveCraft needed.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 10
+        }
+      },
+      {
+        "id": "authentik-15",
+        "definition": {
+          "type": "group",
+          "title": "Overview",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "authentik-3",
+              "definition": {
+                "type": "integration",
+                "title": "Logins",
+                "original": {
+                  "type": "query_value",
+                  "title": "Logins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "authentik-4",
+              "definition": {
+                "type": "integration",
+                "title": "Failed logins",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failed logins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "authentik-5",
+              "definition": {
+                "type": "integration",
+                "title": "Failure rate",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failure rate",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:authentik @evt.name:login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "100 * query1 / (query1 + query2)"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1,
+                  "custom_unit": "%"
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "authentik-6",
+              "definition": {
+                "type": "integration",
+                "title": "Users",
+                "original": {
+                  "type": "query_value",
+                  "title": "Users",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@usr.name"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "authentik-7",
+              "definition": {
+                "type": "integration",
+                "title": "Suspicious",
+                "original": {
+                  "type": "query_value",
+                  "title": "Suspicious",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:suspicious_request"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "authentik-8",
+              "definition": {
+                "type": "integration",
+                "title": "Errors",
+                "original": {
+                  "type": "query_value",
+                  "title": "Errors",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik status:error -@evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "authentik-9",
+              "definition": {
+                "type": "integration",
+                "title": "Failing IPs",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failing IPs",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@network.client.ip"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "authentik-10",
+              "definition": {
+                "type": "integration",
+                "title": "App sign-ins",
+                "original": {
+                  "type": "query_value",
+                  "title": "App sign-ins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:authorize_application"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "authentik-11",
+              "definition": {
+                "type": "integration",
+                "title": "MFA changes",
+                "original": {
+                  "type": "query_value",
+                  "title": "MFA changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:(model_created OR model_updated OR model_deleted) @authentik.context.model.model_name:(totpdevice OR webauthndevice OR staticdevice OR duodevice OR smsdevice OR emaildevice OR endpointdevice)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "authentik-12",
+              "definition": {
+                "type": "integration",
+                "title": "Passwords set",
+                "original": {
+                  "type": "query_value",
+                  "title": "Passwords set",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:password_set"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "authentik-13",
+              "definition": {
+                "type": "integration",
+                "title": "Admin changes",
+                "original": {
+                  "type": "query_value",
+                  "title": "Admin changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:(model_created OR model_updated OR model_deleted)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "authentik-14",
+              "definition": {
+                "type": "integration",
+                "title": "Impersonations",
+                "original": {
+                  "type": "query_value",
+                  "title": "Impersonations",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:impersonation_started"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 4,
+                "w": 2,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 10,
+          "w": 12,
+          "h": 11
+        }
+      },
+      {
+        "id": "authentik-23",
+        "definition": {
+          "type": "group",
+          "title": "Logins",
+          "color": "green",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "authentik-16",
+              "definition": {
+                "type": "integration",
+                "title": "Logins and failed logins",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Logins and failed logins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:authentik @evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "logins",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "failed logins",
+                          "formula": "query2"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-17",
+              "definition": {
+                "type": "integration",
+                "title": "Login methods",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Login methods",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@authentik.context.auth_method",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-18",
+              "definition": {
+                "type": "integration",
+                "title": "Logins around the world",
+                "original": {
+                  "type": "geomap",
+                  "title": "Logins around the world",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.geoip.country.iso_code",
+                              "limit": 250,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 250,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "hostmap_blues",
+                    "palette_flip": false
+                  },
+                  "view": {
+                    "focus": "WORLD"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 8,
+                "h": 8
+              }
+            },
+            {
+              "id": "authentik-19",
+              "definition": {
+                "type": "integration",
+                "title": "Users logging in most",
+                "original": {
+                  "type": "toplist",
+                  "title": "Users logging in most",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "cool"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "authentik-20",
+              "definition": {
+                "type": "integration",
+                "title": "Logins by network (ASN)",
+                "original": {
+                  "type": "treemap",
+                  "title": "Logins by network (ASN)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.asn.organization",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 14,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-21",
+              "definition": {
+                "type": "integration",
+                "title": "Logins by brand",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "Logins by brand",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@authentik.brand",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 14,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-22",
+              "definition": {
+                "type": "integration",
+                "title": "Logins by city",
+                "original": {
+                  "type": "toplist",
+                  "title": "Logins by city",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.geoip.city.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "cool"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 14,
+                "w": 4,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 21,
+          "w": 12,
+          "h": 23
+        }
+      },
+      {
+        "id": "authentik-31",
+        "definition": {
+          "type": "group",
+          "title": "Failed logins",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "authentik-24",
+              "definition": {
+                "type": "integration",
+                "title": "Failed logins by client address",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Failed logins by client address",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-25",
+              "definition": {
+                "type": "integration",
+                "title": "Failed logins by stage",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "Failed logins by stage",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@authentik.context.stage.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-26",
+              "definition": {
+                "type": "integration",
+                "title": "Users failing to log in",
+                "original": {
+                  "type": "toplist",
+                  "title": "Users failing to log in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@authentik.context.username",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "authentik-27",
+              "definition": {
+                "type": "integration",
+                "title": "Addresses failing to log in",
+                "original": {
+                  "type": "toplist",
+                  "title": "Addresses failing to log in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "authentik-28",
+              "definition": {
+                "type": "integration",
+                "title": "Failed logins around the world",
+                "original": {
+                  "type": "geomap",
+                  "title": "Failed logins around the world",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.geoip.country.iso_code",
+                              "limit": 250,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 250,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "hostmap_blues",
+                    "palette_flip": false
+                  },
+                  "view": {
+                    "focus": "WORLD"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "authentik-29",
+              "definition": {
+                "type": "integration",
+                "title": "Addresses with the most failed logins",
+                "original": {
+                  "type": "query_table",
+                  "title": "Addresses with the most failed logins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 25,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:authentik @evt.name:login_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@authentik.context.username"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 25,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "failed logins",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "users tried",
+                          "formula": "query2"
+                        }
+                      ],
+                      "sort": {
+                        "count": 100,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 14,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "authentik-30",
+              "definition": {
+                "type": "log_stream",
+                "title": "Failed logins",
+                "query": "source:authentik @evt.name:login_failed",
+                "limit": 50
+              },
+              "layout": {
+                "x": 6,
+                "y": 14,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 44,
+          "w": 12,
+          "h": 25
+        }
+      },
+      {
+        "id": "authentik-39",
+        "definition": {
+          "type": "group",
+          "title": "Security",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "authentik-32",
+              "definition": {
+                "type": "integration",
+                "title": "Suspicious requests and impersonation",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Suspicious requests and impersonation",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:suspicious_request"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:authentik @evt.name:impersonation_started"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "suspicious requests",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "impersonations",
+                          "formula": "query2"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-33",
+              "definition": {
+                "type": "integration",
+                "title": "MFA authenticators enrolled and removed",
+                "original": {
+                  "type": "timeseries",
+                  "title": "MFA authenticators enrolled and removed",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:(model_created OR model_updated OR model_deleted) @authentik.context.model.model_name:(totpdevice OR webauthndevice OR staticdevice OR duodevice OR smsdevice OR emaildevice OR endpointdevice)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-34",
+              "definition": {
+                "type": "integration",
+                "title": "MFA authenticator types",
+                "original": {
+                  "type": "sunburst",
+                  "title": "MFA authenticator types",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:(model_created OR model_updated OR model_deleted) @authentik.context.model.model_name:(totpdevice OR webauthndevice OR staticdevice OR duodevice OR smsdevice OR emaildevice OR endpointdevice)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@authentik.context.model.model_name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-35",
+              "definition": {
+                "type": "integration",
+                "title": "Passwords changed by user",
+                "original": {
+                  "type": "toplist",
+                  "title": "Passwords changed by user",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:password_set"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "purple"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-36",
+              "definition": {
+                "type": "integration",
+                "title": "Addresses of suspicious requests",
+                "original": {
+                  "type": "toplist",
+                  "title": "Addresses of suspicious requests",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:suspicious_request"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-37",
+              "definition": {
+                "type": "log_stream",
+                "title": "Impersonation",
+                "query": "source:authentik @evt.name:(impersonation_started OR impersonation_ended)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 12,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "authentik-38",
+              "definition": {
+                "type": "log_stream",
+                "title": "Suspicious requests, MFA and password changes",
+                "query": "source:authentik @authentik.category:(suspicious OR mfa OR password)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 6,
+                "y": 12,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 69,
+          "w": 12,
+          "h": 23
+        }
+      },
+      {
+        "id": "authentik-45",
+        "definition": {
+          "type": "group",
+          "title": "Applications",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "authentik-40",
+              "definition": {
+                "type": "integration",
+                "title": "Applications authorized",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Applications authorized",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:authorize_application"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@authentik.application",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-41",
+              "definition": {
+                "type": "integration",
+                "title": "Authorizations by application",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Authorizations by application",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:authorize_application"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@authentik.application",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-42",
+              "definition": {
+                "type": "integration",
+                "title": "Users of the most applications",
+                "original": {
+                  "type": "toplist",
+                  "title": "Users of the most applications",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:authorize_application"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@authentik.application"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "purple"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "authentik-43",
+              "definition": {
+                "type": "integration",
+                "title": "Access requests",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "Access requests",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:access_request_*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "authentik-44",
+              "definition": {
+                "type": "log_stream",
+                "title": "Applications authorized",
+                "query": "source:authentik @evt.name:authorize_application",
+                "limit": 50
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 92,
+          "w": 12,
+          "h": 17
+        }
+      },
+      {
+        "id": "authentik-50",
+        "definition": {
+          "type": "group",
+          "title": "Administration",
+          "color": "gray",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "authentik-46",
+              "definition": {
+                "type": "integration",
+                "title": "Objects created, updated and deleted",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Objects created, updated and deleted",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:(model_created OR model_updated OR model_deleted)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-47",
+              "definition": {
+                "type": "integration",
+                "title": "Changes by object type",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "Changes by object type",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:(model_created OR model_updated OR model_deleted)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@authentik.context.model.model_name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-48",
+              "definition": {
+                "type": "integration",
+                "title": "Administrators changing most",
+                "original": {
+                  "type": "toplist",
+                  "title": "Administrators changing most",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:(model_created OR model_updated OR model_deleted)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "authentik-49",
+              "definition": {
+                "type": "log_stream",
+                "title": "Users, groups, applications, providers, flows and policies changed",
+                "query": "source:authentik @evt.name:(model_created OR model_updated OR model_deleted)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 8,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 109,
+          "w": 12,
+          "h": 17
+        }
+      },
+      {
+        "id": "authentik-56",
+        "definition": {
+          "type": "group",
+          "title": "Instance health",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "authentik-51",
+              "definition": {
+                "type": "integration",
+                "title": "Errors and warnings",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Errors and warnings",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik @evt.name:(system_exception OR system_task_exception OR configuration_error OR configuration_warning OR policy_exception OR property_mapping_exception)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-52",
+              "definition": {
+                "type": "integration",
+                "title": "Events by category",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Events by category",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@authentik.category",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-53",
+              "definition": {
+                "type": "integration",
+                "title": "Events by outcome",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Events by outcome",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:authentik"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.outcome",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 6
+              }
+            },
+            {
+              "id": "authentik-54",
+              "definition": {
+                "type": "log_stream",
+                "title": "Exceptions and configuration errors",
+                "query": "source:authentik @evt.name:(system_exception OR system_task_exception OR configuration_error OR configuration_warning OR policy_exception OR property_mapping_exception)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "authentik-55",
+              "definition": {
+                "type": "log_stream",
+                "title": "All events",
+                "query": "source:authentik",
+                "limit": 50
+              },
+              "layout": {
+                "x": 6,
+                "y": 6,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 126,
+          "w": 12,
+          "h": 17
+        }
+      }
+    ],
+    "source": {
+      "repository": "observecraft",
+      "path": "scripts/authentik-dashboard.mjs",
+      "license": "MIT"
+    }
+  }
+]
