@@ -1,6 +1,6 @@
 // Mock Kafka broker logs (`source:kafka`) for the Kafka dashboards' log widgets, as the Datadog Agent tails the brokers'
 // server.log and integrations-core's Kafka pipeline parses its log4j lines: the level as status, the logger
-// (the class in parentheses) and the thread as attributes. The demo's three brokers of the prod cluster and one in qa.
+// (the class in parentheses) as attributes. The demo's three brokers of the prod cluster and one in qa.
 import type { LogEvent, LogStatus } from '../types';
 import type { Rand } from './generator';
 
@@ -51,7 +51,8 @@ export function kafkaLogs(r: Rand, now: number): LogEvent[] {
       source: 'kafka',
       message: text,
       tags: { env, kafka_cluster: env === 'prod' ? 'shop-prod' : 'shop-qa' },
-      attributes: { level: status.toUpperCase(), logger: { name: logger }, thread_name: status === 'error' ? 'data-plane-kafka-request-handler-3' : 'kafka-scheduler-1', msg: text },
+      // As the Kafka pipeline leaves them: the level as `status`, the class in parentheses as the logger.
+      attributes: { status: status.toUpperCase(), logger: { name: logger } },
     });
   }
   return out;

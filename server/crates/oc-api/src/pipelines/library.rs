@@ -370,12 +370,17 @@ mod tests {
     }
 
     #[test]
-    fn datastore_pipelines_give_integrations_cores_results() {
+    fn integration_pipelines_give_integrations_cores_results() {
         for (id, source, yaml) in [
             ("postgres", "postgresql", include_str!("../../tests/fixtures/pipelines/postgresql_tests.yaml")),
             ("pgbouncer", "pgbouncer", include_str!("../../tests/fixtures/pipelines/pgbouncer_tests.yaml")),
             ("redisdb", "redis", include_str!("../../tests/fixtures/pipelines/redis_tests.yaml")),
             ("clickhouse", "clickhouse", include_str!("../../tests/fixtures/pipelines/clickhouse_tests.yaml")),
+            // Broker logs (log4j's default, recommended and Kafka's layouts), Confluent Platform's components with a
+            // stack trace, and Strimzi's operators and the Kafka, ZooKeeper and Connect pods it runs.
+            ("kafka", "kafka", include_str!("../../tests/fixtures/pipelines/kafka_tests.yaml")),
+            ("confluent_platform", "confluent_platform", include_str!("../../tests/fixtures/pipelines/confluent_platform_tests.yaml")),
+            ("strimzi", "strimzi", include_str!("../../tests/fixtures/pipelines/strimzi_tests.yaml")),
         ] {
             assert_eq!(upstream_differences(id, source, yaml), Vec::<String>::new(), "{id}");
         }

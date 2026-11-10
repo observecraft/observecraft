@@ -104,7 +104,9 @@ impl Grok {
         for (name, pattern) in &matching {
             let mut ex = Expander { defs: &defs, captures: Vec::new() };
             let body = ex.expand(pattern, 0).map_err(|e| format!("Rule '{name}': {e}"))?;
-            let regex = fancy_regex::RegexBuilder::new(&format!("^(?:{})$", java_regex(&body))).backtrack_limit(BACKTRACK_LIMIT).build().map_err(|e| format!("Rule '{name}': invalid pattern ({e})"))?;
+            // `.` matches line breaks, as in Datadog's parser (a multi-line log's stack trace rules rely on it), and
+            // the end is also before a final line break, as Java's `$` is.
+            let regex = fancy_regex::RegexBuilder::new(&format!("^(?s:{})(?:\\r?\\n)?$", java_regex(&body))).backtrack_limit(BACKTRACK_LIMIT).build().map_err(|e| format!("Rule '{name}': invalid pattern ({e})"))?;
             rules.push(Rule { name: name.clone(), regex, captures: ex.captures });
         }
         Ok(Grok { rules })
@@ -685,6 +687,17 @@ mod tests {
     /// The extracted values of `rules` on `text` as one JSON object (paths as keys).
     fn parse(rules: &str, text: &str) -> Option<Value> {
         grok(rules).parse(text, NOW).map(|p| Value::Object(p.values.into_iter().collect::<Map<_, _>>()))
+    }
+
+    /// `.` matches line breaks too, as in Datadog's parser: a stack trace's first line is its message
+    /// (integrations-core's Java stack trace rule, `confluent_platform_tests.yaml`).
+    #[test]
+    fn dot_matches_line_breaks() {
+        let stack = "java.net.UnknownHostException: zookeeper: Name or service not known\n\tat java.net.Inet4AddressImpl.lookupAllHostAddr(Native Method)\n\tat org.apache.zookeeper.ClientCnxn$SendThread.run(ClientCnxn.java:1137)";
+        let parsed = parse(r"error_rule %{notSpace:error.kind}: %{data:error.message}(\n|\t).*", stack).unwrap();
+        assert_eq!(parsed, json!({"error.kind": "java.net.UnknownHostException", "error.message": "zookeeper: Name or service not known"}));
+        // A final line break isn't part of the last value.
+        assert_eq!(parse(r"rule %{word:a} %{data:b}", "x tail\n"), Some(json!({"a": "x", "b": "tail"})));
     }
 
     #[test]

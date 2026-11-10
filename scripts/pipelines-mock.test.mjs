@@ -158,3 +158,16 @@ test('a parsed `message` is an attribute; a message remapper makes it the messag
   assert.equal(parsed.log.message, 'failed to dial peer');
   assert.equal(parsed.log.attributes.message, undefined);
 });
+
+test('grok: `.` matches line breaks and a final line break ends the log, as in Datadog’s parser (and the server’s)', () => {
+  const stack = 'java.net.UnknownHostException: zookeeper: Name or service not known\n\tat java.net.Inet4AddressImpl.lookupAllHostAddr(Native Method)\n\tat Main.run(Main.java:1)';
+  const rules = engine.compileGrok('', 'error_rule %{notSpace:error.kind}: %{data:error.message}(\\n|\\t).*');
+  assert.deepEqual(engine.grokParse(rules, stack, 0)?.values, [
+    ['error.kind', 'java.net.UnknownHostException'],
+    ['error.message', 'zookeeper: Name or service not known'],
+  ]);
+  assert.deepEqual(engine.grokParse(engine.compileGrok('', 'rule %{word:a} %{data:b}'), 'x tail\n', 0)?.values, [
+    ['a', 'x'],
+    ['b', 'tail'],
+  ]);
+});

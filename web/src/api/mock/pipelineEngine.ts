@@ -503,7 +503,8 @@ export function compileGrok(supportRules: string, matchRules: string): Rule[] {
     };
     let re: RegExp;
     try {
-      re = new RegExp(`^(?:${expand(pattern, 0)})$`);
+      // `.` matches line breaks, and the end is also before a final line break, as in Datadog's (Java) parser.
+      re = new RegExp(`^(?:${expand(pattern, 0)})(?:\\r?\\n)?$`, 's');
     } catch (e) {
       if (e instanceof SyntaxError) throw new Error(`Rule '${name}': invalid pattern (${e.message})`);
       throw new Error(`Rule '${name}': ${(e as Error).message}`);
