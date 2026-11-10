@@ -16,11 +16,14 @@ tiles: [okta-workflows]
 categories: [Log Collection, Security, Automation]
 docs_url: https://developer.okta.com/docs/api/openapi/okta-management/management/tag/SystemLog/
 setup: |
-  1. In the Okta Admin Console, sign in as (or create) an admin with the **Read-only Administrator** role, e.g. a
-     dedicated `observecraft-reader` account.
-  2. Open **Security → API → Tokens**, **Create Token**, name it `ObserveCraft` and copy its value (Okta shows it once).
-     The token acts as that admin: it can read the System Log, nothing more.
-  3. Enter your Okta domain (`example.okta.com`, or your custom domain).
+  1. Enter your Okta domain (`example.okta.com`, or your custom domain) and choose how ObserveCraft signs in:
+     - **OAuth service app** (recommended): in the Admin Console, **Applications → Create App Integration → API
+       Services**, e.g. `observecraft`. Under **Client Credentials** choose **Public key / Private key** and add a key
+       (copy its private key in PEM format and its key id), and turn off **Require Demonstrating Proof of Possession
+       (DPoP)**. Grant the `okta.logs.read` scope and assign the **Read-only Administrator** role; copy the client id.
+     - **API token**: sign in as (or create) an admin with the **Read-only Administrator** role, e.g. a dedicated
+       `observecraft-reader` account, open **Security → API → Tokens**, **Create Token**, name it `ObserveCraft` and
+       copy its value (Okta shows it once). The token acts as that admin: it can read the System Log, nothing more.
 instance: "{{ config.domain }}"
 
 config:
@@ -31,17 +34,36 @@ config:
     pattern: "[A-Za-z0-9.-]+"
     placeholder: example.okta.com
     help: The org's domain, without https://.
+  - key: auth_method
+    label: Sign in with
+    type: select
+    required: true
+    default: token
+    options:
+      - { value: oauth, label: OAuth service app }
+      - { value: token, label: API token }
   - key: api_token
     label: API token
     type: string
     secret: true
-    required: true
-    help: An API token created by a Read-only Administrator.
+    help: "API token: one created by a Read-only Administrator."
+  - { key: client_id, label: Client ID, type: string, placeholder: 0oa1b2c3d4e5f6g7h8i9, help: "OAuth service app: its client id." }
+  - { key: key_id, label: Key ID, type: string, help: "OAuth service app: the public key's id (kid), when the app has several keys." }
+  - { key: private_key, label: Private key, type: text, secret: true, placeholder: "-----BEGIN PRIVATE KEY-----", help: "OAuth service app: the private key (PEM)." }
 
 auth:
-  kind: api_key
-  name: Authorization
-  value: "SSWS {{ secrets.api_token }}"
+  kind: choice
+  field: auth_method
+  options:
+    token: { kind: api_key, name: Authorization, value: "SSWS {{ secrets.api_token }}" }
+    # A service app: a client assertion signed with its key (private_key_jwt) for an hour-long access token.
+    oauth:
+      kind: oauth2_client_assertion
+      token_url: "https://{{ config.domain }}/oauth2/v1/token"
+      client_id: "{{ config.client_id }}"
+      private_key: "{{ secrets.private_key }}"
+      key_id: "{{ config.key_id }}"
+      scopes: [okta.logs.read]
 
 # The System Log API has its own org-wide rate limit (60 requests a minute on the smallest plans).
 rate_limit: { requests_per_minute: 30 }
@@ -49,10 +71,10 @@ rate_limit: { requests_per_minute: 30 }
 errors:
   - status: [401]
     kind: auth
-    message: Okta refused the API token (expired, revoked, or its admin was deactivated)
+    message: Okta refused the credentials (an API token expired, revoked or whose admin was deactivated; a service app's client id or key)
   - status: [403]
     kind: access_denied
-    message: The API token's admin can't read the System Log (give it the Read-only Administrator role)
+    message: The token's admin (or the service app) can't read the System Log (give it the Read-only Administrator role, and the app the okta.logs.read scope)
   - status: [429]
     kind: throttled
     message: "Okta's System Log rate limit is used up (resets at {{ headers['x-rate-limit-reset'] ?? '?' }})"
@@ -104,7 +126,7 @@ test:
   message: "Connected to {{ config.domain }}: the System Log is readable"
 
 mock:
-  config: { domain: example.okta.com }
+  config: { domain: example.okta.com, auth_method: token }
   secrets: { api_token: 00okta-test-token }
   now: "2026-11-10T12:00:00Z"
   responses:
