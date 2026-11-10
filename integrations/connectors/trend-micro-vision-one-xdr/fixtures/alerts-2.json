@@ -1,0 +1,91 @@
+{
+  "totalCount": 2,
+  "count": 1,
+  "items": [
+    {
+      "schemaVersion": "1.15",
+      "id": "WB-12345-20261110-00002",
+      "incidentId": "IC-12345-20261110-00002",
+      "investigationStatus": "In Progress",
+      "status": "Open",
+      "investigationResult": "True Positive",
+      "workbenchLink": "https://portal.xdr.trendmicro.com/index.html#/workbench/alerts/WB-12345-20261110-00002",
+      "alertProvider": "SAE",
+      "modelId": "5727ebf9-9e6a-47f3-b27f-4129763f7688",
+      "model": "Suspicious Scheduled Task Creation",
+      "modelType": "preset",
+      "score": 45,
+      "severity": "medium",
+      "createdDateTime": "2026-11-09T22:10:00Z",
+      "updatedDateTime": "2026-11-10T10:30:00Z",
+      "description": "A scheduled task was created to run an unsigned binary at logon.",
+      "impactScope": {
+        "desktopCount": 1,
+        "serverCount": 0,
+        "accountCount": 1,
+        "emailAddressCount": 0,
+        "containerCount": 0,
+        "cloudIdentityCount": 0,
+        "entities": [
+          {
+            "entityType": "host",
+            "entityId": "b159820e-0000-4000-8000-000000000002",
+            "entityValue": {
+              "name": "i-0a1b2c3d4e5f60002",
+              "guid": "b159820e-0000-4000-8000-000000000002",
+              "ips": [
+                "10.0.12.34"
+              ]
+            },
+            "relatedIndicatorIds": [
+              1
+            ],
+            "provenance": [
+              "Alert"
+            ]
+          }
+        ]
+      },
+      "matchedRules": [
+        {
+          "id": "b52ebb2a-0000-4000-8000-000000000001",
+          "name": "Suspicious Scheduled Task Creation",
+          "matchedFilters": [
+            {
+              "id": "15d9a461-0000-4000-8000-000000000001",
+              "name": "Suspicious Scheduled Task Creation",
+              "matchedDateTime": "2026-11-09T22:10:00Z",
+              "mitreTechniqueIds": [
+                "T1003"
+              ],
+              "matchedEvents": [
+                {
+                  "uuid": "966495ba-0000-4000-8000-000000000002",
+                  "matchedDateTime": "2026-11-09T22:10:00Z",
+                  "type": "TELEMETRY_EVENT"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "indicators": [
+        {
+          "id": 1,
+          "type": "fullpath",
+          "field": "processFilePath",
+          "value": "C:\\Windows\\Temp\\tool.exe",
+          "relatedEntities": [
+            "b159820e-0000-4000-8000-000000000002"
+          ],
+          "filterIds": [
+            "15d9a461-0000-4000-8000-000000000001"
+          ],
+          "provenance": [
+            "Alert"
+          ]
+        }
+      ]
+    }
+  ]
+}
