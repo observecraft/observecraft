@@ -49,7 +49,7 @@ export function logRequest(query: LogPanelQuery, resolve: (query: string) => str
 export function logSeries(response: LogAggregateResponse, query: LogPanelQuery, range: TimeRange, timeseries: boolean): MetricSeries[] {
   const facets = groupBys(query).map((g) => g.facet);
   return response.data.buckets.map((b) => {
-    const name = facets.length ? facets.map((f) => `${f}:${b.by[f] ?? ''}`).join(',') : '*';
+    const name = facets.length ? facets.map((f) => `${f}:${b.by[f] ?? ''}`).join(', ') : '*';
     const value = b.computes.c0;
     const points: [number, number][] = timeseries
       ? (Array.isArray(value) ? value : []).filter((p) => p.value !== null).map((p) => [Date.parse(p.time), p.value as number])

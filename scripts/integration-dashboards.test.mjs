@@ -442,12 +442,12 @@ test('log queries become Datadog log analytics requests, of any aggregation and 
     { facet: '@usr.name', limit: 5, sort: { order: 'asc' } },
     { facet: 'service', limit: 5, sort: { order: 'asc' } },
   ]);
-  assert.equal(logSeries({ data: { buckets: [{ by: { '@usr.name': 'jane', service: 'billing' }, computes: { c0: 3 } }] } }, fields, range, false)[0].name, '@usr.name:jane,service:billing');
+  assert.equal(logSeries({ data: { buckets: [{ by: { '@usr.name': 'jane', service: 'billing' }, computes: { c0: 3 } }] } }, fields, range, false)[0].name, '@usr.name:jane, service:billing');
 
   // Totals: one series per group (all facets in the name), its value at the end of the range.
   const two = { ...query, group_by: [{ facet: 'source' }, { facet: '@http.status_code' }] };
   assert.deepEqual(logSeries({ data: { buckets: [{ by: { source: 'etcd', '@http.status_code': '500' }, computes: { c0: 120 } }] } }, two, range, false), [
-    { name: 'source:etcd,@http.status_code:500', points: [[60_000, 120]] },
+    { name: 'source:etcd, @http.status_code:500', points: [[60_000, 120]] },
   ]);
   // No facet: `*`; a timeseries lists its steps; a step without a value is left out.
   assert.deepEqual(
