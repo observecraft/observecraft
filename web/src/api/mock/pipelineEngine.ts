@@ -724,7 +724,8 @@ function compileStep(p: Processor, depth: number): Step | null {
       if (!p.target?.trim()) throw new Error('The remapper needs a target');
       return (log) => {
         const fromTag = p.sourceType === 'tag';
-        const read = (s: string) => (fromTag ? log.s.tags[s] : log.get(s));
+        // Attributes only (and the message): not the log's own status, service, host or source.
+        const read = (s: string) => (fromTag ? log.s.tags[s] : ['status', 'service', 'host', 'source'].includes(s) ? lookup(log.s.attributes, s) : log.get(s));
         const source = p.sources.find((s) => read(s) !== undefined);
         if (source === undefined) return;
         let v = read(source)!;

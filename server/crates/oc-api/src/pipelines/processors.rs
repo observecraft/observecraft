@@ -638,7 +638,12 @@ impl Remap {
     }
 
     fn apply(&self, log: &mut Log) {
-        let read = |log: &Log, s: &str| if self.from_tag { log.tags.get(s).map(|v| Value::from(v.as_str())) } else { log.get(s) };
+        // Attributes only (and the message): not the log's own status, service, host or source.
+        let read = |log: &Log, s: &str| match (self.from_tag, s) {
+            (true, _) => log.tags.get(s).map(|v| Value::from(v.as_str())),
+            (false, "status" | "service" | "host" | "source") => log.attribute(s).cloned(),
+            (false, _) => log.get(s),
+        };
         let Some((source, v)) = self.sources.iter().find_map(|s| read(log, s).map(|v| (s, v))) else { return };
         let Some(v) = cast(v, &self.format) else { return };
         let exists = if self.to_tag { log.tags.contains_key(&self.target) } else { log.get(&self.target).is_some() };
@@ -1019,6 +1024,11 @@ mod tests {
         assert_eq!(out.get("deployment.env"), Some(json!("prod")));
         assert_eq!(out.tags.get("client_ip").map(String::as_str), Some("10.0.0.9"));
         assert_eq!(out.tags.get("env").map(String::as_str), Some("prod"));
+        // A source is an attribute: not the log's own status (or service, host, source), as in Datadog.
+        let out = run(json!([{"type": "attribute-remapper", "sources": ["status"], "target": "http.status_code"}]), base());
+        assert_eq!(out.get("http.status_code"), None);
+        let out = run(json!([{"type": "attribute-remapper", "sources": ["status"], "target": "http.status_code"}]), log("m", json!({"status": 503})));
+        assert_eq!((out.get("http.status_code"), out.status.as_str()), (Some(json!(503)), "info"));
     }
 
     #[test]

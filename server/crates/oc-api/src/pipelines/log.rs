@@ -90,6 +90,11 @@ impl Log {
         (!reserved.is_empty()).then(|| Cow::Owned(Value::from(reserved.as_str())))
     }
 
+    /// An attribute by path, without the reserved fields' fallback of [`Log::get`].
+    pub fn attribute(&self, path: &str) -> Option<&Value> {
+        lookup(&self.attrs, path)
+    }
+
     /// Sets an attribute by path, creating nested objects.
     pub fn set(&mut self, path: &str, v: Value) {
         self.flat = None;
