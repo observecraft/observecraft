@@ -41,6 +41,9 @@ const find = (id: string) => db().find((a) => a.id === id) ?? fail('Azure app re
 
 export const listAzureAccounts = (): Promise<AzureAccount[]> => delay(db());
 
+/** Whether the mock has an account: the catalog tile is installed, as the server counts one. */
+export const azureConnected = (): boolean => db().length > 0;
+
 function config(input: AzureAccountInput, base: AzureConfig): AzureConfig {
   const next = { ...base };
   for (const key of Object.keys(DEFAULTS) as (keyof AzureConfig)[]) if (input[key] !== undefined) (next as Record<string, unknown>)[key] = input[key];

@@ -49,6 +49,9 @@ function config(input: GcpAccountInput, base: GcpConfig): GcpConfig {
 export const getGcpSetup = (): Promise<GcpSetup> => delay({ principal_email: 'observecraft@example-host.iam.gserviceaccount.com' });
 export const listGcpAccounts = (): Promise<GcpAccount[]> => delay(db());
 
+/** Whether the mock has an account: the catalog tile is installed, as the server counts one. */
+export const gcpConnected = (): boolean => db().length > 0;
+
 export function createGcpAccount(input: GcpAccountInput): Promise<GcpAccount> {
   const email = input.client_email?.trim() || fail('client_email is required');
   if (db().some((a) => a.client_email === email)) fail('a GCP service account with this client email already exists');

@@ -75,6 +75,9 @@ export const newExternalId = (): Promise<string> => delay(hex());
 
 export const listAwsAccounts = (): Promise<AwsAccount[]> => delay(db());
 
+/** Whether the mock has an account: the catalog tile is installed, as the server counts one. */
+export const awsConnected = (): boolean => db().length > 0;
+
 function auth(input: AwsAccountInput, current?: AwsAccountAttributes['auth_config']): AwsAccountAttributes['auth_config'] {
   const a = input.auth_config;
   if (!a) return current ?? fail('auth_config is required');

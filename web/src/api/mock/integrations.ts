@@ -7,6 +7,11 @@ import { rng } from './generator';
 import { authentikConnected } from './authentik';
 import { fleetdmConnected } from './fleetdm';
 import { gitlabAuditConnected } from './gitlabAudit';
+import { netbirdConnected } from './netbird';
+import { awsConnected } from './aws';
+import { azureConnected } from './azure';
+import { gcpConnected } from './gcp';
+import { slackConnected } from './slack';
 import { coreCatalog, type CoreIntegration } from '../integrations/catalog';
 import { coreSteps } from '../integrations/setupSteps';
 import { linkCore } from '../integrations/coreLink';
@@ -375,7 +380,6 @@ const CURATED: Entry[] = [
     name: 'Amazon Web Services',
     logo: 'amazonwebservices',
     categories: ['AWS', 'Cost Management'],
-    status: 'installed',
     collect: { kind: 'cloud', cloud: 'aws', prefix: 'aws.' },
   },
   {
@@ -431,7 +435,7 @@ const CURATED: Entry[] = [
     collect: { kind: 'otel', receiver: 'rabbitmq', fields: ['endpoint: http://localhost:15672', 'username: ${env:RABBITMQ_USER}', 'password: ${env:RABBITMQ_PASSWORD}'], metrics: RABBIT },
   },
   { id: 'opentelemetry', name: 'OpenTelemetry', categories: ['Tracing', 'Metrics', 'Log Collection'], status: 'installed', collect: { kind: 'otlp', metrics: [] } },
-  { id: 'slack', name: 'Slack', categories: ['Collaboration', 'Notifications', 'Alerting'], status: 'installed', collect: { kind: 'notify', settings: NOTIFY_WEBHOOK } },
+  { id: 'slack', name: 'Slack', categories: ['Collaboration', 'Notifications', 'Alerting'], collect: { kind: 'notify', settings: NOTIFY_WEBHOOK } },
   {
     id: 'pagerduty',
     name: 'PagerDuty',
@@ -456,7 +460,6 @@ const CURATED: Entry[] = [
     name: 'Microsoft Azure',
     logo: 'tile:azure',
     categories: ['Azure', 'Cost Management'],
-    status: 'installed',
     collect: { kind: 'cloud', cloud: 'azure', prefix: 'azure.' },
   },
   {
@@ -464,7 +467,6 @@ const CURATED: Entry[] = [
     name: 'Google Cloud Platform',
     logo: 'googlecloud',
     categories: ['Google Cloud', 'Cost Management'],
-    status: 'installed',
     collect: { kind: 'cloud', cloud: 'gcp', prefix: 'gcp.' },
   },
   {
@@ -1023,7 +1025,16 @@ function entryInstallable(e: Entry): boolean {
 }
 
 /** Integrations set up on their own page: installed while their mock connection is saved, as the server counts one. */
-const CONNECTED: Record<string, () => boolean> = { authentik: authentikConnected, fleetdm: fleetdmConnected, 'gitlab-audit-events': gitlabAuditConnected };
+const CONNECTED: Record<string, () => boolean> = {
+  authentik: authentikConnected,
+  aws: awsConnected,
+  azure: azureConnected,
+  fleetdm: fleetdmConnected,
+  'gitlab-audit-events': gitlabAuditConnected,
+  'google-cloud': gcpConnected,
+  netbird: netbirdConnected,
+  slack: slackConnected,
+};
 
 function statusOf(e: Entry): IntegrationStatus {
   if (!availableHere(collectionInfo(e))) return 'unavailable';

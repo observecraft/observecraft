@@ -110,6 +110,7 @@ function Configure() {
   const refresh = () => {
     qc.invalidateQueries({ queryKey: statusKey });
     qc.invalidateQueries({ queryKey: ['dashboards'] });
+    qc.invalidateQueries({ queryKey: ['integrations'] });
   };
   const status = useQuery({ queryKey: statusKey, queryFn: authentikStatus });
   const { isAdmin } = useAccess();

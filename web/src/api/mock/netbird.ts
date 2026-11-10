@@ -42,6 +42,9 @@ function status(): Status {
 
 export const netbirdStatus = (): Promise<Status> => delay(status());
 
+/** Whether the mock connection is saved: the catalog tile is installed, as the server counts a saved connection. */
+export const netbirdConnected = (): boolean => !!saved;
+
 export function testNetbird(input: Input): Promise<Test> {
   const baseUrl = checkedUrl(input);
   const token = input.token?.trim() || (saved?.baseUrl === baseUrl ? 'saved-token-of-the-mock-0000' : '');

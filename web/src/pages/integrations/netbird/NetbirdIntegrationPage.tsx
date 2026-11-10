@@ -117,7 +117,8 @@ export function NetbirdIntegrationPage() {
 
 function Configure() {
   const qc = useQueryClient();
-  const refresh = () => qc.invalidateQueries({ queryKey: statusKey });
+  // The catalog's tile is installed while the connection is saved.
+  const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: statusKey }), qc.invalidateQueries({ queryKey: ['integrations'] })]);
   const status = useQuery({ queryKey: statusKey, queryFn: netbirdStatus });
   const { isAdmin } = useAccess();
   const test = useMutation({ mutationFn: (input: NetbirdInput) => testNetbird(input) });

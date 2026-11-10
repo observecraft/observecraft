@@ -89,6 +89,9 @@ export const getSlackOverview = (): Promise<SlackOverview> =>
     accounts: db(),
   });
 
+/** Whether a workspace is connected: the catalog tile is installed, as the server counts one. */
+export const slackConnected = (): boolean => db().length > 0;
+
 export function connectSlackAccount(input: { name: string; botToken: string; signingSecret?: string | null }): Promise<SlackAccount> {
   const name = input.name.trim().toLowerCase();
   if (!/^[a-z0-9_-]{1,60}$/.test(name)) fail('Account names are 1–60 lowercase letters, digits, dashes or underscores');
