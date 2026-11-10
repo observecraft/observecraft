@@ -56,10 +56,18 @@ export const CLOUD_SETS: Record<string, Tags[]> = {
       ['Success', 'ClientOtherError'].map((responsetype) => ({ ...AZ, resource_group: 'storefront', region: 'westeurope', name: n, apiname, responsetype })),
     ),
   ),
-  gcp_gce: each(8, (i) => ({ ...GCP, zone: i % 2 ? 'europe-west1-c' : 'europe-west1-b', instance_id: `71234567890123${String(i).padStart(4, '0')}` })),
+  gcp_gce: each(8, (i) => ({
+    ...GCP,
+    zone: i % 2 ? 'europe-west1-c' : 'europe-west1-b',
+    region: 'europe-west1',
+    instance_id: `71234567890123${String(i).padStart(4, '0')}`,
+    instance_name: `${['storefront-web', 'order-worker', 'catalog-batch', 'checkout-api'][i % 4]}-${Math.floor(i / 4) + 1}`,
+  })),
   gcp_cloudsql: ['example-storefront:orders', 'example-storefront:catalog'].map((n) => ({ ...GCP, region: 'europe-west1', database_id: n })),
   gcp_gke: APPS.slice(0, 5).map((app, i) => ({ ...GCP, cluster_name: i < 3 ? 'storefront-prod' : 'storefront-staging', namespace_name: 'shop', container_name: app })),
-  gcp_run: ['storefront-web', 'checkout-api', 'recommendations'].flatMap((s) => ['2xx', '4xx', '5xx'].map((c) => ({ ...GCP, service_name: s, response_code_class: c }))),
+  gcp_run: ['storefront-web', 'checkout-api', 'recommendations'].flatMap((s, i) =>
+    ['2xx', '4xx', '5xx'].map((c) => ({ ...GCP, location: 'europe-west1', service_name: s, revision_name: `${s}-0004${i}-kax`, response_code_class: c })),
+  ),
   gcp_functions: ['order-created', 'resize-image', 'nightly-export'].flatMap((f) => ['ok', 'error'].map((status) => ({ ...GCP, function_name: f, status }))),
   gcp_lb: ['storefront-url-map', 'api-url-map'].map((n) => ({ ...GCP, url_map_name: n })),
 };

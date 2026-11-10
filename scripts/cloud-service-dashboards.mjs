@@ -1,7 +1,7 @@
 // A dashboard per AWS service, Azure resource type and Google Cloud service, as Datadog has one for each service of its cloud
 // integrations: the service's icon, what it shows, its monitors and key numbers, then groups of charts. The most used AWS
-// services and Azure resource types have a layout designed for them (scripts/aws-service-layouts.mjs,
-// scripts/azure-service-layouts.mjs); the others chart every metric the service
+// services, Azure resource types and Google Cloud services have a layout designed for them (scripts/aws-service-layouts.mjs,
+// scripts/azure-service-layouts.mjs, scripts/gcp-service-layouts.mjs); the others chart every metric the service
 // publishes (scripts/import-cloud-metrics.mjs) by the service's resource, grouped by what it measures. Our own
 // dashboards: Datadog's aren't open.
 // They join the integration dashboards an org gets once the service's metrics arrive (routes/integration_dashboards.rs).
@@ -11,6 +11,7 @@ import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { AWS_LAYOUTS, queriesOver } from './aws-service-layouts.mjs';
 import { AZURE_LAYOUTS } from './azure-service-layouts.mjs';
+import { GCP_LAYOUTS } from './gcp-service-layouts.mjs';
 import { convertDashboard } from './import-integration-dashboards.mjs';
 
 const seeds = new URL('../server/seeds/', import.meta.url);
@@ -417,15 +418,73 @@ export const gcpMetricOf = (short, type) => `gcp.${short}.${type.split('/').slic
 const GCP_PERCENTILES = new Set(json('gcp_integration.json').percentiles);
 
 /** Every name the GCP crawler publishes for a metric (gcp/naming.rs stats): numbers under the bare name, cumulative
- *  counters also `.delta`, distributions `.avg`, `.samplecount`, `.sumsqdev` and, for some, `.p95` / `.p99`. */
+ *  counters also `.delta`, distributions `.avg`, `.samplecount`, `.sumsqdev` and, for some, `.p95` / `.p99`; strings
+ *  and money aren't collected. */
 export function gcpNamesOf(short, m) {
   const base = gcpMetricOf(short, m.type);
   if (m.value === 'DISTRIBUTION') return ['.avg', '.samplecount', '.sumsqdev', ...(GCP_PERCENTILES.has(m.type) ? ['.p95', '.p99'] : [])].map((s) => base + s);
-  if (m.kind === 'CUMULATIVE') return [base, `${base}.delta`];
+  if (!['DOUBLE', 'INT64', 'BOOL'].includes(m.value)) return [];
+  if (m.kind === 'CUMULATIVE' && m.value !== 'BOOL') return [base, `${base}.delta`];
   return [base];
 }
 
+const gcpShort = (prefix) => json('gcp_integration.json').services.find((s) => s.prefix === prefix).short;
+const gcpMetrics = (prefix) => {
+  const spec = json('integrations/cloud/gcp-metrics.json').services[prefix];
+  return spec ? [...spec.metrics, ...(spec.others ?? [])] : [];
+};
+
+/** Every name the GCP crawler publishes for a service (its main resource's metrics and its other resources'). */
+export const gcpPublishedNames = (prefix) => new Set(gcpMetrics(prefix).flatMap((m) => gcpNamesOf(gcpShort(prefix), m)));
+
+/** Tags every Google Cloud series can carry beside its resource's and metric's labels (gcp/crawler.rs series_tags). */
+const GCP_COMMON_TAGS = ['project_id', 'region', 'zone', 'location'];
+
+/** A designed Google Cloud dashboard (scripts/gcp-service-layouts.mjs): every metric it charts must be published, a
+ *  cumulative counter by its change (`.delta`, not its running total), and it splits and filters only by the labels
+ *  Cloud Monitoring gives the service's resources and metrics (`labels`). */
+function designedGcpDashboard(service, layout, source) {
+  const variables = ['project_id', ...layout.vars].map((n) => ({ name: n, prefix: n }));
+  const f = variables.map((v) => `$${v.name}`).join(',');
+  const { kpis, groups } = layout.build({ ...queriesOver(f), f, short: service.short });
+  const d = serviceDoc({
+    cloud: 'gcp',
+    service,
+    note: `${layout.note} Collected by the [Google Cloud integration](/integrations/gcp).`,
+    variables,
+    monitors: `tag:(integration:${layout.monitor}) OR gcp.${service.short}.`,
+    kpis,
+    groups,
+    logs: layout.logs,
+    color: 'vivid_blue',
+    description: `${service.name}: what Cloud Monitoring reports for it, laid out for the service.`,
+    source: { repository: 'observecraft', path: 'scripts/gcp-service-layouts.mjs', metrics: source },
+  });
+  const published = gcpPublishedNames(service.prefix);
+  const running = new Set(
+    gcpMetrics(service.prefix)
+      .filter((m) => m.kind === 'CUMULATIVE' && ['DOUBLE', 'INT64'].includes(m.value))
+      .map((m) => gcpMetricOf(service.short, m.type)),
+  );
+  const tags = new Set([...GCP_COMMON_TAGS, ...layout.vars, ...layout.labels]);
+  for (const v of layout.vars) if (![...GCP_COMMON_TAGS, ...layout.labels].includes(v)) throw new Error(`${service.prefix}: the template variable ${v} isn't a label of its resources or metrics`);
+  for (const [, name, filters, by] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{([^}]*)\}(?: by \{([a-z0-9_,]+)\})?/g)) {
+    if (!published.has(name)) throw new Error(`${service.prefix}: ${name} isn't a name the GCP crawler publishes (gcp-metrics.json)`);
+    if (running.has(name)) throw new Error(`${service.prefix}: ${name} is a cumulative counter's running total; chart ${name}.delta`);
+    const used = [
+      ...(by ?? '').split(','),
+      ...filters
+        .split(',')
+        .filter((t) => !t.startsWith('$'))
+        .map((t) => t.replace(/^!/, '').split(':')[0]),
+    ].filter(Boolean);
+    for (const tag of used) if (!tags.has(tag)) throw new Error(`${service.prefix}: ${name} has no ${tag} label (add it to the layout's labels if Cloud Monitoring sets it)`);
+  }
+  return d;
+}
+
 function gcpDashboard(service, spec, source) {
+  if (GCP_LAYOUTS[service.prefix]) return designedGcpDashboard(service, GCP_LAYOUTS[service.prefix], source);
   const tag = spec.dimension;
   // As the crawler publishes them (gcp/naming.rs stats): gauges averaged, deltas summed, cumulative counters by their
   // change (.delta, summed), distributions by their mean (.avg).
@@ -521,6 +580,7 @@ export const MOCK_SERVICES = [
   'tile:gcp-cloudsql',
   'tile:gcp-gce',
   'tile:gcp-gcs',
+  'tile:gcp-pubsub',
   'tile:gcp-run',
 ];
 

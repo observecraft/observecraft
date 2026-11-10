@@ -31,7 +31,7 @@ const queries = (d) =>
         .replace(/\{\}/, '{*}'),
     );
 
-test('every chart of the demo accounts’ AWS and Azure service dashboards has data in mock mode', () => {
+test('every chart of the demo accounts’ AWS, Azure and Google Cloud service dashboards has data in mock mode', () => {
   const range = { from: Date.now() - 3_600_000, to: Date.now() };
   for (const logo of [
     'tile:aws-cloudfront',
@@ -49,6 +49,11 @@ test('every chart of the demo accounts’ AWS and Azure service dashboards has d
     'tile:azure-storage-storageaccounts',
     'tile:azure-sql-servers-databases',
     'tile:azure-keyvault-vaults',
+    'tile:gcp-gce',
+    'tile:gcp-run',
+    'tile:gcp-cloudsql',
+    'tile:gcp-gcs',
+    'tile:gcp-pubsub',
   ]) {
     const d = mock.dashboards.find((x) => x.logo === logo);
     assert.ok(d, `${logo} is in the mock`);

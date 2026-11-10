@@ -4,9 +4,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
-import { MOCK_SERVICES, azurePublishedNames, buildServiceDashboards, gcpNamesOf, metricOf, publishedNames } from './cloud-service-dashboards.mjs';
+import { MOCK_SERVICES, azurePublishedNames, buildServiceDashboards, gcpNamesOf, gcpPublishedNames, metricOf, publishedNames } from './cloud-service-dashboards.mjs';
 import { AWS_LAYOUTS } from './aws-service-layouts.mjs';
 import { AZURE_LAYOUTS } from './azure-service-layouts.mjs';
+import { GCP_LAYOUTS } from './gcp-service-layouts.mjs';
 import { gcpPage, withDatadogNamespaces } from './import-cloud-metrics.mjs';
 
 const seed = (path) => JSON.parse(readFileSync(new URL(`../server/seeds/${path}`, import.meta.url), 'utf8'));
@@ -177,7 +178,8 @@ test('one dashboard per Azure resource type and Google Cloud service, named as t
   assert.doesNotMatch(JSON.stringify(lines.filter((l) => l.logo.startsWith('tile:azure-'))), /azure\.[a-z0-9_.]+\.(total|maximum)\{/);
   const gce = lines.find((l) => l.logo === 'tile:gcp-gce');
   assert.equal(gce.prefix, 'gcp.gce.');
-  assert.match(JSON.stringify(gce.dashboards[0].widgets), /avg:gcp\.gce\.instance\.cpu\.utilization\{\$project_id,\$instance_id\} by \{instance_id\}/);
+  const memcache = lines.find((l) => l.logo === 'tile:gcp-memcache');
+  assert.match(JSON.stringify(memcache.dashboards[0].widgets), /avg:gcp\.memcache\.node\.memory\.utilization\{\$project_id,\$instance_id\} by \{instance_id\}/);
   assert.ok(lines.filter((l) => l.logo.startsWith('tile:azure-')).length >= 50);
   assert.ok(lines.filter((l) => l.logo.startsWith('tile:gcp-')).length >= 60);
   // Google Cloud: distributions are charted by their mean (.avg), cumulative counters by their change (.delta), as the crawler names them.
@@ -185,7 +187,7 @@ test('one dashboard per Azure resource type and Google Cloud service, named as t
   assert.match(gcpLines, /avg:gcp\.loadbalancing\.https\.total_latencies\.avg\{/);
   assert.match(gcpLines, /sum:gcp\.gke\.container\.restart_count\.delta\{/);
   assert.match(gcpLines, /:gcp\.storage\.storage\.total_bytes\{/);
-  assert.doesNotMatch(gcpLines, /gcp\.gcs\./);
+  assert.doesNotMatch(gcpLines, /:gcp\.gcs\.[a-z0-9_.]+\{/);
 });
 
 test('Google Cloud metrics are published under Datadog’s names for their kind', () => {
@@ -197,6 +199,9 @@ test('Google Cloud metrics are published under Datadog’s names for their kind'
     'gcp.pubsub.topic.send_request_latencies.samplecount',
     'gcp.pubsub.topic.send_request_latencies.sumsqdev',
   ]);
+  // Strings and money aren't collected (gcp/naming.rs stats).
+  assert.deepEqual(gcpNamesOf('gce', m('compute.googleapis.com/instance/uptime_total', 'GAUGE', 'STRING')), []);
+  assert.deepEqual(gcpNamesOf('gce', m('compute.googleapis.com/instance/disk/performance_status', 'GAUGE', 'BOOL')), ['gcp.gce.instance.disk.performance_status']);
   assert.deepEqual(gcpNamesOf('loadbalancing', m('loadbalancing.googleapis.com/https/total_latencies', 'DELTA', 'DISTRIBUTION')).slice(3), [
     'gcp.loadbalancing.https.total_latencies.p95',
     'gcp.loadbalancing.https.total_latencies.p99',
@@ -245,6 +250,7 @@ test('mock mode shows the dashboards of the services its demo account collects',
   const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/cloudServiceDashboards.generated.json', import.meta.url), 'utf8'));
   assert.deepEqual(mock.dashboards.map((d) => d.logo).sort(), [...MOCK_SERVICES].sort());
   assert.ok(MOCK_SERVICES.includes('tile:aws-sqs'));
+  for (const id of ['gcp-gce', 'gcp-run', 'gcp-cloudsql', 'gcp-gcs', 'gcp-pubsub']) assert.ok(MOCK_SERVICES.includes(`tile:${id}`), id);
   assert.equal(mock.units['azure.vm.percentage_cpu'], 'percent');
 });
 
@@ -563,5 +569,145 @@ test('every Azure service dashboard charts only names and tags the crawler publi
     if (!line) continue;
     const names = azurePublishedNames(t.type);
     for (const [, name] of JSON.stringify(line.dashboards[0].widgets).matchAll(/[a-z]+:(azure\.[a-z0-9_.]+)\{/g)) assert.ok(names.has(name), `${t.type}: ${name}`);
+  }
+});
+
+// ---------------------------------------------------------------- hand-designed Google Cloud dashboards (scripts/gcp-service-layouts.mjs)
+
+const gcpLine = (prefix) => {
+  const id = seed('gcp_integration.json').services.find((s) => s.prefix === prefix).id;
+  return bundle().find((l) => l.logo === `tile:${id}`);
+};
+const DESIGNED_GCP = [
+  'compute.googleapis.com/',
+  'kubernetes.io/',
+  'run.googleapis.com/',
+  'cloudfunctions.googleapis.com/',
+  'appengine.googleapis.com/',
+  'cloudsql.googleapis.com/',
+  'spanner.googleapis.com/',
+  'bigtable.googleapis.com/',
+  'bigquery.googleapis.com/',
+  'firestore.googleapis.com/',
+  'datastore.googleapis.com/',
+  'redis.googleapis.com/',
+  'memorystore.googleapis.com/',
+  'pubsub.googleapis.com/',
+  'storage.googleapis.com/',
+  'loadbalancing.googleapis.com/',
+  'edgecache.googleapis.com/',
+  'dns.googleapis.com/',
+  'router.googleapis.com/',
+  'vpn.googleapis.com/',
+  'interconnect.googleapis.com/',
+  'networksecurity.googleapis.com/',
+  'file.googleapis.com/',
+  'dataflow.googleapis.com/',
+  'dataproc.googleapis.com/',
+  'composer.googleapis.com/',
+  'aiplatform.googleapis.com/',
+  'serviceruntime.googleapis.com/',
+  'logging.googleapis.com/',
+  'cloudtasks.googleapis.com/',
+  'cloudkms.googleapis.com/',
+  'eventarc.googleapis.com/',
+  'monitoring.googleapis.com/',
+];
+
+test('the most used Google Cloud services have a dashboard designed for them', () => {
+  for (const prefix of DESIGNED_GCP) assert.ok(GCP_LAYOUTS[prefix], `${prefix} has a layout`);
+  for (const prefix of Object.keys(GCP_LAYOUTS)) {
+    const short = seed('gcp_integration.json').services.find((s) => s.prefix === prefix).short;
+    const [d] = gcpLine(prefix).dashboards;
+    const [about, ...groups] = d.widgets;
+    assert.equal(about.definition.type, 'group', `${prefix}: starts with its About group`);
+    const inAbout = about.definition.widgets.map((w) => w.definition);
+    assert.ok(
+      inAbout.some((w) => w.type === 'image' && w.logo === d.logo),
+      `${prefix}: its logo`,
+    );
+    assert.ok(
+      inAbout.some((w) => w.type === 'note' && w.content.length > 40),
+      `${prefix}: what it shows`,
+    );
+    assert.ok(inAbout.filter((w) => kind(w) === 'query_value').length >= 3, `${prefix}: a row of key numbers`);
+    const summary = inAbout.find((w) => w.type === 'monitor_summary');
+    assert.match(summary?.query ?? '', new RegExp(`^tag:\\(integration:google_[a-z0-9_]+\\) OR gcp\\.${short}\\.$`), `${prefix}: its monitors`);
+    assert.ok(groups.filter((g) => g.definition.type === 'group').length >= 2, `${prefix}: themed groups`);
+    assert.ok(new Set(widgetsOf(d).map(kind)).size >= 3, `${prefix}: more than one kind of widget`);
+    assert.equal(d.templateVariables[0].prefix, 'project_id', `${prefix}: filters by project first`);
+    assert.ok(d.templateVariables.length >= 2, `${prefix}: and by the service's resource`);
+  }
+});
+
+test('designed Google Cloud dashboards follow their service’s model, not one template, and not AWS’s or Azure’s', () => {
+  const titles = (line) =>
+    line.dashboards[0].widgets
+      .slice(1)
+      .map((g) => g.definition.title)
+      .join('|');
+  const all = DESIGNED_GCP.map((p) => titles(gcpLine(p)));
+  assert.equal(new Set(all).size, all.length, 'each service has its own groups');
+  const others = bundle()
+    .filter((l) => /^tile:(aws|azure)-/.test(l.logo))
+    .map(titles);
+  for (const t of all) assert.ok(!others.includes(t), t);
+  const text = (p) => JSON.stringify(gcpLine(p).dashboards[0]);
+  const vars = (p) => gcpLine(p).dashboards[0].templateVariables.map((v) => v.prefix);
+  // Compute Engine: CPU by instance name, disks, network, firewall drops; its logs.
+  assert.match(text('compute.googleapis.com/'), /avg:gcp\.gce\.instance\.cpu\.utilization\{[^}]*\} by \{instance_name\}/);
+  assert.match(text('compute.googleapis.com/'), /gcp\.gce\.instance\.disk\.write_bytes_count/);
+  assert.match(text('compute.googleapis.com/'), /gcp\.gce\.firewall\.dropped_packets_count/);
+  assert.match(text('compute.googleapis.com/'), /source:gcp\.gce\.instance/);
+  assert.deepEqual(vars('compute.googleapis.com/'), ['project_id', 'region', 'zone', 'instance_name']);
+  // Cloud Run: requests by response code class, latency percentiles, instances, utilization distributions, billable time.
+  assert.match(text('run.googleapis.com/'), /sum:gcp\.run\.request_count\{[^}]*\} by \{response_code_class\}/);
+  assert.match(text('run.googleapis.com/'), /gcp\.run\.request_latencies\.p99/);
+  assert.match(text('run.googleapis.com/'), /gcp\.run\.container\.cpu\.utilizations\.p95/);
+  assert.match(text('run.googleapis.com/'), /gcp\.run\.container\.billable_instance_time/);
+  assert.deepEqual(vars('run.googleapis.com/'), ['project_id', 'location', 'service_name', 'revision_name']);
+  // Cloud SQL: one dashboard for MySQL, PostgreSQL and SQL Server, with replication lag and Query Insights.
+  assert.match(text('cloudsql.googleapis.com/'), /gcp\.cloudsql\.database\.replication\.replica_lag/);
+  assert.match(text('cloudsql.googleapis.com/'), /gcp\.cloudsql\.database\.mysql\.queries/);
+  assert.match(text('cloudsql.googleapis.com/'), /gcp\.cloudsql\.database\.postgresql\.insights\.aggregate\.latencies\.p99/);
+  assert.match(text('cloudsql.googleapis.com/'), /gcp\.cloudsql\.database\.sqlserver\./);
+  // GKE: allocatable against used, container restarts by their change, pod volumes.
+  assert.match(text('kubernetes.io/'), /gcp\.gke\.node\.cpu\.allocatable_utilization/);
+  assert.match(text('kubernetes.io/'), /sum:gcp\.gke\.container\.restart_count\.delta\{/);
+  assert.match(text('kubernetes.io/'), /gcp\.gke\.pod\.volume\.utilization/);
+  // Load Balancing: requests by response code class, total and backend latency percentiles, CDN cache results.
+  assert.match(text('loadbalancing.googleapis.com/'), /gcp\.loadbalancing\.https\.total_latencies\.p95/);
+  assert.match(text('loadbalancing.googleapis.com/'), /gcp\.loadbalancing\.https\.backend_latencies\.p99/);
+  assert.match(text('loadbalancing.googleapis.com/'), /by \{cache_result\}/);
+  assert.match(text('loadbalancing.googleapis.com/'), /gcp\.loadbalancing\.tcp_ssl_proxy\.open_connections/);
+  // Pub/Sub: undelivered messages, oldest unacked age, acks and dead letters.
+  assert.match(text('pubsub.googleapis.com/'), /gcp\.pubsub\.subscription\.num_undelivered_messages/);
+  assert.match(text('pubsub.googleapis.com/'), /gcp\.pubsub\.subscription\.oldest_unacked_message_age/);
+  assert.match(text('pubsub.googleapis.com/'), /gcp\.pubsub\.topic\.send_request_count/);
+  assert.deepEqual(vars('pubsub.googleapis.com/'), ['project_id', 'topic_id', 'subscription_id']);
+  // Cloud Storage: daily storage over a week, requests by method and response code.
+  assert.ok(
+    widgetsOf(gcpLine('storage.googleapis.com/').dashboards[0]).some((w) => /storage\.total_bytes/.test(JSON.stringify(w)) && w.original?.time?.live_span),
+    'Cloud Storage reads its storage over a longer span',
+  );
+  assert.match(text('storage.googleapis.com/'), /sum:gcp\.storage\.api\.request_count\{[^}]*\} by \{method\}/);
+});
+
+test('every Google Cloud service dashboard charts only names the crawler publishes, cumulative counters by their change', () => {
+  assert.ok(gcpPublishedNames('kubernetes.io/').has('gcp.gke.node.cpu.allocatable_utilization'), 'other resources’ metrics too');
+  assert.ok(gcpPublishedNames('cloudsql.googleapis.com/').has('gcp.cloudsql.database.postgresql.insights.aggregate.latencies.p99'));
+  assert.ok(!gcpPublishedNames('run.googleapis.com/').has('gcp.run.request_count.delta'), 'deltas have no .delta');
+  const gcpSeed = seed('integrations/cloud/gcp-metrics.json').services;
+  for (const s of seed('gcp_integration.json').services) {
+    const line = bundle().find((l) => l.logo === `tile:${s.id}`);
+    if (!line) continue;
+    const names = gcpPublishedNames(s.prefix);
+    const cumulative = new Set(
+      [...gcpSeed[s.prefix].metrics, ...(gcpSeed[s.prefix].others ?? [])].filter((m) => m.kind === 'CUMULATIVE' && m.value !== 'DISTRIBUTION').map((m) => gcpNamesOf(s.short, m)[0]),
+    );
+    for (const [, name] of JSON.stringify(line.dashboards[0].widgets).matchAll(/[a-z]+:(gcp\.[a-z0-9_.]+)\{/g)) {
+      assert.ok(names.has(name), `${s.prefix}: ${name}`);
+      assert.ok(!cumulative.has(name), `${s.prefix}: ${name} is a running total; chart its .delta`);
+    }
   }
 });

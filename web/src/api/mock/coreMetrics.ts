@@ -71,7 +71,37 @@ const AZURE_VALUES: Record<string, string[]> = {
   activitytype: ['secret', 'key', 'certificate', 'authentication'],
   activityname: ['secretget', 'keysign', 'certificateget', 'authentication'],
 };
-const valuesOf = (logo: string, tag: string) => LOGO_VALUES[logo]?.[tag] ?? (logo.startsWith('tile:azure-') ? AZURE_VALUES[tag] : undefined) ?? VALUES[tag];
+/** The Google Cloud services' tags (cloudServiceDashboards.generated.json): project example-storefront's resources and the metric labels they split by. */
+const GCP_VALUES: Record<string, string[]> = {
+  project_id: ['example-storefront', 'example-storefront', 'example-storefront', 'example-storefront'],
+  region: ['europe-west1', 'europe-west1', 'us-central1', 'europe-west1'],
+  zone: ['europe-west1-b', 'europe-west1-c', 'us-central1-a', 'europe-west1-b'],
+  location: ['europe-west1', 'europe-west1', 'us-central1', 'europe-west1'],
+  instance_id: ['7123456789012300001', '7123456789012300002', '7123456789012300003', '7123456789012300004'],
+  instance_name: ['storefront-web-1', 'storefront-web-2', 'order-worker-1', 'catalog-batch-1'],
+  instance_group_name: ['storefront-web-mig', 'storefront-web-mig', 'order-worker-mig', 'catalog-batch-mig'],
+  device_name: ['persistent-disk-0', 'persistent-disk-0', 'persistent-disk-1', 'persistent-disk-0'],
+  database_id: ['example-storefront:orders', 'example-storefront:catalog', 'example-storefront:billing', 'example-storefront:orders-replica'],
+  database: ['orders', 'catalog', 'billing', 'orders'],
+  data_type: ['data', 'binlog', 'tmp_data', 'data'],
+  service_name: ['storefront-web', 'checkout-api', 'recommendations', 'storefront-web'],
+  revision_name: ['storefront-web-00042-kax', 'checkout-api-00017-pod', 'recommendations-00008-zuv', 'storefront-web-00041-qir'],
+  response_code_class: ['2xx', '2xx', '4xx', '5xx'],
+  state: ['active', 'active', 'idle', 'active'],
+  bucket_name: ['example-storefront-assets', 'example-order-exports', 'example-logs-archive', 'example-catalog-images'],
+  storage_class: ['STANDARD', 'NEARLINE', 'STANDARD', 'COLDLINE'],
+  method: ['ReadObject', 'WriteObject', 'ListObjects', 'GetObjectMetadata'],
+  topic_id: ['order-events', 'payment-events', 'inventory-updates', 'order-events'],
+  subscription_id: ['order-events-billing', 'payment-events-ledger', 'inventory-updates-catalog', 'order-events-email'],
+  delivery_type: ['pull', 'push', 'pull', 'streaming pull'],
+  response_class: ['success', 'success', 'internal', 'success'],
+};
+const GCP_LOGO_VALUES: Record<string, Record<string, string[]>> = {
+  'tile:gcp-gcs': { response_code: ['OK', 'OK', 'NOT_FOUND', 'PERMISSION_DENIED'] },
+  'tile:gcp-pubsub': { response_code: ['success', 'success', 'unavailable', 'success'] },
+};
+const valuesOf = (logo: string, tag: string) =>
+  LOGO_VALUES[logo]?.[tag] ?? GCP_LOGO_VALUES[logo]?.[tag] ?? (logo.startsWith('tile:azure-') ? AZURE_VALUES[tag] : logo.startsWith('tile:gcp-') ? GCP_VALUES[tag] : undefined) ?? VALUES[tag];
 
 /** Sized by unit: fractions and percentages in range, bytes in megabytes to gigabytes, times in milliseconds. */
 function base(unit: string | undefined): Pick<CoreMetricDef, 'base' | 'max' | 'integer'> {
@@ -108,12 +138,20 @@ for (const d of dashboards)
     if (CORE_METRICS[metric]) continue;
     const unit = (core.units as Record<string, string>)[metric] ?? (cloudServices.units as Record<string, string>)[metric];
     // An Azure resource count (azure.<type>.count) is one series per resource, valued 1; availability metrics are 0 or 1.
-    const one = /^azure\.[a-z0-9_]+\.count$/.test(metric) || metric.endsWith('.vm_availability_metric');
+    // Google Cloud's up and health gauges are 0 or 1, 1 when well.
+    const one =
+      /^azure\.[a-z0-9_]+\.count$/.test(metric) ||
+      metric.endsWith('.vm_availability_metric') ||
+      /^gcp\..*\.(up|healthy|instance_available|tunnel_established|operational|available_for_failover)$/.test(metric);
+    // Ratios Cloud Monitoring reports without a unit stay between 0 and 1.
+    const ratio = /^gcp\..*(hit_ratio|usage_ratio)$/.test(metric);
     // Availability percentages stay close to 100.
     const available = unit === 'percent' && /availability$/.test(metric);
     CORE_METRICS[metric] = one
       ? { set: `core_${d.logo}`, description: metric, unit, noise: 0, base: () => 1, integer: true }
-      : available
-        ? { set: `core_${d.logo}`, description: metric, unit, noise: 0.001, base: (_e, r) => 99.5 + r() * 0.5, max: 100 }
-        : { set: `core_${d.logo}`, description: metric, unit, noise: 0.2, ...base(unit) };
+      : ratio
+        ? { set: `core_${d.logo}`, description: metric, unit, noise: 0.02, base: (_e, r) => 0.85 + r() * 0.14, max: 1 }
+        : available
+          ? { set: `core_${d.logo}`, description: metric, unit, noise: 0.001, base: (_e, r) => 99.5 + r() * 0.5, max: 100 }
+          : { set: `core_${d.logo}`, description: metric, unit, noise: 0.2, ...base(unit) };
   }
