@@ -4,8 +4,9 @@
 # service:investigation, the record's fields at the top). integrations-core's ExtraHop pipeline and "ExtraHop -
 # Detections" dashboard read them as they are, so this package ships neither: saving a connection installs the tile's.
 #
-# A record's `status` field (a detection's or an investigation's workflow state) can't stay at the top, where it is the
-# log's level: it is sent as `detection_status` (what the tile's pipeline renames it to) and `investigation_status`.
+# A record's `status` field (a detection's or an investigation's workflow state) stays `@status`: the tile's pipeline
+# renames a detection's to `detection_status` (and its title to `detection_title`, its url to `http.url`), and the
+# dashboard filters investigations on `@status`.
 schema_version: 1
 id: extrahop
 name: ExtraHop
@@ -65,8 +66,8 @@ streams:
     name: Detections
     description: >-
       One log per detection and change (service:detection): title, type, risk_score, categories, mitre_tactics,
-      mitre_techniques, participants and the other fields, detection_status (new, in_progress, closed, …) and
-      risk_status (info, warning, critical from the risk score).
+      mitre_techniques, participants and the other fields, status (new, in_progress, closed, …; the pipeline's
+      detection_status) and the log's status from the risk score (info, warning, critical; the pipeline's risk_status).
     interval: 5m
     request:
       method: POST
@@ -94,14 +95,13 @@ streams:
         message: "{{ record.title ?? record.type }}"
         status: "{{ vars.risk }}"
         date: "{{ record.mod_time }}"
-        attributes: >-
-          {{ record + {detection_status: record.status, detection_title: record.title, risk_status: vars.risk, http: {url: record.url}} }}
+        attributes: "{{ record }}"
 
   - id: investigations
     name: Investigations
     description: >-
       One log per investigation and change (service:investigation): name, assessment, assignee, detections, notes,
-      is_user_created and investigation_status (open, in_progress, closed).
+      is_user_created and status (open, in_progress, closed).
     interval: 5m
     request:
       url: "https://{{ config.sub_domain }}.api.cloud.extrahop.com/api/v1/investigations"
@@ -117,7 +117,7 @@ streams:
         service: investigation
         message: "{{ record.name }}"
         date: "{{ record.update_time }}"
-        attributes: "{{ record + {investigation_status: record.status, http: {url: record.url}} }}"
+        attributes: "{{ record }}"
 
 test:
   request:

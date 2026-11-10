@@ -16,11 +16,7 @@
         8589934602
       ],
       "host": "example-shop",
-      "http": {
-        "url": "https://example-shop.cloud.extrahop.com/#/detections/investigations/41"
-      },
       "id": 41,
-      "investigation_status": "in_progress",
       "is_user_created": true,
       "last_interaction_by": "analyst@example.com",
       "last_interaction_time": 1794306000000,
@@ -47,11 +43,7 @@
         8589934551
       ],
       "host": "example-shop",
-      "http": {
-        "url": "https://example-shop.cloud.extrahop.com/#/detections/investigations/38"
-      },
       "id": 38,
-      "investigation_status": "closed",
       "is_user_created": true,
       "last_interaction_by": "secops@example.com",
       "last_interaction_time": 1794100000000,
