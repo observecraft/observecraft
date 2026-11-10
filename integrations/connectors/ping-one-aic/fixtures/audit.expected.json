@@ -1,0 +1,172 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c484-3138-7aad-9ee5-bd791745df7e"
+      },
+      "date": "2026-11-10T08:12:40.120531Z",
+      "ddsource": "ping-one-aic",
+      "host": "openam-example.forgeblocks.com",
+      "message": "AM-CONFIG-CHANGE (/alpha)",
+      "payload": {
+        "_id": "7b6d0000-0000-4000-8000-000000000001-101",
+        "eventName": "AM-CONFIG-CHANGE",
+        "level": "INFO",
+        "objectId": "ou=default,ou=OrganizationConfig,ou=1.0,ou=OAuth2Provider,ou=services,o=alpha,ou=services,ou=am-config",
+        "operation": "UPDATE",
+        "realm": "/alpha",
+        "runAs": "id=dsameuser,ou=user,ou=am-config",
+        "source": "audit",
+        "timestamp": "2026-11-10T08:12:40.118Z",
+        "topic": "config",
+        "trackingIds": [
+          "7b6d0000-0000-4000-8000-000000000001-100"
+        ],
+        "transactionId": "5d5d5d5d-0000-4000-8000-000000000001/0",
+        "userId": "id=2b2b2b2b-0000-4000-8000-000000000001,ou=user,ou=am-config"
+      },
+      "service": "ping-one-aic",
+      "source": "am-config",
+      "status": "info",
+      "timestamp": "2026-11-10T08:12:40.120531Z",
+      "type": "application/json"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4cb-074b-7285-bb6e-bb2aca1a4286"
+      },
+      "date": "2026-11-10T09:30:02.443902Z",
+      "ddsource": "ping-one-aic",
+      "host": "openam-example.forgeblocks.com",
+      "message": "AM-TREE-LOGIN-COMPLETED SUCCESSFUL (/alpha)",
+      "payload": {
+        "_id": "7b6d0000-0000-4000-8000-000000000002-201",
+        "component": "Authentication",
+        "entries": [
+          {
+            "info": {
+              "authLevel": "0",
+              "ipAddress": "198.51.100.23",
+              "treeName": "Login"
+            }
+          }
+        ],
+        "eventName": "AM-TREE-LOGIN-COMPLETED",
+        "level": "INFO",
+        "principal": [
+          "jane.doe@example.com"
+        ],
+        "realm": "/alpha",
+        "result": "SUCCESSFUL",
+        "source": "audit",
+        "timestamp": "2026-11-10T09:30:02.441Z",
+        "topic": "authentication",
+        "trackingIds": [
+          "7b6d0000-0000-4000-8000-000000000002-200"
+        ],
+        "transactionId": "5d5d5d5d-0000-4000-8000-000000000002/0",
+        "userId": "id=4c4c4c4c-0000-4000-8000-000000000011,ou=user,o=alpha,ou=services,ou=am-config"
+      },
+      "service": "ping-one-aic",
+      "source": "am-authentication",
+      "status": "info",
+      "timestamp": "2026-11-10T09:30:02.443902Z",
+      "type": "application/json"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4cb-0983-7921-802d-0206c7496aba"
+      },
+      "date": "2026-11-10T09:30:03.011477Z",
+      "ddsource": "ping-one-aic",
+      "host": "openam-example.forgeblocks.com",
+      "message": "AM-ACCESS-OUTCOME SUCCESSFUL (/alpha)",
+      "payload": {
+        "_id": "7b6d0000-0000-4000-8000-000000000003-301",
+        "client": {
+          "ip": "198.51.100.23"
+        },
+        "component": "OAuth",
+        "eventName": "AM-ACCESS-OUTCOME",
+        "http": {
+          "request": {
+            "method": "GET",
+            "path": "https://openam-example.forgeblocks.com/am/oauth2/alpha/authorize",
+            "secure": true
+          }
+        },
+        "level": "INFO",
+        "realm": "/alpha",
+        "response": {
+          "elapsedTime": 12,
+          "elapsedTimeUnits": "MILLISECONDS",
+          "status": "SUCCESSFUL",
+          "statusCode": "302"
+        },
+        "source": "audit",
+        "timestamp": "2026-11-10T09:30:03.010Z",
+        "topic": "access",
+        "transactionId": "5d5d5d5d-0000-4000-8000-000000000003/0"
+      },
+      "service": "ping-one-aic",
+      "source": "am-access",
+      "status": "info",
+      "timestamp": "2026-11-10T09:30:03.011477Z",
+      "type": "application/json"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c50f-0a76-736d-9882-3c7a3089e73e"
+      },
+      "date": "2026-11-10T10:44:19.702115Z",
+      "ddsource": "ping-one-aic",
+      "host": "openam-example.forgeblocks.com",
+      "message": "AM-TREE-LOGIN-COMPLETED FAILED (/alpha)",
+      "payload": {
+        "_id": "7b6d0000-0000-4000-8000-000000000005-501",
+        "component": "Authentication",
+        "entries": [
+          {
+            "info": {
+              "authLevel": "0",
+              "ipAddress": "203.0.113.77",
+              "nodeExtraLogging": {
+                "failureReason": "Invalid credentials"
+              },
+              "treeName": "Login"
+            }
+          }
+        ],
+        "eventName": "AM-TREE-LOGIN-COMPLETED",
+        "level": "INFO",
+        "principal": [
+          "sam.lee@example.com"
+        ],
+        "realm": "/alpha",
+        "result": "FAILED",
+        "source": "audit",
+        "timestamp": "2026-11-10T10:44:19.700Z",
+        "topic": "authentication",
+        "trackingIds": [
+          "7b6d0000-0000-4000-8000-000000000005-500"
+        ],
+        "transactionId": "5d5d5d5d-0000-4000-8000-000000000005/0"
+      },
+      "service": "ping-one-aic",
+      "source": "am-authentication",
+      "status": "info",
+      "timestamp": "2026-11-10T10:44:19.702115Z",
+      "type": "application/json"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}

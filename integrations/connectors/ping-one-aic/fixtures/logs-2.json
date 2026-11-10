@@ -1,0 +1,44 @@
+{
+  "result": [
+    {
+      "payload": {
+        "realm": "/alpha",
+        "transactionId": "5d5d5d5d-0000-4000-8000-000000000005/0",
+        "component": "Authentication",
+        "eventName": "AM-TREE-LOGIN-COMPLETED",
+        "level": "INFO",
+        "source": "audit",
+        "topic": "authentication",
+        "result": "FAILED",
+        "principal": [
+          "sam.lee@example.com"
+        ],
+        "trackingIds": [
+          "7b6d0000-0000-4000-8000-000000000005-500"
+        ],
+        "entries": [
+          {
+            "info": {
+              "treeName": "Login",
+              "authLevel": "0",
+              "ipAddress": "203.0.113.77",
+              "nodeExtraLogging": {
+                "failureReason": "Invalid credentials"
+              }
+            }
+          }
+        ],
+        "_id": "7b6d0000-0000-4000-8000-000000000005-501",
+        "timestamp": "2026-11-10T10:44:19.700Z"
+      },
+      "source": "am-authentication",
+      "type": "application/json",
+      "timestamp": "2026-11-10T10:44:19.702115Z"
+    }
+  ],
+  "resultCount": 1,
+  "pagedResultsCookie": null,
+  "totalPagedResultsPolicy": "NONE",
+  "totalPagedResults": -1,
+  "remainingPagedResults": -1
+}

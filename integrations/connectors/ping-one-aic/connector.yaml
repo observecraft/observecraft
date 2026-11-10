@@ -1,0 +1,116 @@
+# yaml-language-server: $schema=../connector.schema.json
+# PingOne Advanced Identity Cloud (formerly ForgeRock Identity Cloud,
+# https://docs.pingidentity.com/pingoneaic/latest/tenants/audit-debug-logs.html): the tenant's audit logs (am-config,
+# am-authentication, am-activity, idm-activity and the OAuth access outcomes of am-access) read from its monitoring
+# API, as the logs Datadog's integration sends (source:ping-one-aic, the log entry as the tenant answers it: payload,
+# source, type, timestamp). integrations-core's pipeline (OCSF mapping included) and overview dashboard read them as
+# they are, so this package ships neither: saving a connection installs the tile's.
+schema_version: 1
+id: ping-one-aic
+name: PingOne Advanced Identity Cloud
+publisher: ObserveCraft
+vendor: Ping Identity
+description: >-
+  The audit logs of a PingOne Advanced Identity Cloud tenant (journeys and logins, configuration changes, identity
+  changes, OAuth access outcomes) as logs, read every minute from the tenant's monitoring API.
+tiles: [ping-one-aic]
+categories: [Log Collection, Security, Identity]
+docs_url: https://docs.pingidentity.com/pingoneaic/latest/tenants/audit-debug-logs.html
+setup: |
+  1. In the Advanced Identity Cloud admin console, open **Tenant settings → Global Settings → Log API Keys** and
+     **+ New Log API Key**, e.g. `observecraft`.
+  2. Copy the **API key ID** and the **API key secret** (shown once).
+  3. Enter the tenant's domain (`openam-example.forgeblocks.com`, or its custom domain).
+instance: "{{ config.tenant_domain }}"
+
+config:
+  - key: tenant_domain
+    label: Tenant domain
+    type: string
+    required: true
+    pattern: "[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+"
+    placeholder: openam-example.forgeblocks.com
+    help: The tenant's domain, without https://.
+  - key: api_key_id
+    label: Log API key ID
+    type: string
+    required: true
+  - key: api_key_secret
+    label: Log API key secret
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: headers
+  headers:
+    x-api-key: "{{ config.api_key_id }}"
+    x-api-secret: "{{ secrets.api_key_secret }}"
+
+# The monitoring API allows 60 requests a minute per tenant.
+rate_limit: { requests_per_minute: 50 }
+
+errors:
+  - status: [401, 403]
+    kind: auth
+    message: The tenant refused the log API key ID and secret
+  - status: [404]
+    kind: access_denied
+    message: "No monitoring API at https://{{ config.tenant_domain }}: check the tenant domain"
+
+streams:
+  - id: audit
+    name: Audit logs
+    description: >-
+      Every entry of the am-config, am-authentication, am-activity and idm-activity audit sources, and the OAuth
+      access outcomes of am-access, as a log: payload (eventName, realm, userId, principal, entries, result,
+      client.ip, …), source (the audit source), type and timestamp.
+    request:
+      url: "https://{{ config.tenant_domain }}/monitoring/logs"
+      query:
+        source: am-config,am-authentication,am-activity,am-access,idm-activity
+        beginTime: "{{ window.start | rfc3339 }}"
+        endTime: "{{ window.end | rfc3339 }}"
+        _pageSize: 1000
+        _pagedResultsCookie: "{{ page.cursor }}"
+    records: "{{ response.result }}"
+    pagination: { kind: cursor, next: "{{ response.pagedResultsCookie }}" }
+    max_pages: 50
+    # am-access logs every request the tenant serves; like Datadog, only OAuth access outcomes are kept.
+    filter: "{{ record.source != 'am-access' || (record.payload.eventName == 'AM-ACCESS-OUTCOME' && record.payload.component == 'OAuth') }}"
+    record_id: "{{ record.payload._id ?? (record.source + ':' + record.timestamp) }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.timestamp }}"
+      order: unordered
+      lookback: 1d
+      overlap: 2m
+      # Entries are queryable a little after they are written; a request covers at most 24 hours.
+      settle: 1m
+      max_window: 24h
+    vars:
+      outcome: "{{ record.payload.result ?? record.payload.status ?? record.payload.response.status }}"
+    output:
+      logs:
+        message: >-
+          {{ (record.payload.eventName ?? record.source) + (' ' + vars.outcome ?? '') + (' (' + record.payload.realm + ')' ?? '') }}
+        status: "{{ (record.payload.level ?? 'INFO') | lower }}"
+        date: "{{ record.timestamp }}"
+        attributes: "{{ record }}"
+
+test:
+  request: { url: "https://{{ config.tenant_domain }}/monitoring/logs/sources" }
+  success: "{{ response.result }}"
+  message: "Connected to {{ config.tenant_domain }}: {{ response.result | len }} log sources"
+
+mock:
+  config: { tenant_domain: openam-example.forgeblocks.com, api_key_id: 3c4d5e6f00000000000000000000aaaa }
+  secrets: { api_key_secret: aic-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://openam-example.forgeblocks.com/monitoring/logs/sources", body: { result: [am-access, am-activity, am-authentication, am-config, am-core, idm-activity, idm-config, idm-core], resultCount: 8 } }
+    - { url: "https://openam-example.forgeblocks.com/monitoring/logs", query: { _pagedResultsCookie: "eyJfc29ydEtleXMiOiIxIn0" }, file: fixtures/logs-2.json }
+    - { url: "https://openam-example.forgeblocks.com/monitoring/logs", file: fixtures/logs-1.json }
+  expect:
+    audit: { records: 4, logs: 4, rerun: 0, golden: fixtures/audit.expected.json }
+    test: { ok: true, message: "8 log sources" }
