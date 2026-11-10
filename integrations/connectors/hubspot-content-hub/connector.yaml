@@ -60,31 +60,31 @@ errors:
     message: Rate limited by HubSpot
 
 tables:
-  # Analytics v2 fields → hubspot.content_hub.breakdown.<name>
+  # Analytics v2 fields → their metric names (Data Collected lists these)
   breakdown_metrics:
-    bounceRate: bounce_rate
-    bounces: bounces
-    newVisitorSessionRate: new_visitor_session_rate
-    pageviewsPerSession: pageviews_per_session
-    rawViews: raw_views
-    returningVisits: returning_visits
-    standardViews: standard_views
-    time: time
-    timePerSession: time_per_session
-    visitors: visitors
-    visits: visits
-  # Analytics v2 fields → hubspot.content_hub.content.<name>
+    bounceRate: hubspot.content_hub.breakdown.bounce_rate
+    bounces: hubspot.content_hub.breakdown.bounces
+    newVisitorSessionRate: hubspot.content_hub.breakdown.new_visitor_session_rate
+    pageviewsPerSession: hubspot.content_hub.breakdown.pageviews_per_session
+    rawViews: hubspot.content_hub.breakdown.raw_views
+    returningVisits: hubspot.content_hub.breakdown.returning_visits
+    standardViews: hubspot.content_hub.breakdown.standard_views
+    time: hubspot.content_hub.breakdown.time
+    timePerSession: hubspot.content_hub.breakdown.time_per_session
+    visitors: hubspot.content_hub.breakdown.visitors
+    visits: hubspot.content_hub.breakdown.visits
+  # Analytics v2 fields → their metric names
   content_metrics:
-    entrances: entrances
-    exits: exits
-    exitsPerPageview: exits_per_pageview
-    newVisitorRawViews: new_visitor_raw_views
-    pageBounceRate: page_bounce_rate
-    pageBounces: page_bounces
-    pageTime: page_time
-    rawViews: raw_views
-    standardViews: standard_views
-    timePerPageview: time_per_pageview
+    entrances: hubspot.content_hub.content.entrances
+    exits: hubspot.content_hub.content.exits
+    exitsPerPageview: hubspot.content_hub.content.exits_per_pageview
+    newVisitorRawViews: hubspot.content_hub.content.new_visitor_raw_views
+    pageBounceRate: hubspot.content_hub.content.page_bounce_rate
+    pageBounces: hubspot.content_hub.content.page_bounces
+    pageTime: hubspot.content_hub.content.page_time
+    rawViews: hubspot.content_hub.content.raw_views
+    standardViews: hubspot.content_hub.content.standard_views
+    timePerPageview: hubspot.content_hub.content.time_per_pageview
   breakdowns: [sources, geolocation]
   # Analytics v2 object types → content_type
   content_types:
@@ -133,8 +133,8 @@ streams:
       url: "https://api.hubapi.com/account-info/v3/activity/login"
       query: { limit: 100, after: "{{ page.cursor }}" }
     records: "{{ response.results }}"
-    # No time filter, newest first: stop once a page reaches past the window.
-    pagination: { kind: cursor, next: "{{ ((records | last).loginAt | epoch_ms) < window.start ? null : response.paging.next.after }}" }
+    # No time filter, newest first: the first record older than the window ends the paging.
+    pagination: { kind: cursor, next: "{{ response.paging.next.after }}" }
     record_id: "{{ record.id | str }}"
     incremental:
       kind: time
@@ -160,7 +160,7 @@ streams:
       url: "https://api.hubapi.com/account-info/v3/activity/security"
       query: { limit: 100, after: "{{ page.cursor }}" }
     records: "{{ response.results }}"
-    pagination: { kind: cursor, next: "{{ ((records | last).createdAt | epoch_ms) < window.start ? null : response.paging.next.after }}" }
+    pagination: { kind: cursor, next: "{{ response.paging.next.after }}" }
     record_id: "{{ record.id | str }}"
     incremental:
       kind: time
@@ -201,7 +201,7 @@ streams:
           tags: &breakdown
             breakdown_type: "{{ item }}"
             breakdown_subtype: "{{ record.breakdown | lower }}"
-        - name: "{{ 'hubspot.content_hub.breakdown.' + tables.breakdown_metrics[entry.key] }}"
+        - name: "{{ tables.breakdown_metrics[entry.key] }}"
           each: "{{ record }}"
           value: "{{ entry.value | float }}"
           description: An Analytics v2 field of the breakdown (fields without a Datadog name are skipped).
@@ -234,7 +234,7 @@ streams:
             content_type: "{{ tables.content_types[item] }}"
             content_id: "{{ record.breakdown | str }}"
             content_title: "{{ record.title ?? record.meta.title ?? record.meta.name }}"
-        - name: "{{ 'hubspot.content_hub.content.' + tables.content_metrics[entry.key] }}"
+        - name: "{{ tables.content_metrics[entry.key] }}"
           each: "{{ record }}"
           value: "{{ entry.value | float }}"
           description: An Analytics v2 field of the content item (fields without a Datadog name are skipped).
