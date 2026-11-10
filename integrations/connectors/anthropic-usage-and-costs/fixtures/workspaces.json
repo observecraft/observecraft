@@ -1,0 +1,7 @@
+{
+  "data": [
+    { "id": "wrkspc_01ExampleStorefront", "type": "workspace", "name": "storefront", "display_color": "#6C5BB9", "created_at": "2026-02-01T10:00:00Z", "archived_at": null },
+    { "id": "wrkspc_01ExampleSupportBot", "type": "workspace", "name": "support-bot", "display_color": "#2E8B57", "created_at": "2026-04-12T09:30:00Z", "archived_at": null }
+  ],
+  "has_more": false, "first_id": "wrkspc_01ExampleStorefront", "last_id": "wrkspc_01ExampleSupportBot"
+}

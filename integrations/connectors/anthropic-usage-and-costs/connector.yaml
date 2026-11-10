@@ -1,0 +1,237 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Anthropic Usage and Costs (https://platform.claude.com/docs/en/manage-claude/usage-cost-api): the Admin API's
+# usage report as the metrics Datadog's integration sends (anthropic.messages.*, tagged model, workspace_name,
+# org_name, api_key_name, service_tier, context_window) and its cost report as Cloud Cost rows (provider anthropic:
+# all.cost{providername:anthropic} by model, token_type, workspace_name). integrations-core's "Anthropic Usage and
+# Costs Overview" dashboard and monitors for the tile read them. Claude Enterprise organizations (Analytics API keys,
+# /v1/organizations/analytics/*) aren't read yet.
+schema_version: 1
+id: anthropic-usage-and-costs
+name: Anthropic Usage and Costs
+publisher: ObserveCraft
+vendor: Anthropic
+description: >-
+  Token usage of a Claude Console organization per hour (input, output, cache reads and writes, web searches) by
+  model, workspace, API key and service tier as metrics, and its daily costs in Cloud Cost Management, read from
+  Anthropic's Admin API.
+tiles: [anthropic-usage-and-costs]
+categories: [AI/ML, Metrics, Cost Management]
+docs_url: https://platform.claude.com/docs/en/manage-claude/usage-cost-api
+setup: |
+  1. In the Claude Console, open **Settings → Admin keys** (an organization admin can) and **Create admin key**,
+     e.g. `observecraft-usage`; copy it (`sk-ant-admin01-…`).
+  2. Usage appears within minutes; costs settle within a day or two, so the last three days are read again every
+     run.
+links:
+  - { label: Admin keys, url: "https://platform.claude.com/settings/admin-keys" }
+instance: "{{ config.organization ?? 'anthropic' }}"
+
+config:
+  - key: organization
+    label: Name for this organization
+    type: string
+    placeholder: example-org
+    help: Names the connection; the organization's own name is read from Anthropic for the org_name tag.
+  - key: admin_key
+    label: Admin API key
+    type: string
+    secret: true
+    required: true
+    placeholder: sk-ant-admin01-…
+    pattern: "sk-ant-admin01-.+"
+
+auth:
+  kind: api_key
+  name: x-api-key
+  value: "{{ secrets.admin_key }}"
+
+headers:
+  anthropic-version: "2023-06-01"
+
+# Anthropic supports polling once a minute.
+rate_limit: { requests_per_minute: 30 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Anthropic refused the Admin API key
+  - status: [403]
+    kind: access_denied
+    message: "The key isn't an Admin API key of a Claude Console organization (Claude Enterprise organizations use Analytics API keys, which this connector doesn't read yet)"
+
+discover:
+  - name: organization
+    request: { url: "https://api.anthropic.com/v1/organizations/me" }
+    value: "{{ response }}"
+    ttl: 6h
+
+streams:
+  - id: usage
+    name: Token usage
+    description: >-
+      Hourly token usage as gauges at the bucket's start (anthropic.messages.input_tokens, output_tokens,
+      cache_read_input_tokens, cache_creation.ephemeral_5m_input_tokens / _1h_input_tokens,
+      server_tool_use.web_search_requests), tagged model, workspace_id, workspace_name, api_key_id, api_key_name,
+      service_tier, context_window, org_name. A bucket is read once it has been closed for 15 minutes.
+    interval: 5m
+    lookups:
+      - name: workspaces
+        request:
+          url: https://api.anthropic.com/v1/organizations/workspaces
+          query: { limit: 100, include_archived: "true", after_id: "{{ page.cursor }}" }
+        records: "{{ response.data }}"
+        pagination: { kind: cursor, next: "{{ response.has_more ? response.last_id : null }}" }
+        key: "{{ record.id }}"
+        value: "{{ record.name }}"
+        ttl: 1h
+      - name: api_keys
+        request:
+          url: https://api.anthropic.com/v1/organizations/api_keys
+          query: { limit: 100, after_id: "{{ page.cursor }}" }
+        records: "{{ response.data }}"
+        pagination: { kind: cursor, next: "{{ response.has_more ? response.last_id : null }}" }
+        key: "{{ record.id }}"
+        value: "{{ record.name }}"
+        ttl: 1h
+    request:
+      url: https://api.anthropic.com/v1/organizations/usage_report/messages
+      query:
+        # Whole hours only: the hour the window ends in isn't over.
+        starting_at: "{{ (((window.start / 3600000) | floor) * 3600000) | rfc3339_s }}"
+        ending_at: "{{ (((window.end / 3600000) | floor) * 3600000) | rfc3339_s }}"
+        bucket_width: 1h
+        "group_by[]": [model, workspace_id, api_key_id, service_tier, context_window]
+        limit: 168
+        page: "{{ page.cursor }}"
+    records: "{{ response.data | explode('results') }}"
+    pagination: { kind: cursor, next: "{{ response.has_more ? response.next_page : null }}" }
+    record_id: >-
+      {{ record.starting_at + '|' + (record.results.model ?? '') + '|' + (record.results.workspace_id ?? '') + '|' + (record.results.api_key_id ?? '')
+         + '|' + (record.results.service_tier ?? '') + '|' + (record.results.context_window ?? '') }}
+    incremental:
+      kind: time
+      record_time: "{{ record.starting_at }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 2h
+      settle: 15m
+    output:
+      metrics:
+        - name: anthropic.messages.input_tokens
+          value: "{{ record.results.uncached_input_tokens }}"
+          time: "{{ record.starting_at }}"
+          unit: token
+          description: Uncached input tokens in the hour.
+          tags: &usage
+            model: "{{ record.results.model }}"
+            workspace_id: "{{ record.results.workspace_id ?? 'default' }}"
+            workspace_name: "{{ record.results.workspace_id ? (lookups.workspaces[record.results.workspace_id] ?? record.results.workspace_id) : 'Default' }}"
+            api_key_id: "{{ record.results.api_key_id }}"
+            api_key_name: "{{ lookups.api_keys[record.results.api_key_id] }}"
+            service_tier: "{{ record.results.service_tier }}"
+            context_window: "{{ record.results.context_window }}"
+            org_id: "{{ discovery.organization.id }}"
+            org_name: "{{ discovery.organization.name }}"
+        - name: anthropic.messages.output_tokens
+          value: "{{ record.results.output_tokens }}"
+          time: "{{ record.starting_at }}"
+          unit: token
+          description: Output tokens in the hour.
+          tags: *usage
+        - name: anthropic.messages.cache_read_input_tokens
+          value: "{{ record.results.cache_read_input_tokens }}"
+          time: "{{ record.starting_at }}"
+          unit: token
+          description: Input tokens read from the prompt cache in the hour.
+          tags: *usage
+        - name: anthropic.messages.cache_creation.ephemeral_5m_input_tokens
+          value: "{{ record.results.cache_creation.ephemeral_5m_input_tokens }}"
+          time: "{{ record.starting_at }}"
+          unit: token
+          description: Input tokens written to the 5-minute prompt cache in the hour.
+          tags: *usage
+        - name: anthropic.messages.cache_creation.ephemeral_1h_input_tokens
+          value: "{{ record.results.cache_creation.ephemeral_1h_input_tokens }}"
+          time: "{{ record.starting_at }}"
+          unit: token
+          description: Input tokens written to the 1-hour prompt cache in the hour.
+          tags: *usage
+        - name: anthropic.messages.server_tool_use.web_search_requests
+          value: "{{ record.results.server_tool_use.web_search_requests }}"
+          time: "{{ record.starting_at }}"
+          unit: request
+          description: Web searches run by the server tool in the hour.
+          tags: *usage
+
+  - id: costs
+    name: Costs
+    description: >-
+      Daily costs in USD by workspace and line (model and token type, web search, code execution) as Cloud Cost
+      rows (provider anthropic, service the model or cost type, tags model, model_name, token_type, cost_type,
+      service_tier, context_window, workspace_name, org_name). The last three days are read again every run and
+      replace their rows. Priority Tier costs aren't in Anthropic's cost report.
+    interval: 1h
+    lookups:
+      - name: workspaces
+        request:
+          url: https://api.anthropic.com/v1/organizations/workspaces
+          query: { limit: 100, include_archived: "true", after_id: "{{ page.cursor }}" }
+        records: "{{ response.data }}"
+        pagination: { kind: cursor, next: "{{ response.has_more ? response.last_id : null }}" }
+        key: "{{ record.id }}"
+        value: "{{ record.name }}"
+        ttl: 1h
+    request:
+      url: https://api.anthropic.com/v1/organizations/cost_report
+      query:
+        starting_at: "{{ (((now / 86400000) | floor) * 86400000 - 259200000) | rfc3339_s }}"
+        ending_at: "{{ (((now / 86400000) | floor) * 86400000 + 86400000) | rfc3339_s }}"
+        "group_by[]": [workspace_id, description]
+        limit: 31
+        page: "{{ page.cursor }}"
+    records: "{{ response.data | explode('results') }}"
+    pagination: { kind: cursor, next: "{{ response.has_more ? response.next_page : null }}" }
+    # Stable per day and line, so a day read again replaces its rows.
+    record_id: "{{ record.starting_at + '|' + (record.results.workspace_id ?? '') + '|' + (record.results.description ?? '') }}"
+    incremental: { kind: none }
+    output:
+      costs:
+        provider: anthropic
+        date: "{{ record.starting_at }}"
+        # Amounts are decimal strings in cents.
+        cost: "{{ (record.results.amount | float) / 100 }}"
+        currency: "{{ record.results.currency ?? 'USD' }}"
+        service: "{{ record.results.model ?? record.results.cost_type ?? 'Claude API' }}"
+        account: "{{ record.results.workspace_id ? (lookups.workspaces[record.results.workspace_id] ?? record.results.workspace_id) : 'Default' }}"
+        usage_type: "{{ record.results.description }}"
+        tags:
+          model: "{{ record.results.model }}"
+          model_name: "{{ record.results.model }}"
+          token_type: "{{ record.results.token_type }}"
+          cost_type: "{{ record.results.cost_type }}"
+          service_tier: "{{ record.results.service_tier }}"
+          context_window: "{{ record.results.context_window }}"
+          inference_geo: "{{ record.results.inference_geo }}"
+          workspace_id: "{{ record.results.workspace_id ?? 'default' }}"
+          workspace_name: "{{ record.results.workspace_id ? (lookups.workspaces[record.results.workspace_id] ?? record.results.workspace_id) : 'Default' }}"
+          org_name: "{{ discovery.organization.name }}"
+
+test:
+  request: { url: "https://api.anthropic.com/v1/organizations/me" }
+  success: "{{ response.id }}"
+  message: "Connected to the {{ response.name }} organization"
+
+mock:
+  secrets: { admin_key: sk-ant-admin01-test-0000000000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.anthropic.com/v1/organizations/me", body: { id: "a1b2c3d4-0000-4000-8000-000000000001", type: organization, name: Example Org } }
+    - { url: "https://api.anthropic.com/v1/organizations/workspaces", file: fixtures/workspaces.json }
+    - { url: "https://api.anthropic.com/v1/organizations/api_keys", file: fixtures/api_keys.json }
+    - { url: "https://api.anthropic.com/v1/organizations/usage_report/messages", query: { page: "page_MjAyNi0xMS0xMFQxMDowMDowMFo" }, file: fixtures/usage-2.json }
+    - { url: "https://api.anthropic.com/v1/organizations/usage_report/messages", file: fixtures/usage-1.json }
+    - { url: "https://api.anthropic.com/v1/organizations/cost_report", file: fixtures/cost_report.json }
+  expect:
+    usage: { records: 3, metrics: 18, rerun: 0, golden: fixtures/usage.expected.json }
+    costs: { records: 4, costs: 4, golden: fixtures/costs.expected.json }
+    test: { ok: true, message: "Connected to the Example Org organization" }
