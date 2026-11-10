@@ -1,0 +1,18 @@
+{
+  "paging": { "pit_id": "46ToAwMDaWR5BXV1aWQyKwZub2RlX2lkA", "next_search_after": "WzE3OTQzMDkwNDUyNzcsIjcwNjFhMmNjIl0" },
+  "hits": 3,
+  "results": [
+    {
+      "event_time": "2026-11-10T11:10:45.277Z", "organization_id": 4080000,
+      "request": { "id": "7061a2ccacae8d2b49e17a46a1328f01", "type": "candidates#update" },
+      "performer": { "id": 4080001, "type": "user", "ip_address": "203.0.113.12", "meta": { "name": "Jane Doe", "username": "jane.doe@example.com" } },
+      "event": { "type": "data_change_update", "target_type": "Candidate", "target_id": 55501, "meta": { "title": ["Engineer", "Senior Engineer"] } }
+    },
+    {
+      "event_time": "2026-11-10T10:42:00.000Z", "organization_id": 4080000,
+      "request": { "id": "7061a2ccacae8d2b49e17a46a1328f02", "type": "harvest/v1/applications#index" },
+      "performer": { "id": 4080099, "type": "api_key", "ip_address": "198.51.100.40", "meta": { "name": "storefront-ats-sync" } },
+      "event": { "type": "harvest_access", "target_type": "Application", "meta": { "path": "/v1/applications", "per_page": 100 } }
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c527-3c1d-79ed-95db-0a10701322b8"
+      },
+      "date": "2026-11-10T11:10:45.277Z",
+      "ddsource": "greenhouse",
+      "event": {
+        "meta": {
+          "title": [
+            "Engineer",
+            "Senior Engineer"
+          ]
+        },
+        "target_id": 55501,
+        "target_type": "Candidate",
+        "type": "data_change_update"
+      },
+      "event_time": "2026-11-10T11:10:45.277Z",
+      "host": "us.greenhouse.io",
+      "message": "data_change_update Candidate by jane.doe@example.com",
+      "organization_id": 4080000,
+      "performer": {
+        "id": 4080001,
+        "ip_address": "203.0.113.12",
+        "meta": {
+          "name": "Jane Doe",
+          "username": "jane.doe@example.com"
+        },
+        "type": "user"
+      },
+      "request": {
+        "id": "7061a2ccacae8d2b49e17a46a1328f01",
+        "type": "candidates#update"
+      },
+      "service": "audit",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c50c-e8c0-7229-9cc1-2bb424438a1c"
+      },
+      "date": "2026-11-10T10:42:00.000Z",
+      "ddsource": "greenhouse",
+      "event": {
+        "meta": {
+          "path": "/v1/applications",
+          "per_page": 100
+        },
+        "target_type": "Application",
+        "type": "harvest_access"
+      },
+      "event_time": "2026-11-10T10:42:00.000Z",
+      "host": "us.greenhouse.io",
+      "message": "harvest_access Application by api_key",
+      "organization_id": 4080000,
+      "performer": {
+        "id": 4080099,
+        "ip_address": "198.51.100.40",
+        "meta": {
+          "name": "storefront-ats-sync"
+        },
+        "type": "api_key"
+      },
+      "request": {
+        "id": "7061a2ccacae8d2b49e17a46a1328f02",
+        "type": "harvest/v1/applications#index"
+      },
+      "service": "audit",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b4-4f1c-7ea9-b4f3-0f013486ca9c"
+      },
+      "date": "2026-11-10T09:05:13.500Z",
+      "ddsource": "greenhouse",
+      "event": {
+        "meta": {
+          "path": "/people/55501/personal_info"
+        },
+        "target_type": "PII Page Accessed",
+        "type": "action"
+      },
+      "event_time": "2026-11-10T09:05:13.500Z",
+      "host": "us.greenhouse.io",
+      "message": "action PII Page Accessed by sam.lee@example.com",
+      "organization_id": 4080000,
+      "performer": {
+        "id": 4080002,
+        "ip_address": "203.0.113.13",
+        "meta": {
+          "name": "Sam Lee",
+          "username": "sam.lee@example.com"
+        },
+        "type": "user"
+      },
+      "request": {
+        "id": "7061a2ccacae8d2b49e17a46a1328f03",
+        "type": "my_dashboard/controllers/my_dashboard#index"
+      },
+      "service": "audit",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}
