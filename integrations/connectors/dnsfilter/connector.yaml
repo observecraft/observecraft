@@ -1,0 +1,97 @@
+# yaml-language-server: $schema=../connector.schema.json
+# DNSFilter (https://api.dnsfilter.com/docs.json, GET /v1/traffic_reports/query_logs): DNS query logs, as the logs
+# Datadog's integration sends (source:dnsfilter, the query log row as DNSFilter answers it: fqdn, result, threat,
+# categories_names, policy_name, agentname, local_user_name, code, question_type, …). integrations-core's log
+# pipeline, its two dashboards and its SERVFAIL monitor for the tile read them as they are.
+schema_version: 1
+id: dnsfilter
+name: DNSFilter
+publisher: ObserveCraft
+vendor: DNSFilter
+description: >-
+  DNSFilter's DNS query logs (domain, allowed or blocked, threat, categories, policy, network, roaming client and
+  user), one log per query, read every few minutes from DNSFilter's API.
+tiles: [dnsfilter]
+categories: [Log Collection, Security, SIEM]
+source: dnsfilter
+docs_url: https://api.dnsfilter.com/docs.json
+setup: |
+  1. In the DNSFilter dashboard, open **Account Settings → Security → API Keys** and create a key (an
+     administrator can); copy it.
+  2. DNSFilter describes the query logs API as meant for investigation and reporting: very busy organizations are
+     better served by its Data Export (S3) integration.
+instance: "{{ config.organization ?? 'dnsfilter' }}"
+
+config:
+  - key: organization
+    label: Name for this organization
+    type: string
+    placeholder: example-org
+    help: Shown as the logs' host; any name.
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: api_key
+  name: Authorization
+  value: "{{ secrets.api_key }}"
+
+errors:
+  - status: [401]
+    kind: auth
+    message: DNSFilter refused the API key
+  - status: [403]
+    kind: access_denied
+    message: The API key's user can't read the organization's query logs
+
+streams:
+  - id: query_logs
+    name: Query logs
+    description: >-
+      Every DNS query as a log (source:dnsfilter) with DNSFilter's fields as they are: fqdn, domain, result
+      (allowed, blocked), threat, categories_names, policy_name, network_name, agentname, local_user_name,
+      question_type, protocol, region.
+    interval: 5m
+    max_pages: 50
+    request:
+      url: https://api.dnsfilter.com/v1/traffic_reports/query_logs
+      query:
+        from: "{{ window.start | rfc3339_s }}"
+        to: "{{ window.end | rfc3339_s }}"
+        "page[number]": "{{ page.number }}"
+        "page[size]": 1000
+    records: "{{ response.data.values }}"
+    pagination: { kind: page, size: 1000, total_pages: "{{ response.data.page.last }}" }
+    # Rows carry no id: the row's JSON is its identity. Times are UTC without a zone.
+    incremental:
+      kind: time
+      record_time: "{{ record.time | epoch_ms('UTC') }}"
+      order: unordered
+      lookback: 1h
+      overlap: 5m
+      settle: 5m
+      max_window: 1h
+    output:
+      logs:
+        message: "{{ (record.question_type ?? 'A') + ' ' + record.fqdn + ' ' + record.result + (record.threat ? ' (threat)' : '') }}"
+        status: "{{ record.threat ? 'warn' : 'info' }}"
+        date: "{{ record.time | epoch_ms('UTC') }}"
+        attributes: "{{ record }}"
+
+test:
+  request: { url: "https://api.dnsfilter.com/v1/organizations" }
+  message: "Connected: {{ response.data | len }} organizations"
+
+mock:
+  config: { organization: example-org }
+  secrets: { api_key: test-dnsfilter-key }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.dnsfilter.com/v1/traffic_reports/query_logs", file: fixtures/query_logs.json }
+    - { url: "https://api.dnsfilter.com/v1/organizations", body: { data: [{ id: "4410001", type: organizations, attributes: { name: Example Org } }] } }
+  expect:
+    query_logs: { records: 3, logs: 3, rerun: 0, golden: fixtures/query_logs.expected.json }
+    test: { ok: true, message: "1 organizations" }

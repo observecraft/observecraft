@@ -1,0 +1,32 @@
+{
+  "data": {
+    "organization_id": 4410001,
+    "organization_name": "Example Org",
+    "values": [
+      {
+        "time": "2026-11-10 11:50:24.085", "fqdn": "ads.tracker.example.net", "domain": "tracker.example.net", "result": "blocked", "threat": false,
+        "categories": [40], "categories_names": ["Advertising"], "code": "NOERROR", "protocol": "udp", "question_type": "A",
+        "request_address": "198.51.100.10", "server_id": 212800, "server_address": "10.0.0.2", "server_name": "anycast-iad", "method": 20, "method_name": "Category", "responsetime": 0,
+        "networkid": 8397001, "network_name": "HQ", "agentid": "69290bde-0000-4000-8000-000000000001", "agentname": "laptop-jdoe", "agenttype": "agent", "agent_type_raw": "windows",
+        "local_ipv4_address": "10.20.1.15", "local_user_id": 4568301, "local_user_login": "EXAMPLE\\jdoe", "local_user_name": "Jane Doe",
+        "policy_id": 1259001, "policy_name": "Default policy", "scheduled_policy_id": null, "scheduled_policy_name": null,
+        "collection_id": 12501, "collection_name": "Staff laptops", "collections": [12501], "collections_names": ["Staff laptops"],
+        "application_id": null, "application_name": null, "region": "IAD"
+      },
+      {
+        "time": "2026-11-10 11:48:02.511", "fqdn": "login.lookalike-pay.example", "domain": "lookalike-pay.example", "result": "blocked", "threat": true,
+        "categories": [59], "categories_names": ["Phishing & Deception"], "code": "NOERROR", "protocol": "udp", "question_type": "A",
+        "request_address": "198.51.100.10", "server_id": 212800, "server_address": "10.0.0.2", "method": 20, "method_name": "Category", "responsetime": 1,
+        "networkid": 8397001, "network_name": "HQ", "agentid": "69290bde-0000-4000-8000-000000000002", "agentname": "laptop-slee", "agenttype": "agent", "agent_type_raw": "macos",
+        "local_user_id": 4568302, "local_user_name": "Sam Lee", "policy_id": 1259001, "policy_name": "Default policy", "region": "IAD"
+      },
+      {
+        "time": "2026-11-10 11:40:00.002", "fqdn": "api.storefront.example.com", "domain": "example.com", "result": "allowed", "threat": false,
+        "categories": [26], "categories_names": ["Business"], "code": "SERVFAIL", "protocol": "udp", "question_type": "AAAA",
+        "request_address": "203.0.113.70", "server_id": 212801, "server_address": "10.0.0.3", "method": 0, "method_name": "Allowed", "responsetime": 34,
+        "networkid": 8397002, "network_name": "Warehouse", "policy_id": 1259002, "policy_name": "Warehouse policy", "region": "ORD"
+      }
+    ],
+    "page": { "size": 1000, "total": 3, "first": 1, "last": 1, "self": 1, "prev": null, "next": null }
+  }
+}

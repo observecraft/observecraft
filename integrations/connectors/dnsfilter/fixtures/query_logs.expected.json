@@ -1,0 +1,155 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c54b-8855-7b60-b79e-5471ed9645c9"
+      },
+      "agent_type_raw": "windows",
+      "agentid": "69290bde-0000-4000-8000-000000000001",
+      "agentname": "laptop-jdoe",
+      "agenttype": "agent",
+      "application_id": null,
+      "application_name": null,
+      "categories": [
+        40
+      ],
+      "categories_names": [
+        "Advertising"
+      ],
+      "code": "NOERROR",
+      "collection_id": 12501,
+      "collection_name": "Staff laptops",
+      "collections": [
+        12501
+      ],
+      "collections_names": [
+        "Staff laptops"
+      ],
+      "date": 1794311424085,
+      "ddsource": "dnsfilter",
+      "domain": "tracker.example.net",
+      "fqdn": "ads.tracker.example.net",
+      "host": "example-org",
+      "local_ipv4_address": "10.20.1.15",
+      "local_user_id": 4568301,
+      "local_user_login": "EXAMPLE\\jdoe",
+      "local_user_name": "Jane Doe",
+      "message": "A ads.tracker.example.net blocked",
+      "method": 20,
+      "method_name": "Category",
+      "network_name": "HQ",
+      "networkid": 8397001,
+      "policy_id": 1259001,
+      "policy_name": "Default policy",
+      "protocol": "udp",
+      "question_type": "A",
+      "region": "IAD",
+      "request_address": "198.51.100.10",
+      "responsetime": 0,
+      "result": "blocked",
+      "scheduled_policy_id": null,
+      "scheduled_policy_name": null,
+      "server_address": "10.0.0.2",
+      "server_id": 212800,
+      "server_name": "anycast-iad",
+      "service": "dnsfilter",
+      "status": "info",
+      "threat": false,
+      "time": "2026-11-10 11:50:24.085"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c549-5f4f-7ff8-a143-8966819245a1"
+      },
+      "agent_type_raw": "macos",
+      "agentid": "69290bde-0000-4000-8000-000000000002",
+      "agentname": "laptop-slee",
+      "agenttype": "agent",
+      "categories": [
+        59
+      ],
+      "categories_names": [
+        "Phishing & Deception"
+      ],
+      "code": "NOERROR",
+      "date": 1794311282511,
+      "ddsource": "dnsfilter",
+      "domain": "lookalike-pay.example",
+      "fqdn": "login.lookalike-pay.example",
+      "host": "example-org",
+      "local_user_id": 4568302,
+      "local_user_name": "Sam Lee",
+      "message": "A login.lookalike-pay.example blocked (threat)",
+      "method": 20,
+      "method_name": "Category",
+      "network_name": "HQ",
+      "networkid": 8397001,
+      "policy_id": 1259001,
+      "policy_name": "Default policy",
+      "protocol": "udp",
+      "question_type": "A",
+      "region": "IAD",
+      "request_address": "198.51.100.10",
+      "responsetime": 1,
+      "result": "blocked",
+      "server_address": "10.0.0.2",
+      "server_id": 212800,
+      "service": "dnsfilter",
+      "status": "warn",
+      "threat": true,
+      "time": "2026-11-10 11:48:02.511"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c542-0282-7400-ae70-7e081d3216e9"
+      },
+      "categories": [
+        26
+      ],
+      "categories_names": [
+        "Business"
+      ],
+      "code": "SERVFAIL",
+      "date": 1794310800002,
+      "ddsource": "dnsfilter",
+      "domain": "example.com",
+      "fqdn": "api.storefront.example.com",
+      "host": "example-org",
+      "message": "AAAA api.storefront.example.com allowed",
+      "method": 0,
+      "method_name": "Allowed",
+      "network_name": "Warehouse",
+      "networkid": 8397002,
+      "policy_id": 1259002,
+      "policy_name": "Warehouse policy",
+      "protocol": "udp",
+      "question_type": "AAAA",
+      "region": "ORD",
+      "request_address": "203.0.113.70",
+      "responsetime": 34,
+      "result": "allowed",
+      "server_address": "10.0.0.3",
+      "server_id": 212801,
+      "service": "dnsfilter",
+      "status": "info",
+      "threat": false,
+      "time": "2026-11-10 11:40:00.002"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311700000,
+        "seen": [
+          {
+            "id": "4de5463acb05fcff",
+            "t": 1794311424085
+          }
+        ]
+      }
+    }
+  }
+}
