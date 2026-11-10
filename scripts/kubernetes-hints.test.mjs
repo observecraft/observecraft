@@ -70,3 +70,9 @@ test('PostgreSQL: Bitnami, CloudNativePG, Azure flexible server (managed identit
   assert.equal(rds.aws.managed_authentication.enabled, true);
   assert.ok(rds.aws.region);
 });
+
+test('Redis and Valkey run the redisdb check against their pods', () => {
+  const redis = kubernetesHint('redisdb');
+  assert.ok(redis.variants.some((v) => /Valkey/.test(v.label)));
+  for (const v of redis.variants) assert.equal(instanceOf('redisdb', v).port, 6379, v.label);
+});

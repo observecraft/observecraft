@@ -47,3 +47,9 @@ test('PostgreSQL: the check’s user, and Database Monitoring said to be unsuppo
   assert.match(steps, /dbm: false|leave dbm off|dbm off/i);
   assert.match(steps, /not supported|isn't supported|does not receive/i);
 });
+
+test('Redis: the redisdb check, Valkey included', () => {
+  const steps = stepsOf('redis');
+  assert.match(steps, /conf\.d\/redisdb\.d\/conf\.yaml/);
+  assert.match(steps, /Valkey/);
+});

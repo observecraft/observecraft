@@ -20,6 +20,7 @@ const web = await import(`data:text/javascript;base64,${Buffer.from(outputFiles[
 
 for (const [id, check] of [
   ['postgresql', 'postgres'],
+  ['redis', 'redisdb'],
 ]) {
   test(`${id}: the Agent's ${check} check first, the Collector's receiver as the alternative`, () => {
     const d = web.integrationMetadata(id);

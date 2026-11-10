@@ -184,6 +184,32 @@ const HINTS: KubernetesHint[] = [
       },
     ],
   },
+  {
+    check: 'redisdb',
+    variants: [
+      {
+        label: 'Bitnami Redis chart (bitnami/redis)',
+        text: `Put the annotations in \`master.podAnnotations\` and \`replica.podAnnotations\`; the container is \`redis\` and the chart keeps the password in the secret \`<release>-redis\` (key \`redis-password\`), here release \`cache\` in namespace \`cache\`. ${SECRET_NOTE}`,
+        annotations: [
+          checkAnnotation('redis', 'redisdb', { instances: [{ host: '%%host%%', port: 6379, password: 'ENC[k8s_secret@cache/cache-redis/redis-password]' }] }),
+          logsAnnotation('redis', 'redis', 'catalog-cache'),
+        ].join('\n'),
+      },
+      {
+        label: 'Valkey, Bitnami Valkey chart (bitnami/valkey)',
+        text: `Valkey answers the Redis check as Redis does; its metrics keep the \`redis.*\` names, so the Redis dashboard and monitors apply. Put the annotations in \`primary.podAnnotations\` and \`replica.podAnnotations\`; the container is \`valkey\` and the password is in \`<release>-valkey\` (key \`valkey-password\`). Its log lines have Redis’s format, so the Redis log pipeline (\`source: redis\`) parses them. ${SECRET_NOTE}`,
+        annotations: [
+          checkAnnotation('valkey', 'redisdb', { instances: [{ host: '%%host%%', port: 6379, password: 'ENC[k8s_secret@cache/sessions-valkey/valkey-password]', tags: ['engine:valkey'] }] }),
+          logsAnnotation('valkey', 'redis', 'session-store'),
+        ].join('\n'),
+      },
+      {
+        label: 'Redis or Valkey image in your own StatefulSet',
+        text: 'Annotate the pod template with the container’s name (here `redis`). Without a password, leave `password` out.',
+        annotations: [checkAnnotation('redis', 'redisdb', { instances: [{ host: '%%host%%', port: 6379 }] }), logsAnnotation('redis', 'redis', 'rate-limiter')].join('\n'),
+      },
+    ],
+  },
 ];
 
 /** The Kubernetes hint of an Agent check, if there is one. */

@@ -29,6 +29,13 @@ test('PostgreSQL’s connection saturation monitor, as integrations-core defines
   assert.match(t.name, /\[Postgres\]/);
 });
 
+test('Redis’s memory monitor: used over maxmemory, in percent', () => {
+  const t = TEMPLATES.find((x) => x.id === 'redisdb-memory-consumption-is-high');
+  assert.ok(t);
+  assert.ok(formulaQueries(t.query), t.query);
+  assert.deepEqual([t.options.thresholds.critical, t.options.thresholds.warning], [90, 70]);
+});
+
 test('the anomaly monitor (replication delay) is left out: anomaly detection is not supported', () => {
   assert.equal(
     TEMPLATES.some((x) => /replication-delay/.test(x.id)),
