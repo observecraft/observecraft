@@ -1990,4 +1990,1207 @@ export const AWS_LAYOUTS = {
       };
     },
   },
+
+  'AWS/AutoScaling': {
+    vars: ['autoscalinggroupname'],
+    monitor: 'amazon_auto_scaling',
+    note: 'Auto Scaling groups: how many instances each wants, has in service and is still launching or terminating, against its minimum and maximum size. Group metrics must be enabled on each group to reach CloudWatch.',
+    build: ({ sum, avg, max }) => {
+      const g = 'autoscalinggroupname';
+      return {
+        kpis: [
+          qv('Groups reporting', avg('aws.autoscaling.group_desired_capacity', g), { formula: 'count_not_null(query1)', good: true }),
+          qv('Instances in service', sum('aws.autoscaling.group_in_service_instances'), { agg: 'last' }),
+          qv('Desired capacity', sum('aws.autoscaling.group_desired_capacity'), { agg: 'last' }),
+          qv('Pending', sum('aws.autoscaling.group_pending_instances'), { agg: 'last' }),
+          qv('Terminating', sum('aws.autoscaling.group_terminating_instances'), { agg: 'last' }),
+        ],
+        groups: [
+          group('Desired against in service', [
+            ts('In service and desired', [sum('aws.autoscaling.group_in_service_instances'), sum('aws.autoscaling.group_desired_capacity')], { alias: ['in service', 'desired'] }),
+            ts('Missing instances by group', [sum('aws.autoscaling.group_desired_capacity', g), sum('aws.autoscaling.group_in_service_instances', g)], {
+              formulas: [['query1 - query2', 'desired − in service']],
+              palette: 'warm',
+            }),
+            tbl('Groups', [
+              ['Min', avg('aws.autoscaling.group_min_size', g), 'last'],
+              ['Desired', avg('aws.autoscaling.group_desired_capacity', g), 'last'],
+              ['In service', avg('aws.autoscaling.group_in_service_instances', g), 'last'],
+              ['Max', avg('aws.autoscaling.group_max_size', g), 'last'],
+            ]),
+          ]),
+          group('Scaling activity', [
+            ts('Instances launching', sum('aws.autoscaling.group_pending_instances', g), { display: 'bars', w: 4 }),
+            ts('Instances terminating', sum('aws.autoscaling.group_terminating_instances', g), { display: 'bars', palette: 'warm', w: 4 }),
+            ts('Instances in standby', sum('aws.autoscaling.group_standby_instances', g), { display: 'bars', w: 4 }),
+            ts('Total instances by group', sum('aws.autoscaling.group_total_instances', g), { display: 'area' }),
+            chg('Size against the week before', sum('aws.autoscaling.group_total_instances', g)),
+          ]),
+          group('Headroom', [
+            top('Closest to their maximum', [max('aws.autoscaling.group_desired_capacity', g), max('aws.autoscaling.group_max_size', g)], { formula: '100 * query1 / query2', agg: 'last' }),
+            tree('Instances by group', sum('aws.autoscaling.group_in_service_instances', g), { agg: 'last' }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/DocDB': {
+    vars: ['dbinstanceidentifier'],
+    monitor: 'amazon_documentdb',
+    note: 'DocumentDB instances: CPU, open connections, read and write throughput and how long each engine has been up (a reset uptime is a restart or failover).',
+    units: { CPUUtilization: 'percent', ReadThroughput: 'byte', WriteThroughput: 'byte', EngineUptime: 'second' },
+    logs: [['DocumentDB logs', 'source:docdb']],
+    build: ({ sum, avg, max, min }) => {
+      const i = 'dbinstanceidentifier';
+      return {
+        kpis: [
+          qv('Instances reporting', avg('aws.docdb.cpuutilization', i), { formula: 'count_not_null(query1)', good: true }),
+          qv('Avg CPU', avg('aws.docdb.cpuutilization'), { precision: 1 }),
+          qv('Peak CPU', max('aws.docdb.cpuutilization.maximum'), { precision: 1 }),
+          qv('Connections', sum('aws.docdb.database_connections'), { agg: 'last' }),
+          qv('Bytes read', sum('aws.docdb.read_throughput')),
+          qv('Bytes written', sum('aws.docdb.write_throughput')),
+        ],
+        groups: [
+          group('Instance load', [
+            top('Busiest instances', avg('aws.docdb.cpuutilization', i), { w: 4, h: 4, palette: 'orange' }),
+            ts('CPU by instance', avg('aws.docdb.cpuutilization', i), { w: 8 }),
+            ts('Connections by instance', avg('aws.docdb.database_connections', i), { w: 8 }),
+          ]),
+          group('Document I/O', [
+            ts('Read and write throughput', [sum('aws.docdb.read_throughput'), sum('aws.docdb.write_throughput')], { alias: ['read', 'written'], display: 'bars' }),
+            top('Most written instances', sum('aws.docdb.write_throughput', i)),
+          ]),
+          group('Restarts', [top('Most recently restarted', min('aws.docdb.engine_uptime', i), { order: 'asc', agg: 'last' }), ts('Engine uptime by instance', min('aws.docdb.engine_uptime', i))]),
+        ],
+      };
+    },
+  },
+
+  'AWS/MemoryDB': {
+    vars: ['clustername'],
+    monitor: 'amazon_memorydb',
+    note: 'MemoryDB clusters: engine and host CPU, memory used against what is left, cache hits and evictions, connections, replication lag, network allowance breaches and failed authentications.',
+    units: {
+      CPUUtilization: 'percent',
+      EngineCPUUtilization: 'percent',
+      DatabaseMemoryUsagePercentage: 'percent',
+      BytesUsedForMemoryDB: 'byte',
+      FreeableMemory: 'byte',
+      SwapUsage: 'byte',
+      NetworkBytesIn: 'byte',
+      NetworkBytesOut: 'byte',
+      ReplicationBytes: 'byte',
+      ReplicationLag: 'second',
+    },
+    build: ({ sum, avg, max }) => {
+      const c = 'clustername';
+      return {
+        kpis: [
+          qv('Busiest engine CPU', max('aws.memorydb.engine_cpuutilization.maximum'), { precision: 1 }),
+          qv('Memory used', max('aws.memorydb.database_memory_usage_percentage'), { precision: 1, unit: '%' }),
+          qv('Hit rate', [sum('aws.memorydb.keyspace_hits'), sum('aws.memorydb.keyspace_misses')], { formula: '100 * query1 / (query1 + query2)', precision: 1, unit: '%' }),
+          qv('Evictions', sum('aws.memorydb.evictions'), { bad: true }),
+          qv('Connections', sum('aws.memorydb.curr_connections'), { agg: 'last' }),
+          qv('Auth failures', sum('aws.memorydb.authentication_failures'), { bad: true }),
+        ],
+        groups: [
+          group('Engine and host CPU', [ts('Engine CPU by cluster', avg('aws.memorydb.engine_cpuutilization', c)), ts('Host CPU by cluster', avg('aws.memorydb.cpuutilization', c))]),
+          group('Memory and keys', [
+            top('Fullest clusters', max('aws.memorydb.database_memory_usage_percentage', c), { w: 4 }),
+            ts('Memory used and freeable', [sum('aws.memorydb.bytes_used_for_memory_db'), sum('aws.memorydb.freeable_memory')], { alias: ['used', 'freeable'], w: 4 }),
+            ts('Fragmentation ratio', avg('aws.memorydb.memory_fragmentation_ratio', c), { w: 4 }),
+            ts('Hits and misses', [sum('aws.memorydb.keyspace_hits'), sum('aws.memorydb.keyspace_misses')], { alias: ['hits', 'misses'], display: 'bars' }),
+            ts('Evictions and reclaimed keys', [sum('aws.memorydb.evictions'), sum('aws.memorydb.reclaimed')], { alias: ['evicted', 'expired'], palette: 'warm' }),
+            ts('Items by cluster', sum('aws.memorydb.curr_items', c), { w: 12 }),
+          ]),
+          group('Clients and replication', [
+            ts('Connections by cluster', sum('aws.memorydb.curr_connections', c), { w: 4 }),
+            ts('New connections', sum('aws.memorydb.new_connections', c), { display: 'bars', w: 4 }),
+            ts('Replication lag', max('aws.memorydb.replication_lag.maximum', c), { w: 4 }),
+          ]),
+          group('Network allowances and access', [
+            ts(
+              'Packets shaped for exceeding allowances',
+              [
+                sum('aws.memorydb.network_bandwidth_in_allowance_exceeded.sum'),
+                sum('aws.memorydb.network_bandwidth_out_allowance_exceeded.sum'),
+                sum('aws.memorydb.network_packets_per_second_allowance_exceeded.sum'),
+                sum('aws.memorydb.network_conntrack_allowance_exceeded.sum'),
+              ],
+              { alias: ['bandwidth in', 'bandwidth out', 'packets/s', 'connections tracked'], palette: 'warm', display: 'bars' },
+            ),
+            ts(
+              'Authentication and authorization failures',
+              [sum('aws.memorydb.authentication_failures'), sum('aws.memorydb.command_authorization_failures'), sum('aws.memorydb.key_authorization_failures')],
+              { alias: ['authentication', 'commands', 'keys'], palette: 'warm', display: 'bars' },
+            ),
+          ]),
+        ],
+      };
+    },
+  },
+
+  Glue: {
+    vars: ['jobname'],
+    monitor: 'amazon_glue',
+    note: 'Glue ETL jobs (with job metrics enabled): tasks completed and failed, records and bytes read, S3 traffic, executors against what the job needs, and driver and executor memory. Totals read each job’s ALL series, not its individual runs.',
+    units: {
+      'glue.driver.aggregate.bytesRead': 'byte',
+      'glue.driver.aggregate.elapsedTime': 'millisecond',
+      'glue.driver.aggregate.shuffleBytesWritten': 'byte',
+      'glue.driver.s3.filesystem.read_bytes': 'byte',
+      'glue.ALL.s3.filesystem.read_bytes': 'byte',
+      'glue.driver.s3.filesystem.write_bytes': 'byte',
+      'glue.ALL.s3.filesystem.write_bytes': 'byte',
+      'glue.driver.streaming.batchProcessingTimeInMs': 'millisecond',
+      'glue.driver.jvm.heap.usage': 'fraction',
+      'glue.ALL.jvm.heap.usage': 'fraction',
+      'glue.driver.jvm.heap.used': 'byte',
+      'glue.ALL.jvm.heap.used': 'byte',
+      'glue.driver.system.cpuSystemLoad': 'fraction',
+      'glue.ALL.system.cpuSystemLoad': 'fraction',
+    },
+    logs: [['Glue job logs', 'source:glue']],
+    build: ({ sum, avg, max }) => {
+      const j = 'jobname';
+      const all = 'jobrunid:ALL';
+      const n = (m) => `aws.glue.glue_${m}`;
+      return {
+        kpis: [
+          qv('Tasks completed', sum(n('driver_aggregate_num_completed_tasks'), null, all)),
+          qv('Tasks failed', sum(n('driver_aggregate_num_failed_tasks'), null, all), { bad: true }),
+          qv('Tasks killed', sum(n('driver_aggregate_num_killed_tasks'), null, all), { bad: true }),
+          qv('Records read', sum(n('driver_aggregate_records_read'), null, all)),
+          qv('Bytes read', sum(n('driver_aggregate_bytes_read'), null, all)),
+        ],
+        groups: [
+          group('Job progress', [
+            ts('Completed tasks by job', sum(n('driver_aggregate_num_completed_tasks'), j, all), { display: 'bars' }),
+            ts('Failed and killed tasks', [sum(n('driver_aggregate_num_failed_tasks'), null, all), sum(n('driver_aggregate_num_killed_tasks'), null, all)], {
+              alias: ['failed', 'killed'],
+              palette: 'warm',
+              display: 'bars',
+            }),
+            top('Longest running jobs', sum(n('driver_aggregate_elapsed_time'), j, all)),
+            top('Most failed tasks', sum(n('driver_aggregate_num_failed_tasks'), j, all), { palette: 'warm' }),
+          ]),
+          group('Data movement', [
+            ts('S3 read and written', [sum(n('all_s3_filesystem_read_bytes'), null, all), sum(n('all_s3_filesystem_write_bytes'), null, all)], { alias: ['read', 'written'], w: 4 }),
+            ts('Records read by job', sum(n('driver_aggregate_records_read'), j, all), { w: 4 }),
+            ts('Shuffle bytes written', sum(n('driver_aggregate_shuffle_bytes_written'), j, all), { w: 4 }),
+          ]),
+          group('Executors and memory', [
+            ts(
+              'Executors running and needed',
+              [avg(n('driver_executor_allocation_manager_executors_number_all_executors'), null, all), max(n('driver_executor_allocation_manager_executors_number_max_needed_executors'), null, all)],
+              {
+                alias: ['running', 'needed'],
+              },
+            ),
+            ts('Heap usage, driver and executors', [max(n('driver_jvm_heap_usage'), null, all), max(n('all_jvm_heap_usage'), null, all)], { alias: ['driver', 'all executors'] }),
+            ts('CPU load by job', avg(n('all_system_cpu_system_load'), j, all), { w: 8 }),
+            ts('Streaming batch time', avg(n('driver_streaming_batch_processing_time_in_ms'), j, all), { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/ElasticMapReduce': {
+    vars: ['jobflowid'],
+    monitor: 'amazon_emr',
+    note: 'EMR clusters: YARN applications submitted, running and failed, containers and memory against what is available, node counts, HDFS health and use, and S3 traffic. An idle cluster (IsIdle) is often one to shut down.',
+    units: {
+      HDFSBytesRead: 'byte',
+      HDFSBytesWritten: 'byte',
+      S3BytesRead: 'byte',
+      S3BytesWritten: 'byte',
+      HDFSUtilization: 'percent',
+      YARNMemoryAvailablePercentage: 'percent',
+      MemoryAllocatedMB: 'mebibyte',
+      MemoryReservedMB: 'mebibyte',
+      MemoryTotalMB: 'mebibyte',
+      CapacityRemainingGB: 'gibibyte',
+    },
+    build: ({ sum, avg, min, max }) => {
+      const c = 'jobflowid';
+      const e = (m) => `aws.elasticmapreduce.${m}`;
+      return {
+        kpis: [
+          qv('Clusters reporting', avg(e('is_idle'), c), { formula: 'count_not_null(query1)', good: true }),
+          qv('Idle clusters', sum(e('is_idle')), { agg: 'last' }),
+          qv('Apps running', sum(e('apps_running')), { agg: 'last' }),
+          qv('Apps failed', sum(e('apps_failed')), { bad: true }),
+          qv('Lowest YARN memory free', min(e('yarnmemory_available_percentage')), { precision: 1 }),
+          qv('Missing HDFS blocks', max(e('missing_blocks')), { bad: true }),
+        ],
+        groups: [
+          group('YARN applications', [
+            ts('Applications by state', [sum(e('apps_running')), sum(e('apps_pending')), sum(e('apps_completed')), sum(e('apps_failed')), sum(e('apps_killed'))], {
+              alias: ['running', 'pending', 'completed', 'failed', 'killed'],
+              display: 'bars',
+            }),
+            top('Most failed applications', sum(e('apps_failed'), c), { palette: 'warm' }),
+            ts('Containers allocated and pending', [sum(e('container_allocated')), sum(e('container_pending'))], { alias: ['allocated', 'pending'] }),
+            ts('YARN memory free by cluster', min(e('yarnmemory_available_percentage'), c)),
+          ]),
+          group('Cluster nodes', [
+            ts('Core and task nodes running', [sum(e('core_nodes_running')), sum(e('task_nodes_running'))], { alias: ['core', 'task'], w: 4 }),
+            ts('Nodes waiting to start', [sum(e('core_nodes_pending')), sum(e('task_nodes_pending'))], { alias: ['core', 'task'], w: 4 }),
+            ts('Unhealthy and lost nodes', [sum(e('mrunhealthy_nodes')), sum(e('mrlost_nodes'))], { alias: ['unhealthy', 'lost'], palette: 'warm', w: 4 }),
+            tbl('Clusters', [
+              ['Idle', avg(e('is_idle'), c), 'last'],
+              ['Apps running', sum(e('apps_running'), c), 'last'],
+              ['YARN memory free %', min(e('yarnmemory_available_percentage'), c)],
+              ['HDFS used %', max(e('hdfsutilization'), c)],
+            ]),
+          ]),
+          group('HDFS and S3', [
+            ts('HDFS used by cluster', max(e('hdfsutilization'), c), { w: 4 }),
+            ts('HDFS block problems', [max(e('missing_blocks')), sum(e('corrupt_blocks')), sum(e('under_replicated_blocks'))], {
+              alias: ['missing', 'corrupt', 'under-replicated'],
+              palette: 'warm',
+              w: 4,
+            }),
+            ts('Live data nodes', sum(e('live_data_nodes'), c), { w: 4 }),
+            ts('S3 traffic', [sum(e('s3bytes_read')), sum(e('s3bytes_written'))], { alias: ['read', 'written'], display: 'bars' }),
+            ts('HDFS traffic', [sum(e('hdfsbytes_read')), sum(e('hdfsbytes_written'))], { alias: ['read', 'written'], display: 'bars' }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  '/aws/sagemaker/Endpoints': {
+    vars: ['endpointname', 'variantname'],
+    monitor: 'amazon_sagemaker',
+    note: 'SageMaker inference endpoints, per production variant: CPU, GPU, GPU memory, memory and disk of the instances serving them (CPU and GPU sum over cores: 100 per core), and what each variant reserves.',
+    units: {
+      CPUUtilization: 'percent',
+      CPUUtilizationNormalized: 'percent',
+      CPUReservation: 'percent',
+      MemoryUtilization: 'percent',
+      MemoryReservation: 'percent',
+      DiskUtilization: 'percent',
+      GPUUtilization: 'percent',
+      GPUUtilizationNormalized: 'percent',
+      GPUMemoryUtilization: 'percent',
+      GPUMemoryUtilizationNormalized: 'percent',
+      GPUReservation: 'percent',
+    },
+    build: ({ avg, max }) => {
+      const s = (m) => `aws.sagemaker_endpoints.${m}`;
+      const v = 'endpointname,variantname';
+      return {
+        kpis: [
+          qv('Variants reporting', avg(s('cpuutilization'), v), { formula: 'count_not_null(query1)', good: true }),
+          qv('Busiest CPU (normalized)', max(s('cpuutilization_normalized')), { precision: 1 }),
+          qv('Busiest GPU (normalized)', max(s('gpuutilization_normalized')), { precision: 1 }),
+          qv('Highest memory', max(s('memory_utilization')), { precision: 1 }),
+          qv('Fullest disk', max(s('disk_utilization')), { precision: 1 }),
+        ],
+        groups: [
+          group('Variant CPU and memory', [
+            top('Busiest variants', avg(s('cpuutilization_normalized'), v), { w: 4, h: 4, palette: 'orange' }),
+            ts('CPU by variant (normalized)', avg(s('cpuutilization_normalized'), v), { w: 8 }),
+            ts('Memory by variant', avg(s('memory_utilization'), v), { w: 8 }),
+          ]),
+          group('Accelerators', [ts('GPU by variant (normalized)', avg(s('gpuutilization_normalized'), v)), ts('GPU memory by variant (normalized)', avg(s('gpumemory_utilization_normalized'), v))]),
+          group('Reservations and disk', [
+            tbl('Variants', [
+              ['CPU reserved %', avg(s('cpureservation'), v)],
+              ['Memory reserved %', avg(s('memory_reservation'), v)],
+              ['GPU reserved %', avg(s('gpureservation'), v)],
+              ['Disk used %', max(s('disk_utilization'), v)],
+            ]),
+          ]),
+        ],
+      };
+    },
+  },
+
+  '/aws/sagemaker/TrainingJobs': {
+    vars: ['host'],
+    monitor: 'amazon_sagemaker',
+    note: 'SageMaker training jobs, per training host (job name and instance, e.g. algo-1): CPU, GPU, GPU memory, memory and disk, to see whether a job uses the instances it pays for.',
+    units: { CPUUtilization: 'percent', MemoryUtilization: 'percent', DiskUtilization: 'percent', GPUUtilization: 'percent', GPUMemoryUtilization: 'percent' },
+    build: ({ avg, max }) => {
+      const s = (m) => `aws.sagemaker_trainingjobs.${m}`;
+      return {
+        kpis: [
+          qv('Hosts training', avg(s('cpuutilization'), 'host'), { formula: 'count_not_null(query1)', good: true }),
+          qv('Avg GPU', avg(s('gpuutilization')), { precision: 1 }),
+          qv('Avg CPU', avg(s('cpuutilization')), { precision: 1 }),
+          qv('Highest memory', max(s('memory_utilization')), { precision: 1 }),
+        ],
+        groups: [
+          group('Training hosts', [
+            ts('GPU by host', avg(s('gpuutilization'), 'host')),
+            ts('GPU memory by host', avg(s('gpumemory_utilization'), 'host')),
+            heat('CPU spread across hosts', avg(s('cpuutilization'), 'host')),
+            top('Least busy GPUs', avg(s('gpuutilization'), 'host'), { order: 'asc' }),
+          ]),
+          group('Host memory and scratch disk', [ts('Memory by host', max(s('memory_utilization'), 'host')), top('Fullest disks', max(s('disk_utilization'), 'host'))]),
+        ],
+      };
+    },
+  },
+
+  '/aws/sagemaker/ProcessingJobs': {
+    vars: ['host'],
+    monitor: 'amazon_sagemaker',
+    note: 'SageMaker processing jobs (data preparation, evaluation), per processing host: CPU, memory, disk and, on accelerated instances, GPU and GPU memory.',
+    units: { CPUUtilization: 'percent', MemoryUtilization: 'percent', DiskUtilization: 'percent', GPUUtilization: 'percent', GPUMemoryUtilization: 'percent' },
+    build: ({ avg, max }) => {
+      const s = (m) => `aws.sagemaker_processingjobs.${m}`;
+      return {
+        kpis: [
+          qv('Hosts processing', avg(s('cpuutilization'), 'host'), { formula: 'count_not_null(query1)', good: true }),
+          qv('Avg CPU', avg(s('cpuutilization')), { precision: 1 }),
+          qv('Highest memory', max(s('memory_utilization')), { precision: 1 }),
+          qv('Fullest disk', max(s('disk_utilization')), { precision: 1 }),
+        ],
+        groups: [
+          group('Processing hosts', [
+            top('Busiest hosts', avg(s('cpuutilization'), 'host'), { w: 4, palette: 'orange' }),
+            ts('CPU by processing host', avg(s('cpuutilization'), 'host'), { w: 8 }),
+            ts('Memory by processing host', max(s('memory_utilization'), 'host')),
+            ts('Disk by processing host', max(s('disk_utilization'), 'host')),
+          ]),
+          group('GPU processing', [ts('GPU by processing host', avg(s('gpuutilization'), 'host')), ts('GPU memory by processing host', avg(s('gpumemory_utilization'), 'host'))]),
+        ],
+      };
+    },
+  },
+
+  'AWS/TransitGateway': {
+    vars: ['transitgateway'],
+    monitor: 'amazon_transit_gateway',
+    note: 'Transit gateways: bytes and packets between attached VPCs, VPNs and Direct Connect gateways, and the packets dropped for a blackhole route or no route at all (usually a missing route table entry).',
+    units: { BytesIn: 'byte', BytesOut: 'byte' },
+    build: ({ sum }) => {
+      const t = 'transitgateway';
+      const tg = (m) => `aws.transitgateway.${m}`;
+      return {
+        kpis: [
+          qv('Bytes in', sum(tg('bytes_in'))),
+          qv('Bytes out', sum(tg('bytes_out'))),
+          qv('Dropped: blackhole', sum(tg('packet_drop_count_blackhole')), { bad: true }),
+          qv('Dropped: no route', sum(tg('packet_drop_count_no_route')), { bad: true }),
+        ],
+        groups: [
+          group('Traffic through the gateway', [
+            ts('Bytes in and out', [sum(tg('bytes_in')), sum(tg('bytes_out'))], {
+              formulas: [
+                ['query1', 'in'],
+                ['0 - query2', 'out'],
+              ],
+              display: 'bars',
+            }),
+            ts('Packets in and out', [sum(tg('packets_in')), sum(tg('packets_out'))], { alias: ['in', 'out'] }),
+            top('Busiest gateways', sum(tg('bytes_in'), t)),
+            chg('Traffic against the week before', sum(tg('bytes_in'), t)),
+          ]),
+          group('Dropped packets', [
+            ts('Drops by gateway', [sum(tg('packet_drop_count_blackhole'), t), sum(tg('packet_drop_count_no_route'), t)], { alias: ['blackhole', 'no route'], display: 'bars', palette: 'warm', w: 8 }),
+            txt('A blackhole drop matches a route whose attachment is gone; a no-route drop matches no route at all. Both point to the route tables of the gateway.', { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/DDoSProtection': {
+    vars: ['resourcearn'],
+    monitor: 'amazon_shield',
+    note: 'Shield Advanced: whether a protected resource is under a detected DDoS event, the attack’s size in bits, packets and requests per second by vector, and the traffic Shield saw and mitigated.',
+    build: ({ sum, max }) => {
+      const r = 'resourcearn';
+      const d = (m) => `aws.ddosprotection.${m}`;
+      return {
+        kpis: [
+          qv('Resources under attack', max(d('ddo_sdetected'), r), { formula: 'count_nonzero(query1)', agg: 'last', bad: true }),
+          qv('Peak attack bits/s', max(d('ddo_sattack_bits_per_second'))),
+          qv('Peak attack packets/s', max(d('ddo_sattack_packets_per_second'))),
+          qv('Attack requests', sum(d('ddo_sattack_requests')), { bad: true }),
+        ],
+        groups: [
+          group('Detected events', [
+            ts('DDoS detected by resource', max(d('ddo_sdetected'), r), { display: 'bars', palette: 'warm', w: 8 }),
+            top('Resources attacked most', max(d('ddo_sdetected'), r), { palette: 'warm', w: 4 }),
+          ]),
+          group('Attack size by vector', [
+            ts('Bits per second', max(d('ddo_sattack_bits_per_second'), 'attackvector'), { w: 4 }),
+            ts('Packets per second', max(d('ddo_sattack_packets_per_second'), 'attackvector'), { w: 4 }),
+            ts('Requests per second (layer 7)', max(d('ddo_sattack_requests_per_second'), 'attackvector'), { w: 4 }),
+          ]),
+          group('Traffic seen and mitigated', [
+            ts('Packets per second by mitigation', max(d('volume_packets_per_second'), 'mitigationaction')),
+            ts('Bits per second by protocol', max(d('volume_bits_per_second'), 'protocol')),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/RDS/Proxy': {
+    vars: ['proxyname'],
+    monitor: 'amazon_rds_proxy',
+    note: 'RDS Proxy: client connections against the database connections it pools, how many are borrowed, pinned to a session or in a transaction, query volume and latency, failed connection setups and the availability of its targets.',
+    build: ({ sum, avg, max, min }) => {
+      const p = 'proxyname';
+      const x = (m) => `aws.rds.proxy.${m}`;
+      return {
+        kpis: [
+          qv('Client connections', sum(x('client_connections')), { agg: 'last' }),
+          qv('Database connections', sum(x('database_connections')), { agg: 'last' }),
+          qv('Queries', sum(x('query_requests'))),
+          qv('Avg query latency', avg(x('query_response_latency')), { precision: 0 }),
+          qv('Lowest target availability', min(x('availability_percentage')), { precision: 1 }),
+          qv('Failed auth', sum(x('client_connections_setup_failed_auth')), { bad: true }),
+        ],
+        groups: [
+          group('Client side', [
+            ts('Client connections by proxy', sum(x('client_connections'), p), { w: 4 }),
+            ts('Connections received and over TLS', [sum(x('client_connections_received')), sum(x('client_connections_tls'))], { alias: ['received', 'TLS'], w: 4 }),
+            ts('Failed authentications', sum(x('client_connections_setup_failed_auth'), p), { display: 'bars', palette: 'warm', w: 4 }),
+          ]),
+          group('Connection pool', [
+            ts('Database connections and the limit', [sum(x('database_connections')), sum(x('max_database_connections_allowed'))], { alias: ['open', 'allowed'] }),
+            ts(
+              'Borrowed, pinned and in a transaction',
+              [sum(x('database_connections_currently_borrowed')), sum(x('database_connections_currently_session_pinned')), sum(x('database_connections_currently_in_transaction'))],
+              { alias: ['borrowed', 'pinned', 'in transaction'] },
+            ),
+            top('Fullest pools', [max(x('database_connections'), p), max(x('max_database_connections_allowed'), p)], { formula: '100 * query1 / query2' }),
+            ts('Borrow latency by proxy', avg(x('database_connections_borrow_latency'), p)),
+          ]),
+          group('Queries through the proxy', [
+            ts('Queries by proxy', sum(x('query_requests'), p), { display: 'bars', w: 4 }),
+            ts('Response latency: proxy and database', [avg(x('query_response_latency')), avg(x('query_database_response_latency'))], { alias: ['through the proxy', 'database'], w: 4 }),
+            ts('Failed database connection setups', sum(x('database_connections_setup_failed'), p), { display: 'bars', palette: 'warm', w: 4 }),
+            ts('Target availability', min(x('availability_percentage'), 'targetgroup'), { w: 12 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  WAF: {
+    vars: ['webacl'],
+    monitor: 'amazon_waf',
+    note: 'WAF Classic web ACLs: requests allowed, blocked, counted and passed (totals are each ACL’s ALL rule), and the rules that block most. WAF Classic is retired in favour of AWS WAF (its own dashboard).',
+    logs: [['WAF logs', 'source:waf']],
+    build: ({ sum }) => {
+      const all = 'rule:ALL';
+      const w = (m) => `aws.waf.${m}`;
+      return {
+        kpis: [
+          qv('Allowed', sum(w('allowed_requests'), null, all), { good: true }),
+          qv('Blocked', sum(w('blocked_requests'), null, all), { bad: true }),
+          qv('Counted', sum(w('counted_requests'), null, all)),
+          qv('Block rate', [sum(w('blocked_requests'), null, all), sum(w('allowed_requests'), null, all)], { formula: '100 * query1 / (query1 + query2)', precision: 2, unit: '%' }),
+        ],
+        groups: [
+          group('Web ACL verdicts', [
+            ts('Allowed and blocked', [sum(w('allowed_requests'), null, all), sum(w('blocked_requests'), null, all)], { alias: ['allowed', 'blocked'], display: 'bars' }),
+            ts('Counted and passed', [sum(w('counted_requests'), null, all), sum(w('passed_requests'), null, all)], { alias: ['counted', 'passed'] }),
+            top('Most blocked web ACLs', sum(w('blocked_requests'), 'webacl', all), { palette: 'warm' }),
+            tree('Allowed requests by web ACL', sum(w('allowed_requests'), 'webacl', all)),
+          ]),
+          group('Classic rules', [
+            top('Rules blocking most', sum(w('blocked_requests'), 'rule', '!rule:ALL'), { palette: 'warm', w: 4 }),
+            ts('Blocked requests by rule', sum(w('blocked_requests'), 'rule', '!rule:ALL'), { display: 'bars', w: 8 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/ElasticBeanstalk': {
+    vars: ['environmentname'],
+    monitor: 'amazon_elasticbeanstalk',
+    note: 'Elastic Beanstalk environments (with enhanced health reporting): their health status (0 ok … 25 severe) and the requests their instances answer by status class.',
+    build: ({ sum, max }) => {
+      const e = 'environmentname';
+      const b = (m) => `aws.elasticbeanstalk.${m}`;
+      return {
+        kpis: [
+          qv('Environments reporting', max(b('environment_health'), e), { formula: 'count_not_null(query1)', good: true }),
+          qv('Worst health', max(b('environment_health')), { agg: 'last', bad: true }),
+          qv('2xx responses', sum(b('application_requests2xx'))),
+          qv('5xx responses', sum(b('application_requests5xx')), { bad: true }),
+          qv('Error rate', [sum(b('application_requests5xx')), sum(b('application_requests2xx'))], { formula: '100 * query1 / (query1 + query2)', precision: 2, unit: '%' }),
+        ],
+        groups: [
+          group('Environment health', [
+            ts('Health by environment', max(b('environment_health'), e), { w: 8 }),
+            top('Least healthy', max(b('environment_health'), e), { agg: 'last', palette: 'warm', w: 4 }),
+            txt('Enhanced health: 0 ok, 1 info, 5 unknown, 10 no data, 15 warning, 20 degraded, 25 severe.'),
+          ]),
+          group('Application responses', [
+            ts('Responses by class', [sum(b('application_requests2xx')), sum(b('application_requests3xx')), sum(b('application_requests4xx')), sum(b('application_requests5xx'))], {
+              alias: ['2xx', '3xx', '4xx', '5xx'],
+              display: 'bars',
+            }),
+            top('Most server errors', sum(b('application_requests5xx'), e), { palette: 'warm' }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/Athena': {
+    vars: ['workgroup'],
+    monitor: 'amazon_athena',
+    note: 'Athena workgroups: the data each workgroup scans (what queries are billed on), where a query’s time goes (queueing, planning, the engine, writing results) and, for capacity reservations, DPUs allocated against consumed.',
+    units: {
+      ProcessedBytes: 'byte',
+      TotalExecutionTime: 'millisecond',
+      EngineExecutionTime: 'millisecond',
+      QueryPlanningTime: 'millisecond',
+      QueryQueueTime: 'millisecond',
+      ServicePreProcessingTime: 'millisecond',
+      ServiceProcessingTime: 'millisecond',
+    },
+    build: ({ sum, avg, max }) => {
+      const w = 'workgroup';
+      const a = (m) => `aws.athena.${m}`;
+      return {
+        kpis: [
+          qv('Data scanned', sum(a('processed_bytes'))),
+          qv('Avg query time', avg(a('total_execution_time'))),
+          qv('Slowest query', max(a('total_execution_time.maximum'))),
+          qv('Avg queue time', avg(a('query_queue_time'))),
+        ],
+        groups: [
+          group('Data scanned', [ts('Bytes scanned by workgroup', sum(a('processed_bytes'), w), { display: 'bars' }), tree('Share of bytes scanned', sum(a('processed_bytes'), w))]),
+          group('Where query time goes', [
+            ts('Query phases', [avg(a('query_queue_time')), avg(a('query_planning_time')), avg(a('engine_execution_time')), avg(a('service_processing_time'))], {
+              alias: ['queued', 'planning', 'engine', 'writing results'],
+              display: 'area',
+            }),
+            top('Slowest workgroups', avg(a('total_execution_time'), w)),
+          ]),
+          group('Capacity reservations', [
+            ts('DPUs allocated and consumed', [sum(a('dpuallocated')), sum(a('dpuconsumed'))], { alias: ['allocated', 'consumed'], w: 8 }),
+            top('DPUs per query', max(a('dpucount'), w), { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/AmazonMQ': {
+    vars: ['broker'],
+    monitor: 'amazon_mq',
+    note: 'Amazon MQ brokers (RabbitMQ engine metrics; ActiveMQ brokers publish per-queue metrics too): messages ready and unacknowledged, publish and acknowledge rates, consumers and producers, connections and CPU.',
+    units: { CpuUtilization: 'percent', NetworkIn: 'byte', NetworkOut: 'byte' },
+    build: ({ sum, avg, max }) => {
+      const b = 'broker';
+      const q = (m) => `aws.amazonmq.${m}`;
+      return {
+        kpis: [
+          qv('Messages ready', sum(q('message_ready_count')), { agg: 'last' }),
+          qv('Unacknowledged', sum(q('message_unacknowledged_count')), { agg: 'last' }),
+          qv('Publish rate', sum(q('publish_rate')), { precision: 1 }),
+          qv('Consumers', sum(q('consumer_count')), { agg: 'last' }),
+          qv('Busiest broker CPU', max(q('cpu_utilization')), { precision: 1 }),
+        ],
+        groups: [
+          group('Message backlog', [
+            ts('Ready and unacknowledged', [sum(q('message_ready_count')), sum(q('message_unacknowledged_count'))], { alias: ['ready', 'unacknowledged'], display: 'area' }),
+            top('Largest backlogs', sum(q('message_count'), b), { agg: 'last' }),
+            ts('Publish, confirm and ack rates', [avg(q('publish_rate')), avg(q('confirm_rate')), avg(q('ack_rate'))], { alias: ['published', 'confirmed', 'acknowledged'], w: 12 }),
+          ]),
+          group('Clients', [
+            ts('Connections and channels', [sum(q('connection_count')), sum(q('channel_count'))], { alias: ['connections', 'channels'], w: 4 }),
+            ts('Consumers by broker', sum(q('consumer_count'), b), { w: 4 }),
+            tbl(
+              'Brokers',
+              [
+                ['Queues', sum(q('queue_count'), b), 'last'],
+                ['Exchanges', sum(q('exchange_count'), b), 'last'],
+                ['Consumers', sum(q('consumer_count'), b), 'last'],
+              ],
+              { w: 4, h: 2 },
+            ),
+          ]),
+          group('Broker hosts', [
+            ts('CPU by broker', avg(q('cpu_utilization'), b)),
+            ts('Network in and out', [sum(q('network_in')), sum(q('network_out'))], {
+              formulas: [
+                ['query1', 'in'],
+                ['0 - query2', 'out'],
+              ],
+              display: 'bars',
+            }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/Neptune': {
+    vars: ['dbclusteridentifier'],
+    monitor: 'amazon_neptune',
+    note: 'Neptune graph clusters: Gremlin and SPARQL requests and errors, bulk loader activity, CPU and freeable memory, local storage left and the cluster volume’s size and I/O.',
+    units: { CPUUtilization: 'percent', FreeableMemory: 'byte', FreeLocalStorage: 'byte', VolumeBytesUsed: 'byte', NetworkReceiveThroughput: 'byte' },
+    build: ({ sum, avg, min, max }) => {
+      const c = 'dbclusteridentifier';
+      const n = (m) => `aws.neptune.${m}`;
+      return {
+        kpis: [
+          qv('Gremlin requests', sum(n('gremlin_requests'))),
+          qv('Gremlin errors', sum(n('gremlin_errors')), { bad: true }),
+          qv('SPARQL errors', sum(n('sparql_errors')), { bad: true }),
+          qv('Peak CPU', max(n('cpuutilization.maximum')), { precision: 1 }),
+          qv('Least memory free', min(n('freeable_memory'))),
+          qv('Volume used', sum(n('volume_bytes_used')), { agg: 'last' }),
+        ],
+        groups: [
+          group('Graph queries', [
+            ts('Gremlin and SPARQL requests per second', [sum(n('gremlin_requests_per_sec')), sum(n('sparql_requests_per_sec'))], { alias: ['Gremlin', 'SPARQL'] }),
+            ts('Query errors', [sum(n('gremlin_errors')), sum(n('sparql_errors'))], { alias: ['Gremlin', 'SPARQL'], palette: 'warm', display: 'bars' }),
+            top('Busiest clusters', sum(n('gremlin_requests'), c)),
+            ts('Bulk loader requests', sum(n('loader_requests'), c), { display: 'bars' }),
+          ]),
+          group('Cluster resources', [
+            ts('CPU by cluster', avg(n('cpuutilization'), c), { w: 4 }),
+            ts('Freeable memory', min(n('freeable_memory'), c), { w: 4 }),
+            top('Least local storage', min(n('free_local_storage'), c), { order: 'asc', w: 4 }),
+          ]),
+          group('Cluster volume', [
+            ts('Volume IOPS', [sum(n('volume_read_iops')), sum(n('volume_write_iops'))], { alias: ['reads', 'writes'], w: 4 }),
+            ts('Volume size by cluster', max(n('volume_bytes_used'), c), { w: 4 }),
+            chg('Volume growth over the week', max(n('volume_bytes_used'), c), { increaseGood: false, w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/Cassandra': {
+    vars: ['keyspace', 'tablename'],
+    monitor: 'amazon_keyspaces',
+    note: 'Keyspaces (for Apache Cassandra) tables: capacity consumed against provisioned, throttled reads and writes, successful request latency, user and system errors, table size and TTL deletes, and the account’s use of its capacity quotas.',
+    units: {
+      SuccessfulRequestLatency: 'millisecond',
+      ReplicationLatency: 'millisecond',
+      BillableTableSizeInBytes: 'byte',
+      AccountProvisionedReadCapacityUtilization: 'percent',
+      AccountProvisionedWriteCapacityUtilization: 'percent',
+    },
+    build: ({ sum, avg, max }) => {
+      const t = 'tablename';
+      const k = (m) => `aws.cassandra.${m}`;
+      return {
+        kpis: [
+          qv('Successful requests', sum(k('successful_request_count'))),
+          qv('Avg latency', avg(k('successful_request_latency')), { precision: 1 }),
+          qv('Throttled', [sum(k('read_throttle_events')), sum(k('write_throttle_events'))], { formula: 'query1 + query2', bad: true }),
+          qv('System errors', sum(k('system_errors')), { bad: true }),
+          qv('User errors', sum(k('user_errors'))),
+          qv('Table size', sum(k('billable_table_size_in_bytes')), { agg: 'last' }),
+        ],
+        groups: [
+          group('Read and write capacity', [
+            ts('Read units: consumed and provisioned', [sum(k('consumed_read_capacity_units')), sum(k('provisioned_read_capacity_units'))], { alias: ['consumed', 'provisioned'] }),
+            ts('Write units: consumed and provisioned', [sum(k('consumed_write_capacity_units')), sum(k('provisioned_write_capacity_units'))], { alias: ['consumed', 'provisioned'] }),
+            top('Most read tables', sum(k('consumed_read_capacity_units'), t)),
+            top('Most written tables', sum(k('consumed_write_capacity_units'), t)),
+          ]),
+          group('Throttling and errors', [
+            ts('Throttled reads and writes', [sum(k('read_throttle_events')), sum(k('write_throttle_events'))], { alias: ['reads', 'writes'], palette: 'warm', display: 'bars', w: 4 }),
+            ts('Errors', [sum(k('user_errors')), sum(k('system_errors')), sum(k('conditional_check_failed_requests'))], {
+              alias: ['user', 'system', 'conditional check failed'],
+              palette: 'warm',
+              w: 4,
+            }),
+            ts('Partition and connection limits hit', [sum(k('storage_partition_throughput_capacity_exceeded')), sum(k('per_connection_request_rate_exceeded'))], {
+              alias: ['partition throughput', 'per connection rate'],
+              palette: 'warm',
+              w: 4,
+            }),
+          ]),
+          group('Latency and storage', [
+            ts('Latency by operation', avg(k('successful_request_latency'), 'operation'), { w: 4 }),
+            ts('Table size', max(k('billable_table_size_in_bytes'), t), { w: 4 }),
+            ts('TTL deletes', sum(k('ttldeletes'), t), { display: 'bars', w: 4 }),
+          ]),
+          group('Account quotas', [
+            ts('Provisioned capacity used of the account quota', [max(k('account_provisioned_read_capacity_utilization')), max(k('account_provisioned_write_capacity_utilization'))], {
+              alias: ['read', 'write'],
+            }),
+            ts('Largest table’s share of the table quota', [max(k('max_provisioned_table_read_capacity_utilization')), max(k('max_provisioned_table_write_capacity_utilization'))], {
+              alias: ['read', 'write'],
+            }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/AOSS': {
+    vars: ['collectionname'],
+    monitor: 'amazon_opensearch_serverless',
+    note: 'OpenSearch Serverless collections: search and ingestion requests, their errors and latency, documents indexed and searchable, hot and S3 storage, and the OpenSearch Compute Units the account is billed for.',
+    units: { IngestionDataRate: 'gibibyte', StorageUsedInS3: 'byte', StorageUsedInHot: 'byte', IngestionRequestLatency: 'second', SearchRequestLatency: 'millisecond' },
+    build: ({ sum, avg, max }) => {
+      const c = 'collectionname';
+      const o = (m) => `aws.aoss.${m}`;
+      return {
+        kpis: [
+          qv('Search requests', sum(o('search_request_rate'))),
+          qv('Search errors', sum(o('search_request_errors')), { bad: true }),
+          qv('Ingestion requests', sum(o('ingestion_request_rate'))),
+          qv('Ingestion errors', sum(o('ingestion_request_errors')), { bad: true }),
+          qv('Searchable documents', sum(o('searchable_documents')), { agg: 'last' }),
+          qv('OCUs (indexing + search)', [max(o('indexing_ocu')), max(o('search_ocu'))], { formula: 'query1 + query2', agg: 'last' }),
+        ],
+        groups: [
+          group('Search', [
+            ts('Search requests by collection', sum(o('search_request_rate'), c), { display: 'bars', w: 4 }),
+            ts('Search latency by collection', avg(o('search_request_latency'), c), { w: 4 }),
+            ts('Responses by class', [sum(o('2xx')), sum(o('4xx')), sum(o('5xx'))], { alias: ['2xx', '4xx', '5xx'], w: 4 }),
+          ]),
+          group('Ingestion', [
+            ts('Ingestion requests and errors', [sum(o('ingestion_request_success')), sum(o('ingestion_request_errors'))], { alias: ['succeeded', 'failed'], display: 'bars', w: 4 }),
+            ts('Documents ingested and failed', [sum(o('ingestion_document_rate')), sum(o('ingestion_document_errors'))], { alias: ['ingested', 'failed'], w: 4 }),
+            ts('Ingestion latency', avg(o('ingestion_request_latency'), c), { w: 4 }),
+          ]),
+          group('Collection storage', [
+            ts('Hot and S3 storage', [sum(o('storage_used_in_hot')), sum(o('storage_used_in_s3'))], { alias: ['hot', 'S3'] }),
+            top('Largest collections', max(o('storage_used_in_s3'), c), { agg: 'last' }),
+            ts('Searchable and deleted documents', [sum(o('searchable_documents')), sum(o('deleted_documents'))], { alias: ['searchable', 'deleted'] }),
+            ts('Compute units', [max(o('indexing_ocu')), max(o('search_ocu'))], { alias: ['indexing', 'search'] }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/Route53Resolver': {
+    vars: ['endpointid'],
+    monitor: 'amazon_route53',
+    note: 'Route 53 Resolver endpoints: DNS queries forwarded into your VPCs through inbound endpoints and out to your own resolvers through outbound ones.',
+    logs: [['Resolver query logs', 'source:route53']],
+    build: ({ sum }) => {
+      const e = 'endpointid';
+      const r = (m) => `aws.route53resolver.${m}`;
+      return {
+        kpis: [
+          qv('Inbound queries', sum(r('inbound_query_volume'))),
+          qv('Outbound queries', sum(r('outbound_query_volume'))),
+          qv('Outbound queries (all endpoints)', sum(r('outbound_query_aggregate_volume'))),
+        ],
+        groups: [
+          group('Inbound endpoints', [
+            ts('Inbound queries by endpoint', sum(r('inbound_query_volume'), e), { display: 'bars', w: 8 }),
+            top('Busiest inbound endpoints', sum(r('inbound_query_volume'), e), { w: 4 }),
+          ]),
+          group('Outbound endpoints', [
+            ts('Outbound queries by endpoint', sum(r('outbound_query_volume'), e), { display: 'bars', w: 8 }),
+            chg('Outbound queries against the week before', sum(r('outbound_query_volume'), e), { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/GlobalAccelerator': {
+    vars: ['accelerator'],
+    monitor: 'amazon_globalaccelerator',
+    note: 'Global Accelerator: flows and bytes through each accelerator, its healthy and unhealthy endpoints, flows dropped for lack of an endpoint and the TCP resets sent by the accelerator, clients and endpoints.',
+    units: { ProcessedBytesIn: 'byte', ProcessedBytesOut: 'byte' },
+    build: ({ sum, max }) => {
+      const a = 'accelerator';
+      const x = (m) => `aws.globalaccelerator.${m}`;
+      return {
+        kpis: [
+          qv('New flows', sum(x('new_flow_count'))),
+          qv('Bytes in', sum(x('processed_bytes_in'))),
+          qv('Bytes out', sum(x('processed_bytes_out'))),
+          qv('Healthy endpoints', max(x('healthy_endpoint_count')), { agg: 'last', good: true }),
+          qv('Unhealthy endpoints', max(x('unhealthy_endpoint_count')), { agg: 'last', bad: true }),
+          qv('Flows without an endpoint', sum(x('flows_dropped_no_endpoint_found')), { bad: true }),
+        ],
+        groups: [
+          group('Accelerator flows', [
+            ts('New and active flows', [sum(x('new_flow_count')), sum(x('active_flow_count'))], { alias: ['new', 'active'] }),
+            ts('Bytes in and out', [sum(x('processed_bytes_in')), sum(x('processed_bytes_out'))], {
+              formulas: [
+                ['query1', 'in'],
+                ['0 - query2', 'out'],
+              ],
+              display: 'bars',
+            }),
+            top('Busiest accelerators', sum(x('processed_bytes_out'), a)),
+            ts('Packets processed', sum(x('packets_processed'), a)),
+          ]),
+          group('Endpoint health', [
+            ts('Healthy and unhealthy endpoints', [max(x('healthy_endpoint_count')), max(x('unhealthy_endpoint_count'))], { alias: ['healthy', 'unhealthy'], w: 8 }),
+            top('Accelerators with unhealthy endpoints', max(x('unhealthy_endpoint_count'), a), { palette: 'warm', w: 4 }),
+          ]),
+          group('Resets and drops', [
+            ts('TCP resets by origin', [sum(x('tcp_aga_reset_count')), sum(x('tcp_client_reset_count')), sum(x('tcp_endpoint_reset_count'))], {
+              alias: ['accelerator', 'client', 'endpoint'],
+              palette: 'warm',
+            }),
+            ts('Flows dropped: no endpoint', sum(x('flows_dropped_no_endpoint_found'), a), { display: 'bars', palette: 'warm' }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/DX': {
+    vars: ['connectionid', 'virtualinterfaceid'],
+    monitor: 'amazon_directconnect',
+    note: 'Direct Connect: whether each connection is up (1) or down, its bit and packet rates both ways, CRC and other errors, optical light levels, MACsec encryption, and each virtual interface’s traffic and BGP sessions.',
+    units: { ConnectionBpsEgress: 'bit', ConnectionBpsIngress: 'bit', VirtualInterfaceBpsEgress: 'bit', VirtualInterfaceBpsIngress: 'bit' },
+    build: ({ sum, avg, min, max }) => {
+      const c = 'connectionid';
+      const v = 'virtualinterfaceid';
+      const d = (m) => `aws.dx.${m}`;
+      return {
+        kpis: [
+          qv('Connections up', sum(d('connection_state')), { agg: 'last', good: true }),
+          qv('Connections down', min(d('connection_state'), c), { formula: 'count_not_null(query1) - sum(query1)', agg: 'last', bad: true }),
+          qv('Peak ingress (bit/s)', max(d('connection_bps_ingress'))),
+          qv('Peak egress (bit/s)', max(d('connection_bps_egress'))),
+          qv('Errors', sum(d('connection_error_count')), { bad: true }),
+          qv('BGP sessions down', min(d('virtual_interface_bgp_status'), v), { formula: 'count_not_null(query1) - sum(query1)', agg: 'last', bad: true }),
+        ],
+        groups: [
+          group('Connection state and errors', [
+            ts('Connection state', min(d('connection_state'), c), { w: 4 }),
+            ts('CRC and other errors', [sum(d('connection_crcerror_count')), sum(d('connection_error_count'))], { alias: ['CRC', 'all'], palette: 'warm', display: 'bars', w: 4 }),
+            ts('Light levels (dBm)', [avg(d('connection_light_level_rx')), avg(d('connection_light_level_tx'))], { alias: ['received', 'sent'], w: 4 }),
+          ]),
+          group('Connection traffic', [
+            ts('Bits per second both ways', [avg(d('connection_bps_ingress')), avg(d('connection_bps_egress'))], {
+              formulas: [
+                ['query1', 'ingress'],
+                ['0 - query2', 'egress'],
+              ],
+            }),
+            ts('Packets per second both ways', [avg(d('connection_pps_ingress')), avg(d('connection_pps_egress'))], { alias: ['ingress', 'egress'] }),
+            top('Busiest connections', max(d('connection_bps_egress'), c)),
+            ts('Egress discards', avg(d('connection_discards_pps_egress'), c), { palette: 'warm' }),
+          ]),
+          group('Virtual interfaces and BGP', [
+            ts('Interface bits per second', avg(d('virtual_interface_bps_egress'), v), { w: 4 }),
+            ts('BGP status by interface', min(d('virtual_interface_bgp_status'), v), { w: 4 }),
+            tbl(
+              'Interfaces',
+              [
+                ['Prefixes accepted', avg(d('virtual_interface_bgp_prefixes_accepted'), v), 'last'],
+                ['Prefixes advertised', avg(d('virtual_interface_bgp_prefixes_advertised'), v), 'last'],
+                ['Ingress bit/s', avg(d('virtual_interface_bps_ingress'), v)],
+              ],
+              { w: 4, h: 2 },
+            ),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/AppSync': {
+    vars: ['graphqlapiid'],
+    monitor: 'amazon_appsync',
+    note: 'AppSync GraphQL APIs: client and server errors and the time each request takes, per API.',
+    units: { Latency: 'millisecond' },
+    build: ({ sum, avg, max }) => {
+      const a = 'graphqlapiid';
+      const s = (m) => `aws.appsync.${m}`;
+      return {
+        kpis: [
+          qv('Client errors (4xx)', sum(s('4xxerror')), { bad: true }),
+          qv('Server errors (5xx)', sum(s('5xxerror')), { bad: true }),
+          qv('Avg latency', avg(s('latency'))),
+          qv('Slowest request', max(s('latency.maximum'))),
+        ],
+        groups: [
+          group('GraphQL errors', [
+            ts('Errors by class', [sum(s('4xxerror')), sum(s('5xxerror'))], { alias: ['4xx', '5xx'], palette: 'warm', display: 'bars' }),
+            top('APIs with most server errors', sum(s('5xxerror'), a), { palette: 'warm' }),
+          ]),
+          group('GraphQL latency', [ts('Latency by API', avg(s('latency'), a), { w: 8 }), top('Slowest APIs', avg(s('latency'), a), { w: 4 })]),
+        ],
+      };
+    },
+  },
+
+  'AWS/CodeBuild': {
+    vars: ['projectname'],
+    monitor: 'amazon_codebuild',
+    note: 'CodeBuild projects: builds started, succeeded and failed, and how long builds take. Each build’s phases and logs are in CI Visibility when the project sends them.',
+    units: { Duration: 'second' },
+    logs: [['CodeBuild logs', 'source:codebuild']],
+    build: ({ sum, avg, max }) => {
+      const p = 'projectname';
+      const b = (m) => `aws.codebuild.${m}`;
+      return {
+        kpis: [
+          qv('Builds', sum(b('builds'))),
+          qv('Succeeded', sum(b('succeeded_builds')), { good: true }),
+          qv('Failed', sum(b('failed_builds')), { bad: true }),
+          qv('Failure rate', [sum(b('failed_builds')), sum(b('builds'))], { formula: '100 * query1 / query2', precision: 1, unit: '%' }),
+          qv('Avg duration', avg(b('duration'))),
+        ],
+        groups: [
+          group('Build outcomes', [
+            ts('Succeeded and failed builds', [sum(b('succeeded_builds')), sum(b('failed_builds'))], { alias: ['succeeded', 'failed'], display: 'bars' }),
+            top('Projects failing most', sum(b('failed_builds'), p), { palette: 'warm' }),
+            tree('Builds by project', sum(b('builds'), p)),
+            ts('Failure rate by project', [sum(b('failed_builds'), p), sum(b('builds'), p)], { formulas: [['100 * query1 / query2', '%']], palette: 'warm' }),
+          ]),
+          group('Build time', [ts('Duration by project', avg(b('duration'), p), { w: 8 }), top('Longest builds', max(b('duration.maximum'), p), { w: 4 })]),
+        ],
+      };
+    },
+  },
+
+  'AWS/StorageGateway': {
+    vars: ['gatewayid', 'gatewayname'],
+    monitor: 'amazon_storage_gateway',
+    note: 'Storage Gateway appliances: the local cache (hits, used, dirty data not yet uploaded), the upload buffer, reads and writes with their latency, traffic to and from AWS, and the gateway host’s CPU, I/O wait and memory.',
+    units: {
+      CacheHitPercent: 'percent',
+      CachePercentDirty: 'percent',
+      CachePercentUsed: 'percent',
+      CacheUsed: 'byte',
+      TotalCacheSize: 'byte',
+      UploadBufferPercentUsed: 'percent',
+      UploadBufferUsed: 'byte',
+      ReadBytes: 'byte',
+      WriteBytes: 'byte',
+      ReadTime: 'millisecond',
+      WriteTime: 'millisecond',
+      CloudBytesDownloaded: 'byte',
+      CloudBytesUploaded: 'byte',
+      IoWaitPercent: 'percent',
+      UserCpuPercent: 'percent',
+      MemTotalBytes: 'byte',
+      MemUsedBytes: 'byte',
+      TimeSinceLastRecoveryPoint: 'second',
+    },
+    build: ({ sum, avg, max, min }) => {
+      const g = 'gatewayname';
+      const s = (m) => `aws.storagegateway.${m}`;
+      return {
+        kpis: [
+          qv('Lowest cache hit %', min(s('cache_hit_percent')), { precision: 1 }),
+          qv('Most dirty cache %', max(s('cache_percent_dirty')), { precision: 1 }),
+          qv('Fullest upload buffer %', max(s('upload_buffer_percent_used')), { precision: 1 }),
+          qv('Uploaded to AWS', sum(s('cloud_bytes_uploaded'))),
+          qv('Health notifications', sum(s('health_notification')), { bad: true }),
+        ],
+        groups: [
+          group('Local cache', [
+            ts('Cache hits by gateway', avg(s('cache_hit_percent'), g), { w: 4 }),
+            ts('Dirty cache by gateway', max(s('cache_percent_dirty'), g), { w: 4 }),
+            ts('Cache used and its size', [sum(s('cache_used')), sum(s('total_cache_size'))], { alias: ['used', 'size'], w: 4 }),
+          ]),
+          group('Uploads to AWS', [
+            ts('Upload buffer used', max(s('upload_buffer_percent_used'), g)),
+            ts('Bytes to and from AWS', [sum(s('cloud_bytes_uploaded')), sum(s('cloud_bytes_downloaded'))], { alias: ['uploaded', 'downloaded'], display: 'bars' }),
+            ts('Queued writes', max(s('queued_writes'), g)),
+            top('Longest since a recovery point', max(s('time_since_last_recovery_point'), 'volumeid')),
+          ]),
+          group('Application I/O', [
+            ts('Bytes read and written', [sum(s('read_bytes')), sum(s('write_bytes'))], { alias: ['read', 'written'] }),
+            ts('Read and write time', [avg(s('read_time')), avg(s('write_time'))], { alias: ['read', 'write'] }),
+          ]),
+          group('Gateway host', [
+            ts('CPU and I/O wait', [avg(s('user_cpu_percent')), avg(s('io_wait_percent'))], { alias: ['CPU', 'I/O wait'], w: 4 }),
+            top('Highest memory used', [max(s('mem_used_bytes'), g), max(s('mem_total_bytes'), g)], { formula: '100 * query1 / query2', w: 4 }),
+            ts('Availability and health notifications', [sum(s('availability_notifications')), sum(s('health_notification'))], {
+              alias: ['availability', 'health'],
+              palette: 'warm',
+              display: 'bars',
+              w: 4,
+            }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/FSx': {
+    vars: ['filesystemid'],
+    monitor: 'amazon_fsx',
+    note: 'FSx file systems (Windows File Server, Lustre, ONTAP, OpenZFS): data and metadata operations, throughput, free storage, the file server’s CPU and memory, disk throughput and IOPS against their burst balance, and client connections.',
+    units: {
+      DataReadBytes: 'byte',
+      DataWriteBytes: 'byte',
+      FreeStorageCapacity: 'byte',
+      FreeDataStorageCapacity: 'byte',
+      CPUUtilization: 'percent',
+      MemoryUtilization: 'percent',
+      NetworkThroughputUtilization: 'percent',
+      DiskThroughputUtilization: 'percent',
+      DiskThroughputBalance: 'percent',
+      FileServerDiskIopsUtilization: 'percent',
+      FileServerDiskIopsBalance: 'percent',
+      FileServerDiskThroughputUtilization: 'percent',
+    },
+    build: ({ sum, avg, max, min }) => {
+      const fs = 'filesystemid';
+      const x = (m) => `aws.fsx.${m}`;
+      return {
+        kpis: [
+          qv('Bytes read', sum(x('data_read_bytes'))),
+          qv('Bytes written', sum(x('data_write_bytes'))),
+          qv('Least free storage', min(x('free_storage_capacity'))),
+          qv('Busiest file server CPU', max(x('cpuutilization')), { precision: 1 }),
+          qv('Client connections', sum(x('client_connections')), { agg: 'last' }),
+        ],
+        groups: [
+          group('File operations', [
+            ts('Throughput', [sum(x('data_read_bytes')), sum(x('data_write_bytes'))], { alias: ['read', 'written'], display: 'bars', w: 4 }),
+            ts('Operations', [sum(x('data_read_operations')), sum(x('data_write_operations')), sum(x('metadata_operations'))], { alias: ['reads', 'writes', 'metadata'], w: 4 }),
+            top('Busiest file systems', sum(x('data_read_bytes'), fs), { w: 4 }),
+          ]),
+          group('Storage left', [
+            top('Least free storage', min(x('free_storage_capacity'), fs), { order: 'asc', agg: 'last' }),
+            chg('Free storage against the week before', min(x('free_storage_capacity'), fs), { increaseGood: true }),
+          ]),
+          group('File server and disks', [
+            ts('CPU and memory', [avg(x('cpuutilization')), avg(x('memory_utilization'))], { alias: ['CPU', 'memory'], w: 4 }),
+            ts('Network throughput used', max(x('network_throughput_utilization'), fs), { w: 4 }),
+            ts('Disk burst balances', [min(x('disk_throughput_balance')), min(x('file_server_disk_iops_balance'))], { alias: ['throughput', 'IOPS'], w: 4 }),
+            ts('Disk throughput and IOPS used', [max(x('disk_throughput_utilization')), max(x('file_server_disk_iops_utilization'))], { alias: ['throughput', 'IOPS'], w: 12 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/TrustedAdvisor': {
+    vars: ['checkname'],
+    monitor: 'amazon_trusted_advisor',
+    note: 'Trusted Advisor (Business or Enterprise support): the resources each check flags red (action recommended) or yellow (investigate), and how close each service limit is to its quota. CloudWatch reports them from us-east-1.',
+    units: { ServiceLimitUsage: 'percent' },
+    build: ({ max }) => {
+      const c = 'checkname';
+      const t = (m) => `aws.trustedadvisor.${m}`;
+      return {
+        kpis: [
+          qv('Red resources', max(t('red_resources'), c), { formula: 'sum(query1)', agg: 'last', bad: true, span: '1d' }),
+          qv('Yellow resources', max(t('yellow_resources'), c), { formula: 'sum(query1)', agg: 'last', span: '1d' }),
+          qv('Highest limit usage', max(t('service_limit_usage')), { agg: 'last', precision: 1, span: '1d' }),
+        ],
+        groups: [
+          group('Flagged checks', [
+            top('Checks with red resources', max(t('red_resources'), c), { agg: 'last', palette: 'warm', span: '1d' }),
+            top('Checks with yellow resources', max(t('yellow_resources'), c), { agg: 'last', span: '1d' }),
+            ts('Flagged resources over the week', [max(t('red_resources')), max(t('yellow_resources'))], { alias: ['red', 'yellow'], span: '1w', w: 12 }),
+          ]),
+          group('Service limits', [
+            top('Closest to their limit', max(t('service_limit_usage'), 'servicename,servicelimit'), { agg: 'last', span: '1d', w: 8 }),
+            txt('Usage is a percentage of the limit. Limits above 80% are worth raising before they block a deployment.', { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/Usage': {
+    vars: ['service', 'type', 'resource'],
+    monitor: 'amazon_service_quotas',
+    note: 'Usage that Service Quotas tracks: API calls per service and operation, resources in use (vCPUs, IPs …) and calls throttled for hitting a rate quota. Usage against the quota itself is the SERVICE_QUOTA() of a metric in CloudWatch.',
+    build: ({ sum, max }) => {
+      const u = (m) => `aws.usage.${m}`;
+      return {
+        kpis: [
+          qv('API calls', sum(u('call_count'))),
+          qv('Throttled calls', sum(u('throttle_count')), { bad: true }),
+          qv('Throttle rate', [sum(u('throttle_count')), sum(u('call_count'))], { formula: '100 * query1 / query2', precision: 2, unit: '%' }),
+          qv('Resource types counted', max(u('resource_count'), 'service,resource'), { formula: 'count_not_null(query1)' }),
+        ],
+        groups: [
+          group('API calls by service', [
+            ts('Calls by service', sum(u('call_count'), 'service'), { display: 'bars' }),
+            top('Most called operations', sum(u('call_count'), 'service,resource')),
+            top('Most throttled operations', sum(u('throttle_count'), 'service,resource'), { palette: 'warm' }),
+            ts('Throttled calls by service', sum(u('throttle_count'), 'service'), { palette: 'warm' }),
+          ]),
+          group('Resources in use', [
+            tbl('Resources', [['In use', max(u('resource_count'), 'service,resource'), 'last']], { w: 8 }),
+            chg('Against the week before', max(u('resource_count'), 'service,resource'), { increaseGood: false, w: 4, h: 3 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/ElasticInference': {
+    vars: ['elasticinferenceacceleratorid'],
+    monitor: 'amazon_elastic_inference',
+    note: 'Elastic Inference accelerators attached to instances: health and connectivity checks, utilization and memory, and inferences served with their client and server errors.',
+    build: ({ sum, avg, max }) => {
+      const a = 'elasticinferenceacceleratorid';
+      const e = (m) => `aws.elasticinference.${m}`;
+      return {
+        kpis: [
+          qv('Inferences', sum(e('accelerator_total_inference_count'))),
+          qv('Server errors', sum(e('accelerator_inference_with_server_error_count')), { bad: true }),
+          qv('Failed health checks', max(e('accelerator_health_check_failed')), { agg: 'last', bad: true }),
+          qv('Avg utilization', avg(e('accelerator_utilization')), { precision: 1 }),
+        ],
+        groups: [
+          group('Inferences served', [
+            ts(
+              'Successful and failed inferences',
+              [sum(e('accelerator_successful_inference_count')), sum(e('accelerator_inference_with_client_error_count')), sum(e('accelerator_inference_with_server_error_count'))],
+              {
+                alias: ['succeeded', 'client error', 'server error'],
+                display: 'bars',
+              },
+            ),
+            top('Busiest accelerators', sum(e('accelerator_total_inference_count'), a)),
+          ]),
+          group('Accelerator health', [
+            ts('Utilization and memory', [avg(e('accelerator_utilization')), avg(e('accelerator_memory_usage'))], { alias: ['utilization', 'memory'] }),
+            ts('Failed checks', [max(e('accelerator_health_check_failed')), max(e('connectivity_check_failed'))], { alias: ['health', 'connectivity'], palette: 'warm' }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'AWS/ElasticTranscoder': {
+    vars: ['pipelineid'],
+    monitor: 'amazon_elastic_transcoder',
+    note: 'Elastic Transcoder pipelines: jobs completed and failed, outputs per job, billed HD, SD and audio minutes, time jobs wait in standby, and API errors and throttles.',
+    build: ({ sum, avg }) => {
+      const p = 'pipelineid';
+      const t = (m) => `aws.elastictranscoder.${m}`;
+      return {
+        kpis: [
+          qv('Jobs completed', sum(t('jobs_completed')), { good: true }),
+          qv('Jobs failed', sum(t('jobs_errored')), { bad: true }),
+          qv('Billed HD minutes', sum(t('billed_hdoutput'))),
+          qv('Throttled calls', sum(t('throttles')), { bad: true }),
+        ],
+        groups: [
+          group('Transcoding jobs', [
+            ts('Completed and failed jobs', [sum(t('jobs_completed')), sum(t('jobs_errored'))], { alias: ['completed', 'failed'], display: 'bars' }),
+            top('Pipelines failing most', sum(t('jobs_errored'), p), { palette: 'warm' }),
+            ts('Standby time by pipeline', avg(t('standby_time'), p)),
+            ts('Outputs per job', avg(t('outputs_per_job'), p)),
+          ]),
+          group('Billed output', [
+            ts('Billed minutes', [sum(t('billed_hdoutput')), sum(t('billed_sdoutput')), sum(t('billed_audio_output'))], { alias: ['HD', 'SD', 'audio'], display: 'area', w: 8 }),
+            ts('API errors and throttles', [sum(t('errors')), sum(t('throttles'))], { alias: ['errors', 'throttles'], palette: 'warm', w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
 };

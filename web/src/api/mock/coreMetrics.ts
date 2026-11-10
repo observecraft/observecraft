@@ -41,6 +41,7 @@ const VALUES: Record<string, string[]> = {
   taskdefinitionfamily: ['order-service', 'catalog-service', 'billing', 'inventory-service'],
   dbinstanceidentifier: ['orders-db', 'catalog-db', 'billing-db', 'inventory-db'],
   dbclusteridentifier: ['orders-aurora', 'orders-aurora', 'catalog-aurora', 'catalog-aurora'],
+  autoscalinggroupname: ['storefront-web-asg', 'order-worker-asg', 'catalog-batch-asg', 'checkout-api-asg'],
   proxyname: ['orders-proxy', 'catalog-proxy', 'billing-proxy', 'orders-proxy'],
   functionname: ['order-confirmation-email', 'image-resize', 'inventory-sync', 'payment-webhook'],
   queuename: ['order-events', 'email-notifications', 'inventory-updates', 'order-events-dlq'],
@@ -53,6 +54,7 @@ const VALUES: Record<string, string[]> = {
 };
 /** Values of a tag that differ for one integration: CloudFront's functions aren't Lambda's, Azure resources have names. */
 const LOGO_VALUES: Record<string, Record<string, string[]>> = {
+  'tile:aws-docdb': { dbinstanceidentifier: ['catalog-docdb-1', 'catalog-docdb-2', 'reviews-docdb-1', 'catalog-docdb-3'] },
   'tile:aws-cloudfront': { functionname: ['storefront-headers', 'cart-redirects', 'storefront-headers', 'image-rewrite'] },
   'tile:azure-compute-virtualmachines': { name: ['storefront-api-vm', 'order-service-vm', 'catalog-service-vm', 'billing-vm'] },
   'tile:azure-web-sites': { name: ['storefront-web', 'api-gateway', 'order-functions', 'storefront-web'] },

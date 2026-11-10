@@ -44,6 +44,8 @@ test('every chart of the demo accounts’ AWS, Azure and Google Cloud service da
     'tile:aws-applicationelb',
     'tile:aws-lambda',
     'tile:aws-sqs',
+    'tile:aws-autoscaling',
+    'tile:aws-docdb',
     'tile:azure-compute-virtualmachines',
     'tile:azure-web-sites',
     'tile:azure-storage-storageaccounts',

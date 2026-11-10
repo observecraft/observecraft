@@ -957,7 +957,21 @@ const CLOUDS: Record<CloudId, { page: string; source: string; steps: string[] }>
 };
 
 /** AWS services the demo account collects (mock mode). */
-const DEMO_AWS = new Set(['AWS/ApiGateway', 'AWS/ApplicationELB', 'AWS/CloudFront', 'AWS/DynamoDB', 'AWS/EC2', 'AWS/ECS', 'ECS/ContainerInsights', 'AWS/Lambda', 'AWS/RDS', 'AWS/S3', 'AWS/WAFV2']);
+const DEMO_AWS = new Set([
+  'AWS/ApiGateway',
+  'AWS/ApplicationELB',
+  'AWS/AutoScaling',
+  'AWS/CloudFront',
+  'AWS/DocDB',
+  'AWS/DynamoDB',
+  'AWS/EC2',
+  'AWS/ECS',
+  'ECS/ContainerInsights',
+  'AWS/Lambda',
+  'AWS/RDS',
+  'AWS/S3',
+  'AWS/WAFV2',
+]);
 
 /** One tile per CloudWatch namespace of the AWS integration's catalog (server/seeds/aws_integration.json). */
 const AWS_SERVICES: Entry[] = awsCatalog.namespaces.map((n) => ({

@@ -250,6 +250,7 @@ test('mock mode shows the dashboards of the services its demo account collects',
   const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/cloudServiceDashboards.generated.json', import.meta.url), 'utf8'));
   assert.deepEqual(mock.dashboards.map((d) => d.logo).sort(), [...MOCK_SERVICES].sort());
   assert.ok(MOCK_SERVICES.includes('tile:aws-sqs'));
+  for (const id of ['aws-autoscaling', 'aws-docdb']) assert.ok(MOCK_SERVICES.includes(`tile:${id}`), id);
   for (const id of ['gcp-gce', 'gcp-run', 'gcp-cloudsql', 'gcp-gcs', 'gcp-pubsub']) assert.ok(MOCK_SERVICES.includes(`tile:${id}`), id);
   assert.equal(mock.units['azure.vm.percentage_cpu'], 'percent');
 });
@@ -319,6 +320,35 @@ test('the most used AWS services have a dashboard designed for them', () => {
     'AWS/Events',
     'AWS/Logs',
     'AWS/Billing',
+    'AWS/AutoScaling',
+    'AWS/DocDB',
+    'AWS/MemoryDB',
+    'Glue',
+    'AWS/ElasticMapReduce',
+    '/aws/sagemaker/Endpoints',
+    '/aws/sagemaker/TrainingJobs',
+    '/aws/sagemaker/ProcessingJobs',
+    'AWS/TransitGateway',
+    'AWS/DDoSProtection',
+    'AWS/RDS/Proxy',
+    'WAF',
+    'AWS/ElasticBeanstalk',
+    'AWS/Athena',
+    'AWS/AmazonMQ',
+    'AWS/Neptune',
+    'AWS/Cassandra',
+    'AWS/AOSS',
+    'AWS/Route53Resolver',
+    'AWS/GlobalAccelerator',
+    'AWS/DX',
+    'AWS/AppSync',
+    'AWS/CodeBuild',
+    'AWS/StorageGateway',
+    'AWS/FSx',
+    'AWS/TrustedAdvisor',
+    'AWS/Usage',
+    'AWS/ElasticInference',
+    'AWS/ElasticTranscoder',
   ])
     assert.ok(AWS_LAYOUTS[ns], `${ns} has a layout`);
   for (const ns of Object.keys(AWS_LAYOUTS)) {
@@ -395,7 +425,7 @@ test('every AWS service dashboard charts only names the crawler publishes (bare 
 });
 
 test('services without a design get their key numbers and their metrics grouped by what they measure', () => {
-  const [d] = awsLine('Glue').dashboards;
+  const [d] = awsLine('AWS/AppStream').dashboards;
   const titles = d.widgets.map((w) => w.definition.title);
   assert.ok(!titles.includes('Metrics'), 'not one flat grid');
   assert.ok(

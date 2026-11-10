@@ -314,7 +314,7 @@ or SDK features.
   collects the global services (CloudFront, CloudFront web ACLs) from us-east-1 even when the account's regions leave it
   out (`aws/naming.rs`). In every namespace the bare name carries the metric's statistic (counts are sums), with
   `.sum` / `.maximum` / `.minimum` and the `percentiles` and daily `period`s that file's `overrides` set.
-  The most used AWS services (~37: EC2, S3, RDS, the load balancers, Lambda, SQS, …) have a layout designed per service
+  The AWS services worth one (66: EC2, S3, RDS, the load balancers, Lambda, SQS, … down to Storage Gateway, FSx and Service Quotas) have a layout designed per service
   in `scripts/aws-service-layouts.mjs` (Datadog's widget format: an Overview group with logo, note, monitor summary
   `tag:(integration:amazon_<svc>) OR aws.<svc>.` and key numbers, then themed groups and the service's logs; our own
   titles and notes); the generator fails on a name the crawler doesn't publish. The most used Azure resource types (~42:

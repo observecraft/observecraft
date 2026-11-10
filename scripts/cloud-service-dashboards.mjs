@@ -562,7 +562,9 @@ export function serviceUnits() {
 export const MOCK_SERVICES = [
   'tile:aws-apigateway',
   'tile:aws-applicationelb',
+  'tile:aws-autoscaling',
   'tile:aws-cloudfront',
+  'tile:aws-docdb',
   'tile:aws-dynamodb',
   'tile:aws-ec2',
   'tile:aws-ecs',
