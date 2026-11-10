@@ -16,6 +16,13 @@ test('a search applies the variables it names, in place, and drops those set to 
   assert.equal(resolveSearchQuery(query, vault, { 'logs.auth.display_name': 'approle', vault_cluster: 'vault-prod' }), 'source:vault @auth.display_name:approle vault_cluster:vault-prod');
 });
 
+test("`@$name` reads the variable as an attribute, and drops with it while it is * (Argo Rollouts' log stream)", () => {
+  const rollouts = [{ name: 'argo_rollouts_namespace', prefix: 'argo_rollouts_namespace', default: '*' }];
+  const query = 'source:argo_rollouts @$argo_rollouts_namespace ';
+  assert.equal(resolveSearchQuery(query, rollouts, {}), 'source:argo_rollouts');
+  assert.equal(resolveSearchQuery(query, rollouts, { argo_rollouts_namespace: 'checkout' }), 'source:argo_rollouts @argo_rollouts_namespace:checkout');
+});
+
 test('a search leaves the variables it does not name alone', () => {
   const gatekeeper = [
     { name: 'cluster_name', prefix: 'cluster_name', default: '*' },

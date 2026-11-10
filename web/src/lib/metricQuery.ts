@@ -194,9 +194,17 @@ export function resolveSearchQuery(query: string, tvs: TemplateVariable[], value
   const valueOf = names.length ? new RegExp(`\\$(${names.join('|')})\\.value\\b`, 'g') : null;
   const byValue = !!valueOf?.test(query);
   if (valueOf) query = query.replace(valueOf, (_, name: string) => quote(values[name] ?? byName.get(name)!.default ?? '*') || '*');
-  const reference = names.length ? new RegExp(`\\$(${names.join('|')})(?![\\w.])`, 'g') : null;
+  // `@$name` reads the variable as an attribute (`@prefix:value`); it goes with the variable while that is `*`.
+  const reference = names.length ? new RegExp(`(@?)\\$(${names.join('|')})(?![\\w.])`, 'g') : null;
   const named = !!reference?.test(query) || byValue;
-  const resolved = named ? query.replace(reference!, (_, name: string) => term(byName.get(name)!)) : appendUnnamed ? [query, ...tvs.map(term)].join(' ') : query;
+  const resolved = named
+    ? query.replace(reference!, (_, at: string, name: string) => {
+        const t = term(byName.get(name)!);
+        return t && at && !t.startsWith('@') ? `@${t}` : t;
+      })
+    : appendUnnamed
+      ? [query, ...tvs.map(term)].join(' ')
+      : query;
   return resolved.replace(/\s+/g, ' ').trim();
 }
 
