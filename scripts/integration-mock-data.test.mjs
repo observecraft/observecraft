@@ -1,5 +1,6 @@
-// Mock mode (make web-mock) draws every widget of the Vault, Gatekeeper, External Secrets, Argo CD, Traefik Mesh and
-// cert-manager dashboards: their metrics, service checks, logs and security signals, template variables at `*`.
+// Mock mode (make web-mock) draws every widget of the Vault, Gatekeeper, External Secrets, Argo CD, Traefik Mesh,
+// cert-manager, PostgreSQL, PgBouncer, Redis and ClickHouse dashboards: their metrics, service checks, logs and security
+// signals, template variables at `*`.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -35,6 +36,8 @@ const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/coreDa
 const KNOWN = new Map([
   // Hosts tagged field:apps:argocd by their owner: a tag of the user's own, not one the integration sends.
   ['Host Reporting Argo CD Metrics by Cluster', 'user tag'],
+  // Redis's pipeline maps its severities (. - * #) to debug, info and warn: no log of its is an error, in Datadog too.
+  ['Redis - Overview / Error Logs', 'no error status'],
 ]);
 
 const widgets = (items) => items.flatMap((w) => (w.definition.type === 'group' ? widgets(w.definition.widgets) : [w.definition]));
@@ -61,13 +64,18 @@ for (const title of [
   'Argo CD Overview',
   'Traefik Mesh Overview',
   'Cert Manager Overview',
+  'Postgres - Metrics',
+  'Postgres - Overview',
+  'PgBouncer - Metrics',
+  'Redis - Overview',
+  'ClickHouse Overview',
 ]) {
   test(`every widget of ${title} has data in mock mode`, async () => {
     const d = mock.dashboards.find((x) => x.title === title);
     assert.ok(d, title);
     const empty = [];
     for (const def of widgets(d.widgets)) {
-      if (KNOWN.has(def.title)) continue;
+      if (KNOWN.has(def.title) || KNOWN.has(`${title} / ${def.title}`)) continue;
       try {
         if (!(await hasData(d, def))) empty.push(def.title);
       } catch (error) {
@@ -102,4 +110,20 @@ test('the mock reads a tag taking one of several values (code:(4* OR 5*)) as the
     codes('sum:traefik_mesh.entrypoint.requests.count{!code:(4* OR 5*)} by {code}'),
     all.filter((c) => !/^[45]/.test(c)),
   );
+});
+
+test('running totals the dashboards take the change of (diff, per_minute, derivative) only grow in the mock', () => {
+  const range = { from: Date.now() - 3_600_000, to: Date.now() };
+  for (const metric of ['redis.net.rejected', 'redis.keys.evicted', 'clickhouse.events.LogError.total']) {
+    const groups = web.evaluateGroups(`sum:${metric}{*} by {host}`, range, 60);
+    assert.ok(groups.length > 0, metric);
+    for (const g of groups) {
+      const values = g.points.map((p) => p[1]);
+      assert.ok(
+        values.every((v, i) => i === 0 || v >= values[i - 1]),
+        `${metric} ${JSON.stringify(g.tags)}: ${values.slice(0, 6)}`,
+      );
+      assert.ok(values.at(-1) > values[0], metric);
+    }
+  }
 });

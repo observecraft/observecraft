@@ -11,6 +11,7 @@ import { googleWorkspaceLogs } from './googleWorkspace';
 import { entraLogs } from './entra';
 import { kubernetesToolLogs } from './kubernetesToolLogs';
 import { supplyChainFirewallLogs } from './supplyChainFirewallLogs';
+import { datastoreLogs } from './datastoreLogs';
 import { logField, logFieldValues, matchLog } from './match';
 import { standardPaths } from './standardAttributes';
 import type { LogAggregateRequest, LogAggregateResponse } from '../integrations/logs';
@@ -51,6 +52,8 @@ function logs(): LogEvent[] {
   out.push(...kubernetesToolLogs(rng(17), now));
   // Supply Chain Firewall's runs (its integration dashboard and Logs → source:scfw).
   out.push(...supplyChainFirewallLogs(rng(23), now));
+  // PostgreSQL's, PgBouncer's, Redis's and ClickHouse's server logs, parsed by their pipelines (their integration dashboards).
+  out.push(...datastoreLogs(rng(29), now));
   out.sort((a, b) => b.timestamp - a.timestamp);
   store = out;
   return out;

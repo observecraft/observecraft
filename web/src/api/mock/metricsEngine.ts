@@ -159,6 +159,8 @@ interface MetricDef {
   tags?: string[];
   /** Seeds the series instead of the metric's name (a distribution's statistics share one shape). */
   seed?: string;
+  /** A running total (rejected connections so far): grows by `base` an hour. */
+  cumulative?: boolean;
 }
 
 // Per deployment (not per metric), so desired, available and running replicas describe the same deployment.
@@ -372,10 +374,14 @@ function smooth(seed: number, t: number): number {
   return knot(seed, i) * (1 - u) + knot(seed, i + 1) * u + 0.35 * knot(seed + 7, Math.floor(t / 60e3));
 }
 
+/** Running totals count from here (the process's last restart, a year before the mock's epoch). */
+const CUMULATIVE_FROM = 1_730_000_000_000;
+
 function entityValue(metric: string, def: MetricDef, e: Tags, t: number): number {
   const key = `${def.seed ?? metric}|${Object.values(e).join('|')}`;
   const seed = hash(key);
   const base = def.base(e, rng(seed));
+  if (def.cumulative) return Math.round((base * (t - CUMULATIVE_FROM)) / 3_600_000);
   if (base === 0 && def.noise < 0.5) return 0;
   let v = base * (1 + def.noise * 2 * smooth(seed, t));
   if (base === 0) v = Math.max(0, smooth(seed, t) - 0.3) * 4; // mostly-silent entities spike occasionally

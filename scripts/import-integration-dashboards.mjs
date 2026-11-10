@@ -317,7 +317,9 @@ const MOCK_INTEGRATIONS = [
   'active-directory',
   'postgres',
   'mysql',
-  'redisdb',
+  'redis',
+  'pgbouncer',
+  'clickhouse',
   'nginx',
   'kafka',
   'mongo',
@@ -378,7 +380,7 @@ export async function coreBundle(source, catalog, revision = PINNED_REVISION, ex
 /** The dashboards of the integrations the mock shows installed, with the units of the metrics they chart (the server reads units.csv). */
 async function writeMockSubset(bundle, units) {
   const dashboards = bundle.filter((b) => MOCK_INTEGRATIONS.includes(b.logo)).flatMap((b) => b.dashboards);
-  const charted = new Set([...JSON.stringify(dashboards).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{/g)].map((m) => m[1]));
+  const charted = new Set([...JSON.stringify(dashboards).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[A-Za-z0-9_.]+)\{/g)].map((m) => m[1]));
   const mockUnits = Object.fromEntries(
     [...charted]
       .filter((m) => units.has(m))

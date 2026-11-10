@@ -19,6 +19,8 @@ export interface CoreMetricDef {
   entities?: Tags[];
   /** The catalog's tags when not the set's. */
   tags?: string[];
+  /** A running total, which the dashboards chart the change of. */
+  cumulative?: boolean;
 }
 
 const HOSTS = ['i-0a1b2c3d4e5f60001', 'i-0a1b2c3d4e5f60002', 'i-0a1b2c3d4e5f60003', 'i-0a1b2c3d4e5f60006'];
@@ -113,6 +115,17 @@ Object.assign(LOGO_VALUES, {
     grpc_code: ['OK', 'OK', 'OK', 'NotFound'],
     grpc_method: ['List', 'Get', 'Watch', 'Sync'],
     upper_bound: ['0.25', '1', '5', '+Inf'],
+  },
+  // The datastores: the demo's databases, tables and indexes, Redis's slow commands and big keys.
+  postgres: {
+    index: ['orders_pkey', 'order_items_order_id_idx', 'products_sku_key', 'invoices_customer_id_idx'],
+    lock_mode: ['AccessShareLock', 'RowExclusiveLock', 'RowShareLock', 'ExclusiveLock'],
+    function: ['reserve_stock', 'apply_discount', 'refresh_order_totals', 'next_invoice_number'],
+  },
+  redis: {
+    name: ['catalog-cache', 'session-store', 'catalog-cache', 'rate-limiter'],
+    command: ['KEYS', 'HGETALL', 'ZRANGEBYSCORE', 'LRANGE'],
+    key: ['cart:session:9f1c', 'catalog:products:all', 'ratelimit:api-gateway', 'orders:recent'],
   },
   'traefik-mesh': { code: ['200', '200', '404', '503'], method: ['GET', 'POST', 'GET', 'PUT'], protocol: ['http', 'http', 'http', 'grpc'] },
   'cert-manager': {
@@ -238,7 +251,7 @@ for (const [logo, tags] of tagsOf) {
 }
 
 for (const d of dashboards)
-  for (const [, metric] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{/g)) {
+  for (const [, metric] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[A-Za-z0-9_.]+)\{/g)) {
     if (CORE_METRICS[metric]) continue;
     const unit = (core.units as Record<string, string>)[metric] ?? (cloudServices.units as Record<string, string>)[metric];
     // An Azure resource count (azure.<type>.count) is one series per resource, valued 1; availability metrics are 0 or 1.
@@ -264,7 +277,7 @@ for (const d of dashboards)
 // the tags its own queries read (and the dashboards' variables) tell apart.
 const keysOf = new Map<string, Set<string>>();
 for (const d of dashboards)
-  for (const [, metric, filters, by] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{([^}]*)\}(?: by \{([a-z0-9_.,]+)\})?/g)) {
+  for (const [, metric, filters, by] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[A-Za-z0-9_.]+)\{([^}]*)\}(?: by \{([a-z0-9_.,]+)\})?/g)) {
     const keys = keysOf.get(metric) ?? new Set(['host', ...d.templateVariables.flatMap((v) => (v.prefix ? [v.prefix] : []))]);
     for (const f of filters.split(',')) if (/^!?[a-z][a-z0-9_]*:/.test(f.trim())) keys.add(f.trim().replace(/^!/, '').split(':')[0]);
     for (const k of by?.split(',') ?? []) keys.add(k);
@@ -276,6 +289,20 @@ for (const [metric, def] of Object.entries(CORE_METRICS)) {
   if (!set || set.length <= HOSTS.length || !keys || def.entities) continue;
   def.entities = [...new Map(set.map((e) => [[...keys].map((k) => e[k]).join('|'), e])).values()];
 }
+
+// Running totals (redis.net.rejected, a ClickHouse event's `.total`): the queries the dashboards' formulas take the
+// change of (diff, per_minute, derivative, …) only grow.
+type Request = { queries?: { name: string; query?: string }[]; formulas?: { formula: string }[] };
+type Item = { definition: { type: string; widgets?: Item[]; original?: { requests?: Request[] | unknown } } };
+const requestsOf = (items: Item[]): Request[] =>
+  items.flatMap(({ definition: d }) => (d.type === 'group' ? requestsOf(d.widgets ?? []) : Array.isArray(d.original?.requests) ? (d.original.requests as Request[]) : []));
+for (const d of (core as { dashboards: (Dashboard & { widgets: Item[] })[] }).dashboards)
+  for (const r of requestsOf(d.widgets))
+    for (const f of r.formulas ?? [])
+      for (const [, name] of f.formula.matchAll(/\b(?:diff|monotonic_diff|derivative|rate|per_second|per_minute|per_hour)\(\s*(\w+)\s*\)/g)) {
+        const metric = /:([A-Za-z0-9_.]+)\{/.exec(r.queries?.find((q) => q.name === name)?.query ?? '')?.[1];
+        if (metric && CORE_METRICS[metric]) CORE_METRICS[metric] = { ...CORE_METRICS[metric], cumulative: true, max: undefined };
+      }
 
 const NOW_S = Math.floor(Date.now() / 1000);
 const DAY_S = 86_400;
@@ -299,6 +326,119 @@ const OVERRIDES: Record<string, Pick<CoreMetricDef, 'base' | 'noise'> & Partial<
   'cert_manager.certificate.expiration_timestamp': { base: (_e, r) => NOW_S + Math.round(12 + r() * 75) * DAY_S, noise: 0 },
   'cert_manager.clock_time': { base: () => NOW_S, noise: 0 },
 };
+
+/** Between `lo` and `hi` per instance, varying by `noise`. */
+const span = (lo: number, hi: number, noise = 0.15, integer = false): Pick<CoreMetricDef, 'base' | 'noise' | 'integer'> => ({ base: (_e, r) => lo + r() * (hi - lo), noise, integer });
+/** Usually 0, now and then a few (failed queries, blocked clients). */
+const rare = (): Pick<CoreMetricDef, 'base' | 'noise' | 'integer'> => ({ base: () => 0, noise: 0.6, integer: true });
+const GIB = 1024 ** 3;
+/** The datastores' values as a mid-sized shop's databases have them (four instances; the third a replica). */
+Object.assign(OVERRIDES, {
+  // ClickHouse: its own server, 64 GiB of memory; events are counts per interval.
+  'clickhouse.asynchronous_metrics.NumberOfDatabases': { base: () => 6, noise: 0, integer: true },
+  'clickhouse.asynchronous_metrics.NumberOfTables': span(60, 140, 0, true),
+  'clickhouse.asynchronous_metrics.TotalBytesOfMergeTreeTables': span(200 * GIB, 1200 * GIB, 0.01),
+  'clickhouse.asynchronous_metrics.OSUserTimeNormalized': { ...span(0.12, 0.45, 0.3), max: 1 },
+  'clickhouse.asynchronous_metrics.OSSystemTimeNormalized': { ...span(0.02, 0.07, 0.3), max: 1 },
+  'clickhouse.asynchronous_metrics.OSMemoryTotal': { base: () => 64 * GIB, noise: 0 },
+  'clickhouse.metrics.MemoryTracking': span(6 * GIB, 22 * GIB, 0.15),
+  'clickhouse.metrics.MergesMutationsMemoryTracking': span(0.2 * GIB, 1.5 * GIB, 0.4),
+  'clickhouse.asynchronous_metrics.MaxPartCountForPartition': span(8, 90, 0.2, true),
+  'clickhouse.metrics.HTTPConnection': span(4, 30, 0.3, true),
+  'clickhouse.metrics.TCPConnection': span(10, 60, 0.3, true),
+  'clickhouse.events.SelectedBytes.count': span(2e8, 3e9, 0.4),
+  'clickhouse.events.MergeTreeDataWriterUncompressedBytes.count': span(2e7, 4e8, 0.4),
+  'clickhouse.events.NetworkReceiveBytes.count': span(1e7, 2e8, 0.4),
+  'clickhouse.events.NetworkSendBytes.count': span(4e7, 6e8, 0.4),
+  'clickhouse.events.Query.count': span(300, 3000, 0.3, true),
+  'clickhouse.events.SelectQuery.count': span(250, 2500, 0.3, true),
+  'clickhouse.events.InsertQuery.count': span(40, 400, 0.3, true),
+  'clickhouse.events.AsyncInsertQuery.count': span(100, 900, 0.3, true),
+  'clickhouse.events.events.AsyncInsertQuery.count': span(100, 900, 0.3, true),
+  'clickhouse.events.FailedQuery.count': span(0, 4, 0.6, true),
+  'clickhouse.events.FailedSelectQuery.count': span(0, 3, 0.6, true),
+  'clickhouse.events.FailedInsertQuery.count': rare(),
+  'clickhouse.events.FailedAsyncInsertQuery.count': rare(),
+  'clickhouse.events.events.FailedAsyncInsertQuery.count': rare(),
+  'clickhouse.events.QueryMemoryLimitExceeded.count': rare(),
+  'clickhouse.events.QueryTimeMicroseconds': span(3e9, 4e10, 0.3),
+  'clickhouse.events.SelectQueryTimeMicroseconds': span(3e9, 3.5e10, 0.3),
+  'clickhouse.events.InsertQueryTimeMicroseconds': span(2e8, 3e9, 0.3),
+  // Its widget labels throughput(query1) as cores: a few over the default hour.
+  'clickhouse.events.OSCPUVirtualTimeMicroseconds': span(5000, 20000, 0.3),
+  'clickhouse.events.LogError.total': { base: (_e, r) => 2 + r() * 20, noise: 0 },
+  'clickhouse.events.Merge.count': span(4, 40, 0.4, true),
+  'clickhouse.metrics.PartMutation': span(0, 3, 0.6, true),
+  'clickhouse.events.MergedRows.count': span(2e6, 4e7, 0.4),
+  'clickhouse.events.MergedUncompressedBytes.count': span(2e8, 4e9, 0.4),
+  'clickhouse.asynchronous_metrics.TotalPartsOfMergeTreeTables': span(900, 3200, 0.05, true),
+  'clickhouse.metrics.PartsActive': span(800, 3000, 0.05, true),
+  'clickhouse.metrics.PartsOutdated': span(20, 250, 0.3, true),
+  'clickhouse.metrics.PartsPreActive': span(0, 6, 0.6, true),
+  'clickhouse.metrics.PartsTemporary': span(0, 5, 0.6, true),
+  'clickhouse.metrics.PartsDeleting': span(0, 3, 0.6, true),
+  'clickhouse.metrics.PartsCompact': span(200, 900, 0.05, true),
+  'clickhouse.metrics.PartsWide': span(600, 2100, 0.05, true),
+  // PostgreSQL: 200 connections allowed; the third instance is a replica a little behind.
+  'postgresql.max_connections': { base: () => 200, noise: 0, integer: true },
+  'postgresql.connections': span(25, 140, 0.15, true),
+  'postgresql.percent_usage_connections': { ...span(0.12, 0.7, 0.15), max: 1 },
+  'postgresql.rows_fetched': span(800, 6000, 0.25),
+  'postgresql.rows_returned': span(4000, 40000, 0.25),
+  'postgresql.rows_inserted': span(20, 300, 0.3),
+  'postgresql.rows_updated': span(10, 200, 0.3),
+  'postgresql.rows_deleted': span(1, 30, 0.4),
+  'postgresql.rows_hot_updated': span(5, 150, 0.3),
+  'postgresql.dead_rows': span(1e3, 2e5, 0.1, true),
+  'postgresql.live_rows': span(2e5, 5e7, 0.01, true),
+  'postgresql.total_size': span(0.5 * GIB, 80 * GIB, 0.01),
+  'postgresql.index_scans': span(200, 4000, 0.25),
+  'postgresql.seq_scans': span(2, 60, 0.3),
+  'postgresql.temp_bytes': { base: () => 0, noise: 0.6 },
+  'postgresql.locks': span(5, 80, 0.3, true),
+  'postgresql.deadlocks.count': rare(),
+  'postgresql.function.calls': span(10, 500, 0.3, true),
+  'postgresql.replication_delay': { base: (e) => (e.host === HOSTS[2] ? 0.8 : 0), noise: 0.4 },
+  'postgresql.replication_delay_bytes': { base: (e) => (e.host === HOSTS[2] ? 2e6 : 0), noise: 0.4 },
+  'postgresql.bgwriter.checkpoints_timed': span(0.003, 0.01, 0.1),
+  'postgresql.bgwriter.checkpoints_requested': span(0, 0.002, 0.3),
+  // PgBouncer: pools in transaction mode in front of the databases.
+  'pgbouncer.pools.sv_idle': span(4, 30, 0.3, true),
+  'pgbouncer.pools.sv_used': span(0, 5, 0.5, true),
+  'pgbouncer.pools.sv_active': span(2, 25, 0.3, true),
+  'pgbouncer.pools.sv_tested': rare(),
+  'pgbouncer.pools.sv_login': rare(),
+  'pgbouncer.pools.cl_active': span(20, 220, 0.25, true),
+  'pgbouncer.pools.cl_waiting': span(0, 4, 0.6, true),
+  'pgbouncer.pools.maxwait': span(0, 0.3, 0.6),
+  'pgbouncer.stats.avg_query': span(300, 3000, 0.3),
+  'pgbouncer.stats.requests_per_second': span(60, 1500, 0.25),
+  // Redis: caches with a 4 GiB maxmemory; the third one a replica.
+  'redis.mem.maxmemory': { base: () => 4 * GIB, noise: 0 },
+  'redis.mem.used': span(0.6 * GIB, 3.4 * GIB, 0.05),
+  'redis.mem.rss': span(0.8 * GIB, 3.8 * GIB, 0.05),
+  'redis.mem.fragmentation_ratio': span(1.02, 1.45, 0.03),
+  'redis.stats.keyspace_hits': span(800, 9000, 0.25),
+  'redis.stats.keyspace_misses': span(20, 600, 0.3),
+  'redis.clients.blocked': rare(),
+  'redis.keys': span(2e4, 4e6, 0.02, true),
+  'redis.expires': span(1e3, 2e5, 0.02, true),
+  'redis.keys.expired': span(1e3, 5e4, 0.02, true),
+  'redis.rdb.changes_since_last': span(0, 4000, 0.5, true),
+  'redis.replication.master_link_down_since_seconds': { base: () => 0, noise: 0 },
+  'redis.replication.delay': { base: (e) => (e.host === HOSTS[2] ? 120 : 0), noise: 0.5, integer: true },
+  'redis.info.latency_ms': span(0.15, 1.8, 0.3),
+  'redis.slowlog.micros.95percentile': span(12000, 60000, 0.3),
+  'redis.slowlog.micros.count': span(0, 2, 0.6),
+  'redis.cpu.sys': span(0.03, 0.2, 0.3),
+  'redis.cpu.user': span(0.05, 0.35, 0.3),
+  'redis.net.clients': span(20, 300, 0.2, true),
+  'redis.net.slaves': { base: (e) => (e.host === HOSTS[0] ? 1 : 0), noise: 0, integer: true },
+  'redis.net.commands': span(2000, 25000, 0.25),
+  'redis.net.rejected': { base: (_e, r) => 2 + r() * 6, noise: 0 },
+  'redis.keys.evicted': { base: (_e, r) => 20 + r() * 300, noise: 0 },
+  'redis.key.length': span(10, 1e5, 0.05, true),
+} satisfies Record<string, Pick<CoreMetricDef, 'base' | 'noise'> & Partial<CoreMetricDef>>);
 for (const [metric, def] of Object.entries(OVERRIDES)) if (CORE_METRICS[metric]) CORE_METRICS[metric] = { ...CORE_METRICS[metric], max: undefined, integer: undefined, ...def };
 
 /** The Process Agent's containers of Gatekeeper and cert-manager (their dashboards' pod maps). */
