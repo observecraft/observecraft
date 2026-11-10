@@ -6,7 +6,8 @@
 //! client-sent value is dropped). The OTel Collector turns that header into the `oc.org_id` resource
 //! attribute every table is filtered by; for JSON logs, Vector does the same.
 //!
-//! - `POST /v1/traces | /v1/logs | /v1/metrics`  OTLP/HTTP (protobuf or JSON, optionally gzip) → Collector
+//! - `POST /v1/traces | /v1/logs | /v1/metrics`  OTLP/HTTP (protobuf or JSON, optionally gzip) → Collector; `/v1/logs`
+//!   takes `?ddsource=&service=` for every record without its own (push packages' OTLP endpoints)
 //! - OTLP/gRPC on OC_INTAKE_GRPC_ADDR             the same three services (passed through undecoded) → Collector
 //! - `POST /api/v2/logs`                         JSON log events (object or array; Datadog's format) → Vector;
 //!   `?ddsource=&service=&hostname=&ddtags=` apply to every log (webhooks, `log_query`)
@@ -720,8 +721,35 @@ async fn metrics(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> R
     forward(st, headers, body, Sink::Metrics).await
 }
 
-async fn otlp_logs(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
-    forward(st, headers, body, Sink::Logs).await
+/// `POST /v1/logs`; `?ddsource=&service=` (a push package's OTLP endpoint, as its page shows it) become every record's
+/// attributes of that name unless it has its own, so the package's pipeline and facets match.
+async fn otlp_logs(State(st): State<Shared>, RawQuery(query): RawQuery, mut headers: HeaderMap, body: Bytes) -> Response {
+    let defaults: Vec<(&str, String)> = url::form_urlencoded::parse(query.as_deref().unwrap_or("").as_bytes())
+        .filter_map(|(k, v)| {
+            let key = match k.as_ref() {
+                "ddsource" => "ddsource",
+                "service" => "service",
+                _ => return None,
+            };
+            Some((key, v.trim().to_string())).filter(|(_, v)| !v.is_empty())
+        })
+        .collect();
+    if defaults.is_empty() {
+        return forward(st, headers, body, Sink::Logs).await;
+    }
+    let org = match admit(&st, &headers, body.len()).await {
+        Ok(org) => org,
+        Err(r) => return r.into_response(),
+    };
+    let json = headers.get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).is_some_and(|v| v.contains("json"));
+    let applied = datadog::inflate(&headers, &body).map_err(|_| "cannot decompress body").and_then(|raw| otlp_log_identity::with_defaults(&raw, json, &defaults));
+    match applied {
+        Ok(body) => {
+            headers.remove(header::CONTENT_ENCODING);
+            forward_admitted(&st, &org, &headers, Bytes::from(body), Sink::Logs).await
+        }
+        Err(message) => reject(StatusCode::BAD_REQUEST, message),
+    }
 }
 
 /// `POST /api/v2/logs`: JSON logs; `ddsource`, `service`, `hostname` and `ddtags` in the query string apply to
