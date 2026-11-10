@@ -1,0 +1,70 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4ca-fdd4-7084-90df-ae349e498a30"
+      },
+      "action": "update",
+      "createdAt": "2026-11-10T09:30:00.020Z",
+      "date": "2026-11-10T09:30:00.020Z",
+      "ddsource": "tanium",
+      "ddtags": "api_host:example-api.cloud.tanium.com",
+      "host": "example-api.cloud.tanium.com",
+      "id": 1902,
+      "message": "sam.lee@example.com update Alert",
+      "service": "threat-response-audit-logs",
+      "state": {
+        "idsUpdated": [
+          213
+        ],
+        "legacyType": "detect.service.alert.modified.batch",
+        "updatedFields": {
+          "state": "inProgress"
+        }
+      },
+      "status": "info",
+      "table": "Alert",
+      "updatedAt": "2026-11-10T09:30:00.020Z",
+      "userId": 48,
+      "userName": "sam.lee@example.com"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b4-4eb8-759d-b286-5aa663d67485"
+      },
+      "action": "create",
+      "createdAt": "2026-11-10T09:05:13.400Z",
+      "date": "2026-11-10T09:05:13.400Z",
+      "ddsource": "tanium",
+      "ddtags": "api_host:example-api.cloud.tanium.com",
+      "host": "example-api.cloud.tanium.com",
+      "id": 1901,
+      "message": "sam.lee@example.com create LiveConnection",
+      "service": "threat-response-audit-logs",
+      "state": {
+        "connectionId": "remote:i-0a1b2c3d4e5f60001:608353334:1",
+        "target": {
+          "eid": "7",
+          "hostname": "i-0a1b2c3d4e5f60001",
+          "ip": "10.0.11.20",
+          "platform": "Windows"
+        }
+      },
+      "status": "info",
+      "table": "LiveConnection",
+      "updatedAt": "2026-11-10T09:05:13.400Z",
+      "userId": 48,
+      "userName": "sam.lee@example.com"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

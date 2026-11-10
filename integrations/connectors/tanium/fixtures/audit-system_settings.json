@@ -1,0 +1,19 @@
+{
+  "data": [
+    {
+      "audit_row_id": 9051,
+      "audit_name": "System Setting Updated",
+      "type": 1,
+      "type_name": "UpdateObject",
+      "object_id": 312,
+      "object_name": "ias_auth_jwks_download_timeout_seconds",
+      "object_type_name": "system_setting",
+      "details": "Updated 'ias_auth_jwks_download_timeout_seconds' from 20 to 10",
+      "creation_time": "2026-11-10T09:15:00Z",
+      "modification_time": "2026-11-10T09:15:00Z",
+      "last_modified_by": "sam.lee@example.com",
+      "modifier_user_id": 48,
+      "mod_user": { "id": 48, "name": "sam.lee@example.com", "domain": "", "display_name": "Sam Lee" }
+    }
+  ]
+}

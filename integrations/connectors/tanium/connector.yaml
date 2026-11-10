@@ -1,0 +1,179 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Tanium (Cloud or a self-hosted server reachable from ObserveCraft): Threat Response alerts and audit, and the
+# platform's audit logs, as the logs Datadog's integration sends (source:tanium; service:threat-response-alerts,
+# threat-response-audit-logs and platform-audit-logs, each record's fields at the top, the API host as the api_host
+# tag the pipeline builds alert links from). integrations-core's pipeline and the tile's three dashboards read them
+# as they are.
+#
+# Verified: the `session` header with an API token, `/plugin/products/threat-response/api/v1/alerts` with
+# limit/offset answering a bare list (Tanium's own Threat Response integrations), `/api/v2/audit_logs/<type>` per
+# audit type. Not verified against a tenant (Tanium's API reference needs a login): the `sort` parameter, the Threat
+# Response audit path, and platform audit answers being wrapped in `data`.
+schema_version: 1
+id: tanium
+name: Tanium
+publisher: ObserveCraft
+vendor: Tanium
+description: >-
+  Threat Response alerts and audit events, and the platform audit log (sessions and logins, API tokens, users,
+  personas, settings) of a Tanium Cloud or self-hosted server as logs, read every 5 minutes with an API token.
+tiles: [tanium]
+categories: [Log Collection, Security, SIEM]
+source: tanium
+docs_url: https://developer.tanium.com/guides/core-platform/integration_methods
+setup: |
+  1. In the Tanium Console, open **Administration → Permissions → API Tokens** and create a token for a user with
+     read access to Audit, Threat Response alerts and the Threat Response API (and the Token Use permission).
+  2. Add ObserveCraft's egress IP addresses to the token's **Trusted IP Addresses**: Tanium refuses tokens from other
+     addresses. Tokens expire (at most a year): renew it before then.
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: Tanium URL
+    type: url
+    required: true
+    placeholder: https://example-api.cloud.tanium.com
+    help: Tanium Cloud's API URL (<customer>-api.cloud.tanium.com) or your Tanium Server's.
+  - key: audit_types
+    label: Platform audit types
+    type: multiselect
+    default: [authentication, api_tokens, users, personas, system_settings, local_settings]
+    options:
+      - { value: authentication, label: Authentication }
+      - { value: api_tokens, label: API tokens }
+      - { value: users, label: Users }
+      - { value: user_groups, label: User groups }
+      - { value: personas, label: Personas }
+      - { value: system_settings, label: System settings }
+      - { value: local_settings, label: Local settings }
+      - { value: content_sets, label: Content sets }
+      - { value: packages, label: Packages }
+      - { value: sensors, label: Sensors }
+      - { value: saved_actions, label: Saved actions }
+      - { value: saved_questions, label: Saved questions }
+      - { value: dashboards, label: Dashboards }
+  - key: api_token
+    label: API token
+    type: string
+    secret: true
+    required: true
+    placeholder: token-…
+
+auth:
+  kind: api_key
+  name: session
+  value: "{{ secrets.api_token }}"
+
+rate_limit: { requests_per_minute: 60 }
+
+# The tile's pipeline maps severity to the log's status the same way.
+tables:
+  severity: { info: info, low: notice, medium: warning, high: critical, critical: alert }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Tanium refused the API token (expired, revoked, or used from an address outside its trusted IPs)
+  - status: [403]
+    kind: access_denied
+    message: The token's user lacks the permission (Audit read, Threat Response alerts read, Threat Response API)
+  - status: [404]
+    kind: access_denied
+    message: "Not found on {{ config.base_url }}: is Threat Response installed?"
+
+streams:
+  - id: threat_response_alerts
+    name: Threat Response alerts
+    description: >-
+      One log per Threat Response alert (service:threat-response-alerts): type, matchType, priority, severity, state,
+      computerName, computerIpAddress, path, the intel document and its MITRE ATT&CK techniques.
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/plugin/products/threat-response/api/v1/alerts"
+      query: { limit: "{{ page.size }}", offset: "{{ page.offset }}", sort: -createdAt }
+    pagination: { kind: offset, size: 500 }
+    record_id: "{{ record.guid ?? (record.id | str) }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.createdAt }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        service: threat-response-alerts
+        status: "{{ tables.severity[record.severity] ?? 'info' }}"
+        message: "{{ (record.intelDoc.name ?? record.type) + ' on ' + (record.computerName ?? '?') }}"
+        date: "{{ record.alertedAt ?? record.createdAt }}"
+        tags: { api_host: "{{ config.base_url | host }}" }
+        attributes: "{{ record }}"
+
+  - id: threat_response_audit
+    name: Threat Response audit
+    description: >-
+      One log per Threat Response audit event (service:threat-response-audit-logs): action, table, the changed state,
+      userName and userId.
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/plugin/products/threat-response/api/v1/audit"
+      query: { limit: "{{ page.size }}", offset: "{{ page.offset }}", sort: -createdAt }
+    pagination: { kind: offset, size: 500 }
+    record_id: "{{ record.id | str }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.createdAt }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        service: threat-response-audit-logs
+        message: "{{ record.userName + ' ' + record.action + ' ' + record.table ?? (record.action + ' ' + record.table) }}"
+        date: "{{ record.createdAt }}"
+        tags: { api_host: "{{ config.base_url | host }}" }
+        attributes: "{{ record }}"
+
+  - id: platform_audit
+    name: Platform audit logs
+    description: >-
+      One log per platform audit entry and type (service:platform-audit-logs): audit_name, type_name, object_type_name,
+      object_name, details (the message), mod_user and last_modified_by.
+    interval: 5m
+    for_each: "{{ config.audit_types }}"
+    request:
+      url: "{{ config.base_url }}/api/v2/audit_logs/{{ item }}"
+    records: "{{ response.data ?? response }}"
+    record_id: "{{ item + ':' + (record.audit_row_id | str) }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.creation_time }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        service: platform-audit-logs
+        message: "{{ (record.details | nonempty) ?? record.audit_name }}"
+        date: "{{ record.creation_time }}"
+        tags: { api_host: "{{ config.base_url | host }}" }
+        attributes: "{{ record }}"
+
+test:
+  stream: platform_audit
+  message: "Connected: {{ records | len }} audit entries to read"
+
+mock:
+  config: { base_url: "https://example-api.cloud.tanium.com", audit_types: [authentication, system_settings] }
+  secrets: { api_token: token-0123456789abcdef }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://example-api.cloud.tanium.com/plugin/products/threat-response/api/v1/alerts", file: fixtures/alerts.json }
+    - { url: "https://example-api.cloud.tanium.com/plugin/products/threat-response/api/v1/audit", file: fixtures/tr-audit.json }
+    - { url: "https://example-api.cloud.tanium.com/api/v2/audit_logs/authentication", file: fixtures/audit-authentication.json }
+    - { url: "https://example-api.cloud.tanium.com/api/v2/audit_logs/system_settings", file: fixtures/audit-system_settings.json }
+  expect:
+    threat_response_alerts: { records: 2, logs: 2, rerun: 0, golden: fixtures/threat_response_alerts.expected.json }
+    threat_response_audit: { records: 2, logs: 2, rerun: 0, golden: fixtures/threat_response_audit.expected.json }
+    platform_audit: { records: 3, logs: 3, rerun: 0, golden: fixtures/platform_audit.expected.json }
+    test: { ok: true, message: "audit entries" }

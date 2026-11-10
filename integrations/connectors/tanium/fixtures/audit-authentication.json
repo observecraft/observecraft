@@ -1,0 +1,34 @@
+{
+  "data": [
+    {
+      "audit_row_id": 400112,
+      "audit_name": "New User Session Created",
+      "type": 0,
+      "type_name": "CreateObject",
+      "object_id": 48,
+      "object_name": "",
+      "object_type_name": "authentication",
+      "details": "User: sam.lee@example.com; Session ID: 551203; Authentication Type: JsonWebToken; IP Address: 203.0.113.24",
+      "creation_time": "2026-11-10T08:01:12Z",
+      "modification_time": "2026-11-10T08:01:12Z",
+      "last_modified_by": "sam.lee@example.com",
+      "modifier_user_id": 48,
+      "mod_user": { "id": 48, "name": "sam.lee@example.com", "domain": "", "display_name": "Sam Lee" }
+    },
+    {
+      "audit_row_id": 400131,
+      "audit_name": "User Logged Out",
+      "type": 2,
+      "type_name": "DeleteObject",
+      "object_id": 48,
+      "object_name": "",
+      "object_type_name": "authentication",
+      "details": "User: sam.lee@example.com; Session ID: 551203; 203.0.113.24",
+      "creation_time": "2026-11-10T10:44:50Z",
+      "modification_time": "2026-11-10T10:44:50Z",
+      "last_modified_by": "sam.lee@example.com",
+      "modifier_user_id": 48,
+      "mod_user": { "id": 48, "name": "sam.lee@example.com", "domain": "", "display_name": "Sam Lee" }
+    }
+  ]
+}

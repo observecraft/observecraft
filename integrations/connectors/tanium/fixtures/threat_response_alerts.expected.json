@@ -1,0 +1,130 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "Endpoint": {
+        "id": 18
+      },
+      "_oc_ingest": {
+        "id": "01a1c530-5328-7283-be72-67b409cc41ff"
+      },
+      "alertedAt": "2026-11-10T11:20:41.000Z",
+      "computerIpAddress": "10.0.21.7",
+      "computerName": "i-0a1b2c3d4e5f60003",
+      "createdAt": "2026-11-10T11:21:03.512Z",
+      "date": "2026-11-10T11:20:41.000Z",
+      "ddsource": "tanium",
+      "ddtags": "api_host:example-api.cloud.tanium.com",
+      "details": "",
+      "eid": 18,
+      "findingId": "",
+      "guid": "3c1f0a52-7b9e-4d61-9a0c-000000000214",
+      "host": "example-api.cloud.tanium.com",
+      "id": 214,
+      "intelDoc": {
+        "description": "A process associated with cryptocurrency mining started.",
+        "id": 91,
+        "mitreAttack": {
+          "techniques": [
+            {
+              "id": "T1496",
+              "name": "Resource Hijacking"
+            }
+          ]
+        },
+        "name": "Coin Miner Process",
+        "platforms": [
+          "linux"
+        ],
+        "source": {
+          "id": 9,
+          "name": "Tanium Signals",
+          "type": "tanium-signals"
+        },
+        "type": "tanium-signal"
+      },
+      "intelDocId": 91,
+      "intelDocRevisionId": 1,
+      "matchType": "process",
+      "message": "Coin Miner Process on i-0a1b2c3d4e5f60003",
+      "path": "/usr/local/bin/cryptominer",
+      "priority": "high",
+      "receivedAt": "2026-11-10T11:21:02.904Z",
+      "scanConfigId": 2,
+      "scanConfigRevisionId": 4,
+      "service": "threat-response-alerts",
+      "severity": "high",
+      "state": "unresolved",
+      "status": "critical",
+      "type": "detect.match",
+      "updatedAt": "2026-11-10T11:21:03.512Z"
+    },
+    {
+      "Endpoint": {
+        "id": 7
+      },
+      "_oc_ingest": {
+        "id": "01a1c4ad-e0a0-7b02-89b5-e69e96c6a8ba"
+      },
+      "ackedAt": "2026-11-10T09:30:00.000Z",
+      "alertedAt": "2026-11-10T08:58:12.000Z",
+      "computerIpAddress": "10.0.11.20",
+      "computerName": "i-0a1b2c3d4e5f60001",
+      "createdAt": "2026-11-10T08:58:40.100Z",
+      "date": "2026-11-10T08:58:12.000Z",
+      "ddsource": "tanium",
+      "ddtags": "api_host:example-api.cloud.tanium.com",
+      "details": "",
+      "eid": 7,
+      "findingId": "",
+      "guid": "3c1f0a52-7b9e-4d61-9a0c-000000000213",
+      "host": "example-api.cloud.tanium.com",
+      "id": 213,
+      "intelDoc": {
+        "id": 64,
+        "mitreAttack": {
+          "techniques": [
+            {
+              "id": "T1059.007",
+              "name": "Command and Scripting Interpreter: JavaScript"
+            }
+          ]
+        },
+        "name": "Script Dropped in Downloads",
+        "platforms": [
+          "windows"
+        ],
+        "source": {
+          "id": 9,
+          "name": "Tanium Signals",
+          "type": "tanium-signals"
+        },
+        "type": "tanium-signal"
+      },
+      "intelDocId": 64,
+      "intelDocRevisionId": 2,
+      "matchType": "file",
+      "message": "Script Dropped in Downloads on i-0a1b2c3d4e5f60001",
+      "path": "C:\\Users\\svc-orders\\Downloads\\invoice.js",
+      "priority": "medium",
+      "receivedAt": "2026-11-10T08:58:39.882Z",
+      "scanConfigId": 1,
+      "scanConfigRevisionId": 3,
+      "service": "threat-response-alerts",
+      "severity": "medium",
+      "state": "inProgress",
+      "status": "warning",
+      "type": "detect.match",
+      "updatedAt": "2026-11-10T09:30:00.010Z"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}
