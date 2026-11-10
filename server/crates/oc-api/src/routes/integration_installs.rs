@@ -90,7 +90,7 @@ fn installable(id: String) -> Result<String, ApiError> {
 
 /// Integrations set up on their own page rather than from their tile: the table holding their connection or
 /// accounts, by catalog id. Having one counts as installed.
-const CONNECTIONS: [(&str, &str); 9] = [
+const CONNECTIONS: [(&str, &str); 10] = [
     ("authentik", "authentik_connections"),
     ("aws", "aws_accounts"),
     ("azure", "azure_accounts"),
