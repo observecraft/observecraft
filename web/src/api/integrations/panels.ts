@@ -6,7 +6,7 @@ import { searchSignals } from '../security/client';
 import { checkStatusQuery } from './checkStatus';
 import { signalFacet, signalSeries, type SignalPanelQuery } from './signals';
 import { logRequest, logSeries, throughputs, type LogPanelQuery } from './logs';
-import { aggregate, formula, formulaUnit, normalizeRequest, preparePanelQuery, serverAggregator, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
+import { aggregate, canonicalMetricQuery, formula, formulaUnit, normalizeRequest, preparePanelQuery, serverAggregator, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
 
 export interface PanelSeries extends MetricSeries {
   column?: string;
@@ -19,6 +19,11 @@ export interface PanelSeries extends MetricSeries {
 
 /** Formula functions of a series over time: a scalar panel evaluates them on the points, then reduces the result. */
 const OVER_TIME = /\b(?:derivative|rate|dt|diff|monotonic_diff|cumsum|autosmooth|ewma_\d+|per_second|per_minute|per_hour)\(/;
+
+/** Datadog's `percentile` aggregator of a percentile query (`p95:latency{*}`, read as `latency.p95`) is that percentile of its values. */
+function percentileOf(aggregator: string, query = ''): string {
+  return aggregator === 'percentile' ? (/\.(p\d+)\{/.exec(canonicalMetricQuery(query))?.[1] ?? 'max') : aggregator;
+}
 
 export async function queryIntegrationPanel(
   def: IntegrationWidgetDefinition,
@@ -105,6 +110,8 @@ export async function queryIntegrationPanel(
             });
           }
           const fill = plan.operations.find((o) => o.name === 'fill');
+          // fill(0) is fill(zero).
+          if (fill?.args[0] === '0') fill.args[0] = 'zero';
           if (fill && !['null', 'zero', 'last'].includes(fill.args[0])) throw new Error(`Fill ${fill.args[0]} is not supported yet`);
           if (fill && fill.args[0] !== 'null') {
             series = series.map((s) => {
@@ -150,7 +157,7 @@ export async function queryIntegrationPanel(
             inputs[name] = series.flatMap((s) => {
               const value = aggregate(
                 s.points.map((p) => p[1]),
-                query?.aggregator ?? request.aggregator ?? 'avg',
+                percentileOf(query?.aggregator ?? request.aggregator ?? 'avg', query?.query),
               );
               return value === undefined ? [] : [{ ...s, name: s.name, points: [[range.to, value]] }];
             });
@@ -160,7 +167,8 @@ export async function queryIntegrationPanel(
           const result = formula(f.formula, inputs);
           if (!overTime) return result;
           // Reduced with the aggregator of the formula's first query, as its scalar value.
-          const method = aggregatorOf(queries.find((q) => new RegExp(`\\b${q.name}\\b`).test(f.formula))?.name ?? '');
+          const first = queries.find((q) => new RegExp(`\\b${q.name}\\b`).test(f.formula));
+          const method = percentileOf(aggregatorOf(first?.name ?? ''), first?.query);
           return result.flatMap((s) => {
             const value = aggregate(
               s.points.map((p) => p[1]),

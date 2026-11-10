@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { convertDashboard, convertMonitor, metricDescriptions, metricUnits, PINNED_REVISION } from './import-integration-dashboards.mjs';
-import { formula, normalizeRequest, metricPlan, preparePanelQuery, timeShifts } from '../web/src/api/integrations/evaluate.ts';
+import { aggregate, formula, normalizeRequest, metricPlan, preparePanelQuery, timeShifts } from '../web/src/api/integrations/evaluate.ts';
 import { byteAxisInterval, formatMetricValue } from '../web/src/api/integrations/units.ts';
 import { changeRows } from '../web/src/api/integrations/change.ts';
 import { shades } from '../web/src/theme/shades.ts';
@@ -248,6 +248,51 @@ test('time shifts become queries over earlier ranges', () => {
   assert.deepEqual(timeShifts("calendar_shift(query1, '-1w', 'UTC')"), { text: 'query1__shift604800', shifts: [{ name: 'query1__shift604800', query: 'query1', seconds: 604800 }] });
   assert.deepEqual(timeShifts("query1 - calendar_shift(query1, '-2d', 'Europe/Bucharest')").shifts, [{ name: 'query1__shift172800', query: 'query1', seconds: 172800 }]);
   assert.equal(timeShifts("calendar_shift(query1, '-1mo', 'UTC')").shifts[0].seconds, 2592000);
+});
+
+test('a time comparison of an expression compares each of its queries', () => {
+  assert.deepEqual(timeShifts('week_before((query1 / query2) * 100)'), {
+    text: '((query1__shift604800 / query2__shift604800) * 100)',
+    shifts: [
+      { name: 'query1__shift604800', query: 'query1', seconds: 604800 },
+      { name: 'query2__shift604800', query: 'query2', seconds: 604800 },
+    ],
+  });
+  assert.equal(timeShifts('100 * (count_not_null(query2) / hour_before(count_not_null(query1)))').text, '100 * (count_not_null(query2) / (count_not_null(query1__shift3600)))');
+  assert.equal(timeShifts('timeshift(max(a, b), -60) - a').text, '(max(a__shift60, b__shift60)) - a');
+});
+
+test('formula rollups, reductions, legacy tops and trend functions', () => {
+  const minute = 60_000;
+  const at = (name, values) => ({ name, points: values.map((v, i) => [i * minute, v]) });
+  const a = [at('host:a', [1, 5, 2, 8]), at('host:b', [3, 3, 3, 3]), at('host:c', [9, 0, 0, 0])];
+  // rollup(q, 'method', seconds): the points of each interval as one.
+  assert.deepEqual(formula("rollup(a, 'max', 120)", { a })[0].points, [
+    [0, 5],
+    [2 * minute, 8],
+  ]);
+  assert.deepEqual(formula("rollup(rollup(a, 'max', 60), 'p50', 240)", { a })[0].points, [[0, 3.5]]);
+  // reduce(q, 'method'): one value per series.
+  assert.deepEqual(
+    formula("reduce(a, 'last')", { a }).map((s) => s.points),
+    [[[3 * minute, 8]], [[3 * minute, 3]], [[3 * minute, 0]]],
+  );
+  // top10(q), bottom5(q): the legacy forms of top().
+  assert.deepEqual(
+    formula('top2(a)', { a }).map((s) => s.name),
+    ['host:a', 'host:b'],
+  );
+  assert.deepEqual(
+    formula('bottom1(a)', { a }).map((s) => s.name),
+    ['host:c'],
+  );
+  // anomalies() and outliers() draw the series (without the bounds); robust_trend() a line resisting outliers.
+  assert.deepEqual(formula("anomalies(a, 'basic', 2)", { a }), a);
+  assert.deepEqual(formula("outliers(a, 'DBSCAN', 3)", { a }), a);
+  const trend = formula('robust_trend(a)', { a: [at('*', [0, 1, 50, 3, 4])] })[0].points.map(([, v]) => Math.round(v * 1e9) / 1e9);
+  assert.deepEqual(trend, [0, 1, 2, 3, 4]);
+  assert.equal(aggregate([1, 2, 3, 4], 'p50'), 2.5);
+  assert.equal(aggregate([1, 2, 3, 4], 'count'), 4);
 });
 
 test('formula functions are only the known ones', () => {
@@ -722,6 +767,23 @@ test('panel requests: a function around a metric query becomes a formula over th
   const plain = { queries: [{ name: 'query1', query: 'sum:kubernetes.pods.running{*} by {kube_namespace}', data_source: 'metrics' }] };
   assert.deepEqual(normalizeRequest(plain), { queries: plain.queries, formulas: undefined });
   assert.deepEqual(normalizeRequest({ q: 'sum:kubernetes.pods.running{*}' }), { queries: [{ name: 'query1', query: 'sum:kubernetes.pods.running{*}', data_source: 'metrics' }], formulas: undefined });
+});
+
+test('panel requests: a query grouped again in a formula, (query1 by {tag}.as_count()), is a query of its own', () => {
+  const queries = [
+    { name: 'query1', query: 'sum:openai.tokens{$env} by {service}.as_count()', data_source: 'metrics' },
+    { name: 'query2', query: 'sum:openai.requests{*}', data_source: 'metrics' },
+  ];
+  const out = normalizeRequest({ queries, formulas: [{ formula: 'query2 * (query1 by {openai.request.model}.as_count()) / (query1 by {service,env})', alias: 'x' }] });
+  assert.deepEqual(out.formulas, [{ formula: 'query2 * query1__by1 / query1__by2', alias: 'x' }]);
+  assert.deepEqual(
+    out.queries.slice(2).map((q) => [q.name, q.query]),
+    [
+      ['query1__by1', 'sum:openai.tokens{$env} by {openai.request.model}.as_count()'],
+      ['query1__by2', 'sum:openai.tokens{$env} by {service,env}.as_count()'],
+    ],
+  );
+  assert.equal(metricPlan(out.queries[2].query).query, 'sum:openai.tokens{$env} by {openai.request.model}', 'dotted tags group');
 });
 
 test('panel queries keep a rollup method other than avg, for the API to apply', () => {

@@ -28,7 +28,7 @@ const { outputFiles } = require('esbuild').buildSync({
 const { isEventPanel, queryIntegrationPanel, panelSupport } = await import(`data:text/javascript;base64,${Buffer.from(outputFiles[0].text).toString('base64')}`);
 
 /** Widgets that can't be drawn today: the test fails when there are more (lower it as the engine catches up). */
-const ALLOWED = 207;
+const ALLOWED = 125;
 
 const range = { from: 1_792_929_600_000, to: 1_792_933_200_000 };
 // Two series per query, a point a minute: formulas, functions and aggregations run on real numbers.

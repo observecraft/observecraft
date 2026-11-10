@@ -60,7 +60,7 @@ export interface IntegrationWidgetDefinition {
 }
 
 /** A metric query (with its `.fill()`-style functions) inside a function such as top(…). */
-const WRAPPED_QUERY = /(?:avg|sum|min|max|count):[\w./-]+\{[^{}]*\}(?:\s+by\s+\{[\w, -]+\})?(?:\.[a-z_]+\([^()]*\))*/;
+const WRAPPED_QUERY = /(?:avg|sum|min|max|count):[\w./-]+\{[^{}]*\}(?:\s+by\s+\{[\w., -]+\})?(?:\.[a-z_]+\([^()]*\))*/;
 
 /**
  * A request's metric queries and formulas, with a legacy `q` as query1 and any function wrapped
@@ -83,13 +83,35 @@ export function canonicalMetricQuery(text: string): string {
 }
 
 /** Metric queries written inside formulas (`query2-sum:m{*}`): queries of their own, `inline1`, `inline2`, … in the formula. */
+/** `(query1 by {tag,…}.as_count())`: a formula's query grouped by other tags, with more functions. */
+const REGROUP = /\(\s*(\w+)\s+by\s+\{([\w., -]*)\}((?:\.[a-z_]+\([^()]*\))*)\s*\)/g;
+
 function inlineQueries(queries: IntegrationQuery[], formulas: IntegrationFormula[] | undefined): { queries: IntegrationQuery[]; formulas?: IntegrationFormula[] } {
   if (!formulas) return { queries, formulas };
   const inline = new RegExp(WRAPPED_QUERY.source, 'g');
   const added: IntegrationQuery[] = [];
+  // A query grouped again in a formula is that query with the formula's group and functions: a query of its own.
+  const regroup = (text: string) =>
+    text.replace(REGROUP, (call, name: string, tags: string, extra: string) => {
+      const base = queries.find((q) => q.name === name && q.data_source === 'metrics');
+      const m = base && /^(.*?\{[^{}]*\})(?:\s+by\s+\{[^{}]*\})?((?:\.[a-z_]+\([^()]*\))*)$/.exec(base.query.trim());
+      if (!base || !m) return call;
+      const functions = [...m[2].matchAll(/\.[a-z_]+\([^()]*\)/g)].map((f) => f[0]);
+      for (const f of extra.matchAll(/\.([a-z_]+)\([^()]*\)/g)) if (!functions.some((g) => g.startsWith(`.${f[1]}(`))) functions.push(f[0]);
+      const query = `${m[1]} by {${tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .join(',')}}${functions.join('')}`;
+      const existing = added.find((q) => q.query === query && q.name.startsWith(`${name}__by`));
+      if (existing) return existing.name;
+      const regrouped = { ...base, name: `${name}__by${added.filter((q) => q.name.startsWith(`${name}__by`)).length + 1}`, query };
+      added.push(regrouped);
+      return regrouped.name;
+    });
   const rewritten = formulas.map((f) => ({
     ...f,
-    formula: canonicalMetricQuery(f.formula).replace(inline, (query) => {
+    formula: canonicalMetricQuery(regroup(f.formula)).replace(inline, (query) => {
       const name = `inline${added.length + 1}`;
       added.push({ name, data_source: 'metrics', query } as IntegrationQuery);
       return name;
@@ -177,7 +199,7 @@ export function normalizeRequest(request: Pick<IntegrationRequest, 'q' | 'querie
 }
 
 export function metricPlan(text: string) {
-  const m = /^((?:avg|sum|min|max|count):[\w./-]+\{[^{}]*\}(?:\s+by\s+\{[\w, -]+\})?)(.*)$/.exec(canonicalMetricQuery(text));
+  const m = /^((?:avg|sum|min|max|count):[\w./-]+\{[^{}]*\}(?:\s+by\s+\{[\w., -]+\})?)(.*)$/.exec(canonicalMetricQuery(text));
   if (!m) throw new Error(`Unsupported metric expression: ${text}`);
   const operations: { name: string; args: string[] }[] = [];
   let rest = m[2];
@@ -253,8 +275,17 @@ export function aggregate(values: number[], method = 'avg'): number | undefined 
     case 'avg':
     case 'mean':
       return values.reduce((a, b) => a + b, 0) / values.length;
-    default:
-      throw new Error(`Unsupported aggregation: ${method}`);
+    case 'count':
+      return values.length;
+    default: {
+      // pNN: the NNth percentile, interpolated between the closest ranks.
+      const p = /^p(\d+(?:\.\d+)?)$/.exec(method);
+      if (!p || Number(p[1]) > 100) throw new Error(`Unsupported aggregation: ${method}`);
+      const sorted = [...values].sort((a, b) => a - b);
+      const rank = (Number(p[1]) / 100) * (sorted.length - 1);
+      const low = Math.floor(rank);
+      return sorted[low] + (sorted[Math.min(low + 1, sorted.length - 1)] - sorted[low]) * (rank - low);
+    }
   }
 }
 
@@ -279,11 +310,40 @@ export function timeShifts(text: string): { text: string; shifts: { name: string
     if (!shifts.some((s) => s.name === name)) shifts.push({ name, query, seconds });
     return name;
   };
-  const rewritten = text
-    .replace(/\b(hour_before|day_before|week_before|month_before)\(\s*(\w+)\s*\)/g, (_, fn: string, query: string) => shift(query, LOOK_BACK[fn]))
-    .replace(/\btimeshift\(\s*(\w+)\s*,\s*-(\d+)\s*\)/g, (_, query: string, seconds: string) => shift(query, Number(seconds)))
-    // calendar_shift(query1, '-1w', 'UTC'): the time zone only matters for month boundaries, taken as 30 days.
-    .replace(/\bcalendar_shift\(\s*(\w+)\s*,\s*'-(\d+)(mo|h|d|w)'\s*(?:,\s*'[^']*'\s*)?\)/g, (_, query: string, n: string, unit: string) => shift(query, Number(n) * CALENDAR_UNIT[unit]));
+  // The queries of an expression read `seconds` earlier: every name that isn't a function.
+  const shiftAll = (expr: string, seconds: number) => expr.replace(/'[^']*'|"[^"]*"|\b([a-zA-Z_]\w*)\b(\s*\()?/g, (m, name?: string, call?: string) => (name && !call ? shift(name, seconds) : m));
+  let rewritten = text;
+  for (;;) {
+    const call = /\b(hour_before|day_before|week_before|month_before|timeshift|calendar_shift)\(/.exec(rewritten);
+    if (!call) break;
+    // The call's arguments, up to its closing parenthesis.
+    let depth = 1;
+    let end = call.index + call[0].length;
+    while (end < rewritten.length && depth) ((depth += rewritten[end] === '(' ? 1 : rewritten[end] === ')' ? -1 : 0), end++);
+    const args = rewritten.slice(call.index + call[0].length, end - 1);
+    const fn = call[1];
+    let seconds: number | undefined = LOOK_BACK[fn];
+    let expr = args;
+    if (fn === 'timeshift' || fn === 'calendar_shift') {
+      // The arguments at the top level: the expression, then the offset (and calendar_shift's time zone).
+      const parts: string[] = [''];
+      let level = 0;
+      for (const c of args) {
+        level += c === '(' ? 1 : c === ')' ? -1 : 0;
+        if (c === ',' && !level) parts.push('');
+        else parts[parts.length - 1] += c;
+      }
+      expr = parts[0];
+      const offset = (parts[1] ?? '').trim();
+      // timeshift(query1, -3600); calendar_shift(query1, '-1w', 'UTC'): the time zone only matters for month boundaries, taken as 30 days.
+      const unit = /^'-(\d+)(mo|h|d|w)'$/.exec(offset);
+      seconds = fn === 'timeshift' ? (/^-\d+$/.test(offset) ? -Number(offset) : undefined) : unit ? Number(unit[1]) * CALENDAR_UNIT[unit[2]] : undefined;
+    }
+    // A shift into the future isn't a comparison with the past: left as it is (and rejected as a function).
+    const replacement = seconds === undefined ? `${fn}__future(${args})` : /^\s*\w+\s*$/.test(expr) ? shiftAll(expr.trim(), seconds) : `(${shiftAll(expr.trim(), seconds)})`;
+    rewritten = rewritten.slice(0, call.index) + replacement + rewritten.slice(end);
+  }
+  rewritten = rewritten.replace(/\b(\w+)__future\(/g, '$1(');
   // Report shifts in the order they appear in the formula.
   shifts.sort((a, b) => rewritten.indexOf(a.name) - rewritten.indexOf(b.name));
   return { text: rewritten, shifts };
@@ -352,6 +412,38 @@ export function formula(text: string, inputs: Record<string, Vector>): Vector {
                 ) ?? 0)),
           )
           .slice(0, limit);
+      } else if (token === 'rollup' || token === 'reduce' || token === 'anomalies' || token === 'outliers') {
+        // Their other arguments are literals: rollup(q, 'max', 60), reduce(q, 'last'), anomalies(q, 'basic', 2).
+        const args: string[] = [];
+        while (tokens[i] === ',') {
+          i++;
+          args.push((tokens[i++] ?? '').replace(/^['"]|['"]$/g, ''));
+        }
+        if (tokens[i++] !== ')') throw new Error(`Unsupported function: ${token}`);
+        if (token === 'rollup') {
+          // The points of each interval of `seconds` as one (without an interval, the series' own).
+          const method = args[0] || 'avg';
+          const step = Number(args[1]) * 1000;
+          aggregate([0], method); // an unknown method is an error even without points
+          value = !step
+            ? arg
+            : arg.map((s) => {
+                const buckets = new Map<number, number[]>();
+                for (const [t, v] of s.points) buckets.set(Math.floor(t / step) * step, [...(buckets.get(Math.floor(t / step) * step) ?? []), v]);
+                return { ...s, points: [...buckets].map(([t, vs]) => [t, aggregate(vs, method) ?? 0] as [number, number]) };
+              });
+        } else if (token === 'reduce') {
+          // One value per series, at its last point.
+          value = arg.flatMap((s) => {
+            const v = aggregate(
+              s.points.map((p) => p[1]),
+              args[0] || 'avg',
+            );
+            return v === undefined ? [] : [{ ...s, points: [[s.points.at(-1)![0], v] as [number, number]] }];
+          });
+        }
+        // Anomalies and outliers draw the series; the bounds and highlights aren't computed.
+        else value = arg;
       } else {
         let second: Vector | undefined;
         if (tokens[i] === ',') {
@@ -403,7 +495,30 @@ export function formula(text: string, inputs: Record<string, Vector>): Vector {
           const counts = new Map<number, number>();
           for (const s of arg) for (const [t, v] of s.points) counts.set(t, (counts.get(t) ?? 0) + (token === 'count_not_null' || v !== 0 ? 1 : 0));
           value = counts.size ? [{ name: '*', points: [...counts].sort((a, b) => a[0] - b[0]) }] : [];
-        } else throw new Error(`Formula function ${token} is not supported yet`);
+        } else if (/^(top|bottom)\d+(?:_(?:mean|min|max|last))?$/.test(token)) {
+          // top10(q), bottom5_max(q): the legacy forms of top(q, 10, 'mean', 'desc').
+          const [, side, n, method = 'mean'] = /^(top|bottom)(\d+)(?:_(\w+))?$/.exec(token)!;
+          const score = (s: MetricSeries) =>
+            aggregate(
+              s.points.map((p) => p[1]),
+              method,
+            ) ?? 0;
+          value = [...arg].sort((x, y) => (side === 'top' ? score(y) - score(x) : score(x) - score(y))).slice(0, Number(n));
+        } else if (token === 'robust_trend')
+          // A trend line that outliers don't pull (Theil–Sen: the median of the slopes between points).
+          value = arg.map((s) => {
+            const median = (xs: number[]) => {
+              const sorted = [...xs].sort((a, b) => a - b);
+              const m = sorted.length >> 1;
+              return sorted.length % 2 ? sorted[m] : (sorted[m - 1] + sorted[m]) / 2;
+            };
+            const t0 = s.points[0]?.[0] ?? 0;
+            const slopes = s.points.flatMap(([t, v], j) => s.points.slice(j + 1).map(([u, w]) => (w - v) / (u - t)));
+            const slope = slopes.length ? median(slopes) : 0;
+            const intercept = s.points.length ? median(s.points.map(([t, v]) => v - slope * (t - t0))) : 0;
+            return { ...s, points: s.points.map(([t]) => [t, intercept + slope * (t - t0)] as [number, number]) };
+          });
+        else throw new Error(`Formula function ${token} is not supported yet`);
       }
     } else {
       if (!Object.hasOwn(inputs, token)) throw new Error(`Unknown formula query: ${token}`);
