@@ -1,0 +1,30 @@
+[package]
+name = "oc-connectors"
+description = "ObserveCraft connector packages: manifest, expression language, validation and the engine that polls vendor APIs"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "oc-connector"
+path = "src/bin/oc-connector.rs"
+
+[dependencies]
+async-trait = "0.1"
+base64 = "0.23"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+# Times an API gives without a zone, read in the account's IANA zone.
+chrono-tz = { version = "0.10", default-features = false, features = ["std"] }
+hmac = "0.13"
+regex = "1"
+# RS256 JWT assertions (service account keys, customer-registered OAuth apps): the ring rustls already uses.
+ring = "0.17"
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_ng = "0.10"
+sha1 = "0.11"
+sha2 = "0.11"
+tokio.workspace = true
+url = "2"
+utoipa.workspace = true

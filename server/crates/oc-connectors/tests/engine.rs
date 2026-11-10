@@ -1,0 +1,508 @@
+//! The engine against recorded answers: every auth kind, pagination kind and incremental strategy, and that time
+//! windows lose no record and send none twice across runs (backlogs, failures, splits).
+
+use std::sync::Arc;
+
+use base64::Engine;
+use oc_connectors::engine::{self, Connection, Run, Runtime, StreamState};
+use oc_connectors::http::HttpRequest;
+use oc_connectors::manifest::IssueKind;
+use oc_connectors::package::{Origin, Package};
+use oc_connectors::replay::{self, MockTransport};
+use serde_json::{json, Value};
+
+/// 2026-11-10T12:00:00Z.
+const NOW: i64 = 1_794_312_000_000;
+const MIN: i64 = 60_000;
+const HOUR: i64 = 3_600_000;
+
+const HEAD: &str = "schema_version: 1\nid: example\nname: Example\npublisher: ObserveCraft\nvendor: Example Corp\ndescription: Test package.\n";
+const CONFIG: &str = "config:\n  - { key: base_url, label: URL, type: url, required: true }\n  - { key: token, label: Token, type: string, secret: true }\n";
+const TEST: &str = "test:\n  request: { url: 'https://api.example.com/v1/me' }\n  message: ok\n";
+
+/// A package from manifest parts (the header, config and test are added).
+fn package(body: &str) -> Package {
+    let yaml = format!("{HEAD}{CONFIG}{body}\n{TEST}");
+    Package::from_files([("connector.yaml".to_string(), yaml)].into(), Origin::Bundled).unwrap_or_else(|e| panic!("{e:#?}"))
+}
+
+fn invalid(body: &str) -> Vec<String> {
+    let yaml = format!("{HEAD}{CONFIG}{body}");
+    Package::from_files([("connector.yaml".to_string(), yaml)].into(), Origin::Bundled).err().unwrap_or_default()
+}
+
+fn conn(pkg: &Package) -> Connection {
+    let mut c = replay::connection(pkg.manifest.mock.as_ref().unwrap());
+    c.config = engine::effective_config(&pkg.manifest, &c.config);
+    c
+}
+
+struct Fixture {
+    pkg: Package,
+    transport: Arc<MockTransport>,
+    rt: Runtime,
+}
+
+fn fixture(body: &str) -> Fixture {
+    let pkg = package(body);
+    let transport = Arc::new(MockTransport::new(&pkg, pkg.manifest.mock.as_ref().unwrap()));
+    let rt = Runtime::new(transport.clone(), false);
+    Fixture { pkg, transport, rt }
+}
+
+impl Fixture {
+    async fn run(&self, state: StreamState, now: i64) -> Result<Run, engine::Issue> {
+        let stream = &self.pkg.manifest.streams[0];
+        engine::run(&self.pkg.manifest, stream, &conn(&self.pkg), state, now, &self.rt, None).await
+    }
+
+    fn requests(&self) -> Vec<HttpRequest> {
+        std::mem::take(&mut *self.transport.requests.lock().unwrap())
+    }
+}
+
+fn ids(run: &Run) -> Vec<String> {
+    run.mapped.logs.iter().map(|l| l["message"].as_str().unwrap().to_string()).collect()
+}
+
+fn mock(responses: &str) -> String {
+    format!("mock:\n  config: {{ base_url: 'https://api.example.com' }}\n  secrets: {{ token: 'tok-SECRET-123' }}\n  now: '2026-11-10T12:00:00Z'\n  responses:\n{responses}")
+}
+
+const LOGS: &str = "    output:\n      logs: { message: '{{ record.id }}' }\n";
+
+fn stream(rest: &str) -> String {
+    format!("streams:\n  - id: events\n    name: Events\n    description: Events.\n{rest}{LOGS}")
+}
+
+// ---------------------------------------------------------------- auth
+
+#[tokio::test]
+async fn keys_bearer_and_basic_go_where_the_manifest_says() {
+    for (auth, check) in [
+        ("auth: { kind: api_key, name: X-Api-Key, value: '{{ secrets.token }}' }", Box::new(|r: &HttpRequest| r.header("x-api-key") == Some("tok-SECRET-123")) as Box<dyn Fn(&HttpRequest) -> bool>),
+        ("auth: { kind: api_key, in: query, name: api_key, value: '{{ secrets.token }}' }", Box::new(|r: &HttpRequest| r.url.ends_with("?api_key=tok-SECRET-123"))),
+        ("auth: { kind: bearer, token: '{{ secrets.token }}' }", Box::new(|r: &HttpRequest| r.header("authorization") == Some("Bearer tok-SECRET-123"))),
+        ("auth: { kind: basic, username: me, password: '{{ secrets.token }}' }", Box::new(|r: &HttpRequest| r.header("authorization") == Some(format!("Basic {}", base64::engine::general_purpose::STANDARD.encode("me:tok-SECRET-123")).as_str()))),
+        ("auth: { kind: api_key, name: Authorization, value: 'apikey me@example.com:{{ secrets.token }}' }", Box::new(|r: &HttpRequest| r.header("authorization") == Some("apikey me@example.com:tok-SECRET-123"))),
+    ] {
+        let f = fixture(&format!("{auth}\n{}{}", stream("    request: { url: '{{ config.base_url }}/v1/events' }\n"), mock("    - { url: 'https://api.example.com/v1/events', body: [{ id: a }] }")));
+        let run = f.run(StreamState::default(), NOW).await.unwrap();
+        assert_eq!(ids(&run), ["a"]);
+        let reqs = f.requests();
+        assert!(check(&reqs[0]), "{auth}: {:?}", reqs[0]);
+        assert_eq!(reqs[0].header("user-agent"), Some(engine::USER_AGENT));
+    }
+}
+
+#[tokio::test]
+async fn oauth_client_credentials_tokens_are_fetched_once_and_cached() {
+    let f = fixture(&format!(
+        "auth: {{ kind: oauth2_client_credentials, token_url: 'https://login.example.com/token', client_id: app-1, client_secret: '{{{{ secrets.token }}}}', scopes: [read, audit] }}\n{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events' }\n"),
+        mock("    - { method: POST, url: 'https://login.example.com/token', body: { access_token: at-1, expires_in: 3600 } }\n    - { url: 'https://api.example.com/v1/events', body: [{ id: a }] }")
+    ));
+    f.run(StreamState::default(), NOW).await.unwrap();
+    f.run(StreamState::default(), NOW + MIN).await.unwrap();
+    let reqs = f.requests();
+    assert_eq!(reqs.iter().filter(|r| r.url.contains("login")).count(), 1, "cached for its lifetime");
+    let token = &reqs[0];
+    assert_eq!(String::from_utf8(token.body.clone().unwrap()).unwrap(), "grant_type=client_credentials&scope=read+audit");
+    assert_eq!(token.header("authorization"), Some(format!("Basic {}", base64::engine::general_purpose::STANDARD.encode("app-1:tok-SECRET-123")).as_str()));
+    assert!(reqs[1..].iter().all(|r| r.header("authorization") == Some("Bearer at-1")));
+    // An hour later the token is fetched again.
+    f.run(StreamState::default(), NOW + 2 * HOUR).await.unwrap();
+    assert_eq!(f.requests().iter().filter(|r| r.url.contains("login")).count(), 1);
+}
+
+#[tokio::test]
+async fn a_rotated_refresh_token_is_returned_to_be_saved() {
+    let yaml = format!(
+        "{HEAD}config:\n  - {{ key: base_url, label: URL, type: url }}\n  - {{ key: refresh_token, label: Refresh token, type: string, secret: true }}\n\
+         auth: {{ kind: oauth2_refresh_token, token_url: 'https://login.example.com/token', client_id: app-1, refresh_token: '{{{{ secrets.refresh_token }}}}', rotate: refresh_token, client_auth: body }}\n\
+         {}mock:\n  config: {{ base_url: 'https://api.example.com' }}\n  secrets: {{ refresh_token: rt-old-0001 }}\n  now: '2026-11-10T12:00:00Z'\n  responses:\n    - {{ method: POST, url: 'https://login.example.com/token', body: {{ access_token: at-2, refresh_token: rt-new-0002 }} }}\n    - {{ url: 'https://api.example.com/v1/events', body: [{{ id: a }}] }}\n{TEST}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events' }\n")
+    );
+    let pkg = Package::from_files([("connector.yaml".to_string(), yaml)].into(), Origin::Bundled).unwrap_or_else(|e| panic!("{e:#?}"));
+    let transport = Arc::new(MockTransport::new(&pkg, pkg.manifest.mock.as_ref().unwrap()));
+    let rt = Runtime::new(transport.clone(), false);
+    let run = engine::run(&pkg.manifest, &pkg.manifest.streams[0], &conn(&pkg), StreamState::default(), NOW, &rt, None).await.unwrap();
+    assert_eq!(run.rotated, [("refresh_token".to_string(), "rt-new-0002".to_string())]);
+    let reqs = transport.requests.lock().unwrap();
+    assert_eq!(String::from_utf8(reqs[0].body.clone().unwrap()).unwrap(), "grant_type=refresh_token&refresh_token=rt-old-0001&client_id=app-1");
+    assert_eq!(reqs[1].header("authorization"), Some("Bearer at-2"));
+}
+
+#[tokio::test]
+async fn jwt_bearer_signs_an_rs256_assertion_with_pkcs8_or_pkcs1_keys() {
+    for file in ["test-rsa-pkcs8.pem", "test-rsa-pkcs1.pem"] {
+        let pem = std::fs::read_to_string(format!("{}/tests/fixtures/{file}", env!("CARGO_MANIFEST_DIR"))).unwrap();
+        let yaml = format!(
+            "{HEAD}config:\n  - {{ key: base_url, label: URL, type: url }}\n  - {{ key: integration_key, label: Integration key, type: string }}\n  - {{ key: private_key, label: Key, type: text, secret: true }}\n\
+             auth:\n  kind: jwt_bearer\n  token_url: 'https://account-d.example.com/oauth/token'\n  private_key: '{{{{ secrets.private_key }}}}'\n  claims: {{ iss: '{{{{ config.integration_key }}}}', sub: user-1, aud: account-d.example.com }}\n  scopes: [signature, impersonation]\n\
+             {}mock:\n  config: {{ base_url: 'https://api.example.com', integration_key: ik-1 }}\n  secrets: {{ private_key: {} }}\n  now: '2026-11-10T12:00:00Z'\n  responses:\n    - {{ method: POST, url: 'https://account-d.example.com/oauth/token', body: {{ access_token: at-3 }} }}\n    - {{ url: 'https://api.example.com/v1/events', body: [{{ id: a }}] }}\n{TEST}",
+            stream("    request: { url: '{{ config.base_url }}/v1/events' }\n"),
+            serde_json::to_string(&pem).unwrap()
+        );
+        let pkg = Package::from_files([("connector.yaml".to_string(), yaml)].into(), Origin::Bundled).unwrap_or_else(|e| panic!("{e:#?}"));
+        let transport = Arc::new(MockTransport::new(&pkg, pkg.manifest.mock.as_ref().unwrap()));
+        let rt = Runtime::new(transport.clone(), false);
+        engine::run(&pkg.manifest, &pkg.manifest.streams[0], &conn(&pkg), StreamState::default(), NOW, &rt, None).await.unwrap();
+        let reqs = transport.requests.lock().unwrap();
+        let form: Vec<(String, String)> = url::form_urlencoded::parse(reqs[0].body.as_ref().unwrap()).into_owned().collect();
+        assert_eq!(form[0], ("grant_type".into(), "urn:ietf:params:oauth:grant-type:jwt-bearer".into()));
+        let jwt = &form[1].1;
+        let parts: Vec<&str> = jwt.split('.').collect();
+        let claims: Value = serde_json::from_slice(&base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[1]).unwrap()).unwrap();
+        assert_eq!(claims, json!({ "iss": "ik-1", "sub": "user-1", "aud": "account-d.example.com", "scope": "signature impersonation", "iat": NOW / 1000, "exp": NOW / 1000 + 3600 }));
+        assert_eq!(base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[2]).unwrap().len(), 256, "{file}: a 2048-bit RSA signature");
+        assert_eq!(reqs[1].header("authorization"), Some("Bearer at-3"));
+    }
+}
+
+#[tokio::test]
+async fn a_token_exchange_captures_a_base_url_and_a_token() {
+    let f = fixture(&format!(
+        "auth:\n  kind: token_exchange\n  request: {{ method: POST, url: 'https://login.example.com/logon', body: {{ username: me, password: '{{{{ secrets.token }}}}' }} }}\n  capture: {{ token: '{{{{ response.ManagerToken }}}}', base_url: '{{{{ response.ManagerURL }}}}' }}\n  headers: {{ Authorization: 'basic {{{{ auth.token }}}}' }}\n{}{}",
+        stream("    request: { url: '{{ auth.base_url }}/v1/events' }\n"),
+        mock("    - { method: POST, url: 'https://login.example.com/logon', body: { ManagerToken: mt-1, ManagerURL: 'https://eu.manager.example.com' } }\n    - { url: 'https://eu.manager.example.com/v1/events', body: [{ id: a }] }")
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&run), ["a"]);
+    let reqs = f.requests();
+    assert_eq!(serde_json::from_slice::<Value>(reqs[0].body.as_ref().unwrap()).unwrap(), json!({ "username": "me", "password": "tok-SECRET-123" }));
+    assert_eq!(reqs[1].header("authorization"), Some("basic mt-1"));
+}
+
+#[tokio::test]
+async fn refused_credentials_fail_the_run_without_echoing_secrets() {
+    let f = fixture(&format!(
+        "auth: {{ kind: bearer, token: '{{{{ secrets.token }}}}' }}\n{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events' }\n"),
+        mock("    - { url: 'https://api.example.com/v1/events', status: 401, body: { message: 'token tok-SECRET-123 expired' } }")
+    ));
+    let issue = f.run(StreamState::default(), NOW).await.unwrap_err();
+    assert_eq!(issue.kind, IssueKind::Auth);
+    assert_eq!(issue.message, "Example refused the credentials (HTTP 401): token [secret] expired");
+}
+
+// ---------------------------------------------------------------- pagination
+
+#[tokio::test]
+async fn every_pagination_kind_reads_to_the_last_page() {
+    let cases: [(&str, &str, &str); 6] = [
+        (
+            "cursor in the body",
+            "    request: { url: '{{ config.base_url }}/v1/events', query: { cursor: '{{ page.cursor }}' } }\n    records: '{{ response.data }}'\n    pagination: { kind: cursor, next: '{{ response.next }}' }\n",
+            "    - { url: 'https://api.example.com/v1/events', query: { cursor: c2 }, body: { data: [{ id: b }], next: null } }\n    - { url: 'https://api.example.com/v1/events', body: { data: [{ id: a }], next: c2 } }",
+        ),
+        (
+            "cursor in headers",
+            "    request: { url: '{{ config.base_url }}/v1/events', headers: { Search-After: '{{ page.cursor.after }}', Pit-Id: '{{ page.cursor.pit }}' } }\n    pagination: { kind: cursor, next: \"{{ headers['search-after'] ? { pit: headers['pit-id'], after: headers['search-after'] } : null }}\" }\n",
+            "    - { url: 'https://api.example.com/v1/events', headers: { Pit-Id: p1, Search-After: s1 }, body: [{ id: a }] }\n    - { url: 'https://api.example.com/v1/events', body: [{ id: b }] }",
+        ),
+        (
+            "next URL, relative",
+            "    request: { url: '{{ config.base_url }}/v1/events' }\n    records: '{{ response.items }}'\n    pagination: { kind: next_url, next: '{{ response.links.next }}' }\n",
+            "    - { url: 'https://api.example.com/v1/events', query: { page: '2' }, body: { items: [{ id: b }], links: {} } }\n    - { url: 'https://api.example.com/v1/events', body: { items: [{ id: a }], links: { next: '/v1/events?page=2' } } }",
+        ),
+        (
+            "Link header",
+            "    request: { url: '{{ config.base_url }}/v1/events' }\n    pagination: { kind: link_header }\n",
+            "    - { url: 'https://api.example.com/v1/events', query: { after: x }, body: [{ id: b }] }\n    - { url: 'https://api.example.com/v1/events', headers: { Link: '<https://api.example.com/v1/events?after=x>; rel=\"next\"' }, body: [{ id: a }] }",
+        ),
+        (
+            "offset",
+            "    request: { url: '{{ config.base_url }}/v1/events', query: { offset: '{{ page.offset }}', limit: '{{ page.size }}' } }\n    pagination: { kind: offset, size: 2 }\n",
+            "    - { url: 'https://api.example.com/v1/events', query: { offset: '0', limit: '2' }, body: [{ id: a }, { id: b }] }\n    - { url: 'https://api.example.com/v1/events', query: { offset: '2' }, body: [{ id: c }] }",
+        ),
+        (
+            "page numbers with a total",
+            "    request: { url: '{{ config.base_url }}/v1/events', query: { page: '{{ page.number }}' } }\n    records: '{{ response.rows }}'\n    pagination: { kind: page, size: 1, total_pages: '{{ response.pages }}' }\n",
+            "    - { url: 'https://api.example.com/v1/events', query: { page: '1' }, body: { rows: [{ id: a }], pages: 2 } }\n    - { url: 'https://api.example.com/v1/events', query: { page: '2' }, body: { rows: [{ id: b }], pages: 2 } }\n    - { url: 'https://api.example.com/v1/events', query: { page: '3' }, body: { rows: [{ id: never }], pages: 2 } }",
+        ),
+    ];
+    for (name, s, responses) in cases {
+        let f = fixture(&format!("{}{}", stream(s), mock(responses)));
+        let run = f.run(StreamState::default(), NOW).await.unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        let mut got = ids(&run);
+        got.sort();
+        let want: &[&str] = if name == "offset" { &["a", "b", "c"] } else { &["a", "b"] };
+        assert_eq!(got, want, "{name}");
+        assert!(run.warning.is_none(), "{name}: {:?}", run.warning);
+    }
+}
+
+#[tokio::test]
+async fn a_next_page_on_another_host_is_refused() {
+    let f = fixture(&format!(
+        "auth: {{ kind: bearer, token: '{{{{ secrets.token }}}}' }}\n{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events' }\n    records: '{{ response.items }}'\n    pagination: { kind: next_url, next: '{{ response.next }}' }\n"),
+        mock("    - { url: 'https://api.example.com/v1/events', body: { items: [{ id: a }], next: 'https://collector.attacker.example/steal' } }\n    - { url: 'https://collector.attacker.example/steal', body: { items: [] } }")
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&run), ["a"]);
+    assert!(run.warning.unwrap().message.contains("another host"));
+    assert!(f.requests().iter().all(|r| !r.url.contains("attacker")), "the token never leaves the API's host");
+}
+
+#[tokio::test]
+async fn graphql_bodies_carry_the_page_and_the_window() {
+    let f = fixture(&format!(
+        "{}{}",
+        stream(
+            "    request:\n      method: POST\n      url: '{{ config.base_url }}/graphql'\n      body: { query: 'query($from: String, $after: String) { events }', variables: { from: '{{ window.start | rfc3339 }}', after: '{{ page.cursor }}' } }\n    records: '{{ response.data.events.nodes }}'\n    pagination: { kind: cursor, next: '{{ response.data.events.pageInfo.endCursor }}' }\n    incremental: { kind: time, record_time: '{{ record.time }}', lookback: 1h }\n"
+        ),
+        mock("    - { method: POST, url: 'https://api.example.com/graphql', body_contains: '\"after\":\"e1\"', body: { data: { events: { nodes: [{ id: b, time: '2026-11-10T11:40:00Z' }], pageInfo: { endCursor: null } } } } }\n    - { method: POST, url: 'https://api.example.com/graphql', body: { data: { events: { nodes: [{ id: a, time: '2026-11-10T11:30:00Z' }], pageInfo: { endCursor: e1 } } } } }")
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&run), ["a", "b"]);
+    let body: Value = serde_json::from_slice(f.requests()[0].body.as_ref().unwrap()).unwrap();
+    assert_eq!(body["variables"], json!({ "from": "2026-11-10T11:00:00.000Z", "after": null }));
+}
+
+// ---------------------------------------------------------------- incremental
+
+fn events(n: usize, start_ms: i64, step_ms: i64) -> String {
+    let items: Vec<Value> = (0..n).map(|i| json!({ "id": format!("e{i}"), "time": start_ms + i as i64 * step_ms })).collect();
+    serde_json::to_string(&items).unwrap()
+}
+
+#[tokio::test]
+async fn time_windows_move_the_cursor_and_overlap_without_duplicates() {
+    let f = fixture(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events', query: { since: '{{ window.start }}' } }\n    record_id: '{{ record.id }}'\n    incremental: { kind: time, record_time: '{{ record.time }}', lookback: 1h, overlap: 5m }\n"),
+        mock(&format!(
+            "    - {{ url: 'https://api.example.com/v1/events', body: {} }}\n    - {{ url: 'https://api.example.com/v1/events', body: {} }}",
+            // First run: one record older than the lookback (skipped), two inside.
+            serde_json::to_string(&json!([{ "id": "e0", "time": NOW - 90 * MIN }, { "id": "e1", "time": NOW - 50 * MIN }, { "id": "e2", "time": NOW - 2 * MIN }])).unwrap(),
+            // Second run: the overlap answers e2 again, plus a new one.
+            serde_json::to_string(&json!([{ "id": "e2", "time": NOW - 2 * MIN }, { "id": "e3", "time": NOW + 30_000 }])).unwrap()
+        ))
+    ));
+    let first = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&first), ["e1", "e2"], "the lookback bounds the first run");
+    assert_eq!(f.requests()[0].url, format!("https://api.example.com/v1/events?since={}", NOW - HOUR));
+    assert_eq!(first.state.collected_until(), Some(NOW), "the window's end");
+    let second = f.run(first.state.clone(), NOW + MIN).await.unwrap();
+    assert_eq!(ids(&second), ["e3"], "e2 was sent: skipped though the overlap reads it again");
+    assert_eq!(f.requests()[0].url, format!("https://api.example.com/v1/events?since={}", NOW - 5 * MIN));
+}
+
+#[tokio::test]
+async fn a_newest_first_window_out_of_pages_carries_on_from_its_backlog() {
+    // Four pages newest first, two pages a run: the cursor moves only once the window is read to its end.
+    let page = |i: usize, next: &str| format!("    - {{ url: 'https://api.example.com/v1/events', query: {{ p: '{i}' }}, body: {{ items: [{{ id: e{i}, time: {} }}], next: {next} }} }}", NOW - (i as i64 + 1) * MIN);
+    let responses = [page(1, "'2'"), page(2, "'3'"), page(3, "'4'"), page(4, "null")].join("\n");
+    let f = fixture(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events', query: { p: '{{ page.cursor ?? 1 }}', until: '{{ window.end }}' } }\n    records: '{{ response.items }}'\n    pagination: { kind: cursor, next: '{{ response.next }}' }\n    max_pages: 2\n    incremental: { kind: time, record_time: '{{ record.time }}', order: newest_first, lookback: 1h }\n"),
+        mock(&responses)
+    ));
+    let first = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&first), ["e1", "e2"]);
+    let part = &first.state.partitions[""];
+    assert_eq!(part.cursor, None, "the window isn't read to its end");
+    assert_eq!(part.backlog.as_ref().map(|b| (b.end, b.page.clone())), Some((NOW, json!({ "cursor": "3" }))));
+    f.requests();
+    let second = f.run(first.state.clone(), NOW + 5 * MIN).await.unwrap();
+    assert_eq!(ids(&second), ["e3", "e4"]);
+    assert!(f.requests().iter().all(|r| r.url.contains(&format!("until={NOW}"))), "the backlog's window, not a new one");
+    assert_eq!(second.state.partitions[""].cursor, Some(NOW), "read to its end: the cursor moves to the window's end");
+    assert!(second.state.partitions[""].backlog.is_none());
+}
+
+#[tokio::test]
+async fn an_oldest_first_window_out_of_pages_moves_the_cursor_to_its_last_record() {
+    let f = fixture(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events', query: { offset: '{{ page.offset }}' } }\n    record_id: '{{ record.id }}'\n    pagination: { kind: offset, size: 2 }\n    max_pages: 1\n    incremental: { kind: time, record_time: '{{ record.time }}', order: oldest_first, lookback: 1h }\n"),
+        mock(&format!("    - {{ url: 'https://api.example.com/v1/events', query: {{ offset: '0' }}, body: {} }}", events(2, NOW - 50 * MIN, 10 * MIN)))
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&run), ["e0", "e1"]);
+    assert_eq!(run.state.partitions[""].cursor, Some(NOW - 40 * MIN));
+    assert!(run.state.partitions[""].backlog.is_none());
+}
+
+#[tokio::test]
+async fn a_failed_page_keeps_what_was_read_and_the_window_carries_on() {
+    let f = fixture(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events', query: { p: '{{ page.cursor ?? 1 }}' } }\n    records: '{{ response.items }}'\n    pagination: { kind: cursor, next: '{{ response.next }}' }\n    incremental: { kind: time, record_time: '{{ record.time }}', lookback: 1h }\n"),
+        mock(&format!(
+            "    - {{ url: 'https://api.example.com/v1/events', query: {{ p: '1' }}, body: {{ items: [{{ id: a, time: {} }}], next: '2' }} }}\n    - {{ url: 'https://api.example.com/v1/events', query: {{ p: '2' }}, status: 503, body: {{ message: busy }} }}",
+            NOW - MIN
+        ))
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&run), ["a"]);
+    assert_eq!(run.warning.as_ref().map(|w| w.message.as_str()), Some("Example answered HTTP 503: busy"));
+    let part = &run.state.partitions[""];
+    assert_eq!((part.cursor, part.backlog.as_ref().map(|b| b.page.clone())), (None, Some(json!({ "cursor": "2" }))));
+}
+
+#[tokio::test]
+async fn a_window_reaching_the_offset_cap_is_split_and_read_again() {
+    // At most 2 records per window (offset ≤ 1): the hour holds 3, so it is read as two halves.
+    let window = |since: i64, until: i64, body: &str| format!("    - {{ url: 'https://api.example.com/v1/events', query: {{ from: '{since}', to: '{until}', offset: '0' }}, body: {body} }}");
+    let (start, mid) = (NOW - HOUR, NOW - HOUR / 2);
+    let responses = [
+        window(start, NOW, &events(2, start + MIN, MIN)),
+        window(start, mid, &serde_json::to_string(&json!([{ "id": "e0", "time": start + MIN }])).unwrap()),
+        window(mid, NOW, &serde_json::to_string(&json!([{ "id": "late", "time": NOW - MIN }])).unwrap()),
+    ]
+    .join("\n");
+    let f = fixture(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events', query: { from: '{{ window.start }}', to: '{{ window.end }}', offset: '{{ page.offset }}' } }\n    record_id: '{{ record.id }}'\n    pagination: { kind: offset, size: 2, max: 1 }\n    incremental: { kind: time, record_time: '{{ record.time }}', lookback: 1h }\n"),
+        mock(&responses)
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&run), ["e0", "e1", "late"], "the first window's records are kept once, the halves add the rest");
+    assert_eq!(run.state.collected_until(), Some(NOW));
+}
+
+#[tokio::test]
+async fn new_records_are_sent_once() {
+    let f = fixture(&format!(
+        "streams:\n  - id: breaches\n    name: Breaches\n    description: Breached accounts.\n    request: {{ url: '{{{{ config.base_url }}}}/v1/breaches' }}\n    records: \"{{{{ response | entries | explode('value') }}}}\"\n    record_id: \"{{{{ record.key + '/' + record.value }}}}\"\n    incremental: {{ kind: new_records }}\n    output:\n      logs: {{ message: \"{{{{ record.key + '/' + record.value }}}}\" }}\n{}",
+        mock("    - { url: 'https://api.example.com/v1/breaches', body: { jane: [Adobe, Gawker], sam: [Adobe] } }\n    - { url: 'https://api.example.com/v1/breaches', body: { jane: [Adobe, Gawker, Canva], sam: [Adobe] } }")
+    ));
+    let first = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&first), ["jane/Adobe", "jane/Gawker", "sam/Adobe"]);
+    let second = f.run(first.state, NOW + HOUR).await.unwrap();
+    assert_eq!(ids(&second), ["jane/Canva"]);
+}
+
+#[tokio::test]
+async fn token_checkpoints_are_saved_after_the_run() {
+    let f = fixture(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events', query: { since: '{{ cursor.token }}' } }\n    records: '{{ response.events }}'\n    incremental: { kind: token, initial: '0', next: '{{ response.checkpoint }}' }\n"),
+        mock("    - { url: 'https://api.example.com/v1/events', query: { since: '0' }, body: { events: [{ id: a }], checkpoint: 'cp-1' } }\n    - { url: 'https://api.example.com/v1/events', query: { since: cp-1 }, body: { events: [{ id: b }], checkpoint: null } }")
+    ));
+    let first = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(first.state.partitions[""].token, Some(json!("cp-1")));
+    let second = f.run(first.state.clone(), NOW + MIN).await.unwrap();
+    assert_eq!(ids(&second), ["b"]);
+    assert_eq!(second.state.partitions[""].token, Some(json!("cp-1")), "no new checkpoint: the old one stays");
+}
+
+#[tokio::test]
+async fn for_each_items_have_their_own_cursor_and_lookups_enrich_records() {
+    let f = fixture(&format!(
+        "tables: {{ kinds: {{ '1000': 'User logged in' }} }}\n{}{}",
+        stream(
+            "    for_each: '{{ lookups.projects | keys }}'\n    lookups:\n      - { name: projects, request: { url: '{{ config.base_url }}/v1/projects' }, key: '{{ record.slug }}' }\n      - { name: members, request: { url: '{{ config.base_url }}/v1/members' }, records: '{{ response.data }}', key: '{{ record.id }}', value: '{{ record.name }}' }\n    request: { url: \"{{ config.base_url + '/v1/projects/' + item + '/events' }}\" }\n    incremental: { kind: time, record_time: '{{ record.time }}', lookback: 1h }\n"
+        )
+        .replace("'{{ record.id }}' }", "\"{{ item + ':' + tables.kinds[record.type | str] + ' by ' + lookups.members[record.actor] }}\" }"),
+        mock(&format!(
+            "    - {{ url: 'https://api.example.com/v1/projects', body: [{{ slug: shop }}, {{ slug: billing }}] }}\n    - {{ url: 'https://api.example.com/v1/members', body: {{ data: [{{ id: u1, name: Jane }}] }} }}\n    - {{ url: 'https://api.example.com/v1/projects/shop/events', body: [{{ type: 1000, actor: u1, time: {} }}] }}\n    - {{ url: 'https://api.example.com/v1/projects/billing/events', status: 403, body: {{}} }}",
+            NOW - MIN
+        ))
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&run), ["shop:User logged in by Jane"]);
+    assert_eq!(run.state.partitions["shop"].cursor, Some(NOW));
+    assert_eq!(run.state.partitions["billing"].cursor, None, "its failure keeps its own state");
+    assert_eq!(run.warning.map(|w| w.kind), Some(IssueKind::AccessDenied));
+}
+
+#[tokio::test]
+async fn async_exports_are_created_polled_and_read_across_runs() {
+    let f = fixture(&format!(
+        "{}{}",
+        "streams:\n  - id: vulns\n    name: Vulnerabilities\n    description: Exported.\n    pagination:\n      kind: async_export\n      create: { method: POST, url: '{{ config.base_url }}/vulns/export', body: { since: '{{ window.start }}' } }\n      id: '{{ response.export_uuid }}'\n      status: { url: \"{{ config.base_url + '/vulns/export/' + export.id + '/status' }}\" }\n      ready: \"{{ response.status == 'FINISHED' }}\"\n      chunks: '{{ response.chunks_available }}'\n      chunk: { url: \"{{ config.base_url + '/vulns/export/' + export.id + '/chunks/' + chunk }}\" }\n    record_id: '{{ record.id }}'\n    incremental: { kind: time, record_time: '{{ record.seen }}', lookback: 1d }\n    output:\n      logs: { message: '{{ record.id }}' }\n",
+        mock(&format!(
+            "    - {{ method: POST, url: 'https://api.example.com/vulns/export', body: {{ export_uuid: x1 }} }}\n    - {{ url: 'https://api.example.com/vulns/export/x1/status', body: {{ status: PROCESSING, chunks_available: [] }} }}\n    - {{ url: 'https://api.example.com/vulns/export/x1/status', body: {{ status: FINISHED, chunks_available: [1, 2] }} }}\n    - {{ url: 'https://api.example.com/vulns/export/x1/chunks/1', body: [{{ id: v1, seen: {t} }}] }}\n    - {{ url: 'https://api.example.com/vulns/export/x1/chunks/2', body: [{{ id: v2, seen: {t} }}] }}",
+            t = NOW - HOUR
+        ))
+    ));
+    let first = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(first.records, 0, "still processing");
+    assert!(first.state.partitions[""].export.is_some());
+    let second = f.run(first.state, NOW + 5 * MIN).await.unwrap();
+    assert_eq!(ids(&second), ["v1", "v2"]);
+    let part = &second.state.partitions[""];
+    assert_eq!((part.export.is_none(), part.cursor), (true, Some(NOW)), "done: the next export starts where this one's window ended");
+    assert_eq!(f.requests().iter().filter(|r| r.url.ends_with("/vulns/export")).count(), 1);
+}
+
+#[tokio::test]
+async fn prometheus_samples_become_metrics_with_their_labels() {
+    let f = fixture(&format!(
+        "{}{}",
+        "streams:\n  - id: metrics\n    name: Metrics\n    description: Scraped.\n    request: { url: '{{ config.base_url }}/metrics', format: prometheus }\n    filter: \"{{ record.type != 'histogram' }}\"\n    output:\n      metrics:\n        - { name: \"{{ 'streamnative.' + record.name }}\", value: '{{ record.value }}', tags_from: '{{ record.labels }}', tags: { org: '{{ connection.instance }}' } }\n",
+        mock("    - { url: 'https://api.example.com/metrics', body: \"# TYPE pulsar_msg_rate_in gauge\\npulsar_msg_rate_in{cluster=\\\"shop\\\"} 12.5\\n# TYPE h histogram\\nh_bucket{le=\\\"1\\\"} 3\\n\" }")
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    let p = &run.mapped.points;
+    assert_eq!(p.len(), 1);
+    assert_eq!((p[0].name.as_str(), p[0].value, p[0].time_ms), ("streamnative.pulsar_msg_rate_in", 12.5, NOW));
+    assert_eq!(p[0].tags, [("cluster".to_string(), "shop".to_string()), ("org".to_string(), "example".to_string())]);
+}
+
+#[tokio::test]
+async fn a_used_up_quota_stops_the_run_with_its_progress() {
+    let pkg = package(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events', query: { p: '{{ page.cursor ?? 1 }}' } }\n    records: '{{ response.items }}'\n    pagination: { kind: cursor, next: '{{ response.next }}' }\n    incremental: { kind: time, record_time: '{{ record.time }}', lookback: 1h }\n"),
+        mock(&format!(
+            "    - {{ url: 'https://api.example.com/v1/events', query: {{ p: '1' }}, body: {{ items: [{{ id: a, time: {t} }}], next: '2' }} }}\n    - {{ url: 'https://api.example.com/v1/events', query: {{ p: '2' }}, body: {{ items: [{{ id: b, time: {t} }}], next: null }} }}",
+            t = NOW - MIN
+        ))
+    ));
+    let rt = Runtime::new(Arc::new(MockTransport::new(&pkg, pkg.manifest.mock.as_ref().unwrap())), false);
+    let run = engine::run(&pkg.manifest, &pkg.manifest.streams[0], &conn(&pkg), StreamState::default(), NOW, &rt, Some(1)).await.unwrap();
+    assert_eq!((run.records, run.requests), (1, 1));
+    assert_eq!(run.warning.map(|w| w.kind), Some(IssueKind::Throttled));
+    assert!(run.state.partitions[""].backlog.is_some());
+}
+
+#[tokio::test]
+async fn error_rules_name_the_problem_in_the_vendors_words() {
+    let f = fixture(&format!(
+        "errors:\n  - {{ status: [403], when: \"{{{{ response.code == 'PLAN' }}}}\", kind: access_denied, message: 'The audit log needs the Enterprise plan' }}\n{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events' }\n"),
+        mock("    - { url: 'https://api.example.com/v1/events', status: 403, body: { code: PLAN } }")
+    ));
+    let issue = f.run(StreamState::default(), NOW).await.unwrap_err();
+    assert_eq!((issue.kind, issue.message.as_str()), (IssueKind::AccessDenied, "The audit log needs the Enterprise plan"));
+}
+
+#[tokio::test]
+async fn discovery_runs_first_and_is_cached() {
+    let f = fixture(&format!(
+        "discover:\n  - {{ name: whoami, request: {{ url: 'https://api.example.com/whoami' }}, value: '{{{{ response.apiHosts.dataRegion }}}}' }}\n{}{}",
+        stream("    request: { url: '{{ discovery.whoami }}/siem/v1/events' }\n"),
+        mock("    - { url: 'https://api.example.com/whoami', body: { apiHosts: { dataRegion: 'https://api-eu01.example.com' } } }\n    - { url: 'https://api-eu01.example.com/siem/v1/events', body: [{ id: a }] }")
+    ));
+    f.run(StreamState::default(), NOW).await.unwrap();
+    let run = f.run(StreamState::default(), NOW + MIN).await.unwrap();
+    assert_eq!(ids(&run), ["a"]);
+    assert_eq!(f.requests().iter().filter(|r| r.url.contains("whoami")).count(), 1);
+}
+
+// ---------------------------------------------------------------- validation
+
+#[test]
+fn invalid_packages_name_every_problem() {
+    let problems = invalid(
+        "auth: { kind: bearer, token: '{{ config.token }}' }\nstreams:\n  - id: Events\n    name: E\n    description: E.\n    interval: 30s\n    request: { url: '{{ confg.base_url }}' }\n    incremental: { kind: new_records }\n    output:\n      logs: { message: '{{ secrets.token }}' }\n",
+    );
+    let text = problems.join("\n");
+    for needle in [
+        "auth.token: config.token is not a config field (token is a secret: secrets.token)",
+        "streams[0].id: \"Events\" must be lowercase",
+        "streams[0].interval: must be at least 1m",
+        "streams[0].request.url: unknown variable \"confg\"",
+        "streams[0].incremental: new_records needs the stream's record_id",
+        "streams[0].output.logs.message: unknown variable \"secrets\"",
+        "test: a package with streams needs a connection test",
+    ] {
+        assert!(text.contains(needle), "missing {needle:?} in:\n{text}");
+    }
+    assert!(invalid("streams: []\nnope: 1").join("\n").contains("unknown field `nope`"));
+}
