@@ -210,6 +210,31 @@ const HINTS: KubernetesHint[] = [
       },
     ],
   },
+  {
+    check: 'clickhouse',
+    variants: [
+      {
+        label: 'Altinity ClickHouse Operator (ClickHouseInstallation)',
+        text: [
+          'Add the annotations to the pod template the installation uses (`spec.templates.podTemplates[].metadata.annotations`, container `clickhouse`). The check queries the HTTP interface (8123) with a read-only user, defined in the installation:',
+          "```yaml\nspec:\n  configuration:\n    users:\n      datadog/k8s_secret_password: clickhouse/datadog-clickhouse/password\n      datadog/networks/ip: ['10.0.0.0/8']\n      datadog/profile: readonly\n```",
+          SECRET_NOTE,
+        ].join('\n\n'),
+        annotations: [
+          checkAnnotation('clickhouse', 'clickhouse', { instances: [{ server: '%%host%%', port: 8123, username: 'datadog', password: 'ENC[k8s_secret@clickhouse/datadog-clickhouse/password]' }] }),
+          logsAnnotation('clickhouse', 'clickhouse', 'clickhouse'),
+        ].join('\n'),
+      },
+      {
+        label: 'Bitnami ClickHouse chart (bitnami/clickhouse)',
+        text: `Put the annotations in the chart’s \`podAnnotations\`; the container is \`clickhouse\`. Here the check uses the chart’s \`default\` user, whose password is in the secret \`<release>-clickhouse\` (key \`admin-password\`); a read-only user of your own is better. ${SECRET_NOTE}`,
+        annotations: [
+          checkAnnotation('clickhouse', 'clickhouse', { instances: [{ server: '%%host%%', port: 8123, username: 'default', password: 'ENC[k8s_secret@analytics/events-clickhouse/admin-password]' }] }),
+          logsAnnotation('clickhouse', 'clickhouse', 'clickhouse'),
+        ].join('\n'),
+      },
+    ],
+  },
 ];
 
 /** The Kubernetes hint of an Agent check, if there is one. */

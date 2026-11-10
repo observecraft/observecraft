@@ -34,6 +34,10 @@ const CHECK_NOTES: Record<string, string[]> = {
   redis: [
     'The check is redisdb. It monitors Valkey too: Valkey answers it as Redis does, its metrics keep the redis.* names and its log lines Redis’s format (source: redis), so the dashboard, monitor and pipeline apply.',
   ],
+  clickhouse: [
+    'The check queries ClickHouse’s HTTP interface (port 8123, not the native port 9000) as a user that can read the system tables (system.metrics, system.events, system.asynchronous_metrics, system.parts); a readonly profile is enough.',
+    'Its Database Monitoring options (dbm, query_samples, query_metrics) are not supported: ObserveCraft does not receive those payloads. Leave dbm off.',
+  ],
 };
 
 /** How an integrations-core entry is set up to send to ObserveCraft. */

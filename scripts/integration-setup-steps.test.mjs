@@ -53,3 +53,9 @@ test('Redis: the redisdb check, Valkey included', () => {
   assert.match(steps, /conf\.d\/redisdb\.d\/conf\.yaml/);
   assert.match(steps, /Valkey/);
 });
+
+test('ClickHouse: the HTTP interface and the system tables, no Database Monitoring', () => {
+  assert.match(stepsOf('clickhouse'), /8123/);
+  assert.match(stepsOf('clickhouse'), /system/);
+  assert.match(stepsOf('clickhouse'), /Leave dbm off/);
+});

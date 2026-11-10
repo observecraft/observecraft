@@ -76,3 +76,8 @@ test('Redis and Valkey run the redisdb check against their pods', () => {
   assert.ok(redis.variants.some((v) => /Valkey/.test(v.label)));
   for (const v of redis.variants) assert.equal(instanceOf('redisdb', v).port, 6379, v.label);
 });
+
+test('ClickHouse runs its check against the HTTP interface of its pods', () => {
+  for (const v of kubernetesHint('clickhouse').variants) assert.equal(instanceOf('clickhouse', v).port, 8123, v.label);
+  assert.ok(kubernetesHint('clickhouse').variants.some((v) => /Altinity/.test(v.label)));
+});
