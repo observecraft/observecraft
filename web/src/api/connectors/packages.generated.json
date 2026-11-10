@@ -1282,6 +1282,789 @@
       "categories": [
         "Log Collection",
         "Security",
+        "SIEM",
+        "Network"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The first part of your API endpoint, <subdomain>.api.cloud.extrahop.com (shown on the API Access page).",
+          "key": "sub_domain",
+          "label": "Subdomain",
+          "options": [],
+          "pattern": "[a-z0-9][a-z0-9-]*",
+          "placeholder": "example-shop",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "Client ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Client secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Network detections (risk score, MITRE tactics and techniques, offenders and victims) and analysts' investigations of an ExtraHop RevealX 360 console, read from its REST API as logs; a detection is logged again whenever it changes.",
+      "docsUrl": "https://docs.extrahop.com/current/rx360-rest-api/",
+      "id": "extrahop",
+      "kind": "package",
+      "links": [],
+      "logo": "extrahop",
+      "monitors": [],
+      "name": "ExtraHop",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the RevealX 360 console, open **System Settings → API Access** and, under **REST API Credentials**, click\n   **Create Credentials**.\n2. Give it **Full read-only** system privileges and **Full Access** to the NDR module (the NPM module isn't needed).\n3. Copy the **ID** and **Secret**, and the subdomain of the console's API endpoint (`<subdomain>.api.cloud.extrahop.com`).\n",
+      "source": "extrahop",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per detection and change (service:detection): title, type, risk_score, categories, mitre_tactics, mitre_techniques, participants and the other fields, detection_status (new, in_progress, closed, …) and risk_status (info, warning, critical from the risk score).",
+          "events": false,
+          "id": "detections",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Detections"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per investigation and change (service:investigation): name, assessment, assignee, detections, notes, is_user_created and investigation_status (open, in_progress, closed).",
+          "events": false,
+          "id": "investigations",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Investigations"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "extrahop"
+      ],
+      "vendor": "ExtraHop Networks",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "client_id": "oc-reader-0001",
+        "sub_domain": "example-shop"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "example-shop"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "Network"
+      ],
+      "config": [
+        {
+          "default": "https://portal.bitglass.com",
+          "help": "https://portal.bitglass.com, https://portal.us.bitglass.net, https://portal.eu.bitglass.net, https://portal.bitglass.ca, https://portal.fg-bitglass.net, or your own portal domain.",
+          "key": "portal",
+          "label": "Portal",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://portal.bitglass.com",
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": "The OAuth access token of a user approved for the Log Events API permission.",
+          "key": "access_token",
+          "label": "Access token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Web traffic logs (allowed and blocked requests, categories, reputation, users and devices) and web DLP matches of Forcepoint ONE Secure Web Gateway, read from Forcepoint's log export API as logs.",
+      "docsUrl": "https://help.forcepoint.com/insights/en-us/userguide/guid-58f76f66-45d3-41ea-bc4b-c43ff220c4ac.html",
+      "id": "forcepoint-secure-web-gateway",
+      "kind": "package",
+      "links": [],
+      "logo": "forcepoint-secure-web-gateway",
+      "monitors": [],
+      "name": "Forcepoint Secure Web Gateway",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Forcepoint ONE SSE admin portal, open **SETTINGS → API Interface → OAuth** and add an application with the\n   **Log Events** API permission for a user who may read the logs.\n2. Open the application's **Token Authorization URL** as that user and **Approve**: Forcepoint shows the user's\n   access token (it does not expire).\n3. Pick the portal your tenant uses (the host in the admin portal's address bar).\n4. Forcepoint allows 300 log export requests a day per log type: each log type is read every 10 minutes.\n",
+      "source": "forcepoint-secure-web-gateway",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per web request through the gateway (service:forcepoint-swg-swgweb): action, url, requestdomain, application, webcategories, webreputation, email, devicehostname, ipaddress and the other fields.",
+          "events": false,
+          "id": "swgweb",
+          "incremental": "token",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Web logs"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per web DLP match (service:forcepoint-swg-swgwebdlp): dlppattern, action, url, filename, email and the other fields.",
+          "events": false,
+          "id": "swgwebdlp",
+          "incremental": "token",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Web DLP logs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "forcepoint-secure-web-gateway"
+      ],
+      "vendor": "Forcepoint",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "portal": "https://portal.bitglass.com"
+      },
+      "secrets": [
+        "access_token"
+      ],
+      "test": "portal.bitglass.com"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "Cloud"
+      ],
+      "config": [
+        {
+          "default": "https://portal.bitglass.com",
+          "help": "https://portal.bitglass.com, https://portal.us.bitglass.net, https://portal.eu.bitglass.net, https://portal.bitglass.ca, https://portal.fg-bitglass.net, or your own portal domain.",
+          "key": "portal",
+          "label": "Portal",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://portal.bitglass.com",
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": "The OAuth access token of a user approved for the Log Events API permission.",
+          "key": "access_token",
+          "label": "Access token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Forcepoint ONE SSE's logs: SaaS files and their activity seen in API mode (DLP patterns, sharing), proxy access to cloud applications, admin portal activity and the health of the proxy, the API connectors and the platform, read from Forcepoint's log export API as logs.",
+      "docsUrl": "https://help.forcepoint.com/insights/en-us/userguide/guid-58f76f66-45d3-41ea-bc4b-c43ff220c4ac.html",
+      "id": "forcepoint-security-service-edge",
+      "kind": "package",
+      "links": [],
+      "logo": "forcepoint-security-service-edge",
+      "monitors": [],
+      "name": "Forcepoint Security Service Edge",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Forcepoint ONE SSE admin portal, open **SETTINGS → API Interface → OAuth** and add an application with the\n   **Log Events** API permission for a user who may read the logs.\n2. Open the application's **Token Authorization URL** as that user and **Approve**: Forcepoint shows the user's\n   access token (it does not expire).\n3. Pick the portal your tenant uses (the host in the admin portal's address bar).\n4. Forcepoint allows 300 log export requests a day per log type: each log type is read every 10 minutes. Turn off the\n   streams of modules you don't use.\n",
+      "source": "forcepoint-security-service-edge",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per file of a sanctioned SaaS application scanned in API mode (service:forcepoint-sse-cloudsummary): owner, filename, folder, application, patterns, sharedwith, action and file_status.",
+          "events": false,
+          "id": "cloudsummary",
+          "incremental": "token",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Cloud file summary"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per file activity in a sanctioned SaaS application read in API mode (service:forcepoint-sse-cloudaudit): actor, activity, action, filename, folder, sharedwith, patterns and file_status.",
+          "events": false,
+          "id": "cloudaudit",
+          "incremental": "token",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Cloud audit"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per request through the proxy to a cloud application (service:forcepoint-sse-access): email, activity, action, application, url, ipaddress, device, dlppattern, filename and the other fields.",
+          "events": false,
+          "id": "access",
+          "incremental": "token",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Access"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per action in the admin portal (service:forcepoint-sse-admin): email, activity, action, url, ipaddress and the other fields.",
+          "events": false,
+          "id": "admin",
+          "incremental": "token",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Admin"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per proxy error (service:forcepoint-sse-healthproxy): activity, responsecode, url, application, email and device.",
+          "events": false,
+          "id": "healthproxy",
+          "incremental": "token",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Proxy health"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per error of an API-mode connector (service:forcepoint-sse-healthapi): activity, responsecode, application, filename and file_status.",
+          "events": false,
+          "id": "healthapi",
+          "incremental": "token",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "API health"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per platform error (service:forcepoint-sse-healthsystem): activity, responsecode, url, application and email.",
+          "events": false,
+          "id": "healthsystem",
+          "incremental": "token",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "System health"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "forcepoint-security-service-edge"
+      ],
+      "vendor": "Forcepoint",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "portal": "https://portal.bitglass.com"
+      },
+      "secrets": [
+        "access_token"
+      ],
+      "test": "admin logs"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Collaboration",
+        "Log Collection",
+        "Metrics"
+      ],
+      "config": [
+        {
+          "default": "mypurecloud.com",
+          "help": null,
+          "key": "region",
+          "label": "Region",
+          "options": [
+            {
+              "label": "Americas (US East) — mypurecloud.com",
+              "value": "mypurecloud.com"
+            },
+            {
+              "label": "Americas (US East 2, FedRAMP) — use2.us-gov-pure.cloud",
+              "value": "use2.us-gov-pure.cloud"
+            },
+            {
+              "label": "Americas (US West) — usw2.pure.cloud",
+              "value": "usw2.pure.cloud"
+            },
+            {
+              "label": "Americas (Canada) — cac1.pure.cloud",
+              "value": "cac1.pure.cloud"
+            },
+            {
+              "label": "Americas (São Paulo) — sae1.pure.cloud",
+              "value": "sae1.pure.cloud"
+            },
+            {
+              "label": "EMEA (Dublin) — mypurecloud.ie",
+              "value": "mypurecloud.ie"
+            },
+            {
+              "label": "EMEA (London) — euw2.pure.cloud",
+              "value": "euw2.pure.cloud"
+            },
+            {
+              "label": "EMEA (Frankfurt) — mypurecloud.de",
+              "value": "mypurecloud.de"
+            },
+            {
+              "label": "EMEA (Zurich) — euc2.pure.cloud",
+              "value": "euc2.pure.cloud"
+            },
+            {
+              "label": "EMEA (UAE) — mec1.pure.cloud",
+              "value": "mec1.pure.cloud"
+            },
+            {
+              "label": "Asia Pacific (Mumbai) — aps1.pure.cloud",
+              "value": "aps1.pure.cloud"
+            },
+            {
+              "label": "Asia Pacific (Seoul) — apne2.pure.cloud",
+              "value": "apne2.pure.cloud"
+            },
+            {
+              "label": "Asia Pacific (Sydney) — mypurecloud.com.au",
+              "value": "mypurecloud.com.au"
+            },
+            {
+              "label": "Asia Pacific (Tokyo) — mypurecloud.jp",
+              "value": "mypurecloud.jp"
+            },
+            {
+              "label": "Asia Pacific (Osaka) — apne3.pure.cloud",
+              "value": "apne3.pure.cloud"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "Client ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": "00000000-0000-0000-0000-000000000000",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Client Secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": [
+            "voice",
+            "chat",
+            "email",
+            "message",
+            "callback"
+          ],
+          "help": "The media types whose conversation metrics are collected.",
+          "key": "media_types",
+          "label": "Media types",
+          "options": [
+            {
+              "label": "Voice",
+              "value": "voice"
+            },
+            {
+              "label": "Chat",
+              "value": "chat"
+            },
+            {
+              "label": "Email",
+              "value": "email"
+            },
+            {
+              "label": "Message",
+              "value": "message"
+            },
+            {
+              "label": "Callback",
+              "value": "callback"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "multiselect"
+        }
+      ],
+      "dashboards": [],
+      "description": "The audit log of a Genesys Cloud CX organization (who changed flows, users, queues, routing and settings) as logs, and contact-center metrics per media type (voice, chat, email, message, callback: offered, connected, transferred, abandoned conversations, alert, answer, talk, hold, wrap-up and handle times) every 5 minutes, read from Genesys Cloud's Platform API.",
+      "docsUrl": "https://developer.genesys.cloud/platform/api/",
+      "id": "genesys",
+      "kind": "package",
+      "links": [],
+      "logo": "genesys",
+      "monitors": [],
+      "name": "Genesys",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Genesys Cloud, open **Admin → Roles / Permissions** and create a role, e.g. `ObserveCraft reader`, with\n   **Audits › Audit › View**, **Analytics › Conversation Aggregate › View** and **Analytics › Conversation Detail ›\n   View**.\n2. Open **Admin → OAuth**, add a client with the **Client Credentials** grant and that role (in your division), and\n   copy its **Client ID** and **Client Secret**.\n3. Choose the region your organization runs in (the domain of its login page, e.g. `mypurecloud.ie`).\n",
+      "source": "genesys",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every audit event as a log (source:genesys, service:audit): serviceName, action, entityType, entity, level, status (SUCCESS → info, FAILURE → error, WARNING → warn), user (usr.id, usr.name), remoteIp, propertyChanges. One query per audit service; the realtime query reaches 14 days back.",
+          "events": false,
+          "id": "audits",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit events"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Conversation aggregates of each media type in 5-minute intervals, sent once an interval is 15 minutes old, as genesys_cloud.<media>.* counts (offered, connected, transferred, abandoned, total conversations, …) and _time_avg / _time_max / _time_min durations in milliseconds (alert, answered, talk, hold, wrap-up, handle, wait, …), the names of Datadog's integration.",
+          "events": false,
+          "id": "conversations",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "Conversations (or segments) of the interval, per metric.",
+              "name": "{{ vars.prefix + tables.counts[entry.metric] ?? '' }}",
+              "tags": [],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": "The interval's average duration, per metric.",
+              "name": "{{ (vars.prefix + tables.times[entry.metric] + '_time_avg') ?? '' }}",
+              "tags": [],
+              "type": "count",
+              "unit": "millisecond"
+            },
+            {
+              "description": "The interval's longest duration, per metric.",
+              "name": "{{ (vars.prefix + tables.times[entry.metric] + '_time_max') ?? '' }}",
+              "tags": [],
+              "type": "count",
+              "unit": "millisecond"
+            },
+            {
+              "description": "The interval's shortest duration, per metric.",
+              "name": "{{ (vars.prefix + tables.times[entry.metric] + '_time_min') ?? '' }}",
+              "tags": [],
+              "type": "count",
+              "unit": "millisecond"
+            }
+          ],
+          "name": "Conversation metrics"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "genesys"
+      ],
+      "vendor": "Genesys",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "client_id": "6a1b0c2d-0000-4000-8000-000000000001",
+        "media_types": [
+          "voice",
+          "chat"
+        ],
+        "region": "mypurecloud.ie"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "3 audit services"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Security",
+        "Network"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "shopper_id",
+          "label": "Customer number (shopper ID)",
+          "options": [],
+          "pattern": "[0-9]{1,10}",
+          "placeholder": "123456789",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_secret",
+          "label": "API secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The SSL certificates of a GoDaddy customer (counts by status, days until each expires) and the domains of every certificate with their verification status, read hourly from GoDaddy's API as metrics.",
+      "docsUrl": "https://developer.godaddy.com/en/docs/references/rest/certificates/v2",
+      "id": "godaddy",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Create an API key",
+          "url": "https://developer.godaddy.com/keys"
+        }
+      ],
+      "logo": "godaddy",
+      "monitors": [],
+      "name": "GoDaddy",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. Sign in to the [GoDaddy Developer Portal](https://developer.godaddy.com/keys) and create an API key for the\n   **Production** environment; copy the key and its secret (shown once).\n2. Find your **customer number** (shopper ID) under **Login Info** on [Login & PIN](https://sso.godaddy.com/security).\n3. GoDaddy only opens its production API to some accounts (for example those with 50 or more domains): a 403\n   `ACCESS_DENIED` answer means the account has no API access.\n",
+      "source": "godaddy",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every certificate of the customer as godaddy.certificate.* gauges: total_certificates and one <status>_certificates per status (1 or 0 per certificate, so sums are counts), certificate_status, and certificate_expiration_days (issued certificates).",
+          "events": false,
+          "id": "certificates",
+          "incremental": "none",
+          "intervalSecs": 3600,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "1 per certificate; summed, the certificates.",
+              "name": "godaddy.certificate.total_certificates",
+              "tags": [
+                "certificateid",
+                "commonname",
+                "customer_id",
+                "status"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "1 when the certificate is in the status, else 0; summed, the certificates in that status.",
+              "name": "{{ 'godaddy.certificate.' + entry.value + '_certificates' }}",
+              "tags": [
+                "certificateid",
+                "commonname",
+                "customer_id",
+                "status"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "1 per certificate, tagged with its status.",
+              "name": "godaddy.certificate.certificate_status",
+              "tags": [
+                "certificateid",
+                "commonname",
+                "customer_id",
+                "status"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Days until the certificate expires (negative once it has).",
+              "name": "godaddy.certificate.certificate_expiration_days",
+              "tags": [
+                "certificateid",
+                "commonname",
+                "customer_id",
+                "status"
+              ],
+              "type": "gauge",
+              "unit": "day"
+            }
+          ],
+          "name": "Certificates"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "The domains of every certificate: godaddy.certificate.domains_count (1 per domain; summed by certificateid, the certificate's domains) and godaddy.certificate.domain_status (tagged with the domain's verification status).",
+          "events": false,
+          "id": "domains",
+          "incremental": "none",
+          "intervalSecs": 3600,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "1 per domain of a certificate; summed by certificateid, its domains.",
+              "name": "godaddy.certificate.domains_count",
+              "tags": [
+                "certificateid",
+                "commonname",
+                "customer_id",
+                "domain",
+                "status"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "1 per domain of a certificate, tagged with its verification status.",
+              "name": "godaddy.certificate.domain_status",
+              "tags": [
+                "certificateid",
+                "commonname",
+                "customer_id",
+                "domain",
+                "status"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Certificate domains"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "godaddy"
+      ],
+      "vendor": "GoDaddy",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "api_key": "gd-test-key",
+        "shopper_id": "123456789"
+      },
+      "secrets": [
+        "api_secret"
+      ],
+      "test": "0f6e5d4c-0000-4000-8000-000000000001"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
         "SIEM"
       ],
       "config": [
@@ -1479,6 +2262,362 @@
         "api_key"
       ],
       "test": "Pwned 1 subscription"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Marketing",
+        "Security"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "access_token",
+          "label": "Private app access token",
+          "options": [],
+          "pattern": null,
+          "placeholder": "pat-na1-…",
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Audit logs (Enterprise), logins and security activity of a HubSpot account as logs, and its web traffic by source and country and the views, entrances, exits and bounce rates of its landing pages, website pages, blog posts and knowledge articles as metrics, read from HubSpot's APIs.",
+      "docsUrl": "https://developers.hubspot.com/docs/api-reference/account-audit-logs-v3/guide",
+      "id": "hubspot-content-hub",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Private apps",
+          "url": "https://app.hubspot.com/l/private-apps"
+        }
+      ],
+      "logo": "hubspot-content-hub",
+      "monitors": [],
+      "name": "HubSpot Content Hub",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In HubSpot, as a super admin, open **Settings → Integrations → Private Apps** (or **Development → Legacy apps**)\n   and create a private app, e.g. `observecraft`.\n2. On **Scopes**, add `account-info.security.read` (audit, login and security activity), `business-intelligence`\n   (analytics reports) and `content`.\n3. Create the app and copy its **access token**.\n4. Audit logs need an Enterprise subscription; without one, turn the Audit logs stream off.\n",
+      "source": "hubspot-content-hub",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every audit log entry as a log (service:audit): category, subCategory, action, targetObjectId and actingUser (userId, userEmail → usr.* after the tile's pipeline). Needs an Enterprise subscription.",
+          "events": false,
+          "id": "audit",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit logs"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every login as a log (service:login): email, userId, loginSucceeded, ipAddress, location, userAgent (usr.*, network.client.ip and http.useragent after the tile's pipeline). Failed logins are warnings.",
+          "events": false,
+          "id": "login",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Login activity"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every security event as a log (service:security): type, actingUser, userId, ipAddress, location, objectId, infoUrl.",
+          "events": false,
+          "id": "security",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Security activity"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Today's web traffic per source and per country as hubspot.content_hub.breakdown.* gauges (visits, visitors, raw_views, bounces, bounce_rate, time_per_session, …), tagged breakdown_type (sources, geolocation) and breakdown_subtype; breakdown.count is 1 per subtype.",
+          "events": false,
+          "id": "traffic",
+          "incremental": "none",
+          "intervalSecs": 3600,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "1 per breakdown subtype (source or country); summed, the subtypes with traffic.",
+              "name": "hubspot.content_hub.breakdown.count",
+              "tags": [
+                "breakdown_subtype",
+                "breakdown_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "An Analytics v2 field of the breakdown (fields without a Datadog name are skipped).",
+              "name": "{{ 'hubspot.content_hub.breakdown.' + tables.breakdown_metrics[entry.key] }}",
+              "tags": [
+                "breakdown_subtype",
+                "breakdown_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Traffic by source and country"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Today's views, entrances, exits, bounces and time of every landing page, website page, blog post and knowledge article as hubspot.content_hub.content.* gauges, tagged content_type, content_id and content_title; content.count is 1 per item.",
+          "events": false,
+          "id": "content",
+          "incremental": "none",
+          "intervalSecs": 3600,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "1 per content item with traffic; summed, the items.",
+              "name": "hubspot.content_hub.content.count",
+              "tags": [
+                "content_id",
+                "content_title",
+                "content_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "An Analytics v2 field of the content item (fields without a Datadog name are skipped).",
+              "name": "{{ 'hubspot.content_hub.content.' + tables.content_metrics[entry.key] }}",
+              "tags": [
+                "content_id",
+                "content_title",
+                "content_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Content performance"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "hubspot-content-hub"
+      ],
+      "vendor": "HubSpot",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {},
+      "secrets": [
+        "access_token"
+      ],
+      "test": "logins"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security"
+      ],
+      "config": [
+        {
+          "default": "usa",
+          "help": null,
+          "key": "region",
+          "label": "EPM account region",
+          "options": [
+            {
+              "label": "USA",
+              "value": "usa"
+            },
+            {
+              "label": "Germany",
+              "value": "germany"
+            },
+            {
+              "label": "Switzerland",
+              "value": "switzerland"
+            },
+            {
+              "label": "UK",
+              "value": "uk"
+            },
+            {
+              "label": "Australia",
+              "value": "australia"
+            },
+            {
+              "label": "Canada",
+              "value": "canada"
+            },
+            {
+              "label": "India",
+              "value": "india"
+            },
+            {
+              "label": "Japan",
+              "value": "japan"
+            },
+            {
+              "label": "Singapore",
+              "value": "singapore"
+            },
+            {
+              "label": "Italy",
+              "value": "italy"
+            },
+            {
+              "label": "UAE",
+              "value": "uae"
+            },
+            {
+              "label": "Federal",
+              "value": "federal"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "username",
+          "label": "Username",
+          "options": [],
+          "pattern": null,
+          "placeholder": "observecraft@example.com",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "password",
+          "label": "Password",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "Set IDs to read; leave empty to read every set the user can see.",
+          "key": "set_ids",
+          "label": "Sets",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "list"
+        }
+      ],
+      "dashboards": [],
+      "description": "Endpoint Privilege Manager's raw events (elevations, blocks, launches, just-in-time access) and policy audit events of every set, and its set and account admin audits, read from EPM's REST API as logs.",
+      "docsUrl": "https://docs.cyberark.com/epm/latest/en/content/webservices/webservicesintro.htm",
+      "id": "idira-endpoint-privilege-manager",
+      "kind": "package",
+      "links": [],
+      "logo": "idira-endpoint-privilege-manager",
+      "monitors": [],
+      "name": "Idira Endpoint Privilege Manager",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In EPM, open **Administration → Account Configuration → User Management** and add a local EPM user for\n   ObserveCraft, e.g. `observecraft@example.com` (EPM authentication, not SAML).\n2. Give it the **Account Admin – View Only** account role, and **View Only Set Admin** on each set to read.\n3. Choose the region of your EPM account; ObserveCraft logs on there and follows the account's manager URL.\n",
+      "source": "idira-endpoint-privilege-manager",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every raw event of each set as a log (vendor.endpoint:raw-events): eventType, fileName, filePath, userName, computerName, policyName, justification, agentId, arrivalTime, lastEventDate.",
+          "events": false,
+          "id": "raw_events",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Raw events"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every policy audit event of each set as a log (vendor.endpoint:policy-audit-events): policyName, policyAction, fileName, userName, computerName, justification, arrivalTime.",
+          "events": false,
+          "id": "policy_audit_events",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Policy audit events"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "What the admins of each set did, as logs (vendor.endpoint:set-admin-audit-events): Administrator, Role, Feature, Description, LoggedFrom, SetName, EventTime.",
+          "events": false,
+          "id": "set_admin_audit",
+          "incremental": "time",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Set admin audit"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "What the account's admins did, as logs (vendor.endpoint:account-admin-audit-events): Administrator, Role, Feature, Description, LoggedFrom, EventTime.",
+          "events": false,
+          "id": "account_admin_audit",
+          "incremental": "time",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Account admin audit"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "idira-endpoint-privilege-manager"
+      ],
+      "vendor": "Palo Alto Networks",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "region": "germany",
+        "username": "observecraft@example.com"
+      },
+      "secrets": [
+        "password"
+      ],
+      "test": "2 sets"
     },
     "dashboards": []
   },
@@ -2129,6 +3268,239 @@
         "api_key"
       ],
       "test": "Connected to Mailchimp (us13)"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Data Stores",
+        "Developer Tools"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "base_url",
+          "label": "Metabase URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://example.metabaseapp.com",
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": "An API key in the Administrators group.",
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": "mb_…",
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The activity log (dashboards, questions, settings, people and permission changes), view log (who viewed which dashboard, question or table) and query log (running time, rows, errors, cache hits per question and dashboard) of a Metabase Pro or Enterprise instance, read from its usage analytics as logs.",
+      "docsUrl": "https://www.metabase.com/docs/latest/api",
+      "id": "metabase",
+      "kind": "package",
+      "links": [],
+      "logo": "metabase",
+      "monitors": [],
+      "name": "Metabase",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. Usage analytics needs Metabase **Pro** or **Enterprise** (Cloud or self-hosted).\n2. In Metabase, open **Admin → Settings → Authentication → API keys** and create a key in the **Administrators**\n   group, e.g. `observecraft`; copy it, Metabase shows it once.\n3. Enter the instance's URL: `https://<alias>.metabaseapp.com` on Metabase Cloud, your public HTTPS domain when\n   self-hosted.\n",
+      "source": "metabase",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every activity log entry (service:activity-events): topic (evt.name: dashboard-create, card-update, setting-update, user-joined, …), entity_type, entity_id, entity_qualified_id, details, user_id.",
+          "events": false,
+          "id": "activity",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Activity log"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every view of a dashboard, question, model or table (service:view-logs): entity_type, entity_qualified_id, entity_name / entity_display_name / entity_description, the viewer (usr.*, user_type) and, for tables, their database.",
+          "events": false,
+          "id": "views",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "View log"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every query run (service:query-logs): running_time_seconds, result_rows, is_native, query_source, error, cache_hit, the question (card_name), dashboard (dashboard_name) and database (database_name) it ran for, and who ran it (usr.*, user_type).",
+          "events": false,
+          "id": "queries",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Query log"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "metabase"
+      ],
+      "vendor": "Metabase",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "base_url": "https://shop-analytics.metabaseapp.com"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "Jane Doe"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "AI/ML",
+        "Collaboration",
+        "Log Collection"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "tenant_id",
+          "label": "Directory (tenant) ID",
+          "options": [],
+          "pattern": "[0-9a-fA-F-]{36}|[a-zA-Z0-9.-]+",
+          "placeholder": "00000000-0000-0000-0000-000000000000",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "Application (client) ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": "00000000-0000-0000-0000-000000000000",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Client secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Microsoft 365 Copilot adoption of a tenant: enabled and active users per app (Copilot Chat, Teams, Word, Excel, PowerPoint, Outlook, OneNote, Loop) as metrics, and each enabled user's last activity per app as a daily log, read from Microsoft Graph's Copilot usage reports.",
+      "docsUrl": "https://learn.microsoft.com/en-us/graph/api/resources/copilotreportroot",
+      "id": "microsoft-copilot",
+      "kind": "package",
+      "links": [
+        {
+          "label": "App registrations",
+          "url": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade"
+        }
+      ],
+      "logo": "microsoft-copilot",
+      "monitors": [],
+      "name": "Microsoft Copilot",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Microsoft Entra admin center, open **App registrations → New registration** (single tenant), e.g.\n   `ObserveCraft Copilot reports`.\n2. Under **API permissions**, add **Microsoft Graph → Application permissions → Reports.Read.All** and **Grant admin\n   consent**.\n3. Under **Certificates & secrets**, create a client secret; copy it with the app's **Application (client) ID** and\n   the **Directory (tenant) ID**.\n4. Microsoft conceals user names in usage reports by default (users appear as hashes, as in the reports in the\n   Microsoft 365 admin center). To see them, turn off **Display concealed user, group, and site names in all\n   reports** under **Settings → Org settings → Reports**.\n5. Microsoft publishes the reports with a delay of about two days.\n",
+      "source": "microsoft-copilot",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per enabled user and report day (service:user-detail-report): `report` is the user's row (last activity date overall and per app, display name, user principal name), `active.<app>` 1 when the user used Copilot in that app in the report's 7 days, else 0. Sent once per user and report date.",
+          "events": false,
+          "id": "user_detail",
+          "incremental": "new_records",
+          "intervalSecs": 21600,
+          "logs": true,
+          "metrics": [],
+          "name": "Users' activity"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "microsoft_copilot.<app>.users.enabled and .users.active gauges (anyapp, copilotchat, teams, word, excel, powerpoint, outlook, onenote, loop) over the report's last 7 days.",
+          "events": false,
+          "id": "user_counts",
+          "incremental": "none",
+          "intervalSecs": 21600,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "Users with a Copilot license enabled for the app.",
+              "name": "{{ 'microsoft_copilot.' + entry.key + '.users.enabled' }}",
+              "tags": [],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Users who used Copilot in the app in the last 7 days.",
+              "name": "{{ 'microsoft_copilot.' + entry.key + '.users.active' }}",
+              "tags": [],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Enabled and active users"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "microsoft-copilot"
+      ],
+      "vendor": "Microsoft",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "client_id": "66666666-7777-4888-9999-000000000000",
+        "tenant_id": "11111111-2222-4333-8444-555555555555"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "250 users enabled"
     },
     "dashboards": []
   },
@@ -3954,5 +5326,1065 @@
         }
       }
     ]
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "Automation"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The org's domain, without https://.",
+          "key": "domain",
+          "label": "Okta domain",
+          "options": [],
+          "pattern": "[A-Za-z0-9.-]+",
+          "placeholder": "example.okta.com",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "An API token created by a Read-only Administrator.",
+          "key": "api_token",
+          "label": "API token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Okta Workflows events (flows created, activated, run, deactivated; connections created, reauthorized and revoked; tables and folders changed) as logs, read every minute from the Okta org's System Log API.",
+      "docsUrl": "https://developer.okta.com/docs/api/openapi/okta-management/management/tag/SystemLog/",
+      "id": "okta-workflows",
+      "kind": "package",
+      "links": [],
+      "logo": "okta-workflows",
+      "monitors": [],
+      "name": "Okta Workflows",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Okta Admin Console, sign in as (or create) an admin with the **Read-only Administrator** role, e.g. a\n   dedicated `observecraft-reader` account.\n2. Open **Security → API → Tokens**, **Create Token**, name it `ObserveCraft` and copy its value (Okta shows it once).\n   The token acts as that admin: it can read the System Log, nothing more.\n3. Enter your Okta domain (`example.okta.com`, or your custom domain).\n",
+      "source": "okta-workflows",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every System Log event whose type starts with workflows. as a log (service:workflows): the event under log (eventType, displayMessage, actor, client, outcome, target), the flow it is about under enrichment_details (workflow_id, workflow_name).",
+          "events": false,
+          "id": "workflow_events",
+          "incremental": "time",
+          "intervalSecs": 60,
+          "logs": true,
+          "metrics": [],
+          "name": "Workflows events"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "okta-workflows"
+      ],
+      "vendor": "Okta",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "domain": "example.okta.com"
+      },
+      "secrets": [
+        "api_token"
+      ],
+      "test": "System Log is readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "AI/ML",
+        "Cost Management",
+        "Metrics"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "An organization Admin key; project keys are refused by the Usage and Costs APIs.",
+          "key": "admin_key",
+          "label": "Admin key",
+          "options": [],
+          "pattern": null,
+          "placeholder": "sk-admin-…",
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "An OpenAI organization's usage (tokens, requests, images, audio, vector store bytes, code interpreter sessions per model, project, user and API key) as metrics, and its daily costs per project and line item in Cloud Cost Management, read from OpenAI's Usage and Costs APIs with an Admin key.",
+      "docsUrl": "https://platform.openai.com/docs/api-reference/usage",
+      "id": "openai",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Admin keys",
+          "url": "https://platform.openai.com/settings/organization/admin-keys"
+        }
+      ],
+      "logo": "openai",
+      "monitors": [],
+      "name": "OpenAI",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the OpenAI platform, open **Organization settings → Admin keys** (an organization Owner can) and create a key,\n   e.g. `observecraft-usage`. Project API keys can't read usage or costs.\n2. Copy the key (`sk-admin-…`); OpenAI shows it once.\n3. Usage is read in hourly buckets once each hour has closed (about 15 minutes after it ends); costs are read daily\n   for the last three days, which OpenAI keeps updating until a day closes.\n",
+      "source": "openai",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Hourly usage of every category (completions, embeddings, moderations, images, audio speeches and transcriptions, code interpreter sessions) as openai.<category>.<field> counts, and openai.vector_stores.usage_bytes as a gauge, tagged model, project_id, project_name, user_id, api_key_id, batch, size and source. Each hour is sent once, after it closed.",
+          "events": false,
+          "id": "usage",
+          "incremental": "time",
+          "intervalSecs": 900,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "Tokens of the hour (input, cached, uncached, cache writes, output, audio), per openai.<category>.",
+              "name": "{{ entry.key | endswith('_tokens') && entry.key in tables.fields[item] ? 'openai.' + item + '.' + entry.key : null }}",
+              "tags": [
+                "api_key_id",
+                "batch",
+                "model",
+                "project_id",
+                "project_name",
+                "size",
+                "source",
+                "user_id"
+              ],
+              "type": "count",
+              "unit": "token"
+            },
+            {
+              "description": "Model requests of the hour, per openai.<category>.",
+              "name": "{{ 'openai.' + item + '.num_model_requests' }}",
+              "tags": [
+                "api_key_id",
+                "batch",
+                "model",
+                "project_id",
+                "project_name",
+                "size",
+                "source",
+                "user_id"
+              ],
+              "type": "count",
+              "unit": "request"
+            },
+            {
+              "description": "Seconds of audio transcribed in the hour.",
+              "name": "openai.audio_transcriptions.seconds",
+              "tags": [
+                "api_key_id",
+                "batch",
+                "model",
+                "project_id",
+                "project_name",
+                "size",
+                "source",
+                "user_id"
+              ],
+              "type": "count",
+              "unit": "second"
+            },
+            {
+              "description": "Characters turned into speech in the hour.",
+              "name": "openai.audio_speeches.characters",
+              "tags": [
+                "api_key_id",
+                "batch",
+                "model",
+                "project_id",
+                "project_name",
+                "size",
+                "source",
+                "user_id"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": "Images generated in the hour.",
+              "name": "openai.images.images",
+              "tags": [
+                "api_key_id",
+                "batch",
+                "model",
+                "project_id",
+                "project_name",
+                "size",
+                "source",
+                "user_id"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": "Code interpreter sessions of the hour.",
+              "name": "openai.code_interpreter_sessions.num_sessions",
+              "tags": [
+                "api_key_id",
+                "batch",
+                "model",
+                "project_id",
+                "project_name",
+                "size",
+                "source",
+                "user_id"
+              ],
+              "type": "count",
+              "unit": "session"
+            },
+            {
+              "description": "Bytes stored in vector stores.",
+              "name": "openai.vector_stores.usage_bytes",
+              "tags": [
+                "api_key_id",
+                "batch",
+                "model",
+                "project_id",
+                "project_name",
+                "size",
+                "source",
+                "user_id"
+              ],
+              "type": "gauge",
+              "unit": "byte"
+            }
+          ],
+          "name": "Usage"
+        },
+        {
+          "costs": true,
+          "defaultEnabled": true,
+          "description": "Daily costs per project and line item (gpt-4o-mini, input; …) in Cloud Cost Management (providername:openai, servicename the model or product, usagetype the line item). The last three days are read again every run and replace their rows, as OpenAI updates a day until it closes.",
+          "events": false,
+          "id": "costs",
+          "incremental": "none",
+          "intervalSecs": 3600,
+          "logs": false,
+          "metrics": [],
+          "name": "Costs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "openai"
+      ],
+      "vendor": "OpenAI",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {},
+      "secrets": [
+        "admin_key"
+      ],
+      "test": "usage is readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "Identity"
+      ],
+      "config": [
+        {
+          "default": "com",
+          "help": null,
+          "key": "domain",
+          "label": "Region",
+          "options": [
+            {
+              "label": "North America (pingone.com)",
+              "value": "com"
+            },
+            {
+              "label": "Europe (pingone.eu)",
+              "value": "eu"
+            },
+            {
+              "label": "Canada (pingone.ca)",
+              "value": "ca"
+            },
+            {
+              "label": "Asia-Pacific (pingone.asia)",
+              "value": "asia"
+            },
+            {
+              "label": "Australia (pingone.com.au)",
+              "value": "com.au"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "env_id",
+          "label": "Environment ID",
+          "options": [],
+          "pattern": "[A-Za-z0-9-]+",
+          "placeholder": "00000000-0000-4000-8000-000000000000",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "The worker application's client ID.",
+          "key": "client_id",
+          "label": "Client ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Client secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The audit activities of a PingOne environment (sign-ons, password, OTP and Kerberos checks, access allowed and denied, devices, admin console changes) as logs, read every minute from PingOne's management API.",
+      "docsUrl": "https://apidocs.pingidentity.com/pingone/platform/v1/api/#audit-activities",
+      "id": "ping-one",
+      "kind": "package",
+      "links": [],
+      "logo": "ping-one",
+      "monitors": [],
+      "name": "PingOne",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the PingOne admin console, open the environment and **Applications → Applications**, add a **Worker**\n   application (e.g. `observecraft-audit`) and enable it.\n2. On its **Roles** tab, give it a role that can read audit activities (**Environment Admin**, or a custom role\n   with the audit read permission) for the environment.\n3. On its **Configuration** tab, set the token endpoint authentication method to **Client Secret Post** and copy the\n   **Client ID**, the **Client Secret** and the **Environment ID**.\n",
+      "source": "ping-one",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every audit activity as a log (service:audit): action.type and action.description, result.status, actors.user and actors.client, resources, source.ipAddress and source.userAgent, recordedAt.",
+          "events": false,
+          "id": "activities",
+          "incremental": "time",
+          "intervalSecs": 60,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit activities"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "ping-one"
+      ],
+      "vendor": "Ping Identity",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "client_id": "5a6b7c8d-0000-4000-8000-0000000c1001",
+        "domain": "com",
+        "env_id": "0e1f2a3b-0000-4000-8000-00000000e001"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "audit activities readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "Identity"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The tenant's domain, without https://.",
+          "key": "tenant_domain",
+          "label": "Tenant domain",
+          "options": [],
+          "pattern": "[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+",
+          "placeholder": "openam-example.forgeblocks.com",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key_id",
+          "label": "Log API key ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key_secret",
+          "label": "Log API key secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The audit logs of a PingOne Advanced Identity Cloud tenant (journeys and logins, configuration changes, identity changes, OAuth access outcomes) as logs, read every minute from the tenant's monitoring API.",
+      "docsUrl": "https://docs.pingidentity.com/pingoneaic/latest/tenants/audit-debug-logs.html",
+      "id": "ping-one-aic",
+      "kind": "package",
+      "links": [],
+      "logo": "ping-one-aic",
+      "monitors": [],
+      "name": "PingOne Advanced Identity Cloud",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Advanced Identity Cloud admin console, open **Tenant settings → Global Settings → Log API Keys** and\n   **+ New Log API Key**, e.g. `observecraft`.\n2. Copy the **API key ID** and the **API key secret** (shown once).\n3. Enter the tenant's domain (`openam-example.forgeblocks.com`, or its custom domain).\n",
+      "source": "ping-one-aic",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every entry of the am-config, am-authentication, am-activity and idm-activity audit sources, and the OAuth access outcomes of am-access, as a log: payload (eventName, realm, userId, principal, entries, result, client.ip, …), source (the audit source), type and timestamp.",
+          "events": false,
+          "id": "audit",
+          "incremental": "time",
+          "intervalSecs": 60,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit logs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "ping-one-aic"
+      ],
+      "vendor": "Ping Identity",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "api_key_id": "3c4d5e6f00000000000000000000aaaa",
+        "tenant_domain": "openam-example.forgeblocks.com"
+      },
+      "secrets": [
+        "api_key_secret"
+      ],
+      "test": "8 log sources"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Collaboration",
+        "Notifications"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The account's or subaccount's Auth ID, from the Plivo console.",
+          "key": "auth_id",
+          "label": "Auth ID",
+          "options": [],
+          "pattern": "[A-Z0-9]+",
+          "placeholder": "MAXXXXXXXXXXXXXXXXXX",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "auth_token",
+          "label": "Auth Token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Message detail records (SMS, MMS, WhatsApp: state, cost, errors, destination) and call detail records (duration, billed duration, cost, hangup cause) of a Plivo account or subaccount, read from Plivo's REST API as logs.",
+      "docsUrl": "https://www.plivo.com/docs/messaging/api/message/list-all-messages",
+      "id": "plivo",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Plivo console",
+          "url": "https://cx.plivo.com/"
+        }
+      ],
+      "logo": "plivo",
+      "monitors": [],
+      "name": "Plivo",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the [Plivo console](https://cx.plivo.com/), open the **Overview** page of the account (or of a subaccount, to\n   read only its records).\n2. Copy its **Auth ID** and **Auth Token**.\n3. Messages are read once they settle: ObserveCraft reads messages sent up to 3 hours ago (Plivo's default message\n   expiry), calls as soon as they end.\n",
+      "source": "plivo",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per message detail record (service:messages): message_state, message_type, message_direction, total_amount, error_code, destination_country_iso2 and the other fields of the record. Read once the message has settled (3 hours after it was sent).",
+          "events": false,
+          "id": "messages",
+          "incremental": "time",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Messages"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per call detail record of a call that ended (service:voice): call_direction, call_duration, bill_duration, total_amount, hangup_cause_name, hangup_source and the other fields of the record.",
+          "events": false,
+          "id": "calls",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Voice calls"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "plivo"
+      ],
+      "vendor": "Plivo",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "auth_id": "MAEXAMPLE0000000000A"
+      },
+      "secrets": [
+        "auth_token"
+      ],
+      "test": "Example Shop"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "service_principal",
+          "label": "Service principal",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "secret",
+          "label": "Secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": [
+            "click-blocked",
+            "click-permitted",
+            "message-blocked",
+            "message-delivered"
+          ],
+          "help": null,
+          "key": "event_types",
+          "label": "Event types",
+          "options": [
+            {
+              "label": "Clicks blocked",
+              "value": "click-blocked"
+            },
+            {
+              "label": "Clicks permitted",
+              "value": "click-permitted"
+            },
+            {
+              "label": "Messages blocked",
+              "value": "message-blocked"
+            },
+            {
+              "label": "Messages delivered",
+              "value": "message-delivered"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "multiselect"
+        }
+      ],
+      "dashboards": [],
+      "description": "Clicks on rewritten URLs that TAP blocked or permitted and messages it blocked or delivered with threats (scores, threat details, sandbox verdicts, quarantine), read every 5 minutes from Proofpoint TAP's SIEM API as logs.",
+      "docsUrl": "https://help.proofpoint.com/Threat_Insight_Dashboard/API_Documentation/SIEM_API",
+      "id": "proofpoint-tap",
+      "kind": "package",
+      "links": [
+        {
+          "label": "TAP dashboard",
+          "url": "https://threatinsight.proofpoint.com/"
+        }
+      ],
+      "logo": "proofpoint-tap",
+      "monitors": [],
+      "name": "Proofpoint TAP",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the TAP dashboard, open **Settings → Connected Applications** and **Create New Credential**, e.g.\n   `observecraft`.\n2. Copy the **Service Principal** and the **Secret** (shown once).\n",
+      "source": "proofpoint-tap",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per event: clicks blocked and permitted (service:click-blocked, click-permitted: url, classification, threatStatus, clickIP, recipient, sender) and messages blocked and delivered (service:message-blocked, message-delivered: subject, sender, recipient, scores, threatsInfoMap, messageParts, quarantineFolder).",
+          "events": false,
+          "id": "events",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Clicks and messages"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "proofpoint-tap"
+      ],
+      "vendor": "Proofpoint",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "service_principal": "0a1b2c3d-0000-4000-8000-00000000c0de"
+      },
+      "secrets": [
+        "secret"
+      ],
+      "test": "4 events"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Developer Tools",
+        "Security"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "Leave empty to read every project and organization the token can see.",
+          "key": "project_ids",
+          "label": "Projects",
+          "options": [],
+          "pattern": "[a-z0-9]+",
+          "placeholder": "abcd1234",
+          "required": false,
+          "secret": false,
+          "type": "list"
+        },
+        {
+          "default": null,
+          "help": "A project token with the Viewer permission.",
+          "key": "api_token",
+          "label": "API token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The activity log of your Sanity projects and organization (members, roles, datasets, CORS origins, tokens, studio hosts, plans) read from Sanity's Activity Log API, and document creates, updates and deletes (comments and tasks included) sent by a Sanity webhook, as logs.",
+      "docsUrl": "https://www.sanity.io/docs/http-reference/activity-log",
+      "id": "sanity",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Manage your projects",
+          "url": "https://www.sanity.io/manage"
+        }
+      ],
+      "logo": "sanity",
+      "monitors": [],
+      "name": "Sanity",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In [sanity.io/manage](https://www.sanity.io/manage), open the project, then **API → Tokens → Add API token**\n   with the **Viewer** permission (the log shows only the activity the token's user can see; an organization\n   admin's token sees the organization's events too).\n2. Document changes: in **API → Webhooks**, create a webhook to ObserveCraft's intake\n   (`/intake/webhook/sanity` with your ingest key as `?dd-api-key=`), trigger on **Create, Update, Delete**, filter\n   empty for every document, HTTP method POST, API version `v2021-03-25` or later, **Drafts** off, and this\n   projection:\n\n   ```groq\n   {\n     \"documentId\": _id,\n     \"documentType\": _type,\n     \"projectId\": sanity::projectId(),\n     \"datasetName\": sanity::dataset(),\n     \"action\": \"document.\" + delta::operation(),\n     \"beforeValues\": before(),\n     \"afterValues\": after(),\n     \"timestamp\": now()\n   }\n   ```\n",
+      "source": "sanity",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every activity event as a log (service:activity-logs): action (evt.name after the tile's pipeline), actorId / actorName / actorEmail, projectId, projectDisplayName, datasetName, description, metadata.",
+          "events": false,
+          "id": "activity",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Activity log"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "sanity"
+      ],
+      "vendor": "Sanity",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {},
+      "secrets": [
+        "api_token"
+      ],
+      "test": "1 recent event"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Marketing"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The xxxx of admin.shopify.com/store/xxxx.",
+          "key": "store_name",
+          "label": "Store name",
+          "options": [],
+          "pattern": "[a-z0-9][a-z0-9-]*",
+          "placeholder": "example-shop",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "Client ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Client secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "A Shopify store's admin events, orders (created and updated), customers and products (inventory, variants, prices), read from Shopify's Admin APIs as logs.",
+      "docsUrl": "https://shopify.dev/docs/api/admin-graphql",
+      "id": "shopify",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Shopify Dev Dashboard",
+          "url": "https://dev.shopify.com/dashboard"
+        },
+        {
+          "label": "Store admin",
+          "url": "https://admin.shopify.com/store/{{ config.store_name }}"
+        }
+      ],
+      "logo": "shopify",
+      "monitors": [],
+      "name": "Shopify",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the [Shopify Dev Dashboard](https://dev.shopify.com/dashboard), under the organization that owns the store,\n   create an app (e.g. `observecraft`) and a version with the Admin API scopes `read_orders`, `read_products`,\n   `read_customers`, `read_content` and `read_price_rules` (`read_all_orders` for orders older than 60 days).\n2. Install the app on the store, then copy its **Client ID** and **Client secret** from the app's **Settings**.\n3. The store name is the `xxxx` of `admin.shopify.com/store/xxxx` (the shop `xxxx.myshopify.com`).\n",
+      "source": "shopify",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every admin event of the store as a log (service:event): verb, subject_type, subject_id, author (usr.name after the tile's pipeline), description, path; the message is Shopify's.",
+          "events": false,
+          "id": "events",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Events"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every order created or updated as a log (service:order), sent again on each update: order_number, financial_status, fulfillment_status, totals, line_items, customer (usr.*), client_details, refunds.",
+          "events": false,
+          "id": "orders",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Orders"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every customer created or updated as a log (service:customer, GraphQL fields): displayName, legacyResourceId (usr.* after the tile's pipeline), state, numberOfOrders, amountSpent, lastOrder, defaultAddress, consents.",
+          "events": false,
+          "id": "customers",
+          "incremental": "time",
+          "intervalSecs": 900,
+          "logs": true,
+          "metrics": [],
+          "name": "Customers"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every product created or updated as a log (service:product, GraphQL fields): title, handle, vendor, productType, status (product_status after the tile's pipeline), totalInventory, tracksInventory, hasOutOfStockVariants, priceRangeV2, category, counts.",
+          "events": false,
+          "id": "products",
+          "incremental": "time",
+          "intervalSecs": 900,
+          "logs": true,
+          "metrics": [],
+          "name": "Products"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "shopify"
+      ],
+      "vendor": "Shopify",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "client_id": "0a1b2c3d4e5f60718293a4b5c6d7e8f9",
+        "store_name": "example-shop"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "Example Shop"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "Client ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Client secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": true,
+          "help": "Adds each endpoint's hostname, OS, health and tamper protection (endpoint_details) to its alerts and events.",
+          "key": "get_endpoint_details",
+          "label": "Add endpoint details",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "boolean"
+        }
+      ],
+      "dashboards": [],
+      "description": "Sophos Central's SIEM alerts and events (threats, malware, web control, device control, scans, updates) for a tenant or every tenant of a partner or organization, as logs, optionally with the endpoint's details.",
+      "docsUrl": "https://developer.sophos.com/docs/siem-v1/1/overview",
+      "id": "sophos-central-cloud",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Sophos Central",
+          "url": "https://central.sophos.com/"
+        }
+      ],
+      "logo": "sophos-central-cloud",
+      "monitors": [],
+      "name": "Sophos Central Cloud",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Sophos Central, open **General Settings → API Credentials Management** (in Sophos Central Partner or\n   Enterprise: **Settings → API Credentials**) and **Add Credential**, e.g. `observecraft`, with the\n   **Service Principal Read-Only** role.\n2. Copy the **Client ID** and the **Client Secret** (shown once).\n3. Sophos keeps SIEM data for 24 hours: a connection paused longer misses what is older.\n",
+      "source": "sophos-central-cloud",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every SIEM alert as a log (service:alert): log_message (type, severity, category, description, location, data, customer_id) and endpoint_details (hostname, os, health, tamperProtectionEnabled).",
+          "events": false,
+          "id": "alerts",
+          "incremental": "token",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Alerts"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every SIEM event as a log (service:event): log_message (type, name, severity, group, source, location, endpoint_type, threat, ips_threat_data, user_id) and endpoint_details.",
+          "events": false,
+          "id": "events",
+          "incremental": "token",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Events"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "sophos-central-cloud"
+      ],
+      "vendor": "Sophos",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "client_id": "7e7e7e7e-0000-4000-8000-0000000c0001",
+        "get_endpoint_details": true
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "tenant 5b5b5b5b"
+    },
+    "dashboards": []
   }
 ]
