@@ -83,6 +83,29 @@ streams:
     output:
       metrics:
         - name: "{{ vars.name }}"
+          examples: [temporal.cloud.v1_activity_schedule_to_close_latency_p50,
+            temporal.cloud.v1_activity_schedule_to_close_latency_p95,
+            temporal.cloud.v1_activity_schedule_to_close_latency_p99,
+            temporal.cloud.v1_activity_start_to_close_latency_p50,
+            temporal.cloud.v1_activity_start_to_close_latency_p95,
+            temporal.cloud.v1_activity_start_to_close_latency_p99, temporal.cloud.v1_approximate_backlog_age,
+            temporal.cloud.v1_nexus_operation_schedule_to_close_latency_p50,
+            temporal.cloud.v1_nexus_operation_schedule_to_close_latency_p95,
+            temporal.cloud.v1_nexus_operation_schedule_to_close_latency_p99,
+            temporal.cloud.v1_nexus_operation_schedule_to_start_latency_p50,
+            temporal.cloud.v1_nexus_operation_schedule_to_start_latency_p95,
+            temporal.cloud.v1_nexus_operation_schedule_to_start_latency_p99,
+            temporal.cloud.v1_nexus_operation_start_to_close_latency_p50,
+            temporal.cloud.v1_nexus_operation_start_to_close_latency_p95,
+            temporal.cloud.v1_nexus_operation_start_to_close_latency_p99, temporal.cloud.v1_nexus_request_latency_p50,
+            temporal.cloud.v1_nexus_request_latency_p95, temporal.cloud.v1_nexus_request_latency_p99,
+            temporal.cloud.v1_replication_lag_p50, temporal.cloud.v1_replication_lag_p95,
+            temporal.cloud.v1_replication_lag_p99, temporal.cloud.v1_schedule_action_e2e_delay_p50,
+            temporal.cloud.v1_schedule_action_e2e_delay_p95, temporal.cloud.v1_schedule_action_e2e_delay_p99,
+            temporal.cloud.v1_service_latency_p50, temporal.cloud.v1_service_latency_p95,
+            temporal.cloud.v1_service_latency_p99, temporal.cloud.v1_workflow_schedule_to_close_latency_p50,
+            temporal.cloud.v1_workflow_schedule_to_close_latency_p95,
+            temporal.cloud.v1_workflow_schedule_to_close_latency_p99]
           filter: "{{ vars.seconds }}"
           value: "{{ record.value }}"
           time: "{{ record.timestamp | epoch_ms }}"
@@ -90,6 +113,29 @@ streams:
           unit: second
           description: A latency percentile or an age, over the minute.
         - name: "{{ vars.name }}"
+          examples: [temporal.cloud.v1_action_limit, temporal.cloud.v1_action_on_demand_envelope_limit,
+            temporal.cloud.v1_activity_cancel, temporal.cloud.v1_activity_fail, temporal.cloud.v1_activity_success,
+            temporal.cloud.v1_activity_task_fail, temporal.cloud.v1_activity_task_timeout,
+            temporal.cloud.v1_activity_terminate, temporal.cloud.v1_activity_timeout,
+            temporal.cloud.v1_approximate_backlog, temporal.cloud.v1_billable_action,
+            temporal.cloud.v1_namespace_open_workflows, temporal.cloud.v1_nexus_operation_cancel,
+            temporal.cloud.v1_nexus_operation_fail, temporal.cloud.v1_nexus_operation_success,
+            temporal.cloud.v1_nexus_operation_terminate, temporal.cloud.v1_nexus_operation_timeout,
+            temporal.cloud.v1_nexus_request, temporal.cloud.v1_nexus_request_error, temporal.cloud.v1_no_poller_tasks,
+            temporal.cloud.v1_operations, temporal.cloud.v1_operations_limit,
+            temporal.cloud.v1_operations_on_demand_envelope_limit, temporal.cloud.v1_operations_throttled,
+            temporal.cloud.v1_poll_success, temporal.cloud.v1_poll_success_sync, temporal.cloud.v1_poll_timeout,
+            temporal.cloud.v1_poller_limit, temporal.cloud.v1_provisioned_capacity_tru,
+            temporal.cloud.v1_resource_exhausted_error, temporal.cloud.v1_schedule_action_success,
+            temporal.cloud.v1_schedule_buffer_overruns, temporal.cloud.v1_schedule_missed_catchup_window,
+            temporal.cloud.v1_schedule_overlap_skipped, temporal.cloud.v1_schedule_rate_limited,
+            temporal.cloud.v1_service_error, temporal.cloud.v1_service_pending_requests,
+            temporal.cloud.v1_service_request, temporal.cloud.v1_service_request_limit,
+            temporal.cloud.v1_service_request_on_demand_envelope_limit, temporal.cloud.v1_service_request_throttled,
+            temporal.cloud.v1_total_action, temporal.cloud.v1_total_action_throttled,
+            temporal.cloud.v1_workflow_cancel, temporal.cloud.v1_workflow_continued_as_new,
+            temporal.cloud.v1_workflow_failed, temporal.cloud.v1_workflow_success,
+            temporal.cloud.v1_workflow_terminate, temporal.cloud.v1_workflow_timeout]
           filter: "{{ !vars.seconds }}"
           value: "{{ record.value }}"
           time: "{{ record.timestamp | epoch_ms }}"

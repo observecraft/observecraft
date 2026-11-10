@@ -73,6 +73,12 @@ streams:
     output:
       metrics:
         - name: "{{ 'streamnative.health.' + record.name }}"
+          examples: [streamnative.health.pulsar_detector_e2e_latency_ms,
+            streamnative.health.pulsar_detector_e2e_latency_ms_count,
+            streamnative.health.pulsar_detector_geo_latency_ms,
+            streamnative.health.pulsar_detector_publish_latency_ms,
+            streamnative.health.pulsar_detector_pulsar_sla_messaging_up,
+            streamnative.health.pulsar_detector_pulsar_sla_webservice_up]
           value: "{{ record.value }}"
           tags_from: "{{ record.labels }}"
           time: "{{ record.timestamp }}"
@@ -86,6 +92,35 @@ streams:
     output:
       metrics:
         - name: "{{ 'streamnative.pulsar_resource.' + record.name }}"
+          examples: [streamnative.pulsar_resource.pulsar_consumers_count,
+            streamnative.pulsar_resource.pulsar_entry_size_le_100_kb,
+            streamnative.pulsar_resource.pulsar_entry_size_le_128,
+            streamnative.pulsar_resource.pulsar_entry_size_le_16_kb,
+            streamnative.pulsar_resource.pulsar_entry_size_le_1_kb,
+            streamnative.pulsar_resource.pulsar_entry_size_le_1_mb,
+            streamnative.pulsar_resource.pulsar_entry_size_le_2_kb,
+            streamnative.pulsar_resource.pulsar_entry_size_le_4_kb,
+            streamnative.pulsar_resource.pulsar_entry_size_le_512,
+            streamnative.pulsar_resource.pulsar_entry_size_le_overflow,
+            streamnative.pulsar_resource.pulsar_producers_count, streamnative.pulsar_resource.pulsar_rate_in,
+            streamnative.pulsar_resource.pulsar_rate_out, streamnative.pulsar_resource.pulsar_storage_backlog_size,
+            streamnative.pulsar_resource.pulsar_storage_offloaded_size,
+            streamnative.pulsar_resource.pulsar_storage_read_rate, streamnative.pulsar_resource.pulsar_storage_size,
+            streamnative.pulsar_resource.pulsar_storage_write_latency_le_0_5,
+            streamnative.pulsar_resource.pulsar_storage_write_latency_le_1,
+            streamnative.pulsar_resource.pulsar_storage_write_latency_le_10,
+            streamnative.pulsar_resource.pulsar_storage_write_latency_le_100,
+            streamnative.pulsar_resource.pulsar_storage_write_latency_le_1000,
+            streamnative.pulsar_resource.pulsar_storage_write_latency_le_20,
+            streamnative.pulsar_resource.pulsar_storage_write_latency_le_200,
+            streamnative.pulsar_resource.pulsar_storage_write_latency_le_5,
+            streamnative.pulsar_resource.pulsar_storage_write_latency_le_50,
+            streamnative.pulsar_resource.pulsar_storage_write_latency_le_overflow,
+            streamnative.pulsar_resource.pulsar_storage_write_rate,
+            streamnative.pulsar_resource.pulsar_subscription_delayed,
+            streamnative.pulsar_resource.pulsar_subscriptions_count,
+            streamnative.pulsar_resource.pulsar_throughput_in, streamnative.pulsar_resource.pulsar_throughput_out,
+            streamnative.pulsar_resource.pulsar_topics_count]
           value: "{{ record.value }}"
           tags_from: "{{ record.labels }}"
           time: "{{ record.timestamp }}"
@@ -99,6 +134,22 @@ streams:
     output:
       metrics:
         - name: "{{ 'streamnative.source_connector.' + record.name }}"
+          examples: [streamnative.source_connector.jvm_gc_collection_seconds_sum,
+            streamnative.source_connector.jvm_memory_bytes_committed,
+            streamnative.source_connector.jvm_memory_bytes_init, streamnative.source_connector.jvm_memory_bytes_max,
+            streamnative.source_connector.jvm_memory_direct_bytes_used,
+            streamnative.source_connector.process_cpu_seconds_total,
+            streamnative.source_connector.pulsar_source_last_invocation,
+            streamnative.source_connector.pulsar_source_received_1min_total,
+            streamnative.source_connector.pulsar_source_received_total,
+            streamnative.source_connector.pulsar_source_source_exception,
+            streamnative.source_connector.pulsar_source_source_exceptions_1min_total,
+            streamnative.source_connector.pulsar_source_source_exceptions_total,
+            streamnative.source_connector.pulsar_source_system_exception,
+            streamnative.source_connector.pulsar_source_system_exceptions_1min_total,
+            streamnative.source_connector.pulsar_source_system_exceptions_total,
+            streamnative.source_connector.pulsar_source_written_1min_total,
+            streamnative.source_connector.pulsar_source_written_total]
           value: "{{ record.value }}"
           tags_from: "{{ record.labels }}"
           time: "{{ record.timestamp }}"
@@ -112,6 +163,22 @@ streams:
     output:
       metrics:
         - name: "{{ 'streamnative.sink_connector.' + record.name }}"
+          examples: [streamnative.sink_connector.jvm_gc_collection_seconds_sum,
+            streamnative.sink_connector.jvm_memory_bytes_committed, streamnative.sink_connector.jvm_memory_bytes_init,
+            streamnative.sink_connector.jvm_memory_bytes_max,
+            streamnative.sink_connector.jvm_memory_direct_bytes_used,
+            streamnative.sink_connector.process_cpu_seconds_total,
+            streamnative.sink_connector.pulsar_sink_last_invocation,
+            streamnative.sink_connector.pulsar_sink_received_1min_total,
+            streamnative.sink_connector.pulsar_sink_received_total,
+            streamnative.sink_connector.pulsar_sink_sink_exception,
+            streamnative.sink_connector.pulsar_sink_sink_exceptions_1min_total,
+            streamnative.sink_connector.pulsar_sink_sink_exceptions_total,
+            streamnative.sink_connector.pulsar_sink_system_exception,
+            streamnative.sink_connector.pulsar_sink_system_exceptions_1min_total,
+            streamnative.sink_connector.pulsar_sink_system_exceptions_total,
+            streamnative.sink_connector.pulsar_sink_written_1min_total,
+            streamnative.sink_connector.pulsar_sink_written_total]
           value: "{{ record.value }}"
           tags_from: "{{ record.labels }}"
           time: "{{ record.timestamp }}"
@@ -125,6 +192,57 @@ streams:
     output:
       metrics:
         - name: "{{ 'streamnative.kafka_connect.' + record.name }}"
+          examples: [streamnative.kafka_connect.jvm_gc_collection_seconds_sum,
+            streamnative.kafka_connect.jvm_memory_committed_bytes, streamnative.kafka_connect.jvm_memory_init_bytes,
+            streamnative.kafka_connect.jvm_memory_max_bytes, streamnative.kafka_connect.jvm_memory_used_bytes,
+            streamnative.kafka_connect.kafka_connect_connector_task_batch_size_avg,
+            streamnative.kafka_connect.kafka_connect_connector_task_batch_size_max,
+            streamnative.kafka_connect.kafka_connect_connector_task_offset_commit_avg_time_ms,
+            streamnative.kafka_connect.kafka_connect_connector_task_offset_commit_failure_percentage,
+            streamnative.kafka_connect.kafka_connect_connector_task_offset_commit_max_time_ms,
+            streamnative.kafka_connect.kafka_connect_connector_task_offset_commit_success_percentage,
+            streamnative.kafka_connect.kafka_connect_connector_task_pause_ratio,
+            streamnative.kafka_connect.kafka_connect_connector_task_running_ratio,
+            streamnative.kafka_connect.kafka_connect_sink_task_offset_commit_completion,
+            streamnative.kafka_connect.kafka_connect_sink_task_offset_commit_completion_rate,
+            streamnative.kafka_connect.kafka_connect_sink_task_offset_commit_seq_no,
+            streamnative.kafka_connect.kafka_connect_sink_task_offset_commit_skip,
+            streamnative.kafka_connect.kafka_connect_sink_task_offset_commit_skip_rate,
+            streamnative.kafka_connect.kafka_connect_sink_task_partition_count,
+            streamnative.kafka_connect.kafka_connect_sink_task_put_batch_avg_time_ms,
+            streamnative.kafka_connect.kafka_connect_sink_task_put_batch_max_time_ms,
+            streamnative.kafka_connect.kafka_connect_sink_task_sink_record_active_count,
+            streamnative.kafka_connect.kafka_connect_sink_task_sink_record_active_count_avg,
+            streamnative.kafka_connect.kafka_connect_sink_task_sink_record_active_count_max,
+            streamnative.kafka_connect.kafka_connect_sink_task_sink_record_read,
+            streamnative.kafka_connect.kafka_connect_sink_task_sink_record_read_rate,
+            streamnative.kafka_connect.kafka_connect_sink_task_sink_record_send,
+            streamnative.kafka_connect.kafka_connect_sink_task_sink_record_send_rate,
+            streamnative.kafka_connect.kafka_connect_source_task_poll_batch_avg_time_ms,
+            streamnative.kafka_connect.kafka_connect_source_task_poll_batch_max_time_ms,
+            streamnative.kafka_connect.kafka_connect_source_task_source_record_active_count,
+            streamnative.kafka_connect.kafka_connect_source_task_source_record_active_count_avg,
+            streamnative.kafka_connect.kafka_connect_source_task_source_record_active_count_max,
+            streamnative.kafka_connect.kafka_connect_source_task_source_record_poll,
+            streamnative.kafka_connect.kafka_connect_source_task_source_record_poll_rate,
+            streamnative.kafka_connect.kafka_connect_source_task_source_record_write,
+            streamnative.kafka_connect.kafka_connect_source_task_source_record_write_rate,
+            streamnative.kafka_connect.kafka_connect_task_error_deadletterqueue_produce_failures,
+            streamnative.kafka_connect.kafka_connect_task_error_deadletterqueue_produce_requests,
+            streamnative.kafka_connect.kafka_connect_task_error_last_error_timestamp,
+            streamnative.kafka_connect.kafka_connect_task_error_total_errors_logged,
+            streamnative.kafka_connect.kafka_connect_task_error_total_record_errors,
+            streamnative.kafka_connect.kafka_connect_task_error_total_record_failures,
+            streamnative.kafka_connect.kafka_connect_task_error_total_records_skipped,
+            streamnative.kafka_connect.kafka_connect_task_error_total_retries,
+            streamnative.kafka_connect.kafka_connect_worker_connector_destroyed_task_count,
+            streamnative.kafka_connect.kafka_connect_worker_connector_failed_task_count,
+            streamnative.kafka_connect.kafka_connect_worker_connector_paused_task_count,
+            streamnative.kafka_connect.kafka_connect_worker_connector_restarting_task_count,
+            streamnative.kafka_connect.kafka_connect_worker_connector_running_task_count,
+            streamnative.kafka_connect.kafka_connect_worker_connector_total_task_count,
+            streamnative.kafka_connect.kafka_connect_worker_connector_unassigned_task_count,
+            streamnative.kafka_connect.process_cpu_seconds_total]
           value: "{{ record.value }}"
           tags_from: "{{ record.labels }}"
           time: "{{ record.timestamp }}"

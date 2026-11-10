@@ -117,6 +117,17 @@ streams:
     output:
       metrics:
         - name: "{{ 'mux.metric.' + item }}"
+          examples: [mux.metric.aggregate_startup_time, mux.metric.downscale_percentage,
+            mux.metric.exits_before_video_start, mux.metric.live_stream_latency, mux.metric.max_downscale_percentage,
+            mux.metric.max_upscale_percentage, mux.metric.page_load_time,
+            mux.metric.playback_business_exception_percentage, mux.metric.playback_failure_percentage,
+            mux.metric.playback_success_score, mux.metric.player_startup_time, mux.metric.playing_time,
+            mux.metric.rebuffer_count, mux.metric.rebuffer_duration, mux.metric.rebuffer_frequency,
+            mux.metric.rebuffer_percentage, mux.metric.seek_latency, mux.metric.smoothness_score,
+            mux.metric.startup_time_score, mux.metric.unique_viewers, mux.metric.upscale_percentage,
+            mux.metric.video_quality_score, mux.metric.video_startup_business_exception_percentage,
+            mux.metric.video_startup_failure_percentage, mux.metric.video_startup_time,
+            mux.metric.viewer_experience_score, mux.metric.views, mux.metric.weighted_average_bitrate]
           value: "{{ record.value }}"
           unit: "{{ tables.units[item] }}"
           tags: { video_id: "{{ record.field }}" }

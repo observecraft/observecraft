@@ -114,6 +114,10 @@ streams:
     output:
       metrics:
         - name: "{{ entry.key | endswith('_tokens') && entry.key in tables.fields[item] ? 'openai.' + item + '.' + entry.key : null }}"
+          examples: [openai.completions.input_audio_tokens, openai.completions.input_cache_write_tokens,
+            openai.completions.input_cached_tokens, openai.completions.input_tokens,
+            openai.completions.input_uncached_tokens, openai.completions.output_audio_tokens,
+            openai.completions.output_tokens, openai.embeddings.input_tokens, openai.moderations.input_tokens]
           type: count
           each: "{{ record.results }}"
           value: "{{ entry.value }}"
@@ -130,6 +134,9 @@ streams:
             size: "{{ record.results.size }}"
             source: "{{ record.results.source }}"
         - name: "{{ 'openai.' + item + '.num_model_requests' }}"
+          examples: [openai.audio_speeches.num_model_requests, openai.audio_transcriptions.num_model_requests,
+            openai.completions.num_model_requests, openai.embeddings.num_model_requests,
+            openai.images.num_model_requests, openai.moderations.num_model_requests]
           type: count
           filter: "{{ 'num_model_requests' in tables.fields[item] }}"
           value: "{{ record.results.num_model_requests }}"

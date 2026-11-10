@@ -110,6 +110,11 @@ streams:
     output:
       metrics:
         - name: godaddy.certificate.total_certificates
+          examples: [godaddy.certificate.canceled_certificates, godaddy.certificate.denied_certificates,
+            godaddy.certificate.expired_certificates, godaddy.certificate.issued_certificates,
+            godaddy.certificate.pending_issuance_certificates, godaddy.certificate.pending_rekey_certificates,
+            godaddy.certificate.pending_revocation_certificates, godaddy.certificate.revoked_certificates,
+            godaddy.certificate.unused_certificates]
           value: "1"
           description: 1 per certificate; summed, the certificates.
           tags: &cert

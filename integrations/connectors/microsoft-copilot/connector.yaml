@@ -130,10 +130,20 @@ streams:
     output:
       metrics:
         - name: "{{ 'microsoft_copilot.' + entry.key + '.users.enabled' }}"
+          examples: [microsoft_copilot.anyapp.users.enabled, microsoft_copilot.copilotchat.users.enabled,
+            microsoft_copilot.excel.users.enabled, microsoft_copilot.loop.users.enabled,
+            microsoft_copilot.onenote.users.enabled, microsoft_copilot.outlook.users.enabled,
+            microsoft_copilot.powerpoint.users.enabled, microsoft_copilot.teams.users.enabled,
+            microsoft_copilot.word.users.enabled]
           each: "{{ tables.apps }}"
           value: "{{ record[entry.field + 'EnabledUsers'] }}"
           description: Users with a Copilot license enabled for the app.
         - name: "{{ 'microsoft_copilot.' + entry.key + '.users.active' }}"
+          examples: [microsoft_copilot.anyapp.users.active, microsoft_copilot.copilotchat.users.active,
+            microsoft_copilot.excel.users.active, microsoft_copilot.loop.users.active,
+            microsoft_copilot.onenote.users.active, microsoft_copilot.outlook.users.active,
+            microsoft_copilot.powerpoint.users.active, microsoft_copilot.teams.users.active,
+            microsoft_copilot.word.users.active]
           each: "{{ tables.apps }}"
           value: "{{ record[entry.field + 'ActiveUsers'] }}"
           description: Users who used Copilot in the app in the last 7 days.
