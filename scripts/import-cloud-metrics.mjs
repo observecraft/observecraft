@@ -265,6 +265,11 @@ export function gcpMetrics(dir) {
         .filter((m) => m.resources.includes(resource))
         .filter((m, i, a) => a.findIndex((o) => o.type === m.type) === i)
         .map((m) => ({ type: m.type, display: m.display, kind: m.kind, value: m.value, ...(GCP_UNITS[m.unit] ? { unit: GCP_UNITS[m.unit] } : {}) })),
+      // The service's metrics of its other resources (GKE nodes and pods, …): collected too, charted by the overviews.
+      others: metrics
+        .filter((m) => !m.resources.includes(resource))
+        .filter((m, i, a) => a.findIndex((o) => o.type === m.type) === i)
+        .map((m) => ({ type: m.type, kind: m.kind, value: m.value, ...(GCP_UNITS[m.unit] ? { unit: GCP_UNITS[m.unit] } : {}) })),
     };
   }
   return { source: 'cloud.google.com/monitoring/api Cloud Monitoring metrics list (CC BY 4.0), metrics_gcp_*, metrics_kubernetes and resources', services };

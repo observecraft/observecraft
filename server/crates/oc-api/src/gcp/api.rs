@@ -2,7 +2,8 @@
 //! REST ([`Rest`]): this install's identity (a [`TokenSource`]: Application Default Credentials in
 //! production) impersonates the customer's service account (IAM Credentials `generateAccessToken`,
 //! cached until it expires), lists the projects it can see (Resource Manager), their metric descriptors
-//! and time series (Cloud Monitoring), aligned per minute as their kind allows.
+//! (with their sample period and ingest delay) and time series (Cloud Monitoring), aligned per minute as
+//! their kind allows, with the monitored resource's user and system labels.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -12,7 +13,7 @@ use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
 /// A metric type of a project.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Descriptor {
     /// `compute.googleapis.com/instance/cpu/utilization`
     pub metric_type: String,
@@ -20,15 +21,74 @@ pub struct Descriptor {
     pub kind: String,
     /// DOUBLE | INT64 | BOOL | DISTRIBUTION | STRING | MONEY
     pub value_type: String,
+    /// How often a point is written (`metadata.samplePeriod`; 0 when not given).
+    pub sample_period_ms: i64,
+    /// How long a point takes to become readable (`metadata.ingestDelay`).
+    pub ingest_delay_ms: i64,
 }
 
-/// One time series: its monitored resource, labels as `key:value` tags, and per-minute values.
+/// A distribution point: its count, mean, sum of squared deviations and histogram (`bounds` are the
+/// finite bucket boundaries: bucket 0 is below `bounds[0]`, bucket i is `[bounds[i-1], bounds[i])`, the
+/// last one above the last bound).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Distribution {
+    pub count: f64,
+    pub mean: f64,
+    pub sumsqdev: f64,
+    pub bounds: Vec<f64>,
+    pub counts: Vec<f64>,
+}
+
+impl Distribution {
+    /// The `q` quantile (0..1), interpolated within its bucket; the underflow and overflow buckets give
+    /// their finite bound. None without samples or buckets.
+    pub fn percentile(&self, q: f64) -> Option<f64> {
+        let total: f64 = self.counts.iter().sum();
+        if total <= 0.0 || self.bounds.is_empty() {
+            return None;
+        }
+        let rank = q * total;
+        let mut before = 0.0;
+        for (i, &c) in self.counts.iter().enumerate() {
+            if c <= 0.0 || before + c < rank {
+                before += c;
+                continue;
+            }
+            if i == 0 {
+                return Some(self.bounds[0]);
+            }
+            let lo = self.bounds[(i - 1).min(self.bounds.len() - 1)];
+            let Some(&hi) = self.bounds.get(i) else { return Some(lo) };
+            return Some(lo + (hi - lo) * ((rank - before) / c).clamp(0.0, 1.0));
+        }
+        self.bounds.last().copied()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
+pub enum Reading {
+    Number(f64),
+    Distribution(Distribution),
+}
+
+/// A point: the interval it covers (a cumulative counter's start is when it was last reset) and its value.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Sample {
+    pub start_ms: i64,
+    pub time_ms: i64,
+    pub value: Reading,
+}
+
+/// One time series: its monitored resource (labels, and the user and system labels Cloud Monitoring adds
+/// as its metadata), the metric's labels, and its points.
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Series {
     pub resource_type: String,
     pub resource_labels: Vec<(String, String)>,
     pub metric_labels: Vec<(String, String)>,
-    pub points: Vec<(i64, f64)>,
+    pub user_labels: Vec<(String, String)>,
+    pub system_labels: Vec<(String, String)>,
+    pub points: Vec<Sample>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -93,13 +153,15 @@ impl Default for Endpoints {
 }
 
 /// The aligner for a descriptor (None: not collected): gauges are averaged per minute, deltas summed,
-/// cumulative counters differenced, booleans as the fraction of true, distributions by their mean.
+/// booleans as the fraction of true, delta and cumulative distributions merged per minute. Cumulative
+/// counters and gauge distributions are read raw (`ALIGN_NONE`): their running totals and points as
+/// Google has them, as Datadog ingests them.
 pub fn aligner(d: &Descriptor) -> Option<&'static str> {
     match (d.kind.as_str(), d.value_type.as_str()) {
         ("GAUGE", "DOUBLE" | "INT64") => Some("ALIGN_MEAN"),
         ("GAUGE", "BOOL") => Some("ALIGN_FRACTION_TRUE"),
         ("DELTA", "DOUBLE" | "INT64") => Some("ALIGN_SUM"),
-        ("CUMULATIVE", "DOUBLE" | "INT64") => Some("ALIGN_DELTA"),
+        ("CUMULATIVE", "DOUBLE" | "INT64") | ("GAUGE", "DISTRIBUTION") => Some("ALIGN_NONE"),
         ("DELTA" | "CUMULATIVE", "DISTRIBUTION") => Some("ALIGN_DELTA"),
         _ => None,
     }
@@ -137,13 +199,57 @@ fn rfc3339(ms: i64) -> String {
 }
 
 fn labels(v: &Value) -> Vec<(String, String)> {
-    let mut out: Vec<(String, String)> = v.as_object().map(|m| m.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or_default().to_string())).collect()).unwrap_or_default();
+    // Strings only: system labels may be lists or booleans.
+    let mut out: Vec<(String, String)> = v.as_object().map(|m| m.iter().filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string()))).collect()).unwrap_or_default();
     out.sort();
     out
 }
 
-fn value(v: &Value) -> Option<f64> {
-    v["doubleValue"].as_f64().or_else(|| v["int64Value"].as_str().and_then(|s| s.parse().ok())).or_else(|| v["int64Value"].as_f64()).or_else(|| v["distributionValue"]["mean"].as_f64())
+/// `"60s"`, `"0.5s"` → milliseconds.
+fn duration_ms(v: &Value) -> i64 {
+    v.as_str().and_then(|s| s.strip_suffix('s')).and_then(|s| s.parse::<f64>().ok()).map(|s| (s * 1000.0) as i64).unwrap_or(0)
+}
+
+/// An int64 (a JSON string) or a double.
+fn number(v: &Value) -> Option<f64> {
+    v.as_f64().or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+}
+
+/// The finite bucket boundaries of a distribution's `bucketOptions`.
+fn bounds(o: &Value) -> Vec<f64> {
+    let int = |v: &Value| number(v).unwrap_or(0.0) as usize;
+    if let Some(l) = o.get("linearBuckets") {
+        let (width, offset) = (number(&l["width"]).unwrap_or(0.0), number(&l["offset"]).unwrap_or(0.0));
+        return (0..=int(&l["numFiniteBuckets"])).map(|i| offset + width * i as f64).collect();
+    }
+    if let Some(e) = o.get("exponentialBuckets") {
+        let (growth, scale) = (number(&e["growthFactor"]).unwrap_or(0.0), number(&e["scale"]).unwrap_or(0.0));
+        return (0..=int(&e["numFiniteBuckets"])).map(|i| scale * growth.powi(i as i32)).collect();
+    }
+    o["explicitBuckets"]["bounds"].as_array().map(|b| b.iter().filter_map(number).collect()).unwrap_or_default()
+}
+
+fn reading(v: &Value) -> Option<Reading> {
+    if let Some(d) = v.get("distributionValue") {
+        return Some(Reading::Distribution(Distribution {
+            count: number(&d["count"]).unwrap_or(0.0),
+            mean: number(&d["mean"]).unwrap_or(0.0),
+            sumsqdev: number(&d["sumOfSquaredDeviation"]).unwrap_or(0.0),
+            bounds: bounds(&d["bucketOptions"]),
+            counts: d["bucketCounts"].as_array().map(|c| c.iter().map(|x| number(x).unwrap_or(0.0)).collect()).unwrap_or_default(),
+        }));
+    }
+    let n = number(&v["doubleValue"]).or_else(|| number(&v["int64Value"])).or_else(|| v["boolValue"].as_bool().map(|b| if b { 1.0 } else { 0.0 }))?;
+    Some(Reading::Number(n))
+}
+
+fn instant_ms(v: &Value) -> Option<i64> {
+    Some(chrono::DateTime::parse_from_rfc3339(v.as_str()?).ok()?.timestamp_millis())
+}
+
+fn sample(p: &Value) -> Option<Sample> {
+    let time_ms = instant_ms(&p["interval"]["endTime"])?;
+    Some(Sample { start_ms: instant_ms(&p["interval"]["startTime"]).unwrap_or(time_ms), time_ms, value: reading(&p["value"])? })
 }
 
 impl Rest {
@@ -212,7 +318,15 @@ impl GcpApi for Rest {
         let all = self.pages(&token, &url, &[], "metricDescriptors").await?;
         Ok(all
             .iter()
-            .filter_map(|d| Some(Descriptor { metric_type: d["type"].as_str()?.to_string(), kind: d["metricKind"].as_str()?.to_string(), value_type: d["valueType"].as_str()?.to_string() }))
+            .filter_map(|d| {
+                Some(Descriptor {
+                    metric_type: d["type"].as_str()?.to_string(),
+                    kind: d["metricKind"].as_str()?.to_string(),
+                    value_type: d["valueType"].as_str()?.to_string(),
+                    sample_period_ms: duration_ms(&d["metadata"]["samplePeriod"]),
+                    ingest_delay_ms: duration_ms(&d["metadata"]["ingestDelay"]),
+                })
+            })
             .collect())
     }
 
@@ -220,13 +334,10 @@ impl GcpApi for Rest {
         let Some(aligner) = aligner(d) else { return Ok(vec![]) };
         let token = self.impersonate(service_account).await?;
         let url = format!("{}/v3/projects/{project}/timeSeries", self.endpoints.monitoring);
-        let query = [
-            ("filter", format!("metric.type = \"{}\"", d.metric_type)),
-            ("interval.startTime", rfc3339(start_ms)),
-            ("interval.endTime", rfc3339(end_ms)),
-            ("aggregation.alignmentPeriod", "60s".into()),
-            ("aggregation.perSeriesAligner", aligner.into()),
-        ];
+        let mut query = vec![("filter", format!("metric.type = \"{}\"", d.metric_type)), ("interval.startTime", rfc3339(start_ms)), ("interval.endTime", rfc3339(end_ms))];
+        if aligner != "ALIGN_NONE" {
+            query.extend([("aggregation.alignmentPeriod", "60s".to_string()), ("aggregation.perSeriesAligner", aligner.to_string())]);
+        }
         let all = self.pages(&token, &url, &query, "timeSeries").await?;
         Ok(all
             .iter()
@@ -234,13 +345,9 @@ impl GcpApi for Rest {
                 resource_type: ts["resource"]["type"].as_str().unwrap_or_default().to_string(),
                 resource_labels: labels(&ts["resource"]["labels"]),
                 metric_labels: labels(&ts["metric"]["labels"]),
-                points: ts["points"]
-                    .as_array()
-                    .map(Vec::as_slice)
-                    .unwrap_or_default()
-                    .iter()
-                    .filter_map(|p| Some((chrono::DateTime::parse_from_rfc3339(p["interval"]["endTime"].as_str()?).ok()?.timestamp_millis(), value(&p["value"])?)))
-                    .collect(),
+                user_labels: labels(&ts["metadata"]["userLabels"]),
+                system_labels: labels(&ts["metadata"]["systemLabels"]),
+                points: ts["points"].as_array().map(Vec::as_slice).unwrap_or_default().iter().filter_map(sample).collect(),
             })
             .collect())
     }
@@ -263,12 +370,37 @@ mod tests {
         );
         assert!(matches!(classify(403, r#"{"error":{"message":"Cloud Monitoring API has not been used in project 123 before or it is disabled.","details":[{"reason":"SERVICE_DISABLED"}]}}"#), GcpError::Disabled(_)));
         assert!(matches!(classify(429, "{}"), GcpError::Throttled(_)));
-        let d = |kind: &str, value: &str| Descriptor { metric_type: "x".into(), kind: kind.into(), value_type: value.into() };
+        let d = |kind: &str, value: &str| Descriptor { metric_type: "x".into(), kind: kind.into(), value_type: value.into(), ..Default::default() };
         assert_eq!(aligner(&d("GAUGE", "DOUBLE")), Some("ALIGN_MEAN"));
         assert_eq!(aligner(&d("DELTA", "INT64")), Some("ALIGN_SUM"));
-        assert_eq!(aligner(&d("CUMULATIVE", "INT64")), Some("ALIGN_DELTA"));
+        // Cumulative counters are read raw: their running total, and the crawler's deltas between points.
+        assert_eq!(aligner(&d("CUMULATIVE", "INT64")), Some("ALIGN_NONE"));
         assert_eq!(aligner(&d("DELTA", "DISTRIBUTION")), Some("ALIGN_DELTA"));
         assert_eq!(aligner(&d("GAUGE", "STRING")), None);
+    }
+
+    #[test]
+    fn distributions_are_read_with_their_buckets_and_give_percentiles() {
+        let v = json!({ "distributionValue": {
+            "count": "100", "mean": 42.5, "sumOfSquaredDeviation": 1200.0,
+            "bucketOptions": { "explicitBuckets": { "bounds": [10, 20, 50, 100] } },
+            "bucketCounts": ["0", "10", "40", "45", "5"]
+        } });
+        let Some(Reading::Distribution(d)) = reading(&v) else { panic!("a distribution") };
+        assert_eq!((d.count, d.mean, d.sumsqdev), (100.0, 42.5, 1200.0));
+        // 50 samples below 50, 45 in [50, 100): the 95th is the top of that bucket, the 99th in the overflow.
+        assert_eq!(d.percentile(0.5), Some(50.0));
+        assert_eq!(d.percentile(0.95), Some(100.0));
+        assert_eq!(d.percentile(0.99), Some(100.0));
+        assert_eq!(d.percentile(0.3), Some(20.0 + 30.0 * 0.5));
+        // Exponential and linear buckets; trailing empty buckets omitted, as Google sends them.
+        assert_eq!(bounds(&json!({ "exponentialBuckets": { "numFiniteBuckets": 3, "growthFactor": 2, "scale": 1 } })), [1.0, 2.0, 4.0, 8.0]);
+        assert_eq!(bounds(&json!({ "linearBuckets": { "numFiniteBuckets": 2, "width": 5, "offset": 10 } })), [10.0, 15.0, 20.0]);
+        let few = Distribution { count: 4.0, bounds: vec![1.0, 2.0, 4.0, 8.0], counts: vec![0.0, 0.0, 4.0], ..Default::default() };
+        assert_eq!(few.percentile(0.5), Some(3.0));
+        assert_eq!(Distribution::default().percentile(0.95), None);
+        assert_eq!(reading(&json!({ "boolValue": true })), Some(Reading::Number(1.0)));
+        assert_eq!(reading(&json!({ "int64Value": "7" })), Some(Reading::Number(7.0)));
     }
 
     struct Static;
@@ -312,16 +444,31 @@ mod tests {
             )
             .route(
                 "/v3/projects/example-storefront/metricDescriptors",
-                get(|| async { Json(json!({ "metricDescriptors": [{ "type": "compute.googleapis.com/instance/cpu/utilization", "metricKind": "GAUGE", "valueType": "DOUBLE" }] })) }),
+                get(|| async {
+                    Json(json!({ "metricDescriptors": [
+                        { "type": "compute.googleapis.com/instance/cpu/utilization", "metricKind": "GAUGE", "valueType": "DOUBLE", "metadata": { "samplePeriod": "60s", "ingestDelay": "240s" } },
+                        { "type": "kubernetes.io/container/restart_count", "metricKind": "CUMULATIVE", "valueType": "INT64" }
+                    ] }))
+                }),
             )
             .route(
                 "/v3/projects/example-storefront/timeSeries",
                 get(|Query(q): Query<HashMap<String, String>>| async move {
+                    if q["filter"].contains("restart_count") {
+                        // Read raw: no aggregation.
+                        assert!(!q.contains_key("aggregation.perSeriesAligner"));
+                        return Json(json!({ "timeSeries": [{
+                            "metric": { "type": "kubernetes.io/container/restart_count" },
+                            "resource": { "type": "k8s_container", "labels": { "cluster_name": "storefront-prod" } },
+                            "points": [{ "interval": { "startTime": "2023-11-01T00:00:00Z", "endTime": "2023-11-14T22:14:00Z" }, "value": { "int64Value": "3" } }]
+                        }] }));
+                    }
                     assert_eq!(q["filter"], "metric.type = \"compute.googleapis.com/instance/cpu/utilization\"");
                     assert_eq!((q["aggregation.alignmentPeriod"].as_str(), q["aggregation.perSeriesAligner"].as_str()), ("60s", "ALIGN_MEAN"));
                     Json(json!({ "timeSeries": [{
                         "metric": { "type": "compute.googleapis.com/instance/cpu/utilization", "labels": { "instance_name": "web-1" } },
                         "resource": { "type": "gce_instance", "labels": { "instance_id": "1234567890", "zone": "europe-west1-b", "project_id": "example-storefront" } },
+                        "metadata": { "userLabels": { "team": "storefront" }, "systemLabels": { "machine_type": "e2-standard-4", "network_tag": ["web"], "preemptible": false } },
                         "points": [{ "interval": { "endTime": "2023-11-14T22:14:00Z" }, "value": { "doubleValue": 0.42 } }, { "interval": { "endTime": "2023-11-14T22:13:00Z" }, "value": { "int64Value": "7" } }]
                     }] }))
                 }),
@@ -343,11 +490,17 @@ mod tests {
         let sa = "observecraft@example-storefront.iam.gserviceaccount.com";
         assert_eq!(api.projects(sa).await.unwrap(), ["example-storefront", "example-catalog"]);
         let descriptors = api.descriptors(sa, "example-storefront").await.unwrap();
-        assert_eq!(descriptors[0].kind, "GAUGE");
+        assert_eq!((descriptors[0].kind.as_str(), descriptors[0].sample_period_ms, descriptors[0].ingest_delay_ms), ("GAUGE", 60_000, 240_000));
+        assert_eq!(descriptors[1].sample_period_ms, 0);
         let series = api.time_series(sa, "example-storefront", &descriptors[0], 1_700_000_000_000, 1_700_000_600_000).await.unwrap();
         assert_eq!(series[0].resource_type, "gce_instance");
         assert_eq!(series[0].resource_labels[0], ("instance_id".to_string(), "1234567890".to_string()));
-        assert_eq!(series[0].points, [(1_700_000_040_000, 0.42), (1_699_999_980_000, 7.0)]);
+        assert_eq!(series[0].user_labels, [("team".to_string(), "storefront".to_string())]);
+        assert_eq!(series[0].system_labels, [("machine_type".to_string(), "e2-standard-4".to_string())]);
+        let at = |t: i64, v: f64| Sample { start_ms: t, time_ms: t, value: Reading::Number(v) };
+        assert_eq!(series[0].points, [at(1_700_000_040_000, 0.42), at(1_699_999_980_000, 7.0)]);
+        let restarts = api.time_series(sa, "example-storefront", &descriptors[1], 1_700_000_000_000, 1_700_000_600_000).await.unwrap();
+        assert_eq!(restarts[0].points[0], Sample { start_ms: 1_698_796_800_000, time_ms: 1_700_000_040_000, value: Reading::Number(3.0) });
         // One impersonation, cached.
         assert_eq!(seen.lock().unwrap().iter().filter(|s| s.starts_with("impersonate")).count(), 1);
         assert!(matches!(api.projects("denied@example-storefront.iam.gserviceaccount.com").await, Err(GcpError::Auth(m)) if m.contains("getAccessToken")));

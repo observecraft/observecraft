@@ -163,7 +163,7 @@ export const CLOUD_METRICS: Record<string, CloudMetricDef> = {
   'gcp.gke.node.cpu.allocatable_utilization': m('gcp_gke', 'Node CPU allocatable utilization', 'fraction', range(0.2, 0.8), 0.15, { max: 1 }),
   'gcp.gke.node.memory.allocatable_utilization': m('gcp_gke', 'Node memory allocatable utilization', 'fraction', range(0.3, 0.85), 0.05, { max: 1 }),
   'gcp.gke.container.memory.used_bytes': m('gcp_gke', 'Container memory', 'byte', range(100 * 2 ** 20, 2 * GIB), 0.08),
-  'gcp.gke.container.restart_count': m('gcp_gke', 'Container restarts', undefined, sometimes(0.3, 1, 4), 0.5, { integer: true }),
+  'gcp.gke.container.restart_count.delta': m('gcp_gke', 'Container restarts', undefined, sometimes(0.3, 1, 4), 0.5, { integer: true }),
   'gcp.run.request_count': m('gcp_run', 'Requests', undefined, (e, r) => (e.response_code_class === '2xx' ? 1_000 + r() * 9_000 : e.response_code_class === '4xx' ? r() * 300 : r() * 40), 0.3),
   'gcp.cloudfunctions.function.execution_count': m('gcp_functions', 'Executions', undefined, (e, r) => (e.status === 'ok' ? 200 + r() * 4_000 : r() * 60), 0.35),
   'gcp.loadbalancing.https.request_count': m('gcp_lb', 'Requests', undefined, range(5_000, 60_000), 0.3),

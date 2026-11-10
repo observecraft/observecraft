@@ -413,10 +413,28 @@ function azureDashboard(type, spec, source) {
 /** `compute.googleapis.com/instance/cpu/utilization` → `gcp.gce.instance.cpu.utilization` (gcp/naming.rs metric_name). */
 export const gcpMetricOf = (short, type) => `gcp.${short}.${type.split('/').slice(1).map(underscored).filter(Boolean).join('.')}`;
 
+/** The distributions Datadog also gives `.p95` / `.p99` (server/seeds/gcp_integration.json `percentiles`). */
+const GCP_PERCENTILES = new Set(json('gcp_integration.json').percentiles);
+
+/** Every name the GCP crawler publishes for a metric (gcp/naming.rs stats): numbers under the bare name, cumulative
+ *  counters also `.delta`, distributions `.avg`, `.samplecount`, `.sumsqdev` and, for some, `.p95` / `.p99`. */
+export function gcpNamesOf(short, m) {
+  const base = gcpMetricOf(short, m.type);
+  if (m.value === 'DISTRIBUTION') return ['.avg', '.samplecount', '.sumsqdev', ...(GCP_PERCENTILES.has(m.type) ? ['.p95', '.p99'] : [])].map((s) => base + s);
+  if (m.kind === 'CUMULATIVE') return [base, `${base}.delta`];
+  return [base];
+}
+
 function gcpDashboard(service, spec, source) {
   const tag = spec.dimension;
-  // As the crawler aligns them (gcp/api.rs aligner): gauges averaged, deltas and cumulative counts summed per minute.
-  const agg = (m) => (m.value !== 'DISTRIBUTION' && (m.kind === 'DELTA' || m.kind === 'CUMULATIVE') ? 'sum' : 'avg');
+  // As the crawler publishes them (gcp/naming.rs stats): gauges averaged, deltas summed, cumulative counters by their
+  // change (.delta, summed), distributions by their mean (.avg).
+  const chart = (m) => {
+    const base = gcpMetricOf(service.short, m.type);
+    if (m.value === 'DISTRIBUTION') return { metric: `${base}.avg`, agg: 'avg' };
+    if (m.kind === 'CUMULATIVE') return { metric: `${base}.delta`, agg: 'sum' };
+    return { metric: base, agg: m.kind === 'DELTA' ? 'sum' : 'avg' };
+  };
   return serviceDashboard({
     cloud: 'gcp',
     service,
@@ -424,7 +442,7 @@ function gcpDashboard(service, spec, source) {
     note: `The ${service.name} metrics Cloud Monitoring publishes (\`${service.prefix}\`, resource \`${spec.resource}\`), collected by the [Google Cloud integration](/integrations/gcp). Filter by project${tag ? ` and ${tag}` : ''} above; each chart splits ${tag ? `by ${tag}` : 'the whole service'}.`,
     variables: [{ name: 'project_id', prefix: 'project_id' }, ...(tag ? [{ name: tag, prefix: tag }] : [])],
     tag,
-    charts: spec.metrics.map((m) => ({ title: m.display || words(m.type.split('/').at(-1)), metric: gcpMetricOf(service.short, m.type), agg: agg(m), grouped: !!tag, key: keyRank(m.display) })),
+    charts: spec.metrics.map((m) => ({ title: m.display || words(m.type.split('/').at(-1)), ...chart(m), grouped: !!tag, key: keyRank(m.display) })),
     metricsSource: source,
     prefix: `gcp.${service.short}.`,
   });
@@ -476,7 +494,7 @@ export function serviceUnits() {
   }
   const short = new Map(json('gcp_integration.json').services.map((s) => [s.prefix, s.short]));
   for (const [prefix, spec] of Object.entries(json('integrations/cloud/gcp-metrics.json').services))
-    for (const m of spec.metrics) if (m.unit) units.set(gcpMetricOf(short.get(prefix), m.type), m.unit);
+    for (const m of [...spec.metrics, ...(spec.others ?? [])]) if (m.unit) for (const name of gcpNamesOf(short.get(prefix), m)) if (!/\.(samplecount|sumsqdev)$/.test(name)) units.set(name, m.unit);
   return [...units].sort(([a], [b]) => a.localeCompare(b));
 }
 

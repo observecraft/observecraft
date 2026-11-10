@@ -222,6 +222,8 @@ const OVERRIDES = {
   'gcp-cloudfunctions': 'logos:google-cloud-functions',
   'gcp-aiplatform': 'logos:google-gemini',
   'gcp-managedkafka': 'logos:kafka-icon',
+  'gcp-firebasedatabase': 'logos:firebase-icon',
+  'gcp-firebasehosting': 'logos:firebase-icon',
   'azure-containerservice-managedclusters': 'logos:kubernetes',
   'azure-databricks-workspaces': 'si:databricks',
   'azure-cache-redis': 'logos:redis',

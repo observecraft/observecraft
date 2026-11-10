@@ -199,7 +199,14 @@ Service accounts are impersonated by this install's own service account (`OC_GCP
 `sts_delegate` answers; 404 until it is set): no key is stored. Every attribute the provider reads back is answered,
 with defaults when it wasn't sent; an update keeps the others; CSPM needs resource collection (400). A list's
 `meta.accessible_projects` are the projects the crawler found. Metrics are crawled from Cloud Monitoring every 10
-minutes (`gcp.<service>.<metric path>`, e.g. `gcp.gce.instance.cpu.utilization`).
+minutes (`gcp.<service>.<metric path>`, e.g. `gcp.gce.instance.cpu.utilization`; the service is the metric's domain,
+`storage`, `cloudsql`, `file`…, but Compute Engine is `gce`, App Engine `gae` and Kubernetes `gke`): cumulative counters
+as their running total and `.delta`, distributions as `.avg`, `.samplecount`, `.sumsqdev` and, where Datadog has them,
+`.p95` / `.p99`. Tags are the project, the resource's and the metric's labels, the resource's user labels (from Cloud
+Monitoring's metadata, not Cloud Asset Inventory), `instance-type` and a zone's `region`. `region_filter_configs`
+(regions keep their zones) and `is_global_location_enabled` filter the series; `metric_namespace_configs` turns
+services off, and turns on the user-defined domains (`custom`, `workload`, `prometheus`), which are off by default.
+`automute`, `is_per_project_quota_enabled` and resource collection are stored but not applied yet.
 
 ## Slack integration
 

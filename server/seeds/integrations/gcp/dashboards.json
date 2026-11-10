@@ -1093,7 +1093,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:gcp.gke.container.restart_count{$project} by {cluster_name,namespace_name,container_name}",
+                          "query": "sum:gcp.gke.container.restart_count.delta{$project} by {cluster_name,namespace_name,container_name}",
                           "aggregator": "sum"
                         }
                       ],

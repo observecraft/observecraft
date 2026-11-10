@@ -192,6 +192,21 @@ const ALIASES = {
   'gcp-workflows': 'workflows',
   'gcp-managedkafka': 'pubsub',
   'gcp-tpu': 'tpu',
+  'gcp-memorystore': 'memorystore',
+  'gcp-monitoring': 'monitoring',
+  'gcp-pubsublite': 'pubsub',
+  'gcp-bigquerystorage': 'bigquery',
+  'gcp-bigquerydatatransfer': 'datatransfer',
+  'gcp-storagetransfer': 'transfer',
+  'gcp-netapp': 'filestore',
+  'gcp-parallelstore': 'filestore',
+  'gcp-lustre': 'filestore',
+  'gcp-backupdr': 'persistentdisk',
+  'gcp-vpcaccess': 'virtualprivate',
+  'gcp-networkservices': 'network',
+  'gcp-edgecache': 'cdn',
+  'gcp-recaptchaenterprise': 'webrisk',
+  'gcp-gkebackup': 'gke',
 };
 
 /** Moves `<style>` class rules onto the elements as inline styles: on a page, an icon's `.st1` would restyle every other icon. */

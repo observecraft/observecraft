@@ -595,7 +595,7 @@ function gcp() {
         b.place(timeseries('Node CPU allocatable utilization', [metric(`avg:gcp.gke.node.cpu.allocatable_utilization{${f}} by {cluster_name}`)], { palette: 'green' }), 0, 1, 6, 3),
         b.place(timeseries('Node memory allocatable utilization', [metric(`avg:gcp.gke.node.memory.allocatable_utilization{${f}} by {cluster_name}`)], { palette: 'green' }), 6, 1, 6, 3),
         b.place(toplist('Memory-intensive containers', `avg:gcp.gke.container.memory.used_bytes{${f}} by {cluster_name,namespace_name,container_name}`), 0, 4, 6, 3),
-        b.place(toplist('Container restarts', `sum:gcp.gke.container.restart_count{${f}} by {cluster_name,namespace_name,container_name}`, { aggregator: 'sum', palette: 'orange' }), 6, 4, 6, 3),
+        b.place(toplist('Container restarts', `sum:gcp.gke.container.restart_count.delta{${f}} by {cluster_name,namespace_name,container_name}`, { aggregator: 'sum', palette: 'orange' }), 6, 4, 6, 3),
       ],
       3,
       7,

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
-import { MOCK_SERVICES, azurePublishedNames, buildServiceDashboards, metricOf, publishedNames } from './cloud-service-dashboards.mjs';
+import { MOCK_SERVICES, azurePublishedNames, buildServiceDashboards, gcpNamesOf, metricOf, publishedNames } from './cloud-service-dashboards.mjs';
 import { AWS_LAYOUTS } from './aws-service-layouts.mjs';
 import { AZURE_LAYOUTS } from './azure-service-layouts.mjs';
 import { gcpPage, withDatadogNamespaces } from './import-cloud-metrics.mjs';
@@ -179,7 +179,28 @@ test('one dashboard per Azure resource type and Google Cloud service, named as t
   assert.equal(gce.prefix, 'gcp.gce.');
   assert.match(JSON.stringify(gce.dashboards[0].widgets), /avg:gcp\.gce\.instance\.cpu\.utilization\{\$project_id,\$instance_id\} by \{instance_id\}/);
   assert.ok(lines.filter((l) => l.logo.startsWith('tile:azure-')).length >= 50);
-  assert.ok(lines.filter((l) => l.logo.startsWith('tile:gcp-')).length >= 35);
+  assert.ok(lines.filter((l) => l.logo.startsWith('tile:gcp-')).length >= 60);
+  // Google Cloud: distributions are charted by their mean (.avg), cumulative counters by their change (.delta), as the crawler names them.
+  const gcpLines = JSON.stringify(lines.filter((l) => l.logo.startsWith('tile:gcp-')));
+  assert.match(gcpLines, /avg:gcp\.loadbalancing\.https\.total_latencies\.avg\{/);
+  assert.match(gcpLines, /sum:gcp\.gke\.container\.restart_count\.delta\{/);
+  assert.match(gcpLines, /:gcp\.storage\.storage\.total_bytes\{/);
+  assert.doesNotMatch(gcpLines, /gcp\.gcs\./);
+});
+
+test('Google Cloud metrics are published under Datadog’s names for their kind', () => {
+  const m = (type, kind, value) => ({ type, kind, value });
+  assert.deepEqual(gcpNamesOf('gce', m('compute.googleapis.com/instance/cpu/utilization', 'GAUGE', 'DOUBLE')), ['gcp.gce.instance.cpu.utilization']);
+  assert.deepEqual(gcpNamesOf('gke', m('kubernetes.io/container/restart_count', 'CUMULATIVE', 'INT64')), ['gcp.gke.container.restart_count', 'gcp.gke.container.restart_count.delta']);
+  assert.deepEqual(gcpNamesOf('pubsub', m('pubsub.googleapis.com/topic/send_request_latencies', 'DELTA', 'DISTRIBUTION')), [
+    'gcp.pubsub.topic.send_request_latencies.avg',
+    'gcp.pubsub.topic.send_request_latencies.samplecount',
+    'gcp.pubsub.topic.send_request_latencies.sumsqdev',
+  ]);
+  assert.deepEqual(gcpNamesOf('loadbalancing', m('loadbalancing.googleapis.com/https/total_latencies', 'DELTA', 'DISTRIBUTION')).slice(3), [
+    'gcp.loadbalancing.https.total_latencies.p95',
+    'gcp.loadbalancing.https.total_latencies.p99',
+  ]);
 });
 
 test('service metrics carry their units for the server', () => {
@@ -193,6 +214,10 @@ test('service metrics carry their units for the server', () => {
   assert.equal(units.get('azure.vm.network_in_total'), 'byte');
   assert.equal(units.get('azure.vm.percentage_cpu.max'), 'percent');
   assert.equal(units.get('gcp.gce.instance.cpu.utilization'), 'fraction');
+  assert.equal(units.get('gcp.loadbalancing.https.total_latencies.avg'), 'millisecond');
+  assert.equal(units.get('gcp.loadbalancing.https.total_latencies.p99'), 'millisecond');
+  assert.equal(units.get('gcp.loadbalancing.https.total_latencies.samplecount'), undefined);
+  assert.equal(units.get('gcp.storage.storage.total_bytes'), 'byte');
   assert.equal(units.get('aws.cloudfront.bytes_downloaded'), 'byte');
   assert.equal(units.get('aws.rds.read_latency'), 'second');
   assert.equal(units.get('aws.ecs.service.cpuutilization'), 'percent');
