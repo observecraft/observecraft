@@ -528,6 +528,20 @@ fn keyvalue_regex(sep: &str, allowed: &str) -> Result<Regex, String> {
     Regex::new(&re).map_err(|e| format!("keyvalue: {e}"))
 }
 
+/// A key-value or CSV field as Datadog types it: a number when it is one (`42`, `-0.5`, not `0123`), else text.
+fn typed(s: &str) -> Value {
+    let numeric = {
+        let digits = s.strip_prefix('-').unwrap_or(s);
+        let (int, frac) = digits.split_once('.').map_or((digits, None), |(i, f)| (i, Some(f)));
+        !int.is_empty() && int.bytes().all(|b| b.is_ascii_digit()) && (int == "0" || !int.starts_with('0')) && frac.is_none_or(|f| !f.is_empty() && f.bytes().all(|b| b.is_ascii_digit()))
+    };
+    match numeric.then(|| s.parse::<f64>().ok()).flatten() {
+        Some(f) if !s.contains('.') && f.abs() < 9.0e15 => Value::from(f as i64),
+        Some(f) if s.contains('.') => serde_json::Number::from_f64(f).map_or_else(|| Value::from(s), Value::Number),
+        _ => Value::from(s),
+    }
+}
+
 /// A number as JSON: integral values as integers (so `200` doesn't read as `200.0`).
 pub fn num(f: f64) -> Option<Value> {
     if f.is_finite() && f.fract() == 0.0 && f.abs() < 9.0e15 {
@@ -603,9 +617,10 @@ impl Filter {
                 let mut out = Map::new();
                 for c in re.captures_iter(&s).flatten() {
                     let key = c.get(1).map_or("", |m| m.as_str());
-                    let value = (2..=4).find_map(|i| c.get(i)).map(|m| m.as_str()).or_else(|| c.get(5).map(|m| m.as_str().trim_end_matches([',', ';'])));
-                    if let Some(value) = value.filter(|x| !x.is_empty()) {
-                        out.insert(key.to_string(), Value::from(value));
+                    // Quoted values are text; others numbers when they are.
+                    let value = (2..=4).find_map(|i| c.get(i)).map(|m| Value::from(m.as_str())).or_else(|| c.get(5).map(|m| typed(m.as_str().trim_end_matches([',', ';']))));
+                    if let Some(value) = value.filter(|x| x.as_str() != Some("")) {
+                        out.insert(key.to_string(), value);
                     }
                 }
                 Some(Value::Object(out))
@@ -616,7 +631,7 @@ impl Filter {
             Filter::RubyHash => super::rubyhash::to_json(&text(&v)),
             Filter::Csv { headers, sep, quote } => {
                 let fields = csv_fields(&text(&v), *sep, *quote);
-                Some(Value::Object(headers.iter().zip(fields).filter(|(_, f)| !f.is_empty()).map(|(h, f)| (h.clone(), Value::from(f))).collect()))
+                Some(Value::Object(headers.iter().zip(fields).filter(|(_, f)| !f.is_empty()).map(|(h, f)| (h.clone(), typed(&f))).collect()))
             }
         }
     }
@@ -804,18 +819,19 @@ mod tests {
 
     #[test]
     fn csv_filter() {
-        assert_eq!(parse(r#"r %{data:f:csv("a,b,c")}"#, r#"1,"x, y",3"#), Some(json!({"f": {"a": "1", "b": "x, y", "c": "3"}})));
-        assert_eq!(parse(r#"r %{data::csv("a,b", ";")}"#, "1;2"), Some(json!({"": {"a": "1", "b": "2"}})));
+        // Numbers are numbers, as in Datadog.
+        assert_eq!(parse(r#"r %{data:f:csv("a,b,c")}"#, r#"1,"x, y",3.5"#), Some(json!({"f": {"a": 1, "b": "x, y", "c": 3.5}})));
+        assert_eq!(parse(r#"r %{data::csv("a,b", ";")}"#, "1;007"), Some(json!({"": {"a": 1, "b": "007"}})));
         // Missing values are left out, extra ones ignored; a custom quote character.
-        assert_eq!(parse(r#"r %{data:f:csv("a,b,c", ",", "'")}"#, "1,'2,3'"), Some(json!({"f": {"a": "1", "b": "2,3"}})));
-        assert_eq!(parse(r#"r %{data:f:csv("a")}"#, "1,2"), Some(json!({"f": {"a": "1"}})));
+        assert_eq!(parse(r#"r %{data:f:csv("a,b,c", ",", "'")}"#, "x,'2,3'"), Some(json!({"f": {"a": "x", "b": "2,3"}})));
+        assert_eq!(parse(r#"r %{data:f:csv("a")}"#, "1,2"), Some(json!({"f": {"a": 1}})));
     }
 
     #[test]
     fn keyvalue_filter() {
-        // Default: key=value, quoted values unquoted; an empty attribute merges at the top level.
-        assert_eq!(parse("r %{data::keyvalue}", r#"user=jane id=42 note="two words""#), Some(json!({"": {"user": "jane", "id": "42", "note": "two words"}})));
-        assert_eq!(parse("r %{data:kv:keyvalue(\":\")}", "a:1 b:2"), Some(json!({"kv": {"a": "1", "b": "2"}})));
+        // Default: key=value, quoted values unquoted, numbers as numbers; an empty attribute merges at the top level.
+        assert_eq!(parse("r %{data::keyvalue}", r#"user=jane id=42 t=-0.5 zip=0123 note="two words" code="7""#), Some(json!({"": {"user": "jane", "id": 42, "t": -0.5, "zip": "0123", "note": "two words", "code": "7"}})));
+        assert_eq!(parse("r %{data:kv:keyvalue(\":\")}", "a:1 b:x2"), Some(json!({"kv": {"a": 1, "b": "x2"}})));
         // Custom separator, with commas allowed in values (trailing delimiters are dropped).
         let v = parse(r#"r %{data::keyvalue(": ", ",")}"#, r#"client: 10.0.0.5, server: localhost, request: "GET / HTTP/1.1""#);
         assert_eq!(v, Some(json!({"": {"client": "10.0.0.5", "server": "localhost", "request": "GET / HTTP/1.1"}})));

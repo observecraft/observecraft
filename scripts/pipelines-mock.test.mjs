@@ -44,8 +44,8 @@ test('grok preview: matchers, filters, nested attributes and rule order', () => 
   assert.equal(out.error, null);
   assert.deepEqual(out.samples[0], { matched: true, rule: 'access', attributes: { network: { client: { ip: '10.0.0.12' } }, http: { method: 'GET', url: '/cart', status_code: 503 }, duration: 250 } });
   assert.deepEqual(out.samples[1], { matched: true, rule: 'any', attributes: { msg: 'not an access log' } });
-  const kv = engine.parseGrok({ supportRules: '', matchRules: 'r %{date("yyyy-MM-dd HH:mm:ss"):ts} %{data::keyvalue}', samples: ['2026-10-25 13:00:00 user=jane order="A 1"', 'x'] });
-  assert.deepEqual(kv.samples[0].attributes, { ts: Date.UTC(2026, 9, 25, 13), user: 'jane', order: 'A 1' });
+  const kv = engine.parseGrok({ supportRules: '', matchRules: 'r %{date("yyyy-MM-dd HH:mm:ss"):ts} %{data::keyvalue}', samples: ['2026-10-25 13:00:00 user=jane order="A 1" items=3', 'x'] });
+  assert.deepEqual(kv.samples[0].attributes, { ts: Date.UTC(2026, 9, 25, 13), user: 'jane', order: 'A 1', items: 3 });
   assert.equal(kv.samples[1].matched, false);
   const bad = engine.parseGrok({ supportRules: '', matchRules: 'r %{nope:x}', samples: ['x'] });
   assert.match(bad.error, /nope/);

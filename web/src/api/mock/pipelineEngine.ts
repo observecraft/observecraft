@@ -379,8 +379,9 @@ function compileFilterFn(name: string, args: string[]): Filter {
       return (v) => {
         const out: Obj = {};
         for (const m of text(v).matchAll(pairs)) {
+          // Quoted values are text; others numbers when they are (`42`, not `0123`), as in Datadog.
           const value = m[2] ?? m[3] ?? m[4] ?? m[5]?.replace(/[,;]+$/, '');
-          if (value) out[m[1]] = value;
+          if (value) out[m[1]] = m[5] !== undefined && /^-?(0|[1-9]\d*)(\.\d+)?$/.test(value) ? Number(value) : value;
         }
         return out;
       };

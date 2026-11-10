@@ -935,7 +935,7 @@ mod tests {
         let p = json!([{"type": "grok-parser", "source": "request", "grok": {"matchRules": "kv %{data::keyvalue}"}}]);
         let out = run(p, log("m", json!({"request": "user=jane cart=7"})));
         assert_eq!(out.get("user"), Some(json!("jane")));
-        assert_eq!(out.get("cart"), Some(json!("7")));
+        assert_eq!(out.get("cart"), Some(json!(7)));
         // Snake_case (Datadog API) definitions and disabled processors.
         let p = json!([
             {"type": "grok-parser", "is_enabled": false, "grok": {"match_rules": "r %{data:skipped}"}},
