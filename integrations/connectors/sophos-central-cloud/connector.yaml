@@ -6,8 +6,8 @@
 # they are, so this package ships none: saving a connection installs the tile's.
 #
 # whoami tells what the credential is (tenant, partner or organization) and the tenant's data region; partners and
-# organizations list their tenants, each read on its own region with X-Tenant-ID. Endpoint details come from one
-# list of the endpoints per run (the first tenant's, so a partner's other tenants are not enriched).
+# organizations list their tenants (every page of them), each read on its own region with X-Tenant-ID. Endpoint
+# details come from each tenant's list of endpoints, read once an hour.
 schema_version: 1
 id: sophos-central-cloud
 name: Sophos Central Cloud
@@ -68,20 +68,25 @@ discover:
   - name: whoami
     request: { url: "https://api.central.sophos.com/whoami/v1" }
     ttl: 6h
-  # The tenants to read: the credential's own, or a partner's / an organization's (their first 100).
+  # The tenants to read: the credential's own, or every one of a partner's / an organization's (100 a page).
   - name: tenants
     request:
       url: >-
         {{ discovery.whoami.idType == 'tenant' ? 'https://api.central.sophos.com/whoami/v1'
            : 'https://api.central.sophos.com/' + discovery.whoami.idType + '/v1/tenants' }}
-      query: { pageSize: "{{ discovery.whoami.idType == 'tenant' ? null : 100 }}" }
+      query:
+        page: "{{ discovery.whoami.idType == 'tenant' ? null : page.number }}"
+        pageSize: "{{ discovery.whoami.idType == 'tenant' ? null : 100 }}"
+        pageTotal: "{{ discovery.whoami.idType == 'tenant' ? null : true }}"
       headers:
         X-Partner-ID: "{{ discovery.whoami.idType == 'partner' ? discovery.whoami.id : null }}"
         X-Organization-ID: "{{ discovery.whoami.idType == 'organization' ? discovery.whoami.id : null }}"
-    value: >-
+    pagination: { kind: page, size: 100, total_pages: "{{ response.pages.total }}" }
+    records: >-
       {{ discovery.whoami.idType == 'tenant'
          ? [{id: discovery.whoami.id, apiHost: discovery.whoami.apiHosts.dataRegion, name: discovery.whoami.id}]
          : response.items }}
+    value: "{{ records }}"
     ttl: 6h
 
 streams:
@@ -93,16 +98,14 @@ streams:
     interval: 5m
     for_each: "{{ discovery.tenants | pluck('id') }}"
     lookups: &endpoints
-      # Off: a cheap request whose single record matches no endpoint.
+      # The tenant's endpoints (per for_each item), read only with endpoint details on.
       - name: endpoints
+        when: "{{ config.get_endpoint_details }}"
         request:
-          url: >-
-            {{ config.get_endpoint_details ? (discovery.tenants | first).apiHost + '/endpoint/v1/endpoints' : 'https://api.central.sophos.com/whoami/v1' }}
-          query:
-            pageSize: "{{ config.get_endpoint_details ? 500 : null }}"
-            pageFromKey: "{{ page.cursor }}"
-          headers: { X-Tenant-ID: "{{ config.get_endpoint_details ? (discovery.tenants | first).id : null }}" }
-        records: "{{ response.items ?? [] }}"
+          url: "{{ (discovery.tenants | index_by('id'))[item].apiHost }}/endpoint/v1/endpoints"
+          query: { pageSize: 500, pageFromKey: "{{ page.cursor }}" }
+          headers: { X-Tenant-ID: "{{ item }}" }
+        records: "{{ response.items }}"
         pagination: { kind: cursor, next: "{{ response.pages.nextKey }}" }
         key: "{{ record.id }}"
         ttl: 1h
