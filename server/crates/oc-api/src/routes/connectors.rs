@@ -376,6 +376,22 @@ pub async fn install_assets(st: &AppState, org: &str, user: Option<&str>, p: &Pa
             super::dashboards::upsert_seed(&st.postgres, org, user, id, &doc).await.map_err(ApiError::Internal)?;
         }
     }
+    // The tiles' integrations-core pipelines and dashboards, as Integrations → Install installs them.
+    let tiles: Vec<&str> = p.package.manifest.tiles.iter().map(String::as_str).collect();
+    for tile in &tiles {
+        super::integration_installs::install_pipelines(st, org, tile).await?;
+    }
+    super::integration_dashboards::install_missing(&st.postgres, org, &tiles).await.map_err(ApiError::Internal)?;
+    Ok(())
+}
+
+/// With the org's last connection: the tiles' integrations-core pipelines go, as uninstalling the tile removes them,
+/// unless the tile was also installed from Integrations.
+async fn remove_tile_pipelines(st: &AppState, org: &str, p: &PackageConnector) -> Result<(), sqlx::Error> {
+    let tiles = &p.package.manifest.tiles;
+    let installed: Vec<String> = sqlx::query_scalar("SELECT integration FROM integration_installs WHERE org_id = $1 AND integration = ANY($2)").bind(org).bind(tiles).fetch_all(&st.postgres).await?;
+    let sources: Vec<String> = tiles.iter().filter(|t| !installed.contains(t)).flat_map(|t| super::integration_installs::pipelines_of(t)).map(|x| format!("integration:{}", x.id)).collect();
+    sqlx::query("DELETE FROM log_pipelines WHERE org_id = $1 AND source = ANY($2)").bind(org).bind(&sources).execute(&st.postgres).await?;
     Ok(())
 }
 
@@ -549,6 +565,7 @@ pub async fn delete_connection(State(st): State<AppState>, Admin(ctx): Admin, Pa
     // The last one: the package's monitors, rules, log-based metrics and pipeline go (its dashboards stay).
     if store::list(&st, &ctx.org_id, &id).await?.is_empty() {
         connectors::assets::remove(&st, &ctx, &id).await?;
+        remove_tile_pipelines(&st, &ctx.org_id, p).await?;
     }
     ctx.audit(&st, "connectors.connection_deleted", &p.package.manifest.id, &saved.name).await;
     Ok(StatusCode::NO_CONTENT)
@@ -705,5 +722,42 @@ mod tests {
         let left: i64 = sqlx::query_scalar("SELECT count(*) FROM cloud_crawl_jobs WHERE provider = 'have-i-been-pwned' AND org_id = $1").bind(&a.org_id).fetch_one(&st.postgres).await.unwrap();
         assert_eq!(left, 0);
         assert!(!connectors::connected(st, &a.org_id).await.unwrap().contains("have-i-been-pwned"));
+    }
+
+    /// A native package is set up on the generic page like any other: its form (secrets sealed), its streams' jobs for
+    /// the native sessions, its tile installed with the tile's integrations-core pipeline and dashboards, which go
+    /// (the pipeline) with the last connection unless the tile was installed on its own.
+    #[tokio::test]
+    async fn native_packages_connect_on_the_generic_page_and_install_their_tile() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let a = crate::test_support::admin_of_new_org(st, "connectors-native").await;
+        let secret = "fdr-SuperSecret-0123456789";
+        let body = input(json!({
+            "config": { "sqs_queue_url": "https://sqs.us-west-1.amazonaws.com/123456789012/cs-prod-cannon-queue", "s3_bucket": "cs-prod-cannon-0a1b2c3d-s3alias" },
+            "secrets": { "aws_access_key_id": "AKIAEXAMPLE000000001", "aws_secret_key": secret }
+        }));
+        assert!(registry().get("crowdstrike-fdr").unwrap().entry().testable);
+        let saved = create_connection(State(st.clone()), Admin(a.clone()), Path("crowdstrike-fdr".into()), Json(body)).await.unwrap().0;
+        assert_eq!((saved.name.as_str(), saved.secrets.len()), ("cs-prod-cannon-queue", 2));
+        assert!(!serde_json::to_string(&saved).unwrap().contains(secret));
+        let jobs: Vec<String> = sqlx::query_scalar("SELECT scope FROM cloud_crawl_jobs WHERE provider = 'crowdstrike-fdr' AND org_id = $1").bind(&a.org_id).fetch_all(&st.postgres).await.unwrap();
+        assert_eq!(jobs, ["events"]);
+        let pipelines = || async {
+            sqlx::query_scalar::<_, String>("SELECT source FROM log_pipelines WHERE org_id = $1 ORDER BY source").bind(&a.org_id).fetch_all(&st.postgres).await.unwrap()
+        };
+        assert_eq!(pipelines().await, ["integration:crowdstrike_fdr"], "the tile's integrations-core pipeline");
+        let dashboards: i64 = sqlx::query_scalar("SELECT count(*) FROM dashboards WHERE org_id = $1 AND logo = 'crowdstrike-fdr'").bind(&a.org_id).fetch_one(&st.postgres).await.unwrap();
+        assert!(dashboards >= 6, "the tile's dashboards: {dashboards}");
+        assert!(super::super::integration_installs::installed(st, &a.org_id).await.unwrap().contains(&"crowdstrike-fdr".to_string()));
+        delete_connection(State(st.clone()), Admin(a.clone()), Path(("crowdstrike-fdr".into(), saved.id.clone()))).await.unwrap();
+        assert!(pipelines().await.is_empty(), "the tile's pipeline goes with the last connection");
+        // Installed from its tile too: the pipeline stays.
+        sqlx::query("INSERT INTO integration_installs (org_id, integration) VALUES ($1, 'proofpoint-on-demand')").bind(&a.org_id).execute(&st.postgres).await.unwrap();
+        let pod = input(json!({ "config": { "cluster_id": "example_hosted" }, "secrets": { "api_key": "pod-test-key-0001" } }));
+        let saved = create_connection(State(st.clone()), Admin(a.clone()), Path("proofpoint-on-demand".into()), Json(pod)).await.unwrap().0;
+        assert_eq!(saved.streams.iter().map(|s| (s.id.as_str(), s.enabled)).collect::<Vec<_>>(), [("message", true), ("maillog", false)]);
+        delete_connection(State(st.clone()), Admin(a.clone()), Path(("proofpoint-on-demand".into(), saved.id.clone()))).await.unwrap();
+        assert_eq!(pipelines().await, ["integration:proofpoint_on_demand"]);
     }
 }
