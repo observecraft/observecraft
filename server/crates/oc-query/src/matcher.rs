@@ -76,6 +76,7 @@ pub fn matches(terms: &[Term], f: &Fields<'_>) -> bool {
             let hit = f.get(key).is_some_and(|v| values.iter().any(|p| compare(p, v).unwrap_or_else(|| glob(p, v))));
             hit != *negate
         }
+        Term::Any { alternatives, negate } => alternatives.iter().any(|a| matches(a, f)) != *negate,
     })
 }
 
@@ -98,6 +99,10 @@ mod tests {
         assert!(!matches(&parse_query("-status:error"), &f));
         assert!(matches(&parse_query("service:(a OR order-service)"), &f));
         assert!(!matches(&parse_query("env:qa"), &f));
+        assert!(matches(&parse_query("(@http.method:POST OR env:prod) service:order*"), &f));
+        assert!(!matches(&parse_query("(@http.method:POST OR env:qa)"), &f));
+        assert!(!matches(&parse_query("-(@http.method:POST OR env:prod)"), &f));
+        assert!(matches(&parse_query("(env:qa OR (status:error bad))"), &f));
     }
 
     #[test]

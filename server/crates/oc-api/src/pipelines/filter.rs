@@ -1,7 +1,7 @@
 //! Pipeline and category filters: the log search syntax (`oc_query`, as index filters use it),
 //! plus what integration pipelines also rely on: numeric ranges and comparisons on attributes
 //! (`@http.status_code:[400 TO 499]`, `@duration:>=1000`) and quoted values matched literally
-//! (`@severity: "*"`). `*` alone matches every log.
+//! (`@severity: "*"`), and `@key:*` on an object attribute. `*` alone matches every log.
 
 use std::sync::OnceLock;
 
@@ -25,6 +25,8 @@ enum Test {
     Range(Bound, Bound),
     /// `key:"value"`: equal, ignoring case, with no wildcards.
     Literal(String),
+    /// `key:*`: the key is set, or (an object attribute) a key under it is.
+    Exists,
 }
 
 #[derive(Clone, Copy)]
@@ -36,7 +38,7 @@ enum Bound {
 
 fn clause_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r#"(?:^|(?<=\s))(-?)(@?[\w.\-]+):(?:([\[{])\s*(\S+)\s+TO\s+(\S+?)\s*([\]}])|(>=|<=|>|<)([^\s)]+)|\s*"((?:[^"\\]|\\.)*)")(?=\s|$)"#).expect("filter clause regex"))
+    RE.get_or_init(|| Regex::new(r#"(?:^|(?<=\s))(-?)(@?[\w.\-]+):(?:([\[{])\s*(\S+)\s+TO\s+(\S+?)\s*([\]}])|(>=|<=|>|<)([^\s)]+)|\s*"((?:[^"\\]|\\.)*)"|(\*))(?=\s|$)"#).expect("filter clause regex"))
 }
 
 impl Filter {
@@ -54,7 +56,9 @@ impl Filter {
                 Ok(n) => Bound::Excl(n),
                 Err(_) => Bound::Open,
             };
-            let test = if let Some(lit) = c.get(9) {
+            let test = if c.get(10).is_some() {
+                Test::Exists
+            } else if let Some(lit) = c.get(9) {
                 Test::Literal(lit.as_str().replace("\\\"", "\"").to_lowercase())
             } else if !g(3).is_empty() {
                 Test::Range(bound(g(4), g(3) == "["), bound(g(5), g(6) == "]"))
@@ -89,6 +93,10 @@ impl Clause {
             k => f.tags.get(k).map(String::as_str),
         };
         let hit = match &self.test {
+            Test::Exists => match self.key.strip_prefix('@') {
+                Some(k) => value.is_some() || f.attr.keys().any(|a| a.len() > k.len() && a.starts_with(k) && a.as_bytes()[k.len()] == b'.'),
+                None => value.is_some_and(|v| !v.is_empty()),
+            },
             Test::Literal(want) => value.is_some_and(|v| v.to_lowercase() == *want),
             Test::Range(lo, hi) => value.and_then(|v| v.trim().parse::<f64>().ok()).is_some_and(|n| {
                 let above = match *lo {
@@ -129,6 +137,18 @@ mod tests {
         assert!(!check("source:nginx -env:prod", &[]));
         assert!(check("@http.method:GET", &[("http.method", "GET")]));
         assert!(!check("@http.method:*", &[]));
+    }
+
+    /// As GuardDog's pipeline relies on (`@log.result.errors:*`): an object attribute exists when any key under it does.
+    #[test]
+    fn exists_matches_objects_too() {
+        assert!(check("@log.result.errors:*", &[("log.result.errors.repository_integrity_mismatch", "failed")]));
+        assert!(check("@http.method:*", &[("http.method", "GET")]));
+        assert!(!check("@log.result.errors:*", &[("log.result.errorsx", "1"), ("log.result", "")]));
+        assert!(check("-@log.result.errors:* source:nginx", &[("log.result.issues", "0")]));
+        assert!(!check("-@log.result.errors:*", &[("log.result.errors.a", "1")]));
+        assert!(check("env:* service:*", &[]));
+        assert!(!check("team:*", &[]));
     }
 
     #[test]

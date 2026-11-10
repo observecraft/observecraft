@@ -1,6 +1,6 @@
 // Mock-only query evaluator. In production the query service evaluates searches;
 // the UI only parses/edits query strings (lib/searchQuery.ts).
-import type { Term } from '../../lib/searchQuery';
+import type { SearchTerm } from '../../lib/searchQuery';
 import type { JsonValue, LogEvent } from '../types';
 
 export type FieldGetter = (key: string) => string | undefined;
@@ -63,11 +63,13 @@ function matchesText(pattern: string, text: string): boolean {
 }
 
 /** True when every term holds. `skipKey` ignores one facet's filters (for facet value counts). */
-export function matchesTerms(get: FieldGetter, text: string, terms: Term[], skipKey?: string): boolean {
+export function matchesTerms(get: FieldGetter, text: string, terms: SearchTerm[], skipKey?: string): boolean {
   for (const t of terms) {
     let hit: boolean;
     if (t.kind === 'text') {
       hit = matchesText(t.text, text);
+    } else if (t.kind === 'any') {
+      hit = t.alternatives.some((a) => matchesTerms(get, text, a, skipKey));
     } else {
       if (t.key === skipKey) continue;
       const v = get(t.key);
@@ -78,6 +80,6 @@ export function matchesTerms(get: FieldGetter, text: string, terms: Term[], skip
   return true;
 }
 
-export function matchLog(log: LogEvent, terms: Term[], skipKey?: string): boolean {
+export function matchLog(log: LogEvent, terms: SearchTerm[], skipKey?: string): boolean {
   return matchesTerms((k) => logField(log, k), log.message, terms, skipKey);
 }

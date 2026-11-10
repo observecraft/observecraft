@@ -230,6 +230,7 @@ pub fn matches(s: &SecuritySignal, terms: &[Term]) -> bool {
                 let t = text.to_lowercase();
                 (s.title.to_lowercase().contains(&t) || s.rule_name.to_lowercase().contains(&t), *negate)
             }
+            Term::Any { alternatives, negate } => (alternatives.iter().any(|a| matches(s, a)), *negate),
         };
         hit != negate
     })

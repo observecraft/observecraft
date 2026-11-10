@@ -210,6 +210,68 @@ mod tests {
         assert_eq!(raw.timestamp_ms, Some(1_793_959_200_250), "GitLab's time");
     }
 
+    /// A log as the Datadog Agent forwards it to the intake (`/api/v2/logs`), normalized as the log ingester
+    /// does, then run through integration pipeline `id` as the indexer does.
+    fn agent_log(id: &str, envelope: Value) -> super::super::Log {
+        let mut fields = envelope.as_object().unwrap().clone();
+        fields.insert("source_type".into(), "kafka".into());
+        fields.insert("_oc_kafka_headers".into(), serde_json::json!({"x-oc-org": "example-org"}));
+        let mut row = crate::log_normalize::normalize(crate::log_normalize::LogEvent { fields, timestamp: None }, chrono::Utc::now()).unwrap();
+        let p = get(id).unwrap();
+        let (pipeline, errors) = Pipeline::compile(&p.name, &p.filter, &p.processors);
+        assert!(errors.is_empty(), "{errors:?}");
+        let mut log = super::super::Log::default();
+        (log.message, log.status, log.service, log.host, log.source) = (row.message, row.status, row.service, row.host, row.source);
+        log.tags = row.tags.into_iter().collect();
+        log.attrs = std::mem::take(&mut row.attrs);
+        assert!(pipeline.apply(&mut log, 1_792_933_200_000), "{id} matches {}", log.source);
+        log
+    }
+
+    /// Supply Chain Firewall's run logs (`scfw configure`: its Datadog Agent TCP listener or its JSON Lines file
+    /// tailed by the Agent, `source:scfw`), as integrations-core's `supply-chain-firewall_tests.yaml` expects:
+    /// the fields its dashboard reads (`@usr.name`, `@evt.outcome`, `@warning`, `@install_targets.name`).
+    #[test]
+    fn supply_chain_firewall_runs() {
+        use serde_json::json;
+        assert_eq!(get("supply_chain_firewall").unwrap().integration, "supply-chain-firewall", "installed with the integration");
+        let line = json!({
+            "msg": "Command 'pip install urllib3==2.0.2' was allowed", "ecosystem": "PyPI", "created": 1755017456.590666, "source": "scfw",
+            "env": "dev", "version": "3.0.0", "log_version": 1, "install_targets": [{"ecosystem": "PyPI", "name": "urllib3", "version": "2.0.2"}],
+            "executable": "/home/devuser/.venv/bin/python", "hostname": "test10-10-1-10", "package_manager": "pip", "service": "scfw",
+            "warning": true, "verified": true, "action": "ALLOW", "username": "root", "cwd": "/home/devuser/project"
+        });
+        let envelope = json!({"message": line.to_string(), "status": "info", "hostname": "dev-laptop-01", "service": "scfw", "ddsource": "scfw", "ddtags": "filename:scfw.log"});
+        let log = agent_log("supply_chain_firewall", envelope);
+        assert_eq!((log.message.as_str(), log.service.as_str(), log.source.as_str(), log.status.as_str()), ("Command 'pip install urllib3==2.0.2' was allowed", "scfw", "scfw", "info"));
+        assert_eq!((log.get("usr.name"), log.get("evt.outcome"), log.get("warning")), (Some(json!("root")), Some(json!("ALLOW")), Some(json!(true))));
+        assert_eq!((log.get("package_manager"), log.get("ecosystem"), log.host.as_str()), (Some(json!("pip")), Some(json!("PyPI")), "test10-10-1-10"), "the host scfw ran on");
+        assert_eq!((log.get("install_targets"), log.get("version"), log.get("env")), (Some(json!([{"ecosystem": "PyPI", "name": "urllib3", "version": "2.0.2"}])), Some(json!("3.0.0")), Some(json!("dev"))));
+        assert_eq!((log.get("username"), log.get("action")), (None, None), "remapped, not kept");
+        assert_eq!(log.timestamp_ms, Some(1_755_017_456_590), "the run's time");
+        // Before v3: `warned` and `targets`.
+        let old = json!({"msg": "Command 'npm install left-pad' was blocked", "created": 1755017456.5, "action": "BLOCK", "warned": false, "username": "dev", "package_manager": "npm", "targets": ["left-pad-1.3.0"]});
+        let log = agent_log("supply_chain_firewall", json!({"message": old.to_string(), "hostname": "dev-laptop-01", "service": "scfw", "ddsource": "scfw"}));
+        assert_eq!((log.get("evt.outcome"), log.get("warning"), log.get("warned")), (Some(json!("BLOCK")), Some(json!(false)), None));
+    }
+
+    /// GuardDog's scan results (the Agent check's logs) and IDE Shepherd's OCSF events (its Agent TCP listener), as
+    /// integrations-core's `guarddog_tests.yaml` and `ide-shepherd_tests.yaml` expect.
+    #[test]
+    fn guarddog_scans_and_ide_shepherd_events() {
+        use serde_json::json;
+        let scan = json!({"enrichment_details": {"package_ecosystem": "pypi"}, "log": {"result": {"path": "/tmp/scan/urllib3", "issues": 0, "errors": {"repository_integrity_mismatch": "failed to run rule"}}, "dependency": "urllib3", "version": "1.24.1"}});
+        let log = agent_log("guarddog", json!({"message": scan.to_string(), "timestamp": 1758799611000_i64, "hostname": "ci-runner-01", "service": "guarddog", "ddsource": "guarddog"}));
+        assert_eq!((log.get("has_errors"), log.get("log.dependency")), (Some(json!("yes")), Some(json!("urllib3"))), "an object attribute exists (`@log.result.errors:*`)");
+        let clean = json!({"log": {"result": {"issues": 0, "results": {}}, "dependency": "requests"}});
+        assert_eq!(agent_log("guarddog", json!({"message": clean.to_string(), "service": "guarddog", "ddsource": "guarddog"})).get("has_errors"), None);
+        let event = json!({"isAlert": false, "category_uid": 2, "class_uid": 2007, "activity_id": 2, "severity_id": 1, "status_id": 1, "type_uid": 200702, "time": 1769418941951_i64,
+            "metadata": {"product": {"name": "IDE Shepherd"}, "environment": {"ide_flavor": "cursor"}}, "application": {"name": "rust-lang.rust-analyzer", "version": "0.3.2769"}});
+        let log = agent_log("ide_shepherd", json!({"message": event.to_string(), "hostname": "dev-laptop-01", "service": "ide-shepherd-telemetry", "ddsource": "ide-shepherd"}));
+        assert_eq!((log.get("ocsf.application.name"), log.get("ocsf.metadata.environment.ide_flavor"), log.get("ocsf.is_alert")), (Some(json!("rust-lang.rust-analyzer")), Some(json!("cursor")), Some(json!(false))));
+        assert_eq!((log.get("ide_shepherd.activity_name"), log.get("ide_shepherd.class_name"), log.timestamp_ms), (Some(json!("Update")), Some(json!("Application Security Posture Finding")), Some(1_769_418_941_951)));
+    }
+
     #[test]
     fn every_integrations_pipelines_are_listed() {
         assert!(all().len() >= 240, "{} pipelines", all().len());
@@ -311,3 +373,4 @@ mod tests {
         assert!(parsers_ok * 100 >= parsers_total * 95, "{parsers_ok} of {parsers_total} parsers parse their samples");
     }
 }
+

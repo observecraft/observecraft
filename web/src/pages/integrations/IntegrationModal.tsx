@@ -301,7 +301,8 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
             </ol>
             <IntakeTarget d={d} />
           </div>
-          <h3>Configuration</h3>
+          {/* The README's setup section usually opens with its own heading. */}
+          {!docs.setup.trimStart().startsWith('#') && <h3>Configuration</h3>}
           <ReadmeMarkdown source={docs.setup} />
         </>
       ) : (

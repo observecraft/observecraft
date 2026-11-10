@@ -5,6 +5,8 @@ pub enum Term {
     Tag { key: String, values: Vec<String>, negate: bool },
     /// Free text matched against the message.
     Text { text: String, negate: bool },
+    /// `(a OR b)`, `-(@x:1 OR @y:2 z)`: a group of searches, any of which matches (each one's terms ANDed).
+    Any { alternatives: Vec<Vec<Term>>, negate: bool },
 }
 
 /// Splits on whitespace, keeping quoted strings and parenthesised groups intact.
@@ -47,11 +49,35 @@ fn is_key(s: &str) -> bool {
     !body.is_empty() && body.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
 }
 
+/// Splits a group's inside on its top-level ` OR `s (not those of nested groups or quotes).
+fn split_or(inner: &str) -> Vec<String> {
+    let mut out = vec![String::new()];
+    for tok in tokenize(inner) {
+        if tok == "OR" || tok == "or" {
+            out.push(String::new());
+        } else {
+            let cur = out.last_mut().expect("one part");
+            if !cur.is_empty() {
+                cur.push(' ');
+            }
+            cur.push_str(&tok);
+        }
+    }
+    out
+}
+
 fn parse_term(token: &str) -> Term {
     let (negate, body) = match token.strip_prefix('-') {
         Some(rest) if !rest.is_empty() => (true, rest),
         _ => (false, token),
     };
+    if body.len() > 2 && body.starts_with('(') && body.ends_with(')') {
+        let parts = split_or(&body[1..body.len() - 1]);
+        let alternatives: Vec<Vec<Term>> = parts.iter().map(|p| parse_query(p)).filter(|t| !t.is_empty()).collect();
+        if !alternatives.is_empty() {
+            return Term::Any { alternatives, negate };
+        }
+    }
     if let Some(idx) = body.find(':') {
         let (key, raw) = (&body[..idx], &body[idx + 1..]);
         if is_key(key) && !raw.is_empty() {
@@ -92,6 +118,21 @@ mod tests {
                 Term::Text { text: "timeout".into(), negate: false },
             ]
         );
+    }
+
+    #[test]
+    fn groups_across_attributes() {
+        let t = parse_query("source:scfw (@warning:true OR @warned:true) -(@a:1 OR b c)");
+        let tag = |k: &str, v: &str| Term::Tag { key: k.into(), values: vec![v.into()], negate: false };
+        assert_eq!(
+            t,
+            vec![
+                tag("source", "scfw"),
+                Term::Any { alternatives: vec![vec![tag("@warning", "true")], vec![tag("@warned", "true")]], negate: false },
+                Term::Any { alternatives: vec![vec![tag("@a", "1")], vec![Term::Text { text: "b".into(), negate: false }, Term::Text { text: "c".into(), negate: false }]], negate: true },
+            ]
+        );
+        assert_eq!(parse_query("(timeout)"), vec![Term::Any { alternatives: vec![vec![Term::Text { text: "timeout".into(), negate: false }]], negate: false }]);
     }
 
     #[test]

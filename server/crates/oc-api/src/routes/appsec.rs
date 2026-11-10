@@ -113,7 +113,7 @@ pub fn search_clause(query: &str) -> (String, Vec<Param>) {
                 let c = format!("({})", ors.join(" OR "));
                 clauses.push(if *negate { format!("NOT {c}") } else { c });
             }
-            Term::Text { .. } => rest.push(t.clone()),
+            Term::Text { .. } | Term::Any { .. } => rest.push(t.clone()),
         }
     }
     let f = build_where(&SpansSchema, &rest, None);

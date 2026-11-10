@@ -125,6 +125,7 @@ fn negated(terms: Vec<Term>) -> Option<Term> {
     Some(match terms.into_iter().next().unwrap() {
         Term::Tag { key, values, negate } => Term::Tag { key, values, negate: !negate },
         Term::Text { text, negate } => Term::Text { text, negate: !negate },
+        Term::Any { alternatives, negate } => Term::Any { alternatives, negate: !negate },
     })
 }
 

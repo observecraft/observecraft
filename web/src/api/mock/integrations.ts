@@ -8,6 +8,7 @@ import { authentikConnected } from './authentik';
 import { fleetdmConnected } from './fleetdm';
 import { gitlabAuditConnected } from './gitlabAudit';
 import { coreCatalog, type CoreIntegration } from '../integrations/catalog';
+import { coreSteps } from '../integrations/setupSteps';
 import { linkCore } from '../integrations/coreLink';
 import { availableHere, installable, ownIntegration, unavailableReason, type Collection, type CollectionInfo } from '../integrations/collection';
 import { awsMetricPrefix } from '../integrations/detection';
@@ -1269,40 +1270,6 @@ function coreDataTypes(c: CoreIntegration): string[] {
   if (c.dataTypes.length) return c.dataTypes;
   return [...(c.metricPrefix ? ['Metrics'] : []), ...(c.logSource ? ['Logs'] : [])];
 }
-
-/** How an integrations-core entry is set up to send to ObserveCraft, by how it is collected. */
-function coreSteps(c: CoreIntegration): string[] {
-  switch (c.collection) {
-    case 'webhook':
-      return [
-        'Create an ingest key in Organization Settings → API Keys.',
-        `In ${c.name}, add a webhook that posts to the URL below, with the ingest key in place of <INGEST_API_KEY>.`,
-        'Click Install to add its log pipelines and dashboards.',
-      ];
-    case 'push-site':
-      return c.customEndpoint
-        ? [
-            `In ${c.name}, choose a custom endpoint instead of a Datadog site and enter your ObserveCraft intake (below).`,
-            'Use an ingest key from Organization Settings → API Keys where it asks for the Datadog API key.',
-            'Click Install to add its log pipelines and dashboards.',
-          ]
-        : [];
-    case 'crawler':
-    case 'oauth':
-    case 'docs':
-      return [];
-    default:
-      return AGENT_STEPS(c);
-  }
-}
-
-const AGENT_STEPS = (c: CoreIntegration) => [
-  'Install the Datadog Agent on the host and point it at ObserveCraft (DD_SITE / DD_DD_URL and your ingest key as DD_API_KEY).',
-  c.configurable
-    ? `Fill in the settings below and save the result as conf.d/${c.check}.d/conf.yaml in the Agent's configuration directory.`
-    : `Configure the ${c.name} integration as its integrations-core documentation describes.`,
-  'Restart the Agent. Data appears within a few minutes; detection uses metrics received during the last 24 hours.',
-];
 
 const BY_ID = new Map(CATALOG.map((e) => [e.id, e]));
 

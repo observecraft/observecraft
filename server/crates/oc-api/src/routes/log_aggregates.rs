@@ -76,6 +76,7 @@ impl Aggregate {
         terms.iter().all(|t| match t {
             Term::Text { .. } => false,
             Term::Tag { key, values, .. } => Some(key.as_str()) == skip_key || values.is_empty() || self.column(key).is_some(),
+            Term::Any { alternatives, .. } => alternatives.iter().all(|a| self.covers(a, skip_key)),
         })
     }
 }

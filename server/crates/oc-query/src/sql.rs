@@ -149,6 +149,11 @@ pub fn build_where(schema: &dyn Schema, terms: &[Term], skip_key: Option<&str>) 
                 let joined = ors.join(" OR ");
                 parts.push(if *negate { format!("NOT ({joined})") } else { format!("({joined})") });
             }
+            Term::Any { alternatives, negate } => {
+                let any = any_of(alternatives.iter().map(|a| build_where(schema, a, skip_key)).collect(), "0");
+                parts.push(format!("{}({})", if *negate { "NOT " } else { "" }, any.clause));
+                params.extend(any.params);
+            }
         }
     }
     SqlFilter { clause: if parts.is_empty() { "1".into() } else { parts.join(" AND ") }, params }
@@ -186,6 +191,14 @@ mod tests {
         assert_eq!(f.params[0], Param::Str("view".into()));
         assert_eq!(f.params[1], Param::Str("view.name".into()));
         assert_eq!(f.params[5], Param::Str("synthetics".into()));
+    }
+
+    #[test]
+    fn groups_across_attributes() {
+        let f = build_where(&LogsSchema, &parse_query("source:scfw (@warning:true OR @warned:true) -(env:qa OR oops)"), None);
+        assert_eq!(f.clause, "(source = ?) AND (((attr[?] = ?)) OR ((attr[?] = ?))) AND NOT (((tags[?] = ?)) OR ((lower(message) LIKE ?)))");
+        assert_eq!(f.params.len(), 8);
+        assert_eq!((&f.params[1], &f.params[2], &f.params[3]), (&Param::Str("warning".into()), &Param::Str("true".into()), &Param::Str("warned".into())));
     }
 
     #[test]
