@@ -1,0 +1,172 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "supabase.cloud.node.load1",
+      "tags": [
+        [
+          "service_type",
+          "db"
+        ],
+        [
+          "supabase_project_ref",
+          "abcdefghijklmnopqrst"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.42
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "supabase.cloud.node.memory.mem_total.bytes",
+      "tags": [
+        [
+          "service_type",
+          "db"
+        ],
+        [
+          "supabase_project_ref",
+          "abcdefghijklmnopqrst"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1073741824.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "supabase.cloud.node.memory.mem_available.bytes",
+      "tags": [
+        [
+          "service_type",
+          "db"
+        ],
+        [
+          "supabase_project_ref",
+          "abcdefghijklmnopqrst"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 536870912.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "supabase.cloud.node.cpu.seconds.count",
+      "tags": [
+        [
+          "cpu",
+          "0"
+        ],
+        [
+          "mode",
+          "user"
+        ],
+        [
+          "service_type",
+          "db"
+        ],
+        [
+          "supabase_project_ref",
+          "abcdefghijklmnopqrst"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 15342.5
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "supabase.cloud.node.cpu.seconds.count",
+      "tags": [
+        [
+          "cpu",
+          "0"
+        ],
+        [
+          "mode",
+          "idle"
+        ],
+        [
+          "service_type",
+          "db"
+        ],
+        [
+          "supabase_project_ref",
+          "abcdefghijklmnopqrst"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 902311.25
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "supabase.cloud.pg.up",
+      "tags": [
+        [
+          "service_type",
+          "db"
+        ],
+        [
+          "supabase_project_ref",
+          "abcdefghijklmnopqrst"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "supabase.cloud.pg_database.size.mb",
+      "tags": [
+        [
+          "datname",
+          "postgres"
+        ],
+        [
+          "service_type",
+          "db"
+        ],
+        [
+          "supabase_project_ref",
+          "abcdefghijklmnopqrst"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 182.4
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "supabase.cloud.pg_stat_database.xact_commit.count",
+      "tags": [
+        [
+          "datname",
+          "postgres"
+        ],
+        [
+          "service_type",
+          "db"
+        ],
+        [
+          "supabase_project_ref",
+          "abcdefghijklmnopqrst"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 812234.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

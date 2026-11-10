@@ -1,0 +1,92 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c51d-6380-7648-bea6-6ca5fb649406"
+      },
+      "data": {
+        "event_message": "connection authorized: user=authenticator database=postgres application_name=postgrest",
+        "id": "0b1c0000-0000-4000-8000-000000000001",
+        "identifier": "abcdefghijklmnopqrst",
+        "metadata": {
+          "host": "db-abcdefghijklmnopqrst",
+          "identifier": "abcdefghijklmnopqrst",
+          "parsed.database_name": "postgres",
+          "parsed.error_severity": "LOG",
+          "parsed.session_id": "6731a0f0.1a2b",
+          "parsed.user_name": "authenticator"
+        },
+        "project": "abcdefghijklmnopqrst",
+        "severity_text": "LOG",
+        "timestamp": 1794308400000000
+      },
+      "date": 1794308400000,
+      "ddsource": "supabase",
+      "host": "abcdefghijklmnopqrst",
+      "message": "connection authorized: user=authenticator database=postgres application_name=postgrest",
+      "service": "postgres_logs",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c521-f760-7b61-ad2f-1d33bb3bf20f"
+      },
+      "data": {
+        "event_message": "POST | 401 | 203.0.113.24 | 8f1d2e3a4b5c6d7e | https://abcdefghijklmnopqrst.supabase.co/auth/v1/token?grant_type=password | storefront-web/2.3.1",
+        "id": "0b1c0000-0000-4000-8000-000000000002",
+        "metadata": {
+          "request.headers.cf_connecting_ip": "203.0.113.24",
+          "request.method": "POST",
+          "request.path": "/auth/v1/token",
+          "response.status_code": "401"
+        },
+        "project": "abcdefghijklmnopqrst",
+        "severity_text": "INFO",
+        "timestamp": 1794308700000000
+      },
+      "date": 1794308700000,
+      "ddsource": "supabase",
+      "host": "abcdefghijklmnopqrst",
+      "message": "POST | 401 | 203.0.113.24 | 8f1d2e3a4b5c6d7e | https://abcdefghijklmnopqrst.supabase.co/auth/v1/token?grant_type=password | storefront-web/2.3.1",
+      "service": "edge_logs",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c526-8b40-79ae-8b98-1b1261b08cc0"
+      },
+      "data": {
+        "event_message": "Invalid login credentials",
+        "id": "0b1c0000-0000-4000-8000-000000000003",
+        "metadata": {
+          "auth_event.action": "login",
+          "auth_event.actor_username": "jane.doe@example.com",
+          "error": "invalid_grant",
+          "grant_type": "password",
+          "level": "error",
+          "msg": "Invalid login credentials",
+          "status": "400"
+        },
+        "project": "abcdefghijklmnopqrst",
+        "severity_text": "ERROR",
+        "timestamp": 1794309000000000
+      },
+      "date": 1794309000000,
+      "ddsource": "supabase",
+      "host": "abcdefghijklmnopqrst",
+      "message": "Invalid login credentials",
+      "service": "auth_logs",
+      "status": "error"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}
