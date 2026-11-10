@@ -1,0 +1,17 @@
+{
+  "data": [
+    {
+      "id": "activity_01ExampleActivity00001", "type": "claude_artifact_viewed", "created_at": "2026-11-10T11:25:13.701734Z",
+      "actor": { "type": "user_actor", "email_address": "jane.doe@example.com", "user_id": "user_01ExampleJane", "ip_address": "203.0.113.7", "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36" },
+      "organization_id": "org_01ExampleOrg", "organization_uuid": "a1b2c3d4-0000-4000-8000-000000000001",
+      "claude_artifact_id": "claude_artifact_01ExampleArtifact"
+    },
+    {
+      "id": "activity_01ExampleActivity00002", "type": "admin_api_key_created", "created_at": "2026-11-10T10:02:44.120000Z",
+      "actor": { "type": "user_actor", "email_address": "sam.lee@example.com", "user_id": "user_01ExampleSam", "ip_address": "198.51.100.23", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36" },
+      "organization_id": "org_01ExampleOrg", "organization_uuid": "a1b2c3d4-0000-4000-8000-000000000001",
+      "admin_api_key_id": "apikey_01ExampleAdminKey"
+    }
+  ],
+  "has_more": true, "first_id": "activity_01ExampleActivity00001", "last_id": "activity_01ExampleActivity00002"
+}

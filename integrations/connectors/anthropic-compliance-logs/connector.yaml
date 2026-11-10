@@ -1,0 +1,99 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Claude Compliance (https://platform.claude.com/docs/en/api/compliance): a Claude Enterprise organization's
+# compliance activities, as the logs Datadog's integration sends (source:claude-compliance-logs, the activity as
+# Anthropic answers it: id, type, created_at, actor, organization_id and the type's own fields). integrations-core's
+# log pipeline (actor to usr.* and network.client.ip, user agent, GeoIP) and its overview dashboard read them as they
+# are. Anthropic's examples call both api.anthropic.com and platform.claude.com; this package uses api.anthropic.com.
+schema_version: 1
+id: anthropic-compliance-logs
+name: Claude Compliance
+publisher: ObserveCraft
+vendor: Anthropic
+description: >-
+  The compliance activity log of a Claude Enterprise organization (sign-ins, chats, projects and artifacts created,
+  shared or deleted, members, API keys, settings), one log per activity, read from Anthropic's Compliance API.
+tiles: [anthropic-compliance-logs]
+categories: [AI/ML, Log Collection, SIEM, Security]
+source: claude-compliance-logs
+docs_url: https://platform.claude.com/docs/en/api/compliance
+setup: |
+  1. The Compliance API needs a Claude Enterprise plan with the Compliance API enabled for the organization.
+  2. Create a key that can read compliance activities (`read:compliance_activities`): a Compliance Access key, or an
+     Admin API key with that scope; copy it.
+  3. Each read is itself recorded as a compliance activity, so the log is read every five minutes.
+instance: "{{ config.organization ?? 'claude' }}"
+
+config:
+  - key: organization
+    label: Name for this organization
+    type: string
+    placeholder: example-org
+    help: Shown as the logs' host; any name.
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+    placeholder: sk-ant-…
+
+auth:
+  kind: api_key
+  name: x-api-key
+  value: "{{ secrets.api_key }}"
+
+headers:
+  anthropic-version: "2023-06-01"
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Anthropic refused the API key
+  - status: [403]
+    kind: access_denied
+    message: "The key can't read compliance activities: the organization needs Claude Enterprise with the Compliance API enabled, and the key the read:compliance_activities scope"
+
+streams:
+  - id: activities
+    name: Compliance activities
+    description: >-
+      Every compliance activity as a log (source:claude-compliance-logs) with Anthropic's fields as they are; the
+      tile's pipeline names the event (evt.name = type) and maps actor.email_address, user_id and ip_address to
+      usr.* and network.client.ip.
+    interval: 5m
+    request:
+      url: https://api.anthropic.com/v1/compliance/activities
+      query:
+        "created_at[gte]": "{{ window.start | rfc3339 }}"
+        "created_at[lt]": "{{ window.end | rfc3339 }}"
+        limit: 100
+        after_id: "{{ page.cursor }}"
+    records: "{{ response.data }}"
+    pagination: { kind: cursor, next: "{{ response.has_more ? response.last_id : null }}" }
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.created_at }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 5m
+      settle: 1m
+    output:
+      logs:
+        message: "{{ record.type + (' by ' + (record.actor.email_address ?? record.actor.user_id ?? record.actor.type) ?? '') }}"
+        date: "{{ record.created_at }}"
+        attributes: "{{ record }}"
+
+test:
+  stream: activities
+  message: "Connected: the compliance activity log is readable"
+
+mock:
+  config: { organization: example-org }
+  secrets: { api_key: sk-ant-admin01-test-0000000000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.anthropic.com/v1/compliance/activities", query: { after_id: activity_01ExampleActivity00002 }, file: fixtures/activities-2.json }
+    - { url: "https://api.anthropic.com/v1/compliance/activities", file: fixtures/activities-1.json }
+  expect:
+    activities: { records: 3, logs: 3, rerun: 0, golden: fixtures/activities.expected.json }
+    test: { ok: true, message: "compliance activity log is readable" }

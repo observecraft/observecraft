@@ -1,0 +1,85 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c534-7c65-78a9-ba80-c0150241af0f"
+      },
+      "actor": {
+        "email_address": "jane.doe@example.com",
+        "ip_address": "203.0.113.7",
+        "type": "user_actor",
+        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+        "user_id": "user_01ExampleJane"
+      },
+      "claude_artifact_id": "claude_artifact_01ExampleArtifact",
+      "created_at": "2026-11-10T11:25:13.701734Z",
+      "date": "2026-11-10T11:25:13.701734Z",
+      "ddsource": "claude-compliance-logs",
+      "host": "example-org",
+      "id": "activity_01ExampleActivity00001",
+      "message": "claude_artifact_viewed by jane.doe@example.com",
+      "organization_id": "org_01ExampleOrg",
+      "organization_uuid": "a1b2c3d4-0000-4000-8000-000000000001",
+      "service": "claude-compliance-logs",
+      "status": "info",
+      "type": "claude_artifact_viewed"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e8-f618-7390-b86a-ab035baa0584"
+      },
+      "actor": {
+        "email_address": "sam.lee@example.com",
+        "ip_address": "198.51.100.23",
+        "type": "user_actor",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+        "user_id": "user_01ExampleSam"
+      },
+      "admin_api_key_id": "apikey_01ExampleAdminKey",
+      "created_at": "2026-11-10T10:02:44.120000Z",
+      "date": "2026-11-10T10:02:44.120000Z",
+      "ddsource": "claude-compliance-logs",
+      "host": "example-org",
+      "id": "activity_01ExampleActivity00002",
+      "message": "admin_api_key_created by sam.lee@example.com",
+      "organization_id": "org_01ExampleOrg",
+      "organization_uuid": "a1b2c3d4-0000-4000-8000-000000000001",
+      "service": "claude-compliance-logs",
+      "status": "info",
+      "type": "admin_api_key_created"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bd-77a5-7543-963d-354033aa1781"
+      },
+      "actor": {
+        "email_address": "jane.doe@example.com",
+        "ip_address": "203.0.113.7",
+        "type": "user_actor",
+        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+        "user_id": "user_01ExampleJane"
+      },
+      "created_at": "2026-11-10T09:15:13.701734Z",
+      "date": "2026-11-10T09:15:13.701734Z",
+      "ddsource": "claude-compliance-logs",
+      "host": "example-org",
+      "id": "activity_01ExampleActivity00003",
+      "message": "sso_login_succeeded by jane.doe@example.com",
+      "organization_id": "org_01ExampleOrg",
+      "organization_uuid": "a1b2c3d4-0000-4000-8000-000000000001",
+      "service": "claude-compliance-logs",
+      "status": "info",
+      "type": "sso_login_succeeded"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}
