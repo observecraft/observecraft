@@ -623,6 +623,24 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
     ],
   },
   {
+    check: 'kubelet',
+    variants: [
+      {
+        label: 'Datadog Helm chart or Operator',
+        text: 'Nothing to annotate: the Agent on every node runs the kubelet check by itself against its node’s kubelet (`DD_KUBELET_TLS_VERIFY=false` where the kubelet’s certificate isn’t signed by the cluster’s CA, as on AKS: the chart’s `datadog.kubelet.tlsVerify: false`).',
+      },
+    ],
+  },
+  {
+    check: 'kubernetes_state_core',
+    variants: [
+      {
+        label: 'Datadog Helm chart or Operator',
+        text: 'Nothing to annotate: the Cluster Agent runs it by itself as a cluster check (`datadog.kubeStateMetricsCore.enabled`, on by default), with no kube-state-metrics deployment needed.',
+      },
+    ],
+  },
+  {
     check: 'coredns',
     variants: [
       {
