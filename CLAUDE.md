@@ -198,9 +198,10 @@ or SDK features.
 - **FleetDM** (Integrations → FleetDM, `oc-api/src/fleetdm/`, `routes/fleetdm_integration.rs`; Datadog has no Fleet
   integration): the server polls a Fleet server's REST API (`/api/v1/fleet`, an API-only observer's token in Postgres
   `fleetdm_connections`, sealed) on the cloud crawlers' jobs (provider `fleetdm`, scopes `activities` and `hosts`):
-  activities as logs (`source:fleetdm`, oldest first from the cursor, so a backlog is read on by the next runs) to
-  `oc.logs.json`; host counts, hosts, global policies and the most widespread vulnerabilities as `fleetdm.*` gauges to
-  `oc.otlp-json.metrics` (hosts aren't `host`s). Saving the connection installs its library pipeline
+  activities as logs (`source:fleetdm`, oldest first from the cursor, so a backlog is read on by the next runs; a
+  Fleet ignoring `start_created_at` is read newest first down to the cursor) to `oc.logs.json`; host counts, hosts,
+  global policies and the most widespread vulnerabilities as `fleetdm.*` gauges to `oc.otlp-json.metrics` (hosts
+  aren't `host`s). Saving the connection installs its library pipeline
   (`fleetdm.category`); its dashboard is ours (`scripts/fleetdm-dashboard.mjs` → `seeds/integrations/fleetdm/`),
   listed once connected.
 - **GitLab Audit Events** (Integrations → GitLab Audit Events, `oc-api/src/gitlab_audit/`,

@@ -531,7 +531,8 @@ Fleet never connects to ObserveCraft: the server only needs outbound HTTPS to th
 2. In *Integrations → FleetDM*, enter the Fleet URL and the token. **Test connection** shows the token's user and
    role and how many hosts Fleet has, and checks it can read the activities. Organization admins only.
 3. Save. Within a minute the server reads the last 24 hours of activities and the hosts and policies, then both every
-   minute.
+   minute. A Fleet too old to filter activities by date (`start_created_at`) is read newest first instead; a backlog
+   of more than 2,000 activities a minute then keeps the newest and says so on the page.
 
 How it works:
 

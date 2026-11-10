@@ -7,12 +7,16 @@
 //!   (JSON on `oc.logs.json`, with the org's headers) and moves the cursor (`collected_until`) to the last one sent. A
 //!   backlog larger than a run's pages is read on by the next runs: no activity of the window is skipped. Activities
 //!   of the cursor's second are read again and stored once (a log's identity comes from the activity's id). A failed
-//!   request publishes nothing, so the next run reads the same window again.
+//!   request publishes nothing, so the next run reads the same window again. A Fleet too old for `start_created_at`
+//!   answers from its oldest activity: that is noticed on the first page (activities older than the window), logged
+//!   once, and the connection is read newest first down to the cursor instead ([`read_newest`], de-duplicated by id,
+//!   up to the same pages; a larger backlog keeps the newest pages and warns).
 //! - [`HOSTS`] ([`sync_hosts`]): the host counts, the global policies, the most widespread vulnerabilities and every
 //!   host (up to [`MAX_HOST_PAGES`] pages) as gauges (`fleetdm.*`, OTLP JSON on `oc.otlp-json.metrics`); see
 //!   [`super::hosts`].
 
-use std::sync::Arc;
+use std::collections::HashSet;
+use std::sync::{Arc, LazyLock, Mutex};
 
 use serde_json::Value;
 
@@ -85,24 +89,32 @@ fn warning(message: String) -> Option<Issue> {
     Some(Issue { kind: "other", message, missing_action: None, backoff: Backoff::Exponential })
 }
 
-/// Polls one connection's activities: see the module documentation. `cursor`: the job's `collected_until`.
-pub async fn sync_activities(api: &dyn FleetApi, sink: &dyn MetricSink, headers: &[(String, String)], org: &str, conn: &Connection, cursor: Option<i64>, now_ms: i64) -> Outcome {
-    let start = window_start(cursor, now_ms);
-    let settled = now_ms - SETTLE_MS;
-    let mut activities: Vec<(i64, Value)> = Vec::new();
-    let mut more = false;
+/// The connections (org, Fleet URL) whose Fleet ignores `start_created_at`: read newest first.
+static NEWEST_FIRST: LazyLock<Mutex<HashSet<(String, String)>>> = LazyLock::new(Mutex::default);
+
+/// A page's activities; `None` when Fleet answered `null` (there are none).
+fn page_of(answer: &Value) -> Result<Option<&Vec<Value>>, FleetError> {
+    match answer["activities"].as_array() {
+        Some(list) => Ok(Some(list)),
+        None if answer.get("activities").is_some_and(Value::is_null) => Ok(None),
+        None => Err(FleetError::Other("Fleet answered without a list of activities".into())),
+    }
+}
+
+fn has_next(answer: &Value, results: &[Value]) -> bool {
+    results.len() >= ACTIVITIES_PAGE_SIZE && answer.pointer("/meta/has_next_results").and_then(Value::as_bool).unwrap_or(false)
+}
+
+/// Read from `start` in Fleet's order of creation: the settled activities and whether the run's pages ran out.
+/// `None` when Fleet ignored `start_created_at` (its first page has activities from before the window's second).
+async fn read_from(api: &dyn FleetApi, conn: &Connection, start: i64, settled: i64) -> Result<Option<(Vec<(i64, Value)>, bool)>, FleetError> {
+    let (mut activities, mut more) = (Vec::new(), false);
     'pages: for page in 0..MAX_ACTIVITY_PAGES {
-        let answer = match api.get(&conn.base_url, &conn.token, &api::activities_path(page, start)).await {
-            Ok(a) => a,
-            Err(e) => return Outcome::Failed(issue(&e)),
-        };
-        let Some(results) = answer["activities"].as_array() else {
-            // Fleet answers `null` when there are none.
-            if answer.get("activities").is_some_and(Value::is_null) {
-                break;
-            }
-            return Outcome::Failed(issue(&FleetError::Other("Fleet answered without a list of activities".into())));
-        };
+        let answer = api.get(&conn.base_url, &conn.token, &api::activities_path(page, start)).await?;
+        let Some(results) = page_of(&answer)? else { break };
+        if page == 0 && results.iter().filter_map(created_ms).any(|at| at < start - start.rem_euclid(1000)) {
+            return Ok(None);
+        }
         for activity in results {
             let Some(at) = created_ms(activity) else { continue };
             if at > settled {
@@ -112,13 +124,65 @@ pub async fn sync_activities(api: &dyn FleetApi, sink: &dyn MetricSink, headers:
                 activities.push((at, activity.clone()));
             }
         }
-        if results.len() < ACTIVITIES_PAGE_SIZE || !answer.pointer("/meta/has_next_results").and_then(Value::as_bool).unwrap_or(false) {
+        if !has_next(&answer, results) {
             break;
         }
         more = page + 1 == MAX_ACTIVITY_PAGES;
     }
+    Ok(Some((activities, more)))
+}
+
+/// Read newest first down to `start` (a Fleet without `start_created_at`): the settled activities, oldest first and
+/// once each (pages shift as activities arrive), and whether the run's pages ran out before `start`.
+async fn read_newest(api: &dyn FleetApi, conn: &Connection, start: i64, settled: i64) -> Result<(Vec<(i64, Value)>, bool), FleetError> {
+    let (mut activities, mut seen, mut reached) = (Vec::new(), HashSet::new(), false);
+    for page in 0..MAX_ACTIVITY_PAGES {
+        let answer = api.get(&conn.base_url, &conn.token, &api::activities_newest_path(page)).await?;
+        let Some(results) = page_of(&answer)? else {
+            reached = true;
+            break;
+        };
+        for activity in results {
+            let Some(at) = created_ms(activity) else { continue };
+            if at < start {
+                reached = true;
+                break;
+            }
+            if at <= settled && seen.insert(activity["id"].to_string()) {
+                activities.push((at, activity.clone()));
+            }
+        }
+        if reached || !has_next(&answer, results) {
+            reached = true;
+            break;
+        }
+    }
+    activities.sort_by_key(|(at, a)| (a["id"].as_u64(), *at));
+    Ok((activities, !reached))
+}
+
+/// Polls one connection's activities: see the module documentation. `cursor`: the job's `collected_until`.
+pub async fn sync_activities(api: &dyn FleetApi, sink: &dyn MetricSink, headers: &[(String, String)], org: &str, conn: &Connection, cursor: Option<i64>, now_ms: i64) -> Outcome {
+    let start = window_start(cursor, now_ms);
+    let settled = now_ms - SETTLE_MS;
+    let key = (org.to_string(), conn.base_url.clone());
+    let filtered = if NEWEST_FIRST.lock().unwrap().contains(&key) { Ok(None) } else { read_from(api, conn, start, settled).await };
+    let read = match filtered {
+        Ok(Some((activities, more))) => Ok((activities, more, false)),
+        Ok(None) => {
+            if NEWEST_FIRST.lock().unwrap().insert(key) {
+                tracing::warn!(org, fleet = %conn.host(), "this Fleet ignores start_created_at: its activities are read newest first down to the cursor");
+            }
+            read_newest(api, conn, start, settled).await.map(|(activities, truncated)| (activities, false, truncated))
+        }
+        Err(e) => Err(e),
+    };
+    let (activities, more, truncated) = match read {
+        Ok(r) => r,
+        Err(e) => return Outcome::Failed(issue(&e)),
+    };
     let host = conn.host();
-    let mut end_ms = activities.last().map_or(cursor.unwrap_or(start), |(at, _)| *at);
+    let mut end_ms = activities.iter().map(|(at, _)| *at).max().unwrap_or(cursor.unwrap_or(start));
     let logs: Vec<Value> = activities.iter().map(|(_, a)| log_of(a, &host)).collect();
     for chunk in logs.chunks(LOGS_PER_RECORD) {
         let body = serde_json::to_vec(chunk).unwrap_or_default();
@@ -128,6 +192,9 @@ pub async fn sync_activities(api: &dyn FleetApi, sink: &dyn MetricSink, headers:
     }
     // A run's pages all in the window's first second: step past it, or every run would read the same pages.
     let mut warning = None;
+    if truncated {
+        warning = self::warning(format!("more than {} activities since the last sync on a Fleet that ignores start_created_at: the older ones were skipped", MAX_ACTIVITY_PAGES * ACTIVITIES_PAGE_SIZE));
+    }
     if more && end_ms < start + 1000 {
         end_ms = start - start.rem_euclid(1000) + 1000;
         warning = self::warning(format!("more than {} activities in one second: the others of that second were skipped", MAX_ACTIVITY_PAGES * ACTIVITIES_PAGE_SIZE));
@@ -355,6 +422,56 @@ mod tests {
             Outcome::Collected { end_ms, metrics, warning: Some(w), .. } => {
                 assert_eq!((end_ms, metrics), (cursor + 1000, MAX_ACTIVITY_PAGES * ACTIVITIES_PAGE_SIZE));
                 assert!(w.message.contains("one second"), "{}", w.message);
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_fleet_ignoring_start_created_at_is_read_newest_first_down_to_the_cursor() {
+        // Fleet before start_created_at answers its whole log from the oldest activity.
+        let api = FakeFleet { ignores_start: true, ..Default::default() };
+        let mut log = created(1, "2026-11-01T09:00:00Z", 250);
+        log.extend(created(1000, "2026-11-06T10:59:59Z", 1));
+        log.extend(created(2000, "2026-11-06T11:00:00Z", 230));
+        log.push(fixtures::created_policy(3000, "2026-11-06T11:59:50Z"));
+        api.log(&log);
+        let cursor = ms("2026-11-06T11:00:00Z");
+        let now = ms("2026-11-06T12:00:00Z");
+        let sink = FakeSink::default();
+        // Another org: which Fleet servers ignore the filter is remembered per connection.
+        let org = "example-org-legacy-fleet";
+        let outcome = sync_activities(&api, &sink, &headers(), org, &conn(), Some(cursor), now).await;
+        let newest = |page| api::activities_newest_path(page);
+        assert_eq!(api.requested(), vec![api::activities_path(0, cursor), newest(0), newest(1), newest(2)], "one probe, then newest first until the cursor");
+        assert_eq!(ids(&sink), (2000..2230).map(|i| i.to_string()).collect::<Vec<_>>(), "the window's settled activities, oldest first, once each");
+        assert_eq!(outcome, Outcome::Collected { end_ms: ms("2026-11-06T11:03:49Z"), metrics: 230, points: 230, warning: None });
+
+        // The next run skips the probe; activities arriving between its pages are not sent twice.
+        api.requests.lock().unwrap().clear();
+        *api.arrive.lock().unwrap() = created(4000, "2026-11-06T11:59:55Z", 5);
+        let sink = FakeSink::default();
+        let outcome = sync_activities(&api, &sink, &headers(), org, &conn(), Some(ms("2026-11-06T11:02:00Z")), now).await;
+        assert_eq!(api.requested(), vec![newest(0), newest(1)]);
+        assert_eq!(ids(&sink), (2120..2230).map(|i| i.to_string()).collect::<Vec<_>>());
+        assert!(matches!(outcome, Outcome::Collected { metrics: 110, warning: None, .. }), "{outcome:?}");
+    }
+
+    #[tokio::test]
+    async fn a_fleet_ignoring_start_created_at_with_a_backlog_past_a_runs_pages_warns() {
+        let api = FakeFleet { ignores_start: true, ..Default::default() };
+        let mut log = created(1, "2026-11-04T09:00:00Z", 10);
+        let burst = created(100, "2026-11-06T10:00:00Z", MAX_ACTIVITY_PAGES * ACTIVITIES_PAGE_SIZE + 50);
+        log.extend(burst.clone());
+        api.log(&log);
+        let sink = FakeSink::default();
+        let outcome = sync_activities(&api, &sink, &headers(), "example-org-legacy-backlog", &conn(), Some(ms("2026-11-06T09:00:00Z")), ms("2026-11-06T12:00:00Z")).await;
+        let sent = ids(&sink);
+        assert_eq!((sent.len(), sent.last().map(String::as_str)), (MAX_ACTIVITY_PAGES * ACTIVITIES_PAGE_SIZE, Some("2149")), "the newest pages, oldest first");
+        match outcome {
+            Outcome::Collected { end_ms, warning: Some(w), .. } => {
+                assert_eq!(end_ms, ms(burst.last().unwrap()["created_at"].as_str().unwrap()));
+                assert!(w.message.contains("start_created_at") && w.message.contains("skipped"), "{}", w.message);
             }
             other => panic!("{other:?}"),
         }

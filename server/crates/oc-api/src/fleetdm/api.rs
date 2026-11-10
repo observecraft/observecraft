@@ -78,6 +78,11 @@ pub fn activities_path(page: usize, start_ms: i64) -> String {
     format!("/activities?page={page}&per_page={ACTIVITIES_PAGE_SIZE}&order_key=id&order_direction=asc&start_created_at={start}")
 }
 
+/// A page (0-based) of the activities, newest first: how a Fleet too old for `start_created_at` is read.
+pub fn activities_newest_path(page: usize) -> String {
+    format!("/activities?page={page}&per_page={ACTIVITIES_PAGE_SIZE}&order_key=id&order_direction=desc")
+}
+
 /// The newest activity (the connection test: can the token read the activities).
 pub const LATEST_ACTIVITY: &str = "/activities?page=0&per_page=1&order_key=id&order_direction=desc";
 
@@ -99,6 +104,7 @@ mod tests {
     fn paths_and_errors() {
         let start = chrono::DateTime::parse_from_rfc3339("2026-11-06T11:00:00.750Z").unwrap().timestamp_millis();
         assert_eq!(activities_path(2, start), "/activities?page=2&per_page=100&order_key=id&order_direction=asc&start_created_at=2026-11-06T11:00:00Z");
+        assert_eq!(activities_newest_path(1), "/activities?page=1&per_page=100&order_key=id&order_direction=desc");
         assert_eq!(vulnerabilities_path(), "/vulnerabilities?page=0&per_page=50&order_key=hosts_count&order_direction=desc");
         assert_eq!(hosts_path(0), "/hosts?page=0&per_page=200&order_key=id&order_direction=asc");
         assert_eq!(classify(Some(401), "token fleet-secret refused", "fleet-secret"), FleetError::Auth("token [token] refused".into()));

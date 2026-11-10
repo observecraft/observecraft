@@ -97,6 +97,10 @@ pub struct FakeFleet {
     pub activities: StdMutex<Option<Vec<Value>>>,
     pub requests: StdMutex<Vec<String>>,
     pub refuse: bool,
+    /// A Fleet too old for `start_created_at`: it answers its whole log.
+    pub ignores_start: bool,
+    /// Activities created right after the next newest-first page is answered (they shift the later pages).
+    pub arrive: StdMutex<Vec<Value>>,
 }
 
 impl FakeFleet {
@@ -114,10 +118,15 @@ impl FakeFleet {
         let query = path.strip_prefix("/activities?")?;
         let param = |k: &str| query.split('&').find_map(|p| p.strip_prefix(&format!("{k}=")).map(str::to_string));
         let page: usize = param("page")?.parse().ok()?;
-        let start = param("start_created_at").map_or(i64::MIN, |t| chrono::DateTime::parse_from_rfc3339(&t).unwrap().timestamp_millis());
+        let start = param("start_created_at").filter(|_| !self.ignores_start).map_or(i64::MIN, |t| chrono::DateTime::parse_from_rfc3339(&t).unwrap().timestamp_millis());
         let created = |a: &Value| chrono::DateTime::parse_from_rfc3339(a["created_at"].as_str().unwrap()).unwrap().timestamp_millis();
         let mut matching: Vec<Value> = log.into_iter().filter(|a| created(a) >= start).collect();
         matching.sort_by_key(|a| a["id"].as_u64());
+        if param("order_direction").as_deref() == Some("desc") {
+            matching.reverse();
+            let arrived: Vec<Value> = std::mem::take(&mut *self.arrive.lock().unwrap());
+            self.activities.lock().unwrap().get_or_insert_with(Vec::new).extend(arrived);
+        }
         let rows: Vec<Value> = matching.iter().skip(page * ACTIVITIES_PAGE_SIZE).take(ACTIVITIES_PAGE_SIZE).cloned().collect();
         let next = matching.len() > (page + 1) * ACTIVITIES_PAGE_SIZE;
         // Fleet answers `null` when there are none.
