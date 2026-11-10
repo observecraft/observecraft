@@ -1,0 +1,119 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Cisco Umbrella (https://developer.cisco.com/docs/cloud-security/, Reports API v2): DNS and proxy (secure web
+# gateway) activity, as the logs Datadog's integration sends (source:cisco-umbrella-dns, service:dns or proxy, the
+# activity record as Umbrella answers it). integrations-core's log pipeline and its two dashboards for the tile read
+# them as they are.
+schema_version: 1
+id: cisco-umbrella-dns
+name: Cisco Umbrella DNS
+publisher: ObserveCraft
+vendor: Cisco
+description: >-
+  Cisco Umbrella's DNS activity (domain, query type, verdict, categories, identities) and proxied web traffic (URL,
+  method, status, verdict, file hashes), one log per request, read from the Umbrella Reports API.
+tiles: [cisco-umbrella-dns]
+categories: [Log Collection, Network, Security, SIEM]
+source: cisco-umbrella-dns
+docs_url: https://developer.cisco.com/docs/cloud-security/umbrella-api-reference-reports-overview/
+setup: |
+  1. In Umbrella, open **Admin → API Keys** and **Add** a key.
+  2. Give it the scopes **Reports → Granular Events** and **Reports → Aggregations** (read-only), and an expiry.
+  3. Copy the API key and the key secret (shown once).
+instance: "{{ config.api_key }}"
+
+config:
+  - key: api_key
+    label: API key
+    type: string
+    required: true
+  - key: key_secret
+    label: Key secret
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: https://api.umbrella.com/auth/v2/token
+  client_id: "{{ config.api_key }}"
+  client_secret: "{{ secrets.key_secret }}"
+  client_auth: basic
+
+errors:
+  - status: [400, 401]
+    kind: auth
+    message: Cisco Umbrella refused the API key and secret, or the key expired
+  - status: [403]
+    kind: access_denied
+    message: The API key lacks the Reports scopes (Granular Events read-only)
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Cisco Umbrella (retry after {{ headers['retry-after'] ?? '?' }}s)"
+
+streams:
+  - id: dns
+    name: DNS activity
+    description: >-
+      Every DNS request Umbrella resolved as a log (service:dns): domain, querytype, returncode, verdict, categories,
+      identities, internalip, externalip.
+    interval: 5m
+    request:
+      url: https://api.umbrella.com/reports/v2/activity/dns
+      query: { from: "{{ window.start }}", to: "{{ window.end }}", limit: 5000, offset: "{{ page.offset }}" }
+    records: "{{ response.data }}"
+    # Umbrella accepts offsets up to 10,000 (limit + offset): a fuller window is split in two and read again.
+    pagination: { kind: offset, size: 5000, max: 5000 }
+    # Activity records carry no id: the record's JSON is its identity.
+    incremental: &activity
+      kind: time
+      record_time: "{{ record.timestamp }}"
+      order: newest_first
+      lookback: 1h
+      overlap: 5m
+      # Umbrella's reports lag a few minutes behind.
+      settle: 10m
+      max_window: 1h
+    output:
+      logs:
+        service: dns
+        message: "{{ record.querytype + ' ' + record.domain + ' ' + record.verdict + (' (' + (record.identities | pluck('label') | join(', ')) + ')' ?? '') }}"
+        date: "{{ record.timestamp }}"
+        attributes: "{{ record }}"
+
+  - id: proxy
+    name: Proxy activity
+    description: >-
+      Every request through the secure web gateway as a log (service:proxy): url, requestmethod, statuscode,
+      verdict, useragent, categories, identities, file hashes.
+    interval: 5m
+    request:
+      url: https://api.umbrella.com/reports/v2/activity/proxy
+      query: { from: "{{ window.start }}", to: "{{ window.end }}", limit: 5000, offset: "{{ page.offset }}" }
+    records: "{{ response.data }}"
+    pagination: { kind: offset, size: 5000, max: 5000 }
+    incremental: *activity
+    output:
+      logs:
+        service: proxy
+        message: "{{ (record.requestmethod ?? 'GET') + ' ' + record.url + ' ' + record.verdict + (' ' + (record.statuscode | str) ?? '') }}"
+        date: "{{ record.timestamp }}"
+        attributes: "{{ record }}"
+
+test:
+  request:
+    url: https://api.umbrella.com/reports/v2/activity/dns
+    query: { from: "{{ now - 3600000 }}", to: "{{ now }}", limit: 1 }
+  message: "Connected: DNS activity is readable"
+
+mock:
+  config: { api_key: 3f1c0000aaaa4000b000000000000001 }
+  secrets: { key_secret: test-key-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://api.umbrella.com/auth/v2/token", body_contains: "grant_type=client_credentials", body: { access_token: test-access-token, token_type: bearer, expires_in: 3600 } }
+    - { url: "https://api.umbrella.com/reports/v2/activity/dns", file: fixtures/dns.json }
+    - { url: "https://api.umbrella.com/reports/v2/activity/proxy", file: fixtures/proxy.json }
+  expect:
+    dns: { records: 3, logs: 3, rerun: 0, golden: fixtures/dns.expected.json }
+    proxy: { records: 2, logs: 2, rerun: 0, golden: fixtures/proxy.expected.json }
+    test: { ok: true, message: "DNS activity is readable" }

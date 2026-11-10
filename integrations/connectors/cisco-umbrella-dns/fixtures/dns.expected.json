@@ -1,0 +1,158 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c53f-4360-7f9b-b5e6-de11d9a9d9af"
+      },
+      "allapplications": [],
+      "categories": [
+        {
+          "deprecated": false,
+          "id": 67,
+          "integration": false,
+          "label": "Malware",
+          "type": "security"
+        }
+      ],
+      "date": 1794310620000,
+      "ddsource": "cisco-umbrella-dns",
+      "domain": "cdn-update.badsite.example",
+      "externalip": "203.0.113.60",
+      "host": "3f1c0000aaaa4000b000000000000001",
+      "identities": [
+        {
+          "deleted": false,
+          "id": 617800001,
+          "label": "laptop-jdoe",
+          "type": {
+            "id": 9,
+            "label": "Roaming Computers",
+            "type": "roaming"
+          }
+        }
+      ],
+      "internalip": "10.20.1.15",
+      "message": "A cdn-update.badsite.example blocked (laptop-jdoe)",
+      "policycategories": [
+        {
+          "deprecated": false,
+          "id": 67,
+          "integration": false,
+          "label": "Malware",
+          "type": "security"
+        }
+      ],
+      "querytype": "A",
+      "returncode": 0,
+      "service": "dns",
+      "status": "info",
+      "threats": [
+        {
+          "label": "Example.Trojan",
+          "type": "Trojan"
+        }
+      ],
+      "time": "11:37:00",
+      "timestamp": 1794310620000,
+      "type": "dns",
+      "verdict": "blocked"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c53d-6ea0-7e2b-a4c0-a92641b4cb3f"
+      },
+      "allapplications": [
+        {
+          "category": {
+            "id": 1,
+            "label": "Application Development and Testing"
+          },
+          "id": 989001,
+          "label": "Storefront API"
+        }
+      ],
+      "categories": [
+        {
+          "deprecated": false,
+          "id": 148,
+          "integration": false,
+          "label": "Application",
+          "type": "application"
+        }
+      ],
+      "date": 1794310500000,
+      "ddsource": "cisco-umbrella-dns",
+      "domain": "api.storefront.example.com",
+      "externalip": "203.0.113.61",
+      "host": "3f1c0000aaaa4000b000000000000001",
+      "identities": [
+        {
+          "deleted": false,
+          "id": 617800002,
+          "label": "HQ network",
+          "type": {
+            "id": 1,
+            "label": "Networks",
+            "type": "network"
+          }
+        }
+      ],
+      "internalip": "10.20.5.9",
+      "message": "AAAA api.storefront.example.com allowed (HQ network)",
+      "policycategories": [],
+      "querytype": "AAAA",
+      "returncode": 0,
+      "service": "dns",
+      "status": "info",
+      "time": "11:35:00",
+      "timestamp": 1794310500000,
+      "type": "dns",
+      "verdict": "allowed"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c534-46e0-715a-9420-2e27eb8f2242"
+      },
+      "allapplications": [],
+      "categories": [],
+      "date": 1794309900000,
+      "ddsource": "cisco-umbrella-dns",
+      "domain": "nonexistent.example.net",
+      "externalip": "203.0.113.60",
+      "host": "3f1c0000aaaa4000b000000000000001",
+      "identities": [
+        {
+          "deleted": false,
+          "id": 617800001,
+          "label": "laptop-jdoe",
+          "type": {
+            "id": 9,
+            "label": "Roaming Computers",
+            "type": "roaming"
+          }
+        }
+      ],
+      "internalip": "10.20.1.15",
+      "message": "A nonexistent.example.net allowed (laptop-jdoe)",
+      "policycategories": [],
+      "querytype": "A",
+      "returncode": 3,
+      "service": "dns",
+      "status": "info",
+      "time": "11:25:00",
+      "timestamp": 1794309900000,
+      "type": "dns",
+      "verdict": "allowed"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311400000
+      }
+    }
+  }
+}
