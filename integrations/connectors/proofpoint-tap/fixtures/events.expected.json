@@ -16,7 +16,6 @@
       "eventTime": "2026-11-10T11:20:44.000Z",
       "host": "0a1b2c3d-0000-4000-8000-00000000c0de",
       "id": "1f2e0000-0000-4000-8000-00000000c001",
-      "kind": null,
       "message": "Click blocked: jane.doe@example.com → http://login-update.example.net/account",
       "messageID": "<20261110.1001@mail.example.net>",
       "recipient": "jane.doe@example.com",
@@ -36,7 +35,6 @@
       "_oc_ingest": {
         "id": "01a1c539-ec30-735f-8462-26dd5b4a888f"
       },
-      "campaignId": null,
       "classification": "spam",
       "clickIP": "203.0.113.57",
       "clickTime": "2026-11-10T11:31:10.000Z",
@@ -45,7 +43,6 @@
       "eventTime": "2026-11-10T11:31:10.000Z",
       "host": "0a1b2c3d-0000-4000-8000-00000000c0de",
       "id": "1f2e0000-0000-4000-8000-00000000c002",
-      "kind": null,
       "message": "Click permitted: sam.lee@example.com → http://deals.example.org/black-friday",
       "messageID": "<20261110.1002@mail.example.org>",
       "recipient": "sam.lee@example.com",
@@ -75,14 +72,11 @@
       "fromAddress": [
         "billing@example.net"
       ],
-      "headerCC": "",
       "headerFrom": "\"Billing\" <billing@example.net>",
-      "headerReplyTo": null,
       "headerTo": "\"Jane Doe\" <jane.doe@example.com>",
       "host": "0a1b2c3d-0000-4000-8000-00000000c0de",
       "id": "1f2e0000-0000-4000-8000-00000000m001",
       "impostorScore": 0,
-      "kind": null,
       "malwareScore": 100,
       "message": "Message blocked: Invoice for your last order (billing@example.net → jane.doe@example.com)",
       "messageID": "<20261110.2001@mail.example.net>",
@@ -161,14 +155,11 @@
       "fromAddress": [
         "news@example.org"
       ],
-      "headerCC": "",
       "headerFrom": "\"Catalog News\" <news@example.org>",
-      "headerReplyTo": null,
       "headerTo": "\"Sam Lee\" <sam.lee@example.com>",
       "host": "0a1b2c3d-0000-4000-8000-00000000c0de",
       "id": "1f2e0000-0000-4000-8000-00000000m002",
       "impostorScore": 0,
-      "kind": null,
       "malwareScore": 0,
       "message": "Message delivered: Your weekly catalog update (news@example.org → sam.lee@example.com)",
       "messageID": "<20261110.2002@mail.example.org>",
@@ -184,8 +175,6 @@
       "policyRoutes": [
         "default_inbound"
       ],
-      "quarantineFolder": null,
-      "quarantineRule": null,
       "recipient": [
         "sam.lee@example.com"
       ],

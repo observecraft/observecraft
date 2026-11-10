@@ -18,7 +18,6 @@
         "os": "Mac OS X",
         "os_version": "14.6"
       },
-      "alias": "",
       "application": {
         "key": "DI0A1B2C3D4E5F6G7H8I",
         "name": "Storefront Admin SSO"
@@ -41,7 +40,6 @@
       "host": "api-0a1b2c3d.duosecurity.com",
       "isotimestamp": "2026-11-10T09:02:33.314482+00:00",
       "message": "Authentication success for jdoe to Storefront Admin SSO (user_approved)",
-      "ood_software": null,
       "reason": "user_approved",
       "result": "success",
       "service": "authentication",
@@ -69,7 +67,6 @@
           "state": "-"
         }
       },
-      "alias": "",
       "application": {
         "key": "DI0A1B2C3D4E5F6G7H9J",
         "name": "VPN"
@@ -110,7 +107,6 @@
           "state": "-"
         }
       },
-      "alias": "",
       "application": {
         "key": "DI0A1B2C3D4E5F6G7H8I",
         "name": "Storefront Admin SSO"

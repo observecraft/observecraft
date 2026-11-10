@@ -22,7 +22,6 @@
       "service": "rejection",
       "status": "warn",
       "toAddress": "jane.doe@example.com",
-      "toAddressPostCheck": "",
       "toAddressPreCheck": "jane.doe@example.com",
       "type": 14030
     }

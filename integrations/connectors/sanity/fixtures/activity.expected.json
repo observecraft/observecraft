@@ -18,7 +18,6 @@
       "host": "sanity",
       "id": "ale-3exampleA0000000000000003",
       "message": "\"Alex Example\" deleted the dataset \"staging\"",
-      "metadata": {},
       "projectDisplayName": "Storefront content",
       "projectId": "abcd1234",
       "service": "activity-logs",

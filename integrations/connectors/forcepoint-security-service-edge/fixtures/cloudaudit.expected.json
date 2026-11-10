@@ -22,7 +22,8 @@
       "filename": "q4-pricing.xlsx",
       "folder": "/My Drive/Pricing",
       "host": "portal.bitglass.com",
-      "message": "Google Drive: Share q4-pricing.xlsx by jane.doe@example.com",
+      "level": "info",
+      "message": "{\"message\":\"Google Drive: Share q4-pricing.xlsx by jane.doe@example.com\",\"status\":\"Internal, Shared, DLP\"}",
       "modifiedtime": "10 Nov 2026 06:10:00",
       "owner": "jane.doe@example.com",
       "patterns": "Credit Card Numbers",
@@ -30,7 +31,6 @@
       "service": "forcepoint-sse-cloudaudit",
       "sharedwith": "partner@example.net",
       "size": "48211",
-      "status": "info",
       "syslogheader": "<110>1 2026-11-10T06:20:02.000000Z api.bitglass.com NILVALUE NILVALUE cloudaudit",
       "time": "10 Nov 2026 06:20:02"
     }

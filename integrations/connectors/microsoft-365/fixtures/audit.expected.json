@@ -24,8 +24,7 @@
       "ddsource": "microsoft-365",
       "ddtags": "content_type:Audit.SharePoint",
       "evt": {
-        "name": "FileDownloaded",
-        "outcome": null
+        "name": "FileDownloaded"
       },
       "host": "11111111-2222-3333-4444-555555555555",
       "message": "FileDownloaded by jordan.patel@example.com on https://example-my.sharepoint.com/personal/jordan_patel_example_com/Documents/q4-pricing.xlsx",
@@ -62,8 +61,7 @@
       "ddsource": "microsoft-365",
       "ddtags": "content_type:Audit.SharePoint",
       "evt": {
-        "name": "SharingSet",
-        "outcome": null
+        "name": "SharingSet"
       },
       "host": "11111111-2222-3333-4444-555555555555",
       "message": "SharingSet by sam.lee@example.com on https://example.sharepoint.com/sites/storefront/Shared Documents/roadmap.docx",
@@ -111,8 +109,7 @@
       "service": "SharePoint",
       "status": "warn",
       "usr": {
-        "id": "sam.lee@example.com",
-        "name": null
+        "id": "sam.lee@example.com"
       }
     }
   ],

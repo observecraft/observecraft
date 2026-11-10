@@ -45,8 +45,6 @@
         "https://lookalike-pay.example/login"
       ],
       "verdict": {
-        "businessRisk": "",
-        "category": "",
         "isManualVerdict": false,
         "isRetroVerdict": false,
         "latestVerdict": "phishing",
@@ -70,7 +68,6 @@
       "_oc_ingest": {
         "id": "01a1c4f8-c480-713b-bb06-d4aa6fac45f5"
       },
-      "action": null,
       "clientIP": "203.0.113.90",
       "date": "2026-11-10T10:20:00Z",
       "ddsource": "cisco-secure-email-threat-defense",

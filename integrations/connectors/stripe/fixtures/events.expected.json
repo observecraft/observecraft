@@ -76,10 +76,6 @@
       "message": "invoice.paid in_1QBcDeFgHiJkLmN2",
       "object": "event",
       "pending_webhooks": 0,
-      "request": {
-        "id": null,
-        "idempotency_key": null
-      },
       "service": "stripe",
       "status": "info",
       "type": "invoice.paid"
@@ -113,10 +109,6 @@
       "message": "charge.dispute.created dp_1QBcDeFgHiJkLmN3",
       "object": "event",
       "pending_webhooks": 0,
-      "request": {
-        "id": null,
-        "idempotency_key": null
-      },
       "service": "stripe",
       "status": "warn",
       "type": "charge.dispute.created"

@@ -114,8 +114,7 @@
         "status_code": 200,
         "url_details": {
           "host": "storefront-api.example.com",
-          "path": "/v1/search",
-          "queryString": null
+          "path": "/v1/search"
         }
       },
       "httpMessage": {

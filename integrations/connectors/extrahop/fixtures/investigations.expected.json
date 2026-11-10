@@ -24,11 +24,11 @@
       "is_user_created": true,
       "last_interaction_by": "analyst@example.com",
       "last_interaction_time": 1794306000000,
-      "message": "Possible exfiltration from db-02",
+      "level": "info",
+      "message": "{\"message\":\"Possible exfiltration from db-02\",\"status\":\"in_progress\"}",
       "name": "Possible exfiltration from db-02",
       "notes": "Checking the S3 bucket's owner with the storefront team.",
       "service": "investigation",
-      "status": "info",
       "update_time": 1794306000000,
       "url": "https://example-shop.cloud.extrahop.com/#/detections/investigations/41"
     },
@@ -55,11 +55,11 @@
       "is_user_created": true,
       "last_interaction_by": "secops@example.com",
       "last_interaction_time": 1794100000000,
-      "message": "Port scans from the build network",
+      "level": "info",
+      "message": "{\"message\":\"Port scans from the build network\",\"status\":\"closed\"}",
       "name": "Port scans from the build network",
       "notes": "Scheduled vulnerability scan.",
       "service": "investigation",
-      "status": "info",
       "update_time": 1794100000000,
       "url": "https://example-shop.cloud.extrahop.com/#/detections/investigations/38"
     }

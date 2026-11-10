@@ -14,7 +14,6 @@
       "author": {
         "accountId": "5b10ac8d82e05b22cc7d4ef5",
         "displayName": "Jordan Patel",
-        "operations": null,
         "type": "user"
       },
       "category": "Permissions",
@@ -28,7 +27,6 @@
       "creationDate": 1794309000000,
       "date": "2026-11-10T11:10:00.000Z",
       "ddsource": "confluence-audit-records",
-      "description": "",
       "evt": {
         "category": "Permissions",
         "name": "Space permissions changed"
@@ -69,7 +67,6 @@
       "creationDate": 1794301800000,
       "date": "2026-11-10T09:10:00.000Z",
       "ddsource": "confluence-audit-records",
-      "description": "",
       "evt": {
         "category": "Import/Export",
         "name": "Space exported"

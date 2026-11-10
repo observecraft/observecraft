@@ -18,14 +18,12 @@
       "message": "User: sam.lee@example.com; Session ID: 551203; Authentication Type: JsonWebToken; IP Address: 203.0.113.24",
       "mod_user": {
         "display_name": "Sam Lee",
-        "domain": "",
         "id": 48,
         "name": "sam.lee@example.com"
       },
       "modification_time": "2026-11-10T08:01:12Z",
       "modifier_user_id": 48,
       "object_id": 48,
-      "object_name": "",
       "object_type_name": "authentication",
       "service": "platform-audit-logs",
       "status": "info",
@@ -48,14 +46,12 @@
       "message": "User: sam.lee@example.com; Session ID: 551203; 203.0.113.24",
       "mod_user": {
         "display_name": "Sam Lee",
-        "domain": "",
         "id": 48,
         "name": "sam.lee@example.com"
       },
       "modification_time": "2026-11-10T10:44:50Z",
       "modifier_user_id": 48,
       "object_id": 48,
-      "object_name": "",
       "object_type_name": "authentication",
       "service": "platform-audit-logs",
       "status": "info",
@@ -78,7 +74,6 @@
       "message": "Updated 'ias_auth_jwks_download_timeout_seconds' from 20 to 10",
       "mod_user": {
         "display_name": "Sam Lee",
-        "domain": "",
         "id": 48,
         "name": "sam.lee@example.com"
       },

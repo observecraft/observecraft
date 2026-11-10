@@ -13,14 +13,11 @@
         "province_code": "OR"
       },
       "buyer_accepts_marketing": true,
-      "cancel_reason": null,
-      "cancelled_at": null,
       "client_details": {
         "accept_language": "en-US",
         "browser_ip": "203.0.113.24",
         "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
       },
-      "closed_at": null,
       "confirmation_number": "K7QX2PLMA",
       "confirmed": true,
       "created_at": "2026-11-10T04:20:41-05:00",
@@ -36,7 +33,6 @@
       "date": "2026-11-10T04:22:10-05:00",
       "ddsource": "shopify",
       "financial_status": "paid",
-      "fulfillment_status": null,
       "host": "example-shop.myshopify.com",
       "id": 5500000000001,
       "line_items": [
@@ -119,7 +115,6 @@
       "date": "2026-11-10T05:41:30-05:00",
       "ddsource": "shopify",
       "financial_status": "refunded",
-      "fulfillment_status": null,
       "host": "example-shop.myshopify.com",
       "id": 5499999999990,
       "line_items": [

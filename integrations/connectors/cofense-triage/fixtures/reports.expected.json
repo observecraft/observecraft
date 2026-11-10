@@ -63,7 +63,6 @@
         "from_address": "newsletter@shop.example.com",
         "location": "Inbox",
         "match_priority": 0,
-        "processed_at": null,
         "received_at": "2026-11-10T10:12:00.000Z",
         "reported_at": "2026-11-10T10:20:00.000Z",
         "reporter_email": "sam.lee@example.com",

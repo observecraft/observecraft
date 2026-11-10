@@ -14,7 +14,6 @@
       "crud": "c",
       "date": "2026-11-10T08:15:03.126Z",
       "ddsource": "tenable-io",
-      "description": null,
       "fields": [
         {
           "key": "X-Access-Type",
@@ -31,7 +30,6 @@
       ],
       "host": "cloud.tenable.com",
       "id": "22cc0a1b2c3d4e5f60718293a4b5c601",
-      "is_anonymous": null,
       "is_failure": false,
       "message": "{\"action\":\"session.create\",\"actor\":{\"id\":\"68ac0000-0000-4000-8000-000000000001\",\"name\":\"jane.doe@example.com\"},\"crud\":\"c\",\"description\":null,\"fields\":[{\"key\":\"X-Access-Type\",\"value\":\"session\"},{\"key\":\"X-Forwarded-For\",\"value\":\"203.0.113.24, 10.0.20.47\"},{\"key\":\"X-Request-Uuid\",\"value\":\"f13c572a7254d3192a667afe3bbb2567:0001\"}],\"id\":\"22cc0a1b2c3d4e5f60718293a4b5c601\",\"is_anonymous\":null,\"is_failure\":false,\"received\":\"2026-11-10T08:15:03.126Z\",\"target\":{\"id\":\"c0ffee01\",\"type\":\"Session\"}}",
       "received": "2026-11-10T08:15:03.126Z",
@@ -54,7 +52,6 @@
       "crud": "c",
       "date": "2026-11-10T08:20:41.502Z",
       "ddsource": "tenable-io",
-      "description": null,
       "fields": [
         {
           "key": "X-Access-Type",
@@ -67,7 +64,6 @@
       ],
       "host": "cloud.tenable.com",
       "id": "22cc0a1b2c3d4e5f60718293a4b5c602",
-      "is_anonymous": null,
       "is_failure": false,
       "message": "{\"action\":\"user.impersonation.start\",\"actor\":{\"id\":\"68ac0000-0000-4000-8000-000000000001\",\"name\":\"jane.doe@example.com\"},\"crud\":\"c\",\"description\":null,\"fields\":[{\"key\":\"X-Access-Type\",\"value\":\"session\"},{\"key\":\"X-Forwarded-For\",\"value\":\"203.0.113.24, 10.0.20.47\"}],\"id\":\"22cc0a1b2c3d4e5f60718293a4b5c602\",\"is_anonymous\":null,\"is_failure\":false,\"received\":\"2026-11-10T08:20:41.502Z\",\"target\":{\"id\":\"68ac0000-0000-4000-8000-000000000002\",\"name\":\"john.smith@example.com\",\"type\":\"User\"}}",
       "received": "2026-11-10T08:20:41.502Z",
@@ -85,13 +81,11 @@
       },
       "action": "session.create",
       "actor": {
-        "id": null,
         "name": "unknown@example.com"
       },
       "crud": "c",
       "date": "2026-11-10T09:02:11.877Z",
       "ddsource": "tenable-io",
-      "description": null,
       "fields": [
         {
           "key": "X-Access-Type",
@@ -111,7 +105,6 @@
       "service": "activity",
       "status": "warn",
       "target": {
-        "id": null,
         "type": "Session"
       }
     }

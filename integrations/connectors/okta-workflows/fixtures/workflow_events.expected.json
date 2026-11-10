@@ -16,7 +16,6 @@
       "log": {
         "actor": {
           "alternateId": "jane.doe@example.com",
-          "detailEntry": null,
           "displayName": "Jane Doe",
           "id": "00u1a2b3c4d5e6f7g8h9",
           "type": "User"
@@ -37,7 +36,6 @@
             "postalCode": "97201",
             "state": "Oregon"
           },
-          "id": null,
           "ipAddress": "198.51.100.23",
           "userAgent": {
             "browser": "CHROME",
@@ -51,12 +49,9 @@
             "sessionId": "5e5e5e5e-0000-4000-8000-000000000001"
           }
         },
-        "device": null,
         "displayMessage": "Flow created",
         "eventType": "workflows.user.flow.create",
-        "legacyEventType": null,
         "outcome": {
-          "reason": null,
           "result": "SUCCESS"
         },
         "published": "2026-11-09T16:02:11.402Z",
@@ -70,7 +65,6 @@
             }
           ]
         },
-        "securityContext": {},
         "severity": "INFO",
         "target": [
           {
@@ -89,7 +83,6 @@
           }
         ],
         "transaction": {
-          "detail": {},
           "id": "7b7b7b7b-0000-4000-8000-000000000001",
           "type": "WORKFLOW"
         },
@@ -114,7 +107,6 @@
       "log": {
         "actor": {
           "alternateId": "jane.doe@example.com",
-          "detailEntry": null,
           "displayName": "Jane Doe",
           "id": "00u1a2b3c4d5e6f7g8h9",
           "type": "User"
@@ -135,7 +127,6 @@
             "postalCode": "97201",
             "state": "Oregon"
           },
-          "id": null,
           "ipAddress": "198.51.100.23",
           "userAgent": {
             "browser": "CHROME",
@@ -149,12 +140,9 @@
             "sessionId": "5e5e5e5e-0000-4000-8000-000000000002"
           }
         },
-        "device": null,
         "displayMessage": "Flow activated",
         "eventType": "workflows.user.flow.activate",
-        "legacyEventType": null,
         "outcome": {
-          "reason": null,
           "result": "SUCCESS"
         },
         "published": "2026-11-10T08:30:45.118Z",
@@ -168,7 +156,6 @@
             }
           ]
         },
-        "securityContext": {},
         "severity": "INFO",
         "target": [
           {
@@ -187,7 +174,6 @@
           }
         ],
         "transaction": {
-          "detail": {},
           "id": "7b7b7b7b-0000-4000-8000-000000000002",
           "type": "WORKFLOW"
         },
@@ -208,7 +194,6 @@
       "log": {
         "actor": {
           "alternateId": "sam.lee@example.com",
-          "detailEntry": null,
           "displayName": "Sam Lee",
           "id": "00u9z8y7x6w5v4u3t2s1",
           "type": "User"
@@ -229,7 +214,6 @@
             "postalCode": "97201",
             "state": "Oregon"
           },
-          "id": null,
           "ipAddress": "198.51.100.23",
           "userAgent": {
             "browser": "CHROME",
@@ -243,12 +227,9 @@
             "sessionId": "5e5e5e5e-0000-4000-8000-000000000003"
           }
         },
-        "device": null,
         "displayMessage": "Connection reauthorized",
         "eventType": "workflows.user.connection.reauthorize",
-        "legacyEventType": null,
         "outcome": {
-          "reason": null,
           "result": "FAILURE"
         },
         "published": "2026-11-10T10:05:09.870Z",
@@ -262,7 +243,6 @@
             }
           ]
         },
-        "securityContext": {},
         "severity": "INFO",
         "target": [
           {
@@ -274,7 +254,6 @@
           }
         ],
         "transaction": {
-          "detail": {},
           "id": "7b7b7b7b-0000-4000-8000-000000000003",
           "type": "WORKFLOW"
         },

@@ -20,14 +20,9 @@
       },
       "error_code": "30003",
       "host": "ACexample_account_sid",
-      "http": {
-        "url": null
-      },
       "log_level": "warning",
       "message": "30003: Unreachable destination handset",
       "more_info": "https://www.twilio.com/docs/errors/30003",
-      "request_method": null,
-      "request_url": null,
       "resource_sid": "SM1a2b3c4d5e6f708192a3b4c5d6e7f809",
       "service": "alerts",
       "service_sid": "MG0123456789abcdef0123456789abcdef",

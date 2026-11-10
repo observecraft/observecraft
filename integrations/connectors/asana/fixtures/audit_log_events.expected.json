@@ -60,8 +60,7 @@
       "details": {
         "app_gid": "1208000000000501",
         "app_name": "Storefront Release Bot",
-        "app_type": "oauth",
-        "app_url": ""
+        "app_type": "oauth"
       },
       "event_category": "apps",
       "event_type": "user_app_authorized",

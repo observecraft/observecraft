@@ -19,7 +19,6 @@
       "country": "RO",
       "date": "2026-11-10T08:12:44Z",
       "ddsource": "1password",
-      "details": null,
       "evt": {
         "name": "credentials_failed",
         "outcome": "failure"

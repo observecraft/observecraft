@@ -60,6 +60,7 @@
       ],
       "investigationResult": "No Findings",
       "investigationStatus": "New",
+      "level": "warning",
       "matchedRules": [
         {
           "id": "b52ebb2a-0000-4000-8000-000000000001",
@@ -83,7 +84,7 @@
           "name": "Possible Credential Dumping via LSASS"
         }
       ],
-      "message": "A process accessed the memory of the LSASS process, a sign of credential dumping.",
+      "message": "{\"message\":\"A process accessed the memory of the LSASS process, a sign of credential dumping.\",\"status\":\"Open\"}",
       "model": "Possible Credential Dumping via LSASS",
       "modelId": "5727ebf9-9e6a-47f3-b27f-4129763f7688",
       "modelType": "preset",
@@ -91,7 +92,6 @@
       "score": 71,
       "service": "trend-micro-vision-one-xdr",
       "severity": "high",
-      "status": "warning",
       "updatedDateTime": "2026-11-10T09:00:05Z",
       "vendor": {
         "endpoint": "alerts"
@@ -156,6 +156,7 @@
       ],
       "investigationResult": "True Positive",
       "investigationStatus": "In Progress",
+      "level": "notice",
       "matchedRules": [
         {
           "id": "b52ebb2a-0000-4000-8000-000000000001",
@@ -179,7 +180,7 @@
           "name": "Suspicious Scheduled Task Creation"
         }
       ],
-      "message": "A scheduled task was created to run an unsigned binary at logon.",
+      "message": "{\"message\":\"A scheduled task was created to run an unsigned binary at logon.\",\"status\":\"Open\"}",
       "model": "Suspicious Scheduled Task Creation",
       "modelId": "5727ebf9-9e6a-47f3-b27f-4129763f7688",
       "modelType": "preset",
@@ -187,7 +188,6 @@
       "score": 45,
       "service": "trend-micro-vision-one-xdr",
       "severity": "medium",
-      "status": "notice",
       "updatedDateTime": "2026-11-10T10:30:00Z",
       "vendor": {
         "endpoint": "alerts"

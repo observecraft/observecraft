@@ -22,7 +22,6 @@
       },
       "displayName": "Sam Example",
       "emailMarketingConsent": {
-        "consentUpdatedAt": null,
         "marketingOptInLevel": "SINGLE_OPT_IN",
         "marketingState": "NOT_SUBSCRIBED"
       },
@@ -39,11 +38,9 @@
       "legacyResourceId": "7000000002",
       "lifetimeDuration": "about 1 year",
       "message": "Customer Sam Example: 4 orders, 312.40 USD spent",
-      "note": "",
       "numberOfOrders": "4",
       "productSubscriberStatus": "NEVER_SUBSCRIBED",
       "service": "customer",
-      "smsMarketingConsent": null,
       "state": "ENABLED",
       "status": "info",
       "taxExempt": false,
@@ -88,7 +85,6 @@
       "legacyResourceId": "7000000001",
       "lifetimeDuration": "3 months",
       "message": "Customer Jane Example: 1 orders, 127.44 USD spent",
-      "note": "",
       "numberOfOrders": "1",
       "productSubscriberStatus": "NEVER_SUBSCRIBED",
       "service": "customer",

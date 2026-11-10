@@ -63,7 +63,6 @@
         "id": "01a1c520-cc17-7e74-9e3e-f27c92f437df"
       },
       "action": "threat_detected",
-      "actor_id": null,
       "actor_type": "system",
       "date": "2026-11-10T11:03:43.383000Z",
       "ddsource": "kandji",

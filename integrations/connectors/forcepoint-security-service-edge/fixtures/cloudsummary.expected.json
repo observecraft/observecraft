@@ -7,7 +7,6 @@
         "id": "01a1c41b-be78-7f6d-8956-2679dac96ac9"
       },
       "application": "Google Drive",
-      "attachments": "",
       "classifylabels": "Confidential",
       "createdtime": "02 Nov 2026 10:00:00",
       "date": 1794291515000,
@@ -20,7 +19,8 @@
       "filename": "q4-pricing.xlsx",
       "folder": "/My Drive/Pricing",
       "host": "portal.bitglass.com",
-      "message": "Google Drive: q4-pricing.xlsx (jane.doe@example.com): Credit Card Numbers",
+      "level": "info",
+      "message": "{\"message\":\"Google Drive: q4-pricing.xlsx (jane.doe@example.com): Credit Card Numbers\",\"status\":\"Internal, Shared, DLP\"}",
       "modifiedtime": "10 Nov 2026 06:10:00",
       "organization": "example.com",
       "originalfolder": "/My Drive/Pricing",
@@ -31,7 +31,6 @@
       "service": "forcepoint-sse-cloudsummary",
       "sharedwith": "partner@example.net",
       "size": "48211",
-      "status": "info",
       "syslogheader": "<110>1 2026-11-10T06:18:35.000000Z api.bitglass.com NILVALUE NILVALUE cloudsummary",
       "time": "10 Nov 2026 06:18:35"
     }

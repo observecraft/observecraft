@@ -19,7 +19,6 @@
         "id": 11,
         "name": "Orders overview"
       },
-      "end_timestamp": null,
       "entity_id": 11,
       "entity_qualified_id": "dashboard_11",
       "entity_type": "dashboard",
@@ -49,9 +48,6 @@
         "new-value": "UTC",
         "previous-value": "UCT"
       },
-      "end_timestamp": null,
-      "entity_id": null,
-      "entity_qualified_id": null,
       "entity_type": "setting",
       "evt": {
         "name": "setting-update"

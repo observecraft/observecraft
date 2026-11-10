@@ -10,13 +10,8 @@
       "application": "CloudApps",
       "date": 1794294420000,
       "ddsource": "forcepoint-security-service-edge",
-      "device": "",
-      "deviceguid": "",
       "email": "admin@example.com",
-      "file_status": null,
       "host": "portal.bitglass.com",
-      "ipaddress": "",
-      "location": "",
       "message": "Cloudsummary, RestAPI 400 cloudapps/summary",
       "requestmethod": "GET",
       "responsecode": "400",
@@ -27,7 +22,6 @@
       "transactionid": "77ee0000ee01 [10 Nov 2026 07:07:00]",
       "url": "cloudapps/summary",
       "user": "Shop Admin",
-      "useragent": "",
       "usergroup": "['All Users']"
     }
   ],

@@ -31,7 +31,6 @@
         "type": "admin"
       },
       "akey": "DA0A1B2C3D4E5F6G7H8I",
-      "application": null,
       "date": "2026-11-10T09:45:03.639784+00:00",
       "ddsource": "cisco-duo",
       "host": "api-0a1b2c3d.duosecurity.com",

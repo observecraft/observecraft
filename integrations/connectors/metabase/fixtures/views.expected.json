@@ -6,12 +6,9 @@
       "_oc_ingest": {
         "id": "01a1c51e-75a5-7a31-8e8c-937e508da569"
       },
-      "database_description": null,
-      "database_name": null,
       "date": "2026-11-10T11:01:10.181879Z",
       "ddsource": "metabase",
       "entity_description": "Daily orders, revenue and refunds of the storefront.",
-      "entity_display_name": null,
       "entity_id": 11,
       "entity_name": "Orders overview",
       "entity_qualified_id": "dashboard_11",

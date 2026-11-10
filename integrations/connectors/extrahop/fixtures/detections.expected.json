@@ -7,7 +7,6 @@
         "id": "01a1c497-1c80-7d8e-847c-f3d5ea3c1db3"
       },
       "appliance_id": 3,
-      "assignee": null,
       "categories": [
         "sec",
         "sec.attack",
@@ -26,7 +25,8 @@
       },
       "id": 8589934601,
       "is_user_created": false,
-      "message": "TCP SYN Scan",
+      "level": "warning",
+      "message": "{\"message\":\"TCP SYN Scan\",\"status\":\"new\"}",
       "mitre_tactics": [
         {
           "id": "TA0007",
@@ -64,13 +64,10 @@
         }
       ],
       "recommended": false,
-      "resolution": null,
       "risk_score": 37,
       "risk_status": "warning",
       "service": "detection",
       "start_time": 1794298800000,
-      "status": "warning",
-      "ticket_id": null,
       "title": "TCP SYN Scan",
       "type": "tcp_syn_scan",
       "update_time": 1794299500000,
@@ -99,7 +96,8 @@
       },
       "id": 8589934602,
       "is_user_created": false,
-      "message": "Data Exfiltration to S3 Bucket",
+      "level": "critical",
+      "message": "{\"message\":\"Data Exfiltration to S3 Bucket\",\"status\":\"in_progress\"}",
       "mitre_tactics": [
         {
           "id": "TA0010",
@@ -135,13 +133,10 @@
         }
       ],
       "recommended": true,
-      "resolution": null,
       "risk_score": 87,
       "risk_status": "critical",
       "service": "detection",
       "start_time": 1794302400000,
-      "status": "critical",
-      "ticket_id": null,
       "title": "Data Exfiltration to S3 Bucket",
       "type": "data_exfiltration_s3",
       "update_time": 1794304300000,
@@ -152,7 +147,6 @@
         "id": "01a1c52b-1f20-707b-a9e2-969b293d8142"
       },
       "appliance_id": 3,
-      "assignee": null,
       "categories": [
         "sec",
         "sec.command"
@@ -170,7 +164,8 @@
       },
       "id": 8589934603,
       "is_user_created": false,
-      "message": "DNS Tunnel",
+      "level": "info",
+      "message": "{\"message\":\"DNS Tunnel\",\"status\":\"closed\"}",
       "mitre_tactics": [
         {
           "id": "TA0011",
@@ -203,8 +198,6 @@
       "risk_status": "info",
       "service": "detection",
       "start_time": 1794305800000,
-      "status": "info",
-      "ticket_id": null,
       "title": "DNS Tunnel",
       "type": "dns_tunnel",
       "update_time": 1794309000000,

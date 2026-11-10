@@ -28,13 +28,9 @@
         ],
         "copilotChatLastActivityDate": "2026-11-08",
         "displayName": "Jane Doe",
-        "excelCopilotLastActivityDate": "",
         "lastActivityDate": "2026-11-08",
-        "loopCopilotLastActivityDate": "",
         "microsoftTeamsCopilotLastActivityDate": "2026-11-05",
-        "oneNoteCopilotLastActivityDate": "",
         "outlookCopilotLastActivityDate": "2026-11-07",
-        "powerPointCopilotLastActivityDate": "",
         "reportRefreshDate": "2026-11-08",
         "userPrincipalName": "jane.doe@example.com",
         "wordCopilotLastActivityDate": "2026-10-20"
@@ -70,14 +66,8 @@
         "displayName": "Sam Rivera",
         "excelCopilotLastActivityDate": "2026-11-02",
         "lastActivityDate": "2026-11-02",
-        "loopCopilotLastActivityDate": "",
-        "microsoftTeamsCopilotLastActivityDate": "",
-        "oneNoteCopilotLastActivityDate": "",
-        "outlookCopilotLastActivityDate": "",
-        "powerPointCopilotLastActivityDate": "",
         "reportRefreshDate": "2026-11-08",
-        "userPrincipalName": "sam.rivera@example.com",
-        "wordCopilotLastActivityDate": ""
+        "userPrincipalName": "sam.rivera@example.com"
       },
       "service": "user-detail-report",
       "status": "info"
@@ -106,18 +96,9 @@
             "reportPeriod": 7
           }
         ],
-        "copilotChatLastActivityDate": "",
         "displayName": "Alex Kim",
-        "excelCopilotLastActivityDate": "",
-        "lastActivityDate": "",
-        "loopCopilotLastActivityDate": "",
-        "microsoftTeamsCopilotLastActivityDate": "",
-        "oneNoteCopilotLastActivityDate": "",
-        "outlookCopilotLastActivityDate": "",
-        "powerPointCopilotLastActivityDate": "",
         "reportRefreshDate": "2026-11-08",
-        "userPrincipalName": "alex.kim@example.com",
-        "wordCopilotLastActivityDate": ""
+        "userPrincipalName": "alex.kim@example.com"
       },
       "service": "user-detail-report",
       "status": "info"

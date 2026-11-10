@@ -10,8 +10,6 @@
       "agentid": "69290bde-0000-4000-8000-000000000001",
       "agentname": "laptop-jdoe",
       "agenttype": "agent",
-      "application_id": null,
-      "application_name": null,
       "categories": [
         40
       ],
@@ -49,8 +47,6 @@
       "request_address": "198.51.100.10",
       "responsetime": 0,
       "result": "blocked",
-      "scheduled_policy_id": null,
-      "scheduled_policy_name": null,
       "server_address": "10.0.0.2",
       "server_id": 212800,
       "server_name": "anycast-iad",

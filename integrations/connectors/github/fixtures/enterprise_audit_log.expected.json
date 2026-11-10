@@ -22,12 +22,6 @@
       },
       "host": "example-org",
       "message": "business.set_actions_fork_pr_approvals_policy by alex-morgan",
-      "network": {
-        "client": {
-          "geoip": null,
-          "ip": null
-        }
-      },
       "operation_type": "modify",
       "service": "github",
       "status": "info",

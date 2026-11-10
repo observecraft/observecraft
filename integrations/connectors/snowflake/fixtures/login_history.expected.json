@@ -4,16 +4,12 @@
   "logs": [
     {
       "CLIENT_IP": "198.51.100.7",
-      "CONNECTION": null,
-      "ERROR_CODE": null,
-      "ERROR_MESSAGE": null,
       "EVENT_ID": "1234567890123",
       "EVENT_TIMESTAMP": "2026-11-10T08:12:00.000+00:00",
       "EVENT_TYPE": "LOGIN",
       "FIRST_AUTHENTICATION_FACTOR": "PASSWORD",
       "IS_SUCCESS": "YES",
       "REPORTED_CLIENT_TYPE": "SNOWFLAKE_UI",
-      "REPORTED_CLIENT_VERSION": "",
       "SECOND_AUTHENTICATION_FACTOR": "OKTA_VERIFY",
       "USER_NAME": "JORDAN_PATEL",
       "_oc_ingest": {
@@ -40,7 +36,6 @@
     },
     {
       "CLIENT_IP": "203.0.113.77",
-      "CONNECTION": null,
       "ERROR_CODE": "390100",
       "ERROR_MESSAGE": "INCORRECT_USERNAME_PASSWORD",
       "EVENT_ID": "1234567890124",
@@ -50,7 +45,6 @@
       "IS_SUCCESS": "NO",
       "REPORTED_CLIENT_TYPE": "PYTHON_DRIVER",
       "REPORTED_CLIENT_VERSION": "3.12.2",
-      "SECOND_AUTHENTICATION_FACTOR": null,
       "USER_NAME": "SAM_LEE",
       "_oc_ingest": {
         "id": "01a1c4b0-e610-7606-a832-12e666258546"

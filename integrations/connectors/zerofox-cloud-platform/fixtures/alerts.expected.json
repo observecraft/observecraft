@@ -15,7 +15,6 @@
         "id": 10419120,
         "name": "Web Domains"
       },
-      "assignee": "",
       "content_created_at": "2026-11-09T22:10:00+00:00",
       "date": "2026-11-10T08:00:12Z",
       "ddsource": "zerofox-cloud-platform",
@@ -31,6 +30,7 @@
       "host": "api.zerofox.com",
       "id": 2210000101,
       "last_modified": "2026-11-10T08:00:12Z",
+      "level": "critical",
       "logs": [
         {
           "action": "open",
@@ -41,9 +41,8 @@
           "timestamp": "2026-11-10T08:00:12+00:00"
         }
       ],
-      "message": "{\"alert_type\":\"search query\",\"asset\":{\"entity_group\":{\"id\":4321,\"name\":\"Default\"},\"id\":10419120,\"name\":\"Web Domains\"},\"assignee\":\"\",\"content_created_at\":\"2026-11-09T22:10:00+00:00\",\"entity\":{\"entity_group\":{\"id\":4321,\"name\":\"Default\"},\"id\":10419120,\"name\":\"Web Domains\"},\"escalated\":false,\"id\":2210000101,\"last_modified\":\"2026-11-10T08:00:12Z\",\"logs\":[{\"action\":\"open\",\"actor\":\"\",\"detail\":\"\",\"id\":5500000001,\"subject\":\"\",\"timestamp\":\"2026-11-10T08:00:12+00:00\"}],\"network\":\"domains\",\"notes\":\"\",\"offending_content_url\":\"hxxp://examp1e-shop.com\",\"perpetrator\":{\"display_name\":\"examp1e-shop.com\",\"id\":3100000001,\"name\":\"examp1e-shop.com\",\"network\":\"domains\",\"timestamp\":\"2026-11-09T22:10:00+00:00\",\"type\":\"page\",\"url\":\"hxxp://examp1e-shop.com\"},\"reviewed\":false,\"rule_group_id\":132,\"rule_id\":34521,\"rule_name\":\"Advanced Domain Analysis - Typosquat Match\",\"severity\":4,\"status\":\"Open\",\"tags\":[],\"timestamp\":\"2026-11-10T08:00:12+00:00\"}",
+      "message": "{\"message\":\"{\\\"alert_type\\\":\\\"search query\\\",\\\"asset\\\":{\\\"entity_group\\\":{\\\"id\\\":4321,\\\"name\\\":\\\"Default\\\"},\\\"id\\\":10419120,\\\"name\\\":\\\"Web Domains\\\"},\\\"assignee\\\":\\\"\\\",\\\"content_created_at\\\":\\\"2026-11-09T22:10:00+00:00\\\",\\\"entity\\\":{\\\"entity_group\\\":{\\\"id\\\":4321,\\\"name\\\":\\\"Default\\\"},\\\"id\\\":10419120,\\\"name\\\":\\\"Web Domains\\\"},\\\"escalated\\\":false,\\\"id\\\":2210000101,\\\"last_modified\\\":\\\"2026-11-10T08:00:12Z\\\",\\\"logs\\\":[{\\\"action\\\":\\\"open\\\",\\\"actor\\\":\\\"\\\",\\\"detail\\\":\\\"\\\",\\\"id\\\":5500000001,\\\"subject\\\":\\\"\\\",\\\"timestamp\\\":\\\"2026-11-10T08:00:12+00:00\\\"}],\\\"network\\\":\\\"domains\\\",\\\"notes\\\":\\\"\\\",\\\"offending_content_url\\\":\\\"hxxp://examp1e-shop.com\\\",\\\"perpetrator\\\":{\\\"display_name\\\":\\\"examp1e-shop.com\\\",\\\"id\\\":3100000001,\\\"name\\\":\\\"examp1e-shop.com\\\",\\\"network\\\":\\\"domains\\\",\\\"timestamp\\\":\\\"2026-11-09T22:10:00+00:00\\\",\\\"type\\\":\\\"page\\\",\\\"url\\\":\\\"hxxp://examp1e-shop.com\\\"},\\\"reviewed\\\":false,\\\"rule_group_id\\\":132,\\\"rule_id\\\":34521,\\\"rule_name\\\":\\\"Advanced Domain Analysis - Typosquat Match\\\",\\\"severity\\\":4,\\\"status\\\":\\\"Open\\\",\\\"tags\\\":[],\\\"timestamp\\\":\\\"2026-11-10T08:00:12+00:00\\\"}\",\"status\":\"Open\"}",
       "network": "domains",
-      "notes": "",
       "offending_content_url": "hxxp://examp1e-shop.com",
       "perpetrator": {
         "display_name": "examp1e-shop.com",
@@ -60,7 +59,6 @@
       "rule_name": "Advanced Domain Analysis - Typosquat Match",
       "service": "zerofox-cloud-platform",
       "severity": 4,
-      "status": "critical",
       "tags": [],
       "timestamp": "2026-11-10T08:00:12+00:00"
     },
@@ -93,6 +91,7 @@
       "host": "api.zerofox.com",
       "id": 2210000102,
       "last_modified": "2026-11-10T09:30:05Z",
+      "level": "warning",
       "logs": [
         {
           "action": "open",
@@ -111,7 +110,7 @@
           "timestamp": "2026-11-10T09:30:05+00:00"
         }
       ],
-      "message": "{\"alert_type\":\"account information\",\"asset\":{\"entity_group\":{\"id\":4322,\"name\":\"Executives\"},\"id\":10419200,\"name\":\"Jane Doe\"},\"assignee\":\"analyst@example.com\",\"content_created_at\":\"2026-11-10T06:30:00+00:00\",\"entity\":{\"entity_group\":{\"id\":4322,\"name\":\"Executives\"},\"id\":10419200,\"name\":\"Jane Doe\"},\"escalated\":true,\"id\":2210000102,\"last_modified\":\"2026-11-10T09:30:05Z\",\"logs\":[{\"action\":\"open\",\"actor\":\"\",\"detail\":\"\",\"id\":5500000010,\"subject\":\"\",\"timestamp\":\"2026-11-10T09:12:40+00:00\"},{\"action\":\"escalate\",\"actor\":\"ZeroFox Platform Specialist\",\"detail\":\"\",\"id\":5500000011,\"subject\":\"\",\"timestamp\":\"2026-11-10T09:30:05+00:00\"}],\"network\":\"linkedin\",\"notes\":\"Reported to the network\",\"offending_content_url\":\"hxxps://social.example.net/in/jane-doe-ceo\",\"perpetrator\":{\"display_name\":\"Jane Doe (CEO)\",\"id\":3100000002,\"name\":\"Jane Doe\",\"network\":\"linkedin\",\"timestamp\":\"2026-11-10T06:30:00+00:00\",\"type\":\"account\",\"url\":\"hxxps://social.example.net/in/jane-doe-ceo\"},\"reviewed\":true,\"rule_group_id\":140,\"rule_id\":40112,\"rule_name\":\"Executive Impersonation\",\"severity\":3,\"status\":\"Open\",\"tags\":[\"takedown\"],\"timestamp\":\"2026-11-10T09:12:40+00:00\"}",
+      "message": "{\"message\":\"{\\\"alert_type\\\":\\\"account information\\\",\\\"asset\\\":{\\\"entity_group\\\":{\\\"id\\\":4322,\\\"name\\\":\\\"Executives\\\"},\\\"id\\\":10419200,\\\"name\\\":\\\"Jane Doe\\\"},\\\"assignee\\\":\\\"analyst@example.com\\\",\\\"content_created_at\\\":\\\"2026-11-10T06:30:00+00:00\\\",\\\"entity\\\":{\\\"entity_group\\\":{\\\"id\\\":4322,\\\"name\\\":\\\"Executives\\\"},\\\"id\\\":10419200,\\\"name\\\":\\\"Jane Doe\\\"},\\\"escalated\\\":true,\\\"id\\\":2210000102,\\\"last_modified\\\":\\\"2026-11-10T09:30:05Z\\\",\\\"logs\\\":[{\\\"action\\\":\\\"open\\\",\\\"actor\\\":\\\"\\\",\\\"detail\\\":\\\"\\\",\\\"id\\\":5500000010,\\\"subject\\\":\\\"\\\",\\\"timestamp\\\":\\\"2026-11-10T09:12:40+00:00\\\"},{\\\"action\\\":\\\"escalate\\\",\\\"actor\\\":\\\"ZeroFox Platform Specialist\\\",\\\"detail\\\":\\\"\\\",\\\"id\\\":5500000011,\\\"subject\\\":\\\"\\\",\\\"timestamp\\\":\\\"2026-11-10T09:30:05+00:00\\\"}],\\\"network\\\":\\\"linkedin\\\",\\\"notes\\\":\\\"Reported to the network\\\",\\\"offending_content_url\\\":\\\"hxxps://social.example.net/in/jane-doe-ceo\\\",\\\"perpetrator\\\":{\\\"display_name\\\":\\\"Jane Doe (CEO)\\\",\\\"id\\\":3100000002,\\\"name\\\":\\\"Jane Doe\\\",\\\"network\\\":\\\"linkedin\\\",\\\"timestamp\\\":\\\"2026-11-10T06:30:00+00:00\\\",\\\"type\\\":\\\"account\\\",\\\"url\\\":\\\"hxxps://social.example.net/in/jane-doe-ceo\\\"},\\\"reviewed\\\":true,\\\"rule_group_id\\\":140,\\\"rule_id\\\":40112,\\\"rule_name\\\":\\\"Executive Impersonation\\\",\\\"severity\\\":3,\\\"status\\\":\\\"Open\\\",\\\"tags\\\":[\\\"takedown\\\"],\\\"timestamp\\\":\\\"2026-11-10T09:12:40+00:00\\\"}\",\"status\":\"Open\"}",
       "network": "linkedin",
       "notes": "Reported to the network",
       "offending_content_url": "hxxps://social.example.net/in/jane-doe-ceo",
@@ -130,7 +129,6 @@
       "rule_name": "Executive Impersonation",
       "service": "zerofox-cloud-platform",
       "severity": 3,
-      "status": "warning",
       "tags": [
         "takedown"
       ],
@@ -165,6 +163,7 @@
       "host": "api.zerofox.com",
       "id": 2210000090,
       "last_modified": "2026-11-10T10:45:00Z",
+      "level": "alert",
       "logs": [
         {
           "action": "close",
@@ -175,7 +174,7 @@
           "timestamp": "2026-11-10T10:45:00+00:00"
         }
       ],
-      "message": "{\"alert_type\":\"search query\",\"asset\":{\"entity_group\":{\"id\":4321,\"name\":\"Default\"},\"id\":10419120,\"name\":\"Web Domains\"},\"assignee\":\"analyst@example.com\",\"content_created_at\":\"2026-11-08T03:00:00+00:00\",\"entity\":{\"entity_group\":{\"id\":4321,\"name\":\"Default\"},\"id\":10419120,\"name\":\"Web Domains\"},\"escalated\":true,\"id\":2210000090,\"last_modified\":\"2026-11-10T10:45:00Z\",\"logs\":[{\"action\":\"close\",\"actor\":\"analyst@example.com\",\"detail\":\"\",\"id\":5500000020,\"subject\":\"\",\"timestamp\":\"2026-11-10T10:45:00+00:00\"}],\"network\":\"dark web\",\"notes\":\"Passwords rotated\",\"offending_content_url\":\"hxxp://forum.example.onion/t/4411\",\"perpetrator\":{\"display_name\":\"unknown\",\"id\":3100000003,\"name\":\"unknown\",\"network\":\"dark web\",\"timestamp\":\"2026-11-08T03:00:00+00:00\",\"type\":\"post\",\"url\":\"hxxp://forum.example.onion/t/4411\"},\"reviewed\":true,\"rule_group_id\":150,\"rule_id\":50001,\"rule_name\":\"Dark Web Credential Mention\",\"severity\":5,\"status\":\"Closed\",\"tags\":[\"credentials\"],\"timestamp\":\"2026-11-08T05:00:00+00:00\"}",
+      "message": "{\"message\":\"{\\\"alert_type\\\":\\\"search query\\\",\\\"asset\\\":{\\\"entity_group\\\":{\\\"id\\\":4321,\\\"name\\\":\\\"Default\\\"},\\\"id\\\":10419120,\\\"name\\\":\\\"Web Domains\\\"},\\\"assignee\\\":\\\"analyst@example.com\\\",\\\"content_created_at\\\":\\\"2026-11-08T03:00:00+00:00\\\",\\\"entity\\\":{\\\"entity_group\\\":{\\\"id\\\":4321,\\\"name\\\":\\\"Default\\\"},\\\"id\\\":10419120,\\\"name\\\":\\\"Web Domains\\\"},\\\"escalated\\\":true,\\\"id\\\":2210000090,\\\"last_modified\\\":\\\"2026-11-10T10:45:00Z\\\",\\\"logs\\\":[{\\\"action\\\":\\\"close\\\",\\\"actor\\\":\\\"analyst@example.com\\\",\\\"detail\\\":\\\"\\\",\\\"id\\\":5500000020,\\\"subject\\\":\\\"\\\",\\\"timestamp\\\":\\\"2026-11-10T10:45:00+00:00\\\"}],\\\"network\\\":\\\"dark web\\\",\\\"notes\\\":\\\"Passwords rotated\\\",\\\"offending_content_url\\\":\\\"hxxp://forum.example.onion/t/4411\\\",\\\"perpetrator\\\":{\\\"display_name\\\":\\\"unknown\\\",\\\"id\\\":3100000003,\\\"name\\\":\\\"unknown\\\",\\\"network\\\":\\\"dark web\\\",\\\"timestamp\\\":\\\"2026-11-08T03:00:00+00:00\\\",\\\"type\\\":\\\"post\\\",\\\"url\\\":\\\"hxxp://forum.example.onion/t/4411\\\"},\\\"reviewed\\\":true,\\\"rule_group_id\\\":150,\\\"rule_id\\\":50001,\\\"rule_name\\\":\\\"Dark Web Credential Mention\\\",\\\"severity\\\":5,\\\"status\\\":\\\"Closed\\\",\\\"tags\\\":[\\\"credentials\\\"],\\\"timestamp\\\":\\\"2026-11-08T05:00:00+00:00\\\"}\",\"status\":\"Closed\"}",
       "network": "dark web",
       "notes": "Passwords rotated",
       "offending_content_url": "hxxp://forum.example.onion/t/4411",
@@ -194,7 +193,6 @@
       "rule_name": "Dark Web Credential Mention",
       "service": "zerofox-cloud-platform",
       "severity": 5,
-      "status": "alert",
       "tags": [
         "credentials"
       ],

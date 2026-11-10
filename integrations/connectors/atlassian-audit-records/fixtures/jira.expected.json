@@ -4,7 +4,7 @@
   "logs": [
     {
       "_oc_ingest": {
-        "id": "01a1c554-5200-72bc-b599-84a4beff3779"
+        "id": "01a1c4ef-9cc0-72bc-b599-84a4beff3779"
       },
       "associatedItems": [
         {
@@ -16,12 +16,10 @@
         }
       ],
       "authorAccountId": "5b10ac8d82e05b22cc7d4ef5",
-      "authorKey": "",
       "category": "group management",
       "created": "2026-11-10T10:10:00.000+0000",
       "date": "2026-11-10T10:10:00.000+0000",
       "ddsource": "jira-audit-records",
-      "eventSource": "",
       "evt": {
         "category": "group management",
         "name": "User added to group"
@@ -50,7 +48,7 @@
     },
     {
       "_oc_ingest": {
-        "id": "01a1c554-5200-7109-b213-72481753fc36"
+        "id": "01a1c494-3e20-7109-b213-72481753fc36"
       },
       "authorAccountId": "5b10ac8d82e05b22cc7d4ef5",
       "category": "workflows",
@@ -64,7 +62,6 @@
       "created": "2026-11-10T08:30:12.000+0000",
       "date": "2026-11-10T08:30:12.000+0000",
       "ddsource": "jira-audit-records",
-      "eventSource": "",
       "evt": {
         "category": "workflows",
         "name": "Workflow scheme updated"
@@ -94,15 +91,7 @@
   "state": {
     "partitions": {
       "": {
-        "cursor": 1794312000000,
-        "seen": [
-          {
-            "id": "84707ecda481bc75"
-          },
-          {
-            "id": "847077cda481b090"
-          }
-        ]
+        "cursor": 1794312000000
       }
     }
   }

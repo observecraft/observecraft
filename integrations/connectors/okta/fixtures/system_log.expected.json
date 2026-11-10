@@ -26,7 +26,6 @@
             "lat": 44.43,
             "lon": 26.1
           },
-          "postalCode": null,
           "state": "Bucuresti"
         },
         "ipAddress": "198.51.100.23",
@@ -60,14 +59,12 @@
               "lat": 44.43,
               "lon": 26.1
             },
-            "postalCode": null,
             "state": "Bucuresti"
           },
           "ip": "198.51.100.23"
         }
       },
       "outcome": {
-        "reason": null,
         "result": "SUCCESS"
       },
       "published": "2026-11-10T09:12:04.215Z",
@@ -245,9 +242,6 @@
         "outcome": "DENY"
       },
       "host": "example.okta.com",
-      "http": {
-        "useragent": null
-      },
       "message": "Evaluation of sign-on policy",
       "network": {
         "client": {

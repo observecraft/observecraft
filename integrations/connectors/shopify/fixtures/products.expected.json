@@ -24,10 +24,11 @@
       "id": "gid://shopify/Product/8000000002",
       "isGiftCard": false,
       "legacyResourceId": "8000000002",
+      "level": "ACTIVE",
       "mediaCount": {
         "count": 2
       },
-      "message": "Product Running Socks (active): 0 in stock",
+      "message": "{\"message\":\"Product Running Socks (active): 0 in stock\",\"status\":\"ACTIVE\"}",
       "onlineStoreUrl": "https://shop.example.com/products/running-socks",
       "priceRangeV2": {
         "maxVariantPrice": {
@@ -46,7 +47,6 @@
         "count": 0
       },
       "service": "product",
-      "status": "ACTIVE",
       "title": "Running Socks",
       "totalInventory": 0,
       "tracksInventory": true,
@@ -78,11 +78,11 @@
       "id": "gid://shopify/Product/8000000001",
       "isGiftCard": false,
       "legacyResourceId": "8000000001",
+      "level": "DRAFT",
       "mediaCount": {
         "count": 4
       },
-      "message": "Product Trail Running Shoe (draft): 42 in stock",
-      "onlineStoreUrl": null,
+      "message": "{\"message\":\"Product Trail Running Shoe (draft): 42 in stock\",\"status\":\"DRAFT\"}",
       "priceRangeV2": {
         "maxVariantPrice": {
           "amount": "104.0",
@@ -94,13 +94,11 @@
         }
       },
       "productType": "Shoes",
-      "publishedAt": null,
       "requiresSellingPlan": false,
       "sellingPlanGroupsCount": {
         "count": 0
       },
       "service": "product",
-      "status": "DRAFT",
       "title": "Trail Running Shoe",
       "totalInventory": 42,
       "tracksInventory": true,

@@ -13,7 +13,6 @@
       "host": "api-0a1b2c3d.duosecurity.com",
       "isotimestamp": "2026-11-10T08:50:00+00:00",
       "message": "admin_login by admin",
-      "object": null,
       "service": "administrator",
       "status": "info",
       "timestamp": 1794300600,

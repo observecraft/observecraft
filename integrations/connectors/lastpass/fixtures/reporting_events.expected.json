@@ -21,7 +21,6 @@
     },
     {
       "Action": "Failed Login Attempt",
-      "Data": "",
       "IP_Address": "198.51.100.23",
       "Time": "2026-11-10 05:31:47",
       "Username": "sam.lee@example.com",
