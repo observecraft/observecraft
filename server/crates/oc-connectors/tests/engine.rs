@@ -239,6 +239,18 @@ async fn every_pagination_kind_reads_to_the_last_page() {
 }
 
 #[tokio::test]
+async fn a_cursor_can_be_the_last_record_of_the_page() {
+    // Stripe: `starting_after` the page's last id while `has_more`.
+    let f = fixture(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events', query: { starting_after: '{{ page.cursor }}' } }\n    records: '{{ response.data }}'\n    pagination: { kind: cursor, next: '{{ response.has_more ? last.id : null }}' }\n"),
+        mock("    - { url: 'https://api.example.com/v1/events', query: { starting_after: b }, body: { data: [{ id: c }], has_more: false } }\n    - { url: 'https://api.example.com/v1/events', body: { data: [{ id: a }, { id: b }], has_more: true } }")
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&run), ["a", "b", "c"]);
+}
+
+#[tokio::test]
 async fn a_next_page_on_another_host_is_refused() {
     let f = fixture(&format!(
         "auth: {{ kind: bearer, token: '{{{{ secrets.token }}}}' }}\n{}{}",
