@@ -1,0 +1,8 @@
+{
+  "object": "list",
+  "data": [
+    { "object": "event", "type": 1500, "itemId": null, "collectionId": null, "groupId": null, "policyId": null, "memberId": "5a1e0000-0000-4000-8000-000000000103", "actingUserId": "7c2f0000-0000-4000-8000-000000000001", "installationId": null, "date": "2026-11-10T09:28:30.4884417Z", "device": 9, "ipAddress": "203.0.113.20" },
+    { "object": "event", "type": 1400, "itemId": null, "collectionId": null, "groupId": "9d3a0000-0000-4000-8000-000000000201", "policyId": null, "memberId": null, "actingUserId": "7c2f0000-0000-4000-8000-000000000001", "installationId": null, "date": "2026-11-10T08:57:59.6413435Z", "device": 9, "ipAddress": "203.0.113.20" }
+  ],
+  "continuationToken": null
+}

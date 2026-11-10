@@ -1,0 +1,144 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Bitwarden (https://bitwarden.com/help/public-api/): an organization's event log, as the logs Datadog's integration
+# sends (source:bitwarden): {event: <the event as Bitwarden answers it>, enrichment_details: {actingUser, member,
+# group: their name, email and type}}. integrations-core's log pipeline (event type and device codes to names, user
+# types, usr.*, network.client.ip) and its three dashboards for the tile read them as they are.
+schema_version: 1
+id: bitwarden
+name: Bitwarden
+publisher: ObserveCraft
+vendor: Bitwarden
+description: >-
+  The event log of a Bitwarden organization (logins, vault item, collection, group, member and policy changes), one
+  log per event with the acting user, member and group resolved, read from Bitwarden's Public API (cloud US or EU,
+  or a self-hosted server).
+tiles: [bitwarden]
+categories: [Log Collection, Security, SIEM]
+source: bitwarden
+docs_url: https://bitwarden.com/help/public-api/
+setup: |
+  1. Event logs need a Teams or Enterprise organization.
+  2. In the Admin Console, open **Settings → Organization info → API key** and **View API key** (an owner can);
+     copy the `client_id` (`organization.…`) and `client_secret`.
+links:
+  - { label: Public API, url: "https://bitwarden.com/help/public-api/" }
+instance: "{{ config.client_id | replace('organization.', '') }}"
+
+config:
+  - key: region
+    label: Server
+    type: select
+    required: true
+    default: us
+    options:
+      - { value: us, label: Bitwarden cloud (US) }
+      - { value: eu, label: Bitwarden cloud (EU) }
+      - { value: self_hosted, label: Self-hosted }
+  - key: server_url
+    label: Self-hosted server URL
+    type: url
+    placeholder: https://vault.example.com
+    help: Only for a self-hosted server; its API is under /api and its identity service under /identity.
+  - key: client_id
+    label: client_id
+    type: string
+    required: true
+    pattern: "organization\\.[0-9a-f-]+"
+    placeholder: organization.00000000-0000-0000-0000-000000000000
+  - key: client_secret
+    label: client_secret
+    type: string
+    secret: true
+    required: true
+
+tables:
+  api: { us: "https://api.bitwarden.com", eu: "https://api.bitwarden.eu" }
+  identity: { us: "https://identity.bitwarden.com", eu: "https://identity.bitwarden.eu" }
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "{{ config.region == 'self_hosted' ? config.server_url + '/identity/connect/token' : tables.identity[config.region] + '/connect/token' }}"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: body
+  scopes: [api.organization]
+
+errors:
+  - status: [400, 401]
+    kind: auth
+    message: Bitwarden refused the organization's API key (client_id and client_secret)
+  - status: [403]
+    kind: access_denied
+    message: The organization can't read its event log through the API (event logs need a Teams or Enterprise plan)
+
+streams:
+  - id: events
+    name: Events
+    description: >-
+      Every organization event as a log (source:bitwarden): event is Bitwarden's record (type, device, ipAddress,
+      actingUserId, memberId, groupId, itemId, collectionId, policyId, date); enrichment_details holds the acting
+      user's, member's and group's names, emails and types read from the organization's members and groups.
+    interval: 5m
+    lookups:
+      - name: users
+        request: { url: "{{ (config.region == 'self_hosted' ? config.server_url + '/api' : tables.api[config.region]) + '/public/members' }}" }
+        records: "{{ response.data }}"
+        key: "{{ record.userId }}"
+        value: "{{ {name: record.name, email: record.email, type: record.type} }}"
+        ttl: 1h
+      - name: members
+        request: { url: "{{ (config.region == 'self_hosted' ? config.server_url + '/api' : tables.api[config.region]) + '/public/members' }}" }
+        records: "{{ response.data }}"
+        key: "{{ record.id }}"
+        value: "{{ {name: record.name, email: record.email, type: record.type} }}"
+        ttl: 1h
+      - name: groups
+        request: { url: "{{ (config.region == 'self_hosted' ? config.server_url + '/api' : tables.api[config.region]) + '/public/groups' }}" }
+        records: "{{ response.data }}"
+        key: "{{ record.id }}"
+        value: "{{ {name: record.name} }}"
+        ttl: 1h
+    request:
+      url: "{{ (config.region == 'self_hosted' ? config.server_url + '/api' : tables.api[config.region]) + '/public/events' }}"
+      query:
+        start: "{{ window.start | rfc3339 }}"
+        end: "{{ window.end | rfc3339 }}"
+        continuationToken: "{{ page.cursor }}"
+    records: "{{ response.data }}"
+    pagination: { kind: cursor, next: "{{ response.continuationToken }}" }
+    # Events carry no id: the record's JSON is its identity.
+    incremental:
+      kind: time
+      record_time: "{{ record.date }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+      settle: 1m
+    output:
+      logs:
+        message: "{{ 'Bitwarden event ' + (record.type | str) + (' by ' + lookups.users[record.actingUserId].name ?? '') }}"
+        date: "{{ record.date }}"
+        attributes:
+          event: "{{ record }}"
+          enrichment_details:
+            actingUser: "{{ lookups.users[record.actingUserId] }}"
+            member: "{{ lookups.members[record.memberId] }}"
+            group: "{{ lookups.groups[record.groupId] }}"
+
+test:
+  stream: events
+  message: "Connected: the organization's event log is readable"
+
+mock:
+  config: { region: us, client_id: organization.0b1c2d3e-0000-4000-8000-000000000001 }
+  secrets: { client_secret: test-client-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://identity.bitwarden.com/connect/token", body_contains: "grant_type=client_credentials", body: { access_token: test-access-token, expires_in: 3600, token_type: Bearer, scope: api.organization } }
+    - { url: "https://api.bitwarden.com/public/members", file: fixtures/members.json }
+    - { url: "https://api.bitwarden.com/public/groups", file: fixtures/groups.json }
+    - { url: "https://api.bitwarden.com/public/events", query: { continuationToken: "CfDJ8page2" }, file: fixtures/events-2.json }
+    - { url: "https://api.bitwarden.com/public/events", file: fixtures/events-1.json }
+  expect:
+    events: { records: 4, logs: 4, rerun: 0, golden: fixtures/events.expected.json }
+    test: { ok: true, message: "event log is readable" }
