@@ -3,6 +3,7 @@ import { metricCatalog, queryTimeseries } from '../dashboards/client';
 import type { MetricSeries, TimeRange } from '../types';
 import { aggregateLogs } from '../client';
 import { searchSignals } from '../security/client';
+import { checkStatusQuery } from './checkStatus';
 import { signalSeries, type SignalPanelQuery } from './signals';
 import { logRequest, logSeries, throughputs, type LogPanelQuery } from './logs';
 import { aggregate, formula, normalizeRequest, preparePanelQuery, serverAggregator, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
@@ -23,9 +24,7 @@ export async function queryIntegrationPanel(
   source: PanelDataSource = { catalog: metricCatalog, timeseries: queryTimeseries },
 ): Promise<PanelSeries[]> {
   if (def.type === 'check_status') {
-    const tags = Array.isArray(def.tags) ? def.tags.filter((t): t is string => typeof t === 'string') : [];
-    const check = typeof def.check === 'string' ? def.check : '';
-    const query = resolve(`max:service_check.status{check:${check},${tags.join(',')}} by {host}`);
+    const query = checkStatusQuery(def, resolve);
     try {
       return (await source.timeseries({ queries: [query], range, points: 120 })).map((s) => ({ ...s, display: 'line', dashed: false }));
     } catch (error) {

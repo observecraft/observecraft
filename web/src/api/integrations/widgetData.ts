@@ -32,6 +32,35 @@ export function distributionBuckets(values: number[], count = 12): { from: numbe
   return buckets;
 }
 
+/**
+ * A host map's query: its fill per node (a host, or a container with `node_type: container`) and per value of its
+ * group tags; the fill's own `by {…}` is the node it was written for and is replaced.
+ */
+export function hostmapQuery(def: { requests?: unknown; node_type?: unknown; group?: unknown }): string | undefined {
+  const fill = (def.requests as { fill?: { q?: string } } | undefined)?.fill?.q;
+  if (!fill) return undefined;
+  const node = def.node_type === 'container' ? 'container_id' : 'host';
+  const groups = Array.isArray(def.group) ? def.group.filter((g): g is string => typeof g === 'string' && g !== node) : [];
+  return `${fill.replace(/\s+by\s+\{[^}]*\}/, '')} by {${[node, ...groups].join(',')}}`;
+}
+
+/** A host map's boxes: one per value of its group tags (one unnamed box without groups), with its nodes by name. */
+export function hostmapGroups(values: { name: string; value: number }[], groups: string[]): { label: string; nodes: { name: string; value: number }[] }[] {
+  const boxes = new Map<string, { name: string; value: number }[]>();
+  for (const { name, value } of values) {
+    const tags = new Map(
+      name.split(', ').map((pair) => {
+        const i = pair.indexOf(':');
+        return i < 0 ? [pair, ''] : [pair.slice(0, i), pair.slice(i + 1)];
+      }),
+    );
+    const label = groups.map((g) => tags.get(g) ?? 'N/A').join(', ');
+    const node = [...tags].find(([k]) => !groups.includes(k))?.[1] ?? name;
+    boxes.set(label, [...(boxes.get(label) ?? []), { name: node, value }]);
+  }
+  return [...boxes].map(([label, nodes]) => ({ label, nodes: nodes.sort((a, b) => a.name.localeCompare(b.name)) })).sort((a, b) => a.label.localeCompare(b.label));
+}
+
 /** Datadog's default host map palette: green for the lowest values to orange for the highest. */
 const HOSTMAP = ['#3a9e48', '#7cb342', '#c0ca33', '#fdd835', '#ffb300', '#fb8c00', '#f4511e'];
 

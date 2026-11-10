@@ -859,6 +859,48 @@
   padding-top: 18px;
 }
 
+/* ---------------------------------------------------------------- check status */
+.cs-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 4px;
+  height: 100%;
+}
+
+.cs-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 0;
+  padding: 6px;
+  border-radius: 2px;
+  container-type: size;
+  overflow: hidden;
+}
+
+.cs-status {
+  font-size: min(40cqh, 22cqw);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.cs-label,
+.cs-counts {
+  max-width: 100%;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-label {
+  font-family: var(--font-mono);
+}
+
 /* ---------------------------------------------------------------- top list / change */
 .tl {
   list-style: none;
@@ -2409,10 +2451,49 @@ td.iw-ev-source .status-bar {
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
-  gap: 3px;
+  gap: 8px;
   height: 100%;
   padding: 4px;
   overflow: auto;
+}
+
+.iw-hostmap-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.iw-hostmap-group:has(.iw-hostmap-label) {
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.iw-hostmap-label {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iw-hostmap-cells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.iw-hostmap-empty {
+  place-content: center;
+  gap: 4px;
+}
+
+.iw-hostmap-empty small {
+  max-width: 320px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
 }
 
 .iw-hostmap-cell {

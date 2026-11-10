@@ -1,7 +1,7 @@
 // Data of the geomap, distribution, hostmap and sunburst (pie) widgets (web/src/api/integrations/widgetData.ts).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { countryValues, distributionBuckets, groupLabel, hostmapColor, sunburstTree } from '../web/src/api/integrations/widgetData.ts';
+import { countryValues, distributionBuckets, groupLabel, hostmapColor, hostmapGroups, hostmapQuery, sunburstTree } from '../web/src/api/integrations/widgetData.ts';
 
 test('a group reads without its query and tag keys', () => {
   assert.equal(groupLabel('query1 · country_code:RO'), 'RO');
@@ -92,4 +92,40 @@ test('an ungrouped or single-tag sunburst is one ring; negative values are left 
     ],
   );
   assert.equal(sunburstTree([{ name: '*', value: 4 }]).nodes[0].name, 'All');
+});
+
+test('a host map reads its fill per host, or per container, split by its group tags', () => {
+  const gatekeeper = {
+    type: 'hostmap',
+    requests: { fill: { q: 'avg:process.stat.container.cpu.total_pct{short_image:gatekeeper,$cluster_name} by {host}' } },
+    node_type: 'container',
+    group: ['kube_deployment'],
+  };
+  assert.equal(hostmapQuery(gatekeeper), 'avg:process.stat.container.cpu.total_pct{short_image:gatekeeper,$cluster_name} by {container_id,kube_deployment}');
+  const argocd = { type: 'hostmap', requests: { fill: { q: 'avg:system.load.1{field:apps:argocd} by {host}' } }, node_type: 'host', group: ['cluster_name'] };
+  assert.equal(hostmapQuery(argocd), 'avg:system.load.1{field:apps:argocd} by {host,cluster_name}');
+  assert.equal(hostmapQuery({ type: 'hostmap', requests: { fill: { q: 'avg:system.cpu.user{*}' } } }), 'avg:system.cpu.user{*} by {host}');
+  assert.equal(hostmapQuery({ type: 'hostmap', requests: {} }), undefined);
+});
+
+test('a host map draws a box per group value, its nodes by name', () => {
+  const groups = hostmapGroups(
+    [
+      { name: 'container_id:c2, kube_deployment:gatekeeper-controller-manager', value: 4 },
+      { name: 'container_id:c9, kube_deployment:gatekeeper-audit', value: 12 },
+      { name: 'container_id:c1, kube_deployment:gatekeeper-controller-manager', value: 3 },
+    ],
+    ['kube_deployment'],
+  );
+  assert.deepEqual(groups, [
+    { label: 'gatekeeper-audit', nodes: [{ name: 'c9', value: 12 }] },
+    {
+      label: 'gatekeeper-controller-manager',
+      nodes: [
+        { name: 'c1', value: 3 },
+        { name: 'c2', value: 4 },
+      ],
+    },
+  ]);
+  assert.deepEqual(hostmapGroups([{ name: 'host:a', value: 1 }], []), [{ label: '', nodes: [{ name: 'a', value: 1 }] }]);
 });

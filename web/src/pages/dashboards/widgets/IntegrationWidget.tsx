@@ -10,6 +10,7 @@ import { palette, seriesPalette, token } from '../../../theme/chartTheme';
 import { overlaySeries, overlayStatusToken } from '../../../lib/overlays';
 import { changeRows, type ChangeRow } from '../../../api/integrations/change';
 import { useDashboardContext } from './context';
+import { checkStatusTiles, type CheckStatusTile } from '../../../api/integrations/checkStatus';
 import { WidgetState } from './MetricWidgets';
 import { groupTags, IntegrationTable } from './IntegrationTable';
 import { fills, formatStyle, matchFormat } from './conditionalFormats';
@@ -241,28 +242,8 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
       ) ?? 0,
   }));
   let content;
-  if (def.type === 'check_status' && def.grouping === 'cluster') {
-    // One tile: how many checks are in the worst status there is, in that status' color.
-    const counts = [0, 1, 2, 3].map((status) => values.filter((v) => v.value === status).length);
-    const worst = [2, 1, 3, 0].find((status) => counts[status] > 0);
-    const palette = worst === undefined ? undefined : ['white_on_green', 'white_on_yellow', 'white_on_red', 'white_on_gray'][worst];
-    content = (
-      <div className={`qv${palette ? ' qv-fill' : ''}`} style={palette ? formatStyle(palette) : undefined}>
-        <span className="qv-value">{worst === undefined ? '—' : counts[worst].toLocaleString()}</span>
-      </div>
-    );
-  } else if (def.type === 'check_status') {
-    const labels = ['OK', 'Warning', 'Critical', 'Unknown'];
-    content = (
-      <div className="ms-counts">
-        {[0, 1, 2, 3].map((status) => (
-          <div key={status} className={`ms-count ms-${['ok', 'warn', 'alert', 'nodata'][status]}`}>
-            <span>{labels[status]}</span>
-            <strong>{values.filter((v) => v.value === status).length}</strong>
-          </div>
-        ))}
-      </div>
-    );
+  if (def.type === 'check_status') {
+    content = <CheckStatusTiles tiles={checkStatusTiles(def, series)} />;
   } else if (def.type === 'query_value') {
     const v = aggregate(
       values.map((v) => v.value),
@@ -410,6 +391,34 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
     >
       {content}
     </WidgetState>
+  );
+}
+
+/** A check's status as Datadog's check status widget shows it, in the status' color. */
+const CHECK_STATUS = [
+  { label: 'OK', palette: 'white_on_green' },
+  { label: 'WARN', palette: 'white_on_yellow' },
+  { label: 'CRITICAL', palette: 'white_on_red' },
+  { label: 'UNKNOWN', palette: 'white_on_gray' },
+];
+
+/** A tile per group (one for the whole cluster): its worst status, and how many runs are in each status. */
+function CheckStatusTiles({ tiles }: { tiles: CheckStatusTile[] }) {
+  return (
+    <div className="cs-tiles">
+      {tiles.map((t) => (
+        <div key={t.label} className="cs-tile" style={formatStyle(CHECK_STATUS[t.status].palette)} title={t.label || undefined}>
+          {t.label && <span className="cs-label">{t.label}</span>}
+          <span className="cs-status">{CHECK_STATUS[t.status].label}</span>
+          <span className="cs-counts">
+            {t.counts
+              .map((n, status) => (n ? `${n} ${CHECK_STATUS[status].label}` : ''))
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 
