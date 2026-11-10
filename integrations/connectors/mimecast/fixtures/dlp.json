@@ -1,0 +1,7 @@
+{
+  "meta": { "status": 200, "pagination": { "pageSize": 500 } },
+  "data": [ { "dlpLogs": [
+    { "senderAddress": "sam.lee@example.com", "recipientAddress": "partner@example.net", "subject": "Q4 card settlement export", "eventTime": "2026-11-10T08:59:16+0000", "action": "hold", "route": "outbound", "policy": "Card Numbers", "messageId": "<20261110085916.0001@example.com>" }
+  ] } ],
+  "fail": []
+}

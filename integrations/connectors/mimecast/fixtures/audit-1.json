@@ -1,0 +1,7 @@
+{
+  "meta": { "status": 200, "pagination": { "pageSize": 1, "next": "eNoVpage2" } },
+  "data": [
+    { "id": "eNoVjt0KgjAYQN9ltwXZSh1BF7LIBNNSXBrdmPua5l9MJ_3Qu2f353DOB3WQKQkFRyukYpdW0001", "auditType": "Logon Authentication Failed", "user": "admin@example.com", "eventTime": "2026-11-10T10:31:37+0000", "eventInfo": "Failed authentication, IP: 192.0.2.12, Application: Administration Console", "category": "authentication_logs" }
+  ],
+  "fail": []
+}

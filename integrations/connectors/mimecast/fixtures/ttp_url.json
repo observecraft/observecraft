@@ -1,0 +1,9 @@
+{
+  "meta": { "status": 200, "pagination": { "pageSize": 500 } },
+  "data": [ { "clickLogs": [
+    { "date": "2026-11-10T09:03:18+0000", "userEmailAddress": "jane.doe@example.com", "fromUserEmailAddress": "billing@lookalike-pay.example", "url": "https://lookalike-pay.example/login",
+      "ttpDefinition": "Default URL Protection", "subject": "Overdue invoice #44812", "action": "block", "adminOverride": "N/A", "userOverride": "None", "scanResult": "malicious",
+      "category": "Phishing & Fraud", "sendingIp": "192.0.2.25", "userAwarenessAction": "N/A", "route": "inbound", "creationMethod": "User Click", "emailPartsDescription": ["Body"], "actions": "Block", "messageId": "<20261110095723.0001@lookalike-pay.example>" }
+  ] } ],
+  "fail": []
+}

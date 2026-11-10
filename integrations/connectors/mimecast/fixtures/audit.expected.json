@@ -1,0 +1,48 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c503-6728-7d54-9c27-60da2dc5b563"
+      },
+      "auditType": "Logon Authentication Failed",
+      "category": "authentication_logs",
+      "date": 1794306697000,
+      "ddsource": "mimecast",
+      "eventInfo": "Failed authentication, IP: 192.0.2.12, Application: Administration Console",
+      "eventTime": "2026-11-10T10:31:37+0000",
+      "host": "0a1b2c3d-0000-4000-8000-000000000001",
+      "id": "eNoVjt0KgjAYQN9ltwXZSh1BF7LIBNNSXBrdmPua5l9MJ_3Qu2f353DOB3WQKQkFRyukYpdW0001",
+      "message": "Logon Authentication Failed by admin@example.com: Failed authentication, IP: 192.0.2.12, Application: Administration Console",
+      "service": "audit",
+      "status": "info",
+      "user": "admin@example.com"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4ba-9688-726d-9763-3875c9ffe97e"
+      },
+      "auditType": "Policy Definition Updated",
+      "category": "account_logs",
+      "date": 1794301925000,
+      "ddsource": "mimecast",
+      "eventInfo": "Updated Anti-Spoofing policy 'Storefront domains', IP: 203.0.113.12",
+      "eventTime": "2026-11-10T09:12:05+0000",
+      "host": "0a1b2c3d-0000-4000-8000-000000000001",
+      "id": "eNoVjt0KgjAYQN9ltwXZSh1BF7LIBNNSXBrdmPua5l9MJ_3Qu2f353DOB3WQKQkFRyukYpdW0002",
+      "message": "Policy Definition Updated by jane.doe@example.com: Updated Anti-Spoofing policy 'Storefront domains', IP: 203.0.113.12",
+      "service": "audit",
+      "status": "info",
+      "user": "jane.doe@example.com"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311880000
+      }
+    }
+  }
+}

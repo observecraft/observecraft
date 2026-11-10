@@ -1,0 +1,44 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b2-8bf0-7757-ae1a-2db75f0f0cc8"
+      },
+      "action": "block",
+      "actions": "Block",
+      "adminOverride": "N/A",
+      "category": "Phishing & Fraud",
+      "creationMethod": "User Click",
+      "date": 1794301398000,
+      "ddsource": "mimecast",
+      "emailPartsDescription": [
+        "Body"
+      ],
+      "fromUserEmailAddress": "billing@lookalike-pay.example",
+      "host": "0a1b2c3d-0000-4000-8000-000000000001",
+      "message": "jane.doe@example.com clicked https://lookalike-pay.example/login: malicious (block)",
+      "messageId": "<20261110095723.0001@lookalike-pay.example>",
+      "route": "inbound",
+      "scanResult": "malicious",
+      "sendingIp": "192.0.2.25",
+      "service": "ttp-url",
+      "status": "error",
+      "subject": "Overdue invoice #44812",
+      "ttpDefinition": "Default URL Protection",
+      "url": "https://lookalike-pay.example/login",
+      "userAwarenessAction": "N/A",
+      "userEmailAddress": "jane.doe@example.com",
+      "userOverride": "None"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311880000
+      }
+    }
+  }
+}

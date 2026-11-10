@@ -1,0 +1,10 @@
+{
+  "meta": { "status": 200, "pagination": { "pageSize": 500 } },
+  "data": [ { "impersonationLogs": [
+    { "id": "MTOKEN:eNqrVkouLS7Jz00tSs5PSVWyUnIODXY0tnA0MjJX0lHKTFGyMjUyNLSwMNJRKkstKs7Mz1OyMtRRKskDKz0001", "eventTime": "2026-11-10T11:13:02+0000",
+      "senderAddress": "ceo@examp1e.com", "senderIpAddress": "192.0.2.77", "recipientAddress": "finance@example.com", "subject": "Urgent wire transfer",
+      "definition": "Impersonation Hold", "identifiers": ["similar_internal_domain", "newly_observed_domain"], "hits": 2, "action": "hold", "taggedMalicious": true, "taggedExternal": true,
+      "impersonationResults": [{ "impersonationDomainSource": "similar_internal_domain", "stringSimilarToDomain": "example.com" }], "messageId": "<20261110111302.0001@examp1e.com>" }
+  ] } ],
+  "fail": []
+}
