@@ -492,6 +492,673 @@
   {
     "entry": {
       "categories": [
+        "Metrics"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key_id",
+          "label": "API key ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key_secret",
+          "label": "API key secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "Leave empty for the API key user's default workspace.",
+          "key": "workspace_ids",
+          "label": "Workspace IDs",
+          "options": [],
+          "pattern": "[0-9]+",
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "list"
+        }
+      ],
+      "dashboards": [],
+      "description": "The results of every finished BlazeMeter performance test (response times, percentiles, throughput, errors and failed assertions, overall and per request label) and functional test (passed, failed and broken test cases) as metrics, read from the BlazeMeter API.",
+      "docsUrl": "https://help.blazemeter.com/apidocs/performance/",
+      "id": "blazemeter",
+      "kind": "package",
+      "links": [],
+      "logo": "blazemeter",
+      "monitors": [],
+      "name": "BlazeMeter",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In BlazeMeter, open **Settings → Personal → API Keys** and **Generate** a key (an expiry of up to a year).\n2. Copy its **API Key ID** and **API Key Secret**; BlazeMeter shows the secret once. The key reads what its user can\n   see: the user needs at least the **Viewer** role in each workspace to collect.\n3. Optionally list the workspace IDs to collect (in the URL of the workspace's page); by default the user's default\n   workspace is read.\n",
+      "source": "blazemeter",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "The summary of each finished performance test run (blazemeter.performance.summary_*).",
+          "events": false,
+          "id": "performance_summary",
+          "incremental": "time",
+          "intervalSecs": 900,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_avg",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_bytes",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_concurrency",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_duration",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_failed",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_hits",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_hits_avg",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_latency",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_max",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_maxUsers",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_min",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_stDev",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.summary_tp90",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Performance summaries"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Each finished performance run's statistics per request label (blazemeter.performance.request_*), tagged labelid and labelname.",
+          "events": false,
+          "id": "request_stats",
+          "incremental": "time",
+          "intervalSecs": 900,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_90line",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_95line",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_99line",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_avgBytes",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_avgLatency",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_avgResponseTime",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_avgThroughput",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_concurrency",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_duration",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_errorRate",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_errorsCount",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_maxResponseTime",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_medianResponseTime",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_minResponseTime",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_samples",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.request_stDev",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Request statistics"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Each finished performance run's errors per label, response code and message (errors_count), failing URLs (errors_url_count), failed embedded resources and failed assertions (assertions_failures).",
+          "events": false,
+          "id": "errors",
+          "incremental": "time",
+          "intervalSecs": 900,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "blazemeter.performance.errors_count",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "message",
+                "projectid",
+                "rc",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.errors_url_count",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "projectid",
+                "testname",
+                "url"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.failedEmbeddedResources_count",
+              "tags": [
+                "labelid",
+                "labelname",
+                "masterid",
+                "message",
+                "projectid",
+                "rc",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.performance.assertions_failures",
+              "tags": [
+                "assertion",
+                "labelid",
+                "labelname",
+                "masterid",
+                "message",
+                "projectid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Errors and assertions"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Each finished functional test run's test case counts and pass rate (blazemeter.functional.gridSummary_*).",
+          "events": false,
+          "id": "functional",
+          "incremental": "time",
+          "intervalSecs": 900,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "blazemeter.functional.gridSummary_brokenTestCasesCount",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.functional.gridSummary_failedTestCasesCount",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.functional.gridSummary_passedPercent",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.functional.gridSummary_passedTestCasesCount",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.functional.gridSummary_testCasesCount",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.functional.gridSummary_undefinedTestCasesCount",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.functional.gridSummary_uniqueSuitesCount",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "blazemeter.functional.gridSummary_uniqueTestCasesCount",
+              "tags": [
+                "masterid",
+                "projectid",
+                "testid",
+                "testname"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Functional test results"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "blazemeter"
+      ],
+      "vendor": "Perforce BlazeMeter",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "api_key_id": "0a1b2c3d4e5f60718293a4b5"
+      },
+      "secrets": [
+        "api_key_secret"
+      ],
+      "test": "qa-lead@example.com"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
         "Collaboration",
         "Log Collection",
         "Security",
@@ -582,6 +1249,114 @@
         "client_secret"
       ],
       "test": "enterprise events are readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM",
+        "Cloud"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "account_id",
+          "label": "Account ID",
+          "options": [],
+          "pattern": "[0-9]+",
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "The part between cc. and .catonetworks.com in your management URL; empty for cc.catonetworks.com.",
+          "key": "region",
+          "label": "Region",
+          "options": [],
+          "pattern": "[a-z0-9]+",
+          "placeholder": "us1",
+          "required": false,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "Service API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The audit trail (administrators' configuration changes) and the events (security, connectivity, system, Detection & Response) of a Cato Networks SASE account as logs, read every minute from its GraphQL API.",
+      "docsUrl": "https://api.catonetworks.com/documentation/",
+      "id": "cato-networks",
+      "kind": "package",
+      "links": [],
+      "logo": "cato-networks",
+      "monitors": [],
+      "name": "Cato Networks",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Cato Management Application, open **Resources → Service API Keys** and create a key for a service\n   principal with **View** permission; copy it, Cato shows it once.\n2. For events, enable the events feed in **Resources → Event Integrations** (**Enable integration with Cato\n   events**). Cato keeps one position in the feed per account: don't let another consumer read the same feed.\n3. Copy the **Account ID** from **Account → General Info**, and the region from your management URL (`us1` in\n   `cc.us1.catonetworks.com`; empty for `cc.catonetworks.com`).\n",
+      "source": "cato-networks",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every event of the events feed (service:events): event_type, event_sub_type, action, src_ip, user_name, rule_name, threat and Detection & Response fields, as Cato's fieldsMap gives them, with time in epoch ms.",
+          "events": false,
+          "id": "events",
+          "incremental": "token",
+          "intervalSecs": 60,
+          "logs": true,
+          "metrics": [],
+          "name": "Events"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every administrator's change (service:audit-logs): fieldsMap.admin, admin_id, module, model_type, model_name, change_type and the change itself, with creation and insertion dates.",
+          "events": false,
+          "id": "audit_logs",
+          "incremental": "token",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit logs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "cato-networks"
+      ],
+      "vendor": "Cato Networks",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "account_id": "4011",
+        "region": "us1"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "account 4011"
     },
     "dashboards": []
   },
@@ -1192,6 +1967,229 @@
         "client_secret"
       ],
       "test": "Connected to triage.example.com"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "AI/ML",
+        "Cloud",
+        "Cost Management",
+        "Metrics"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The workspace's URL (….cloud.databricks.com, adb-….azuredatabricks.net or ….gcp.databricks.com).",
+          "key": "workspace_url",
+          "label": "Workspace URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://dbc-a1b2c3d4-e5f6.cloud.databricks.com",
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": "Tags the metrics as workspace_name; default the workspace's host.",
+          "key": "workspace_name",
+          "label": "Workspace name",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "The service principal's application (client) ID.",
+          "key": "client_id",
+          "label": "Client ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "OAuth secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "For costs. Leave empty to collect Model Serving metrics only, and turn the DBU costs stream off.",
+          "key": "warehouse_id",
+          "label": "SQL warehouse ID",
+          "options": [],
+          "pattern": "[0-9a-f]{16}",
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "A Databricks workspace's Model Serving endpoints (CPU, memory, GPU, requests, 4xx and 5xx, provisioned concurrency) as metrics every minute, and its DBU usage priced at list price as daily costs in Cloud Cost Management, read with a service principal's OAuth secret.",
+      "docsUrl": "https://docs.databricks.com/api/workspace/introduction",
+      "id": "databricks",
+      "kind": "package",
+      "links": [],
+      "logo": "databricks",
+      "monitors": [],
+      "name": "Databricks",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the workspace's **Settings → Identity and access → Service principals**, add a service principal and, under\n   **Secrets**, generate an **OAuth secret**; copy its client ID and secret.\n2. Give it **Can Query** (or **Can View**) on the serving endpoints, and for costs `SELECT` on `system.billing.usage`\n   and `system.billing.list_prices` (system tables need Unity Catalog) and **Can use** on a SQL warehouse.\n3. Copy the SQL warehouse's ID (**SQL Warehouses → the warehouse → Connection details**, the end of the HTTP path).\n   A small serverless warehouse is enough: the cost query runs every 6 hours.\n",
+      "source": "databricks",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every serving endpoint's CPU, memory, GPU, request, 4xx and 5xx counts and provisioned concurrency (databricks.model_serving.*), per served entity.",
+          "events": false,
+          "id": "model_serving",
+          "incremental": "none",
+          "intervalSecs": 60,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "databricks.model_serving.cpu_usage_percentage",
+              "tags": [
+                "endpoint_name",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "databricks.model_serving.gpu_mem_usage_percentage.avg",
+              "tags": [
+                "endpoint_name",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "databricks.model_serving.gpu_usage_percentage.avg",
+              "tags": [
+                "endpoint_name",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "databricks.model_serving.mem_usage_percentage",
+              "tags": [
+                "endpoint_name",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "databricks.model_serving.provisioned_concurrent_requests_total",
+              "tags": [
+                "endpoint_name",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "databricks.model_serving.request_4xx_count_total",
+              "tags": [
+                "endpoint_name",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "databricks.model_serving.request_5xx_count_total",
+              "tags": [
+                "endpoint_name",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "databricks.model_serving.request_count_total",
+              "tags": [
+                "endpoint_name",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Model Serving metrics"
+        },
+        {
+          "costs": true,
+          "defaultEnabled": true,
+          "description": "The last 7 days of DBU usage at list price, one row per day, workspace, SKU (charge_description), product (servicename), cluster, job, warehouse and serving endpoint; each run replaces those days.",
+          "events": false,
+          "id": "dbu_costs",
+          "incremental": "none",
+          "intervalSecs": 21600,
+          "logs": false,
+          "metrics": [],
+          "name": "DBU costs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "databricks"
+      ],
+      "vendor": "Databricks",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "client_id": "6f0e1d2c-3b4a-5968-7a8b-9c0d1e2f3a4b",
+        "warehouse_id": "0123456789abcdef",
+        "workspace_name": "shop-analytics",
+        "workspace_url": "https://dbc-a1b2c3d4-e5f6.cloud.databricks.com"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "2 serving endpoints"
     },
     "dashboards": []
   },
@@ -5612,6 +6610,265 @@
       "categories": [
         "Log Collection",
         "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The tenant's API URL (Copy API URL on the API Keys page).",
+          "key": "base_url",
+          "label": "API URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://api-shop.xdr.us.paloaltonetworks.com",
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": "The number in the ID column of the API Keys table.",
+          "key": "key_id",
+          "label": "API key ID",
+          "options": [],
+          "pattern": "[0-9]+",
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": "advanced",
+          "help": null,
+          "key": "security_level",
+          "label": "Security level",
+          "options": [
+            {
+              "label": "Advanced",
+              "value": "advanced"
+            },
+            {
+              "label": "Standard",
+              "value": "standard"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The incidents (each change of status, severity, assignee or alert count) and alerts (with their events) of a Cortex XDR tenant as logs, read every 5 minutes from its public API with a Standard or Advanced API key.",
+      "docsUrl": "https://docs-cortex.paloaltonetworks.com/r/Cortex-XDR-REST-API",
+      "id": "palo-alto-cortex-xdr",
+      "kind": "package",
+      "links": [],
+      "logo": "palo-alto-cortex-xdr",
+      "monitors": [],
+      "name": "Palo Alto Cortex XDR",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Cortex XDR, open **Settings → Configurations → Integrations → API Keys** and select **+ New Key**.\n2. Choose a **Standard** or **Advanced** security level and a read-only role (**Viewer** is enough), then copy the key;\n   Cortex XDR shows it once.\n3. Copy the key's **ID** from the API keys table, and the tenant's API URL from **Copy API URL** (it looks like\n   `https://api-<tenant>.xdr.<region>.paloaltonetworks.com`).\n",
+      "source": "palo-alto-cortex-xdr",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per incident and modification (service:incident): a new incident, then each change of its status, severity, assignee or alerts, with the incident's fields (incident_id, severity, status, alert_count, hosts, users, assigned_user_mail, xdr_url, …) at the top.",
+          "events": false,
+          "id": "incidents",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Incidents"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per alert and event (service:alert): the alert's fields (alert_id, name, category, severity, action_pretty, host_name, host_ip, …) with its event's (actor process, user_name, dns_query_name, …) at the top.",
+          "events": false,
+          "id": "alerts",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Alerts"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "palo-alto-cortex-xdr"
+      ],
+      "vendor": "Palo Alto Networks",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "base_url": "https://api-shop.xdr.us.paloaltonetworks.com",
+        "key_id": "7",
+        "security_level": "advanced"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "42 incidents"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Security",
+        "Log Collection",
+        "Automation",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The tenant's API URL (Copy API URL on the API Keys page).",
+          "key": "base_url",
+          "label": "API URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://api-shop.xdr.us.paloaltonetworks.com",
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "key_id",
+          "label": "API key ID",
+          "options": [],
+          "pattern": "[0-9]+",
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": "standard",
+          "help": null,
+          "key": "security_level",
+          "label": "Security level",
+          "options": [
+            {
+              "label": "Standard",
+              "value": "standard"
+            },
+            {
+              "label": "Advanced",
+              "value": "advanced"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The incidents (type, severity, status, owner, playbook) and the management audit log (logins, role and settings changes) of a Cortex XSOAR 8 tenant as logs, read every 5 minutes from its public API.",
+      "docsUrl": "https://cortex-panw.stoplight.io/docs/cortex-xsoar-8/",
+      "id": "palo-alto-networks-cortex-xsoar",
+      "kind": "package",
+      "links": [],
+      "logo": "palo-alto-networks-cortex-xsoar",
+      "monitors": [],
+      "name": "Palo Alto Networks Cortex XSOAR",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Cortex XSOAR, open **Settings & Info → Settings → Integrations → API Keys** and select **New Key**.\n2. Choose the **Standard** security level (Advanced works too) and the **Read-Only** role, then copy the key; it is\n   shown once.\n3. Copy the key's **ID** from the table and the tenant's API URL from **Copy API URL**\n   (`https://api-<tenant>.xdr.<region>.paloaltonetworks.com`).\n",
+      "source": "palo-alto-networks-cortex-xsoar",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per incident (vendor.endpoint:incidents) with its fields at the top (id, name, type, severity, status, owner, playbookId, labels, …); the pipeline adds severity_value, status_value and usr.name.",
+          "events": false,
+          "id": "incidents",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Incidents"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per management audit entry (vendor.endpoint:audit-logs) with its AUDIT_* fields at the top; the pipeline maps the owner to usr.*, AUDIT_ENTITY / AUDIT_RESULT to evt.name / evt.outcome and the source IP to network.client.ip.",
+          "events": false,
+          "id": "audit_logs",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit logs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "palo-alto-networks-cortex-xsoar"
+      ],
+      "vendor": "Palo Alto Networks",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "base_url": "https://api-shop.xdr.us.paloaltonetworks.com",
+        "key_id": "12",
+        "security_level": "standard"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "318 audit log entries"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
         "Identity"
       ],
       "config": [
@@ -6384,6 +7641,2495 @@
         "client_secret"
       ],
       "test": "tenant 5b5b5b5b"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Metrics"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "organization",
+          "label": "Organization ID",
+          "options": [],
+          "pattern": "[a-z0-9-]+",
+          "placeholder": "o-example",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "instance_name",
+          "label": "Instance name",
+          "options": [],
+          "pattern": "[a-z0-9-]+",
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "The client_id of the service account's OAuth2 key file.",
+          "key": "client_id",
+          "label": "Client ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Client secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The health checks, Pulsar tenants, namespaces and topics, source and sink connectors and Kafka Connect of a StreamNative Cloud instance as metrics, scraped every 2 minutes from the Cloud Metrics API.",
+      "docsUrl": "https://docs.streamnative.io/docs/cloud-metrics-api",
+      "id": "streamnative",
+      "kind": "package",
+      "links": [],
+      "logo": "streamnative",
+      "monitors": [],
+      "name": "StreamNative",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the StreamNative Cloud console, open **Service Accounts** and create one; give it the **metrics-viewer** role\n   on the instance (a Super Admin service account works too).\n2. Download the service account's **OAuth2 key** file and copy its `client_id` and `client_secret`.\n3. Enter the organization (its id in the console's URL) and the instance's name.\n",
+      "source": "streamnative",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "The detectors' end-to-end, publish and geo-replication latencies and the messaging and web service SLA checks (streamnative.health.*).",
+          "events": false,
+          "id": "health",
+          "incremental": "none",
+          "intervalSecs": 120,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "{{ 'streamnative.health.' + record.name }}",
+              "tags": [],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Health"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Rates, throughput, backlog, storage and latency buckets of the instance's tenants, namespaces and topics (streamnative.pulsar_resource.*).",
+          "events": false,
+          "id": "pulsar_resource",
+          "incremental": "none",
+          "intervalSecs": 120,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "{{ 'streamnative.pulsar_resource.' + record.name }}",
+              "tags": [],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Pulsar resources"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Records received and written, exceptions and JVM use of the Pulsar source connectors (streamnative.source_connector.*).",
+          "events": false,
+          "id": "source_connector",
+          "incremental": "none",
+          "intervalSecs": 120,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "{{ 'streamnative.source_connector.' + record.name }}",
+              "tags": [],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Source connectors"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Records received and written, exceptions and JVM use of the Pulsar sink connectors (streamnative.sink_connector.*).",
+          "events": false,
+          "id": "sink_connector",
+          "incremental": "none",
+          "intervalSecs": 120,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "{{ 'streamnative.sink_connector.' + record.name }}",
+              "tags": [],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Sink connectors"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Task states, batch sizes, offset commits, errors and JVM use of the Kafka Connect connectors (streamnative.kafka_connect.*).",
+          "events": false,
+          "id": "kafka_connect",
+          "incremental": "none",
+          "intervalSecs": 120,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "{{ 'streamnative.kafka_connect.' + record.name }}",
+              "tags": [],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Kafka Connect"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "streamnative"
+      ],
+      "vendor": "StreamNative",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "client_id": "sn-client-0001",
+        "instance_name": "shop",
+        "organization": "o-example"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "5 health samples"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Cloud",
+        "Developer Tools",
+        "Metrics",
+        "Log Collection"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "project_ref",
+          "label": "Project reference",
+          "options": [],
+          "pattern": "[a-z0-9]{20}",
+          "placeholder": "abcdefghijklmnopqrst",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "The project's secret (or legacy service_role) key, for the Metrics API.",
+          "key": "secret_key",
+          "label": "Secret key",
+          "options": [],
+          "pattern": null,
+          "placeholder": "sb_secret_…",
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "For logs (the Management API). Leave empty to collect metrics only, and turn the Logs stream off.",
+          "key": "access_token",
+          "label": "Personal access token",
+          "options": [],
+          "pattern": null,
+          "placeholder": "sbp_…",
+          "required": false,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": [
+            "postgres_logs",
+            "edge_logs",
+            "auth_logs",
+            "storage_logs",
+            "realtime_logs",
+            "function_logs",
+            "function_edge_logs",
+            "postgrest_logs"
+          ],
+          "help": null,
+          "key": "sources",
+          "label": "Log sources",
+          "options": [
+            {
+              "label": "Postgres",
+              "value": "postgres_logs"
+            },
+            {
+              "label": "API gateway",
+              "value": "edge_logs"
+            },
+            {
+              "label": "Auth",
+              "value": "auth_logs"
+            },
+            {
+              "label": "Storage",
+              "value": "storage_logs"
+            },
+            {
+              "label": "Realtime",
+              "value": "realtime_logs"
+            },
+            {
+              "label": "Edge Function logs",
+              "value": "function_logs"
+            },
+            {
+              "label": "Edge Function invocations",
+              "value": "function_edge_logs"
+            },
+            {
+              "label": "PostgREST",
+              "value": "postgrest_logs"
+            },
+            {
+              "label": "PgBouncer",
+              "value": "pgbouncer_logs"
+            },
+            {
+              "label": "Supavisor",
+              "value": "supavisor_logs"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "multiselect"
+        }
+      ],
+      "dashboards": [],
+      "description": "A Supabase project's database host and Postgres metrics (CPU, memory, disk, connections, PostgREST pool, Realtime subscriptions, auth users) every minute from its Metrics API, and its Postgres, API gateway, auth, storage, Realtime, Edge Function and PostgREST logs from the Management API.",
+      "docsUrl": "https://supabase.com/docs/guides/telemetry/metrics",
+      "id": "supabase-cloud",
+      "kind": "package",
+      "links": [],
+      "logo": "supabase-cloud",
+      "monitors": [],
+      "name": "Supabase Cloud",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. Copy the project's **reference** from its URL (`https://supabase.com/dashboard/project/<ref>`).\n2. In **Project Settings → API Keys**, create or copy a **secret key** (`sb_secret_…`; the legacy `service_role` key\n   works too): the Metrics API takes it as the password of the `service_role` user.\n3. For logs, create a **personal access token** (`sbp_…`) in **Account → Access Tokens** for a member of the\n   project's organization (a fine-grained token needs `analytics_logs_read`).\n",
+      "source": "supabase",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "The project's database host (node.*), Postgres (pg.*, pg_stat_database.*, pg_stat_bgwriter.*), PostgREST pool, Realtime and auth metrics as supabase.cloud.*, tagged supabase_project_ref and the series' labels.",
+          "events": false,
+          "id": "metrics",
+          "incremental": "none",
+          "intervalSecs": 60,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "supabase.cloud.auth_users.user_count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.connection.stats.connection.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.cpu.online",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.disk.filesystem.info",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.disk.info",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.filesystem.avail.bytes",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.filesystem.device_error",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.filesystem.size.bytes",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.load1",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.load15",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.load5",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.memory.active_bytes",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.memory.buffers.bytes",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.memory.cached.bytes",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.memory.inactive.bytes",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.memory.mem_available.bytes",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.memory.mem_free.bytes",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.memory.mem_total.bytes",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.memory.swap_free.bytes",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.memory.swap_total.bytes",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg.up",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_database.size.mb",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.num_backends",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_status.in_recovery",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_wal.size",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pgrst.db_pool.available_connections",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pgrst.db_pool.max_connections",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pgrst.db_pool.waiting",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pgrst.schema_cache.query_time_seconds",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.realtime_postgres_changes.client_subscriptions",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.realtime_postgres_changes.total_subscriptions",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.cpu.seconds.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.disk.io_time_seconds.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.disk.io_time_weighted_seconds.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.disk.read_bytes.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.disk.read_time_seconds.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.disk.write_time_seconds.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.disk.written_bytes.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.network.receive_bytes.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.network.transmit_bytes.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.node.vmstat.oom_kill.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_bgwriter.buffers_alloc.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_bgwriter.buffers_checkpoint.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_bgwriter.buffers_clean.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_bgwriter.checkpoint_sync_time.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_bgwriter.checkpoint_write_time.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_bgwriter.checkpoints_req.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_bgwriter.checkpoints_timed.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_bgwriter.maxwritten_clean.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_bgwriter.stats_reset.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.blks_hit.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.blks_read.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.deadlocks.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.temp_bytes.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.temp_files.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.tup_deleted.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.tup_fetched.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.tup_inserted.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.tup_returned.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.tup_updated.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.xact_commit.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pg_stat_database.xact_rollback.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pgrst.db_pool.timeouts.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.pgrst.schema_cache.loads.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            },
+            {
+              "description": null,
+              "name": "supabase.cloud.postgresql.restarts.count",
+              "tags": [
+                "supabase_project_ref"
+              ],
+              "type": "count",
+              "unit": null
+            }
+          ],
+          "name": "Metrics"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "The log sources chosen in the setup as logs (source:supabase, service: postgres_logs, edge_logs, auth_logs, …), the row under data (id, timestamp, event_message, project) with its log_attributes as data.metadata.",
+          "events": false,
+          "id": "logs",
+          "incremental": "time",
+          "intervalSecs": 60,
+          "logs": true,
+          "metrics": [],
+          "name": "Logs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "supabase-cloud"
+      ],
+      "vendor": "Supabase",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "project_ref": "abcdefghijklmnopqrst"
+      },
+      "secrets": [
+        "access_token",
+        "secret_key"
+      ],
+      "test": "9 series"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "Account → Account Information in VIP Manager.",
+          "key": "jurisdiction_hash",
+          "label": "Jurisdiction hash",
+          "options": [],
+          "pattern": "[A-Za-z0-9]+",
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "The content of the VIP certificate's .pem file, with its private key.",
+          "key": "certificate",
+          "label": "VIP certificate (PEM)",
+          "options": [],
+          "pattern": null,
+          "placeholder": "-----BEGIN CERTIFICATE-----",
+          "required": true,
+          "secret": true,
+          "type": "text"
+        },
+        {
+          "default": null,
+          "help": "Only when the private key is in a file of its own.",
+          "key": "private_key",
+          "label": "Private key (PEM)",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": true,
+          "type": "text"
+        }
+      ],
+      "dashboards": [],
+      "description": "The user management and authentication events of a Symantec VIP account (users created, credentials added and updated, authentications, temporary passwords) as logs, streamed every minute from the VIP Report Streaming Service with the account's VIP certificate.",
+      "docsUrl": "https://techdocs.broadcom.com/us/en/symantec-security-software/identity-security/vip/cloud/vip-web-services-and-apis-v127046027-d2278e2328/VIP-Reporting-Streaming-Service/about-the-v109910016-d2376e10.html",
+      "id": "symantec-vip",
+      "kind": "package",
+      "links": [],
+      "logo": "symantec-vip",
+      "monitors": [],
+      "name": "Symantec VIP",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. Ask Symantec (Broadcom) support to enable the **Report Streaming Service** for the VIP account.\n2. In VIP Manager, open **Account → Manage VIP Certificates**, request a certificate for web services and download it\n   in **PEM** format (it holds the certificate and its private key).\n3. Activate the service once with the certificate: `curl --cert vip_cert.pem -X POST https://streaming-auth.vip.symantec.com/activate`.\n4. Copy the **jurisdiction hash** from **Account → Account Information** in VIP Manager.\nEvents are kept 24 hours by the service: a connection paused longer misses the older ones.\n",
+      "source": "symantec-vip",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every VIP event as a log (service:event-logs): operation, extUserId (usr.name), credId, txnId, requestId, result.status / statusMessage / credType and the nested calls. The stream resumes from the service's marker, or from the last 24 hours on the first run.",
+          "events": false,
+          "id": "event_logs",
+          "incremental": "token",
+          "intervalSecs": 60,
+          "logs": true,
+          "metrics": [],
+          "name": "Event logs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "symantec-vip"
+      ],
+      "vendor": "Broadcom",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "jurisdiction_hash": "4815162"
+      },
+      "secrets": [
+        "certificate"
+      ],
+      "test": "The streaming service is active"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "Tanium Cloud's API URL (<customer>-api.cloud.tanium.com) or your Tanium Server's.",
+          "key": "base_url",
+          "label": "Tanium URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://example-api.cloud.tanium.com",
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": [
+            "authentication",
+            "api_tokens",
+            "users",
+            "personas",
+            "system_settings",
+            "local_settings"
+          ],
+          "help": null,
+          "key": "audit_types",
+          "label": "Platform audit types",
+          "options": [
+            {
+              "label": "Authentication",
+              "value": "authentication"
+            },
+            {
+              "label": "API tokens",
+              "value": "api_tokens"
+            },
+            {
+              "label": "Users",
+              "value": "users"
+            },
+            {
+              "label": "User groups",
+              "value": "user_groups"
+            },
+            {
+              "label": "Personas",
+              "value": "personas"
+            },
+            {
+              "label": "System settings",
+              "value": "system_settings"
+            },
+            {
+              "label": "Local settings",
+              "value": "local_settings"
+            },
+            {
+              "label": "Content sets",
+              "value": "content_sets"
+            },
+            {
+              "label": "Packages",
+              "value": "packages"
+            },
+            {
+              "label": "Sensors",
+              "value": "sensors"
+            },
+            {
+              "label": "Saved actions",
+              "value": "saved_actions"
+            },
+            {
+              "label": "Saved questions",
+              "value": "saved_questions"
+            },
+            {
+              "label": "Dashboards",
+              "value": "dashboards"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "multiselect"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_token",
+          "label": "API token",
+          "options": [],
+          "pattern": null,
+          "placeholder": "token-…",
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Threat Response alerts and audit events, and the platform audit log (sessions and logins, API tokens, users, personas, settings) of a Tanium Cloud or self-hosted server as logs, read every 5 minutes with an API token.",
+      "docsUrl": "https://developer.tanium.com/guides/core-platform/integration_methods",
+      "id": "tanium",
+      "kind": "package",
+      "links": [],
+      "logo": "tanium",
+      "monitors": [],
+      "name": "Tanium",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Tanium Console, open **Administration → Permissions → API Tokens** and create a token for a user with\n   read access to Audit, Threat Response alerts and the Threat Response API (and the Token Use permission).\n2. Add ObserveCraft's egress IP addresses to the token's **Trusted IP Addresses**: Tanium refuses tokens from other\n   addresses. Tokens expire (at most a year): renew it before then.\n",
+      "source": "tanium",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per Threat Response alert (service:threat-response-alerts): type, matchType, priority, severity, state, computerName, computerIpAddress, path, the intel document and its MITRE ATT&CK techniques.",
+          "events": false,
+          "id": "threat_response_alerts",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Threat Response alerts"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per Threat Response audit event (service:threat-response-audit-logs): action, table, the changed state, userName and userId.",
+          "events": false,
+          "id": "threat_response_audit",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Threat Response audit"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per platform audit entry and type (service:platform-audit-logs): audit_name, type_name, object_type_name, object_name, details (the message), mod_user and last_modified_by.",
+          "events": false,
+          "id": "platform_audit",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Platform audit logs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "tanium"
+      ],
+      "vendor": "Tanium",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "audit_types": [
+          "authentication",
+          "system_settings"
+        ],
+        "base_url": "https://example-api.cloud.tanium.com"
+      },
+      "secrets": [
+        "api_token"
+      ],
+      "test": "audit entries"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "SIEM",
+        "Security",
+        "Compliance"
+      ],
+      "config": [
+        {
+          "default": "https://cloud.tenable.com",
+          "help": "https://cloud.tenable.com, or your FedRAMP host (fedcloud.tenable.com).",
+          "key": "base_url",
+          "label": "API URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "access_key",
+          "label": "Access key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "secret_key",
+          "label": "Secret key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The audit log (logins, impersonation, asset and user changes) and the vulnerability findings (new, reopened, fixed, seen again) of a Tenable Vulnerability Management container as logs, read from its audit log API and its asynchronous vulnerability export.",
+      "docsUrl": "https://developer.tenable.com/reference/navigate",
+      "id": "tenable-io",
+      "kind": "package",
+      "links": [],
+      "logo": "tenable-io",
+      "monitors": [],
+      "name": "Tenable.io",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Tenable Vulnerability Management, open **Settings → Access Control → Users** and create a user for\n   ObserveCraft (or use an existing one). The audit log needs the **Administrator** role; the vulnerability export\n   works with **Basic** (it returns the findings the user can see).\n2. Open the user, **API Keys → Generate**, and copy the access key and the secret key; Tenable shows them once and\n   generating new ones revokes the old pair.\n",
+      "source": "tenable-io",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every audit log event (service:activity) as Tenable gives it: action, crud, actor, target, is_failure, fields (X-Forwarded-For, X-Access-Type, …). Needs the Administrator role.",
+          "events": false,
+          "id": "activity",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Activity"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per finding (service:vulnerability) opened, reopened, fixed or seen again since the last export, with its asset, plugin (CVEs, CVSS, VPR), port, scan and state. Read through Tenable's asynchronous export: a run starts the export, later runs read its chunks once it is ready.",
+          "events": false,
+          "id": "vulnerability",
+          "incremental": "time",
+          "intervalSecs": 3600,
+          "logs": true,
+          "metrics": [],
+          "name": "Vulnerabilities"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "tenable-io"
+      ],
+      "vendor": "Tenable",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {},
+      "secrets": [
+        "access_key",
+        "secret_key"
+      ],
+      "test": "secops-reader@example.com"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": "https://iam.cloud.trellix.com/iam/v1.1/token",
+          "help": null,
+          "key": "token_url",
+          "label": "IAM token URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": "https://api.manage.trellix.com",
+          "help": null,
+          "key": "base_url",
+          "label": "API URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "Client ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Client secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The threat events of Trellix Endpoint Security (threat prevention, access protection, web control, adaptive threat protection and firewall detections) reported to Trellix ePO SaaS, as logs read every 5 minutes from its events API.",
+      "docsUrl": "https://developer.manage.trellix.com/mvision/apis/v2-events",
+      "id": "trellix-endpoint-security",
+      "kind": "package",
+      "links": [],
+      "logo": "trellix-endpoint-security",
+      "monitors": [],
+      "name": "Trellix Endpoint Security (ENS)",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the [Trellix Developer Portal](https://developer.manage.trellix.com/), copy your **API key** (x-api-key).\n2. Under **Self Service → API Access Management**, create client credentials with the **Events** read scope\n   (`epo.evt.r`), and copy the client ID and secret.\nThe events API keeps 3 days of events: a connection paused longer misses the older ones.\n",
+      "source": "trellix-endpoint-security",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per ENS threat event (service:threat-events, then the module's service from the pipeline): attributes.threatname, threatseverity, threatactiontaken, analyzerdetectionmethod, the source and target process, file, user and addresses, and the extended attributes.",
+          "events": false,
+          "id": "threat_events",
+          "incremental": "token",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Threat events"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "trellix-endpoint-security"
+      ],
+      "vendor": "Trellix",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "base_url": "https://api.manage.trellix.com",
+        "client_id": "0oa1b2c3d4e5f6g7h8i9",
+        "token_url": "https://iam.cloud.trellix.com/iam/v1.1/token"
+      },
+      "secrets": [
+        "api_key",
+        "client_secret"
+      ],
+      "test": "Connected"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": "api.tmes.trendmicro.com",
+          "help": null,
+          "key": "region",
+          "label": "Region",
+          "options": [
+            {
+              "label": "North America, Latin America and Asia Pacific",
+              "value": "api.tmes.trendmicro.com"
+            },
+            {
+              "label": "Europe and Africa",
+              "value": "api.tmes.trendmicro.eu"
+            },
+            {
+              "label": "Australia and New Zealand",
+              "value": "api.tmes-anz.trendmicro.com"
+            },
+            {
+              "label": "Japan",
+              "value": "api.tmems-jp.trendmicro.com"
+            },
+            {
+              "label": "Singapore",
+              "value": "api.tmes-sg.trendmicro.com"
+            },
+            {
+              "label": "India",
+              "value": "api.tmes-in.trendmicro.com"
+            },
+            {
+              "label": "Middle East (UAE)",
+              "value": "api.tmes-uae.trendmicro.com"
+            },
+            {
+              "label": "United Kingdom",
+              "value": "api.tmes-uk.trendmicro.com"
+            },
+            {
+              "label": "Canada",
+              "value": "api.tmes-ca.trendmicro.com"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": "The administrator login ID the API key belongs to.",
+          "key": "username",
+          "label": "Login ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The accepted and blocked mail traffic (sender, recipients, action, TLS, attachments, URLs) and the policy events (spam, malware, phishing, DLP and other policy hits) of Trend Micro Email Security as logs, read every 5 minutes from its log retrieval API.",
+      "docsUrl": "https://docs.trendmicro.com/en-us/documentation/article/trend-micro-email-security-rest-api-online-help-getting-started-with",
+      "id": "trend-micro-email-security",
+      "kind": "package",
+      "links": [],
+      "logo": "trend-micro-email-security",
+      "monitors": [],
+      "name": "Trend Micro Email Security",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Trend Micro Email Security console, open **Administration → Service Integration → API Access** and\n   **Add** an API key (or copy an existing one).\n2. On the **Log Retrieval** tab of the same page, enable log retrieval and select the **Mail tracking** and\n   **Policy events** log types.\n3. Enter the console's login ID as the user name, the API key, and the region your account is hosted in.\n",
+      "source": "trend-micro-email-security",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every accepted and blocked message (vendor.endpoint:mail-tracking, tag traffic_type): sender, recipient, headerFrom / headerTo, subject, action, senderIP, deliveredTo, tlsInfo, attachments, embeddedUrls.",
+          "events": false,
+          "id": "mail_tracking",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Mail tracking"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every policy hit (vendor.endpoint:policy-events): eventType and eventSubtype (spam, virus, suspicious objects, DLP, …), policyName, policyAction, sender, recipients, domainName, details.",
+          "events": false,
+          "id": "policy_events",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Policy events"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "trend-micro-email-security"
+      ],
+      "vendor": "Trend Micro",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "region": "api.tmes.trendmicro.com",
+        "username": "secops-admin"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "2 policy events"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The Standard Endpoint Protection console's URL.",
+          "key": "base_url",
+          "label": "API URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://a1b2c3.manage.trendmicro.com",
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "application_id",
+          "label": "Application ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "Leave empty to read every log type.",
+          "key": "log_types",
+          "label": "Log types",
+          "options": [
+            {
+              "label": "Virus/Malware",
+              "value": "officescan_virus"
+            },
+            {
+              "label": "Spyware/Grayware",
+              "value": "spyware"
+            },
+            {
+              "label": "Behavior Monitoring",
+              "value": "behaviormonitor_rule"
+            },
+            {
+              "label": "Predictive Machine Learning",
+              "value": "Predictive_Machine_Learning"
+            },
+            {
+              "label": "Web Violation",
+              "value": "web_security"
+            },
+            {
+              "label": "Content Violation",
+              "value": "security"
+            },
+            {
+              "label": "Data Loss Prevention",
+              "value": "data_loss_prevention"
+            },
+            {
+              "label": "Device Access Control",
+              "value": "device_access_control"
+            },
+            {
+              "label": "Application Control",
+              "value": "EACV_Information"
+            },
+            {
+              "label": "Intrusion Prevention",
+              "value": "intrusion_prevention"
+            },
+            {
+              "label": "Network Content Inspection",
+              "value": "ncie"
+            },
+            {
+              "label": "C&C Callback",
+              "value": "cncdetection"
+            },
+            {
+              "label": "Suspicious File Information",
+              "value": "filehashdetection"
+            },
+            {
+              "label": "Virtual Analyzer Detections",
+              "value": "Sandbox_Detection_Log"
+            },
+            {
+              "label": "Attack Discovery Detections",
+              "value": "Attack_Discovery_Detections"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "multiselect"
+        }
+      ],
+      "dashboards": [],
+      "description": "The detections and policy events of Vision One Endpoint Security (Standard Endpoint Protection): virus and malware, spyware, behavior monitoring, predictive machine learning, web, content and DLP violations, device and application control, intrusion prevention, C&C callbacks, Virtual Analyzer and Attack Discovery detections, as logs read every 5 minutes from the Apex Central Automation API.",
+      "docsUrl": "https://automation.trendmicro.com/apex-central/api/",
+      "id": "trend-micro-vision-one-endpoint-security",
+      "kind": "package",
+      "links": [],
+      "logo": "trend-micro-vision-one-endpoint-security",
+      "monitors": [],
+      "name": "Trend Micro Vision One Endpoint Security",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Trend Micro Vision One, open **Endpoint Security → Standard Endpoint Protection** and, in its console,\n   **Administration → Settings → Automation API Access Settings**.\n2. **Add** an application, enable it, and copy its **Application ID** and **API key**.\n3. Copy the console's API URL (the host it runs on, `<id>.manage.trendmicro.com`).\n",
+      "source": "trend-micro-vision-one-endpoint-security",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every log of each log type as its CEF line (tag vendor_endpoint:virus-malware, behavior-monitoring, data-loss-prevention, …), parsed by the tile's pipeline. Each log type keeps its own page token, so nothing is read twice.",
+          "events": false,
+          "id": "logs",
+          "incremental": "token",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Logs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "trend-micro-vision-one-endpoint-security"
+      ],
+      "vendor": "Trend Micro",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "application_id": "6f1e2d3c-0000-4000-8000-0a1b2c3d4e5f",
+        "base_url": "https://a1b2c3.manage.trendmicro.com",
+        "log_types": [
+          "officescan_virus",
+          "Attack_Discovery_Detections"
+        ]
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "virus/malware logs"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": "api.xdr.trendmicro.com",
+          "help": null,
+          "key": "region",
+          "label": "Region",
+          "options": [
+            {
+              "label": "United States",
+              "value": "api.xdr.trendmicro.com"
+            },
+            {
+              "label": "Europe",
+              "value": "api.eu.xdr.trendmicro.com"
+            },
+            {
+              "label": "India",
+              "value": "api.in.xdr.trendmicro.com"
+            },
+            {
+              "label": "Japan",
+              "value": "api.xdr.trendmicro.co.jp"
+            },
+            {
+              "label": "Singapore",
+              "value": "api.sg.xdr.trendmicro.com"
+            },
+            {
+              "label": "Australia",
+              "value": "api.au.xdr.trendmicro.com"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The Workbench alerts of Trend Micro Vision One (each new alert and each change of its status or findings) and its Observed Attack Techniques events (endpoint, email, network and cloud activity matched to MITRE ATT&CK) as logs, read every 5 minutes from the Vision One API.",
+      "docsUrl": "https://automation.trendmicro.com/xdr/api-v3",
+      "id": "trend-micro-vision-one-xdr",
+      "kind": "package",
+      "links": [],
+      "logo": "trend-micro-vision-one-xdr",
+      "monitors": [],
+      "name": "Trend Micro Vision One XDR",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Trend Micro Vision One, open **Administration → User Roles** and create a role with the **Workbench → View,\n   filter, and search** and **Observed Attack Techniques → View, filter, and search** permissions (the predefined\n   **SIEM** role has both).\n2. Open **Administration → API Keys**, **Add API key** with that role, and copy the key; Vision One shows it once.\n3. Choose the region your Vision One account is in.\n",
+      "source": "trend-micro-vision-one-xdr",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per Workbench alert and update (vendor.endpoint:alerts): model, severity, score, investigationStatus, investigationResult, impactScope, indicators, matchedRules and workbenchLink, the description as the message.",
+          "events": false,
+          "id": "alerts",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Workbench alerts"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per detection (vendor.endpoint:observed-attack-techniques): source, entityType, entityName, filters (name, riskLevel, MITRE tactics and techniques) and detail (process, user, network fields).",
+          "events": false,
+          "id": "observed_attack_techniques",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Observed Attack Techniques"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "trend-micro-vision-one-xdr"
+      ],
+      "vendor": "Trend Micro",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "region": "api.xdr.trendmicro.com"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "0 Workbench alerts"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM",
+        "Cloud"
+      ],
+      "config": [
+        {
+          "default": "app.valencesecurity.com",
+          "help": null,
+          "key": "region",
+          "label": "Region",
+          "options": [
+            {
+              "label": "US",
+              "value": "app.valencesecurity.com"
+            },
+            {
+              "label": "EU",
+              "value": "appeu.valencesecurity.com"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The SaaS security alerts of Valence Security (risky identities, privilege escalation, data exposure and misconfigurations across connected SaaS apps), joined with their alert type's severity and MITRE ATT&CK tactics, and the audit log of the Valence console, as logs read every 5 minutes from the Valence API.",
+      "docsUrl": "https://www.valencesecurity.com/",
+      "id": "valence-security",
+      "kind": "package",
+      "links": [],
+      "logo": "valence-security",
+      "monitors": [],
+      "name": "Valence Security",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Valence, open **Administration → Settings → Valence API** and generate an API key (an **Admin** user's key\n   reads both alerts and the audit log).\n2. Choose your Valence region: US for `app.valencesecurity.com`, EU for `appeu.valencesecurity.com`.\n",
+      "source": "valence-security",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per alert and status (service:alerts): alert (vuid, status, summaryLine, events with actor, action, ip, user agent) and alert_type_details (name, severity, platform, MITRE tactics and techniques). An alert closed later is logged again with its new status.",
+          "events": false,
+          "id": "alerts",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Alerts"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every action in the Valence console (service:audit-logs): actor, action, details, ipAddress, success, timeEpoch.",
+          "events": false,
+          "id": "audit_logs",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit logs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "valence-security"
+      ],
+      "vendor": "Valence Security",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "region": "app.valencesecurity.com"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "2 alert types"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM",
+        "Cloud"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "base_url",
+          "label": "Portal URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://example.portal.vectra.ai",
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "Client ID",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Secret key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The detection events, host and account scoring changes, platform audit events and detections of a Vectra AI Platform (RUX) tenant as logs, read every 5 minutes from its v3.4 API with an API client.",
+      "docsUrl": "https://apidocs.vectra.ai/",
+      "id": "vectra",
+      "kind": "package",
+      "links": [],
+      "logo": "vectra",
+      "monitors": [],
+      "name": "Vectra",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Vectra AI Platform, open **Configuration → Access → API Clients** and select **Add API Client**.\n2. Give it the **Auditor** role (read-only), then copy the **Client ID** and **Secret Key**; the secret is shown once.\n3. The URL is your tenant's portal, such as `https://example.portal.vectra.ai`.\n",
+      "source": "vectra",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every detection created or updated on a host or account (vendor.endpoint:detection-events): detection_type, category, threat, certainty, entity_name, mitre and the detection's details.",
+          "events": false,
+          "id": "detection_events",
+          "incremental": "token",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Detection events"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every change of a host's or account's urgency score (vendor.endpoint:entity-scoring-events): urgency_score, attack_rating, importance, active detection types and the last detection.",
+          "events": false,
+          "id": "entity_scoring",
+          "incremental": "token",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Entity scoring events"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "What users and API clients did in the Vectra platform (vendor.endpoint:audit-events): logins, changes to detections, entities and settings, with username, user_role, source_ip and result_status.",
+          "events": false,
+          "id": "audits",
+          "incremental": "token",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit events"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "The detections whose last activity changed (vendor.endpoint:detections), once per change: state, threat, certainty, src_ip, assigned_to, the source host or account, the summary.",
+          "events": false,
+          "id": "detections",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Detections"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "vectra"
+      ],
+      "vendor": "Vectra AI",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "base_url": "https://example.portal.vectra.ai",
+        "client_id": "vectra-client-0001"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "2 audit events"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Metrics"
+      ],
+      "config": [
+        {
+          "default": "https://www.workato.com",
+          "help": null,
+          "key": "base_url",
+          "label": "Data center",
+          "options": [
+            {
+              "label": "US (www.workato.com)",
+              "value": "https://www.workato.com"
+            },
+            {
+              "label": "EU (app.eu.workato.com)",
+              "value": "https://app.eu.workato.com"
+            },
+            {
+              "label": "JP (app.jp.workato.com)",
+              "value": "https://app.jp.workato.com"
+            },
+            {
+              "label": "SG (app.sg.workato.com)",
+              "value": "https://app.sg.workato.com"
+            },
+            {
+              "label": "AU (app.au.workato.com)",
+              "value": "https://app.au.workato.com"
+            },
+            {
+              "label": "IL (app.il.workato.com)",
+              "value": "https://app.il.workato.com"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_token",
+          "label": "API client token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The jobs of every recipe of a Workato workspace as logs (with the recipe and project they belong to), and the recipes (offline, lifetime tasks) and connections (authorization failed or lost) as metrics, read with an API client's token.",
+      "docsUrl": "https://docs.workato.com/en/workato-api.html",
+      "id": "workato",
+      "kind": "package",
+      "links": [],
+      "logo": "workato",
+      "monitors": [],
+      "name": "Workato",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Workato, open **Workspace admin → API clients**, create a **client role** with these Developer API\n   permissions: **Projects** (list projects and folders), **Connections** (list), **Recipes** (list, get, list\n   versions), **Jobs** (list jobs, get job), **Tags** (list).\n2. Create an **API client** with that role and copy its token; Workato shows it once.\n3. Pick your workspace's data center (the host you sign in at).\n",
+      "source": "workato",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every finished job of every recipe (service:jobs): id, title, status, is_error, error_parts, started_at, completed_at, duration, with recipe (id, name, description, folder_id, tags, job_succeeded_count, lifetime_task_count) and project (id, name, description, folder_id). Jobs still running are read once they end.",
+          "events": false,
+          "id": "jobs",
+          "incremental": "time",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Recipe jobs"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every recipe's state: workato.recipes.failure (1 while the recipe is stopped, with its stop_cause) and workato.recipes.task_count (its lifetime tasks), tagged name, recipe_id, stop_cause, workato_tags, project.",
+          "events": false,
+          "id": "recipes",
+          "incremental": "none",
+          "intervalSecs": 300,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "1 while the recipe is stopped (stop_cause says why when Workato stopped it), else 0.",
+              "name": "workato.recipes.failure",
+              "tags": [
+                "folder_id",
+                "name",
+                "project",
+                "recipe_id",
+                "source",
+                "stop_cause",
+                "workato_tags"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "The recipe's lifetime task count.",
+              "name": "workato.recipes.task_count",
+              "tags": [
+                "folder_id",
+                "name",
+                "project",
+                "recipe_id",
+                "source",
+                "stop_cause",
+                "workato_tags"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Recipes"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every connection's state: workato.connections.failure (1 when its authorization isn't successful or Workato lost it), tagged name, provider, authorization_status, authorization_error, connection_lost_reason and active_recipes (whether a running recipe uses it).",
+          "events": false,
+          "id": "connections",
+          "incremental": "none",
+          "intervalSecs": 300,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "1 when the connection's authorization failed or Workato lost the connection, else 0.",
+              "name": "workato.connections.failure",
+              "tags": [
+                "active_recipes",
+                "authorization_error",
+                "authorization_status",
+                "connection_id",
+                "connection_lost_reason",
+                "name",
+                "provider",
+                "source"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Connections"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "workato"
+      ],
+      "vendor": "Workato",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "base_url": "https://www.workato.com"
+      },
+      "secrets": [
+        "api_token"
+      ],
+      "test": "Example Shop"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": "https://portal.zeronetworks.com",
+          "help": null,
+          "key": "base_url",
+          "label": "Portal URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": "The `_filters` JSON of an Activities → Network view, which network activities to collect.",
+          "key": "network_filters",
+          "label": "Network activity filters",
+          "options": [],
+          "pattern": null,
+          "placeholder": "[{\"id\":\"state\",\"includeValues\":[\"2\"]}]",
+          "required": false,
+          "secret": false,
+          "type": "text"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The audit log of a Zero Networks Segment account (segmentation, rules, JIT and MFA access, API tokens, admin logons) and, when filtered, its network activities (connections allowed and blocked between assets) as logs.",
+      "docsUrl": "https://portal.zeronetworks.com",
+      "id": "zero-networks",
+      "kind": "package",
+      "links": [],
+      "logo": "zero-networks",
+      "monitors": [],
+      "name": "Zero Networks",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Zero Networks admin portal, open **Settings → Integrations → API** and select **Add new token**.\n2. Give it the **Read Only** access type and an expiry, then copy the token; the portal shows it once.\n3. Network activities are many: to collect them, copy the filters of a view of **Activities → Network** (for\n   example blocked traffic only) into **Network activity filters**, then turn the stream on.\n",
+      "source": "zero-networks",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every audit event (service:audit): record.auditType with its label in fields_mapping.auditType, record.performedBy (the user or token), record.enforcementSource, record.userRole, record.details, record.destinationEntitiesList.",
+          "events": false,
+          "id": "audit",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": false,
+          "description": "The network activities the configured filters select (service:network-activities): record.src and record.dst (asset, IP, port, process, user), record.protocol, record.trafficType and record.state with their labels in fields_mapping. Off by default: set the filters first, an unfiltered account sends every connection.",
+          "events": false,
+          "id": "network_activities",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Network activities"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "zero-networks"
+      ],
+      "vendor": "Zero Networks",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "base_url": "https://portal.zeronetworks.com",
+        "network_filters": "[{\"id\":\"state\",\"includeValues\":[\"2\"]}]"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": false,
+          "help": "Collect only the alerts ZeroFox's analysts escalated.",
+          "key": "escalated_only",
+          "label": "Escalated alerts only",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "boolean"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_token",
+          "label": "API token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The alerts of a ZeroFox Cloud Platform account (brand, executive, domain and dark web threats) as logs, once when raised and again each time they change (status, escalation, assignee, tags), read every 5 minutes.",
+      "docsUrl": "https://api.zerofox.com/1.0/docs/",
+      "id": "zerofox-cloud-platform",
+      "kind": "package",
+      "links": [],
+      "logo": "zerofox-cloud-platform",
+      "monitors": [],
+      "name": "ZeroFox Cloud Platform",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. Sign in to the ZeroFox platform as a user of the enterprise account who can see its alerts.\n2. Open **Settings → Data Connectors → API Data Feeds** and create (or copy) your **API token**.\n",
+      "source": "zerofox-cloud-platform",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every alert raised or changed (one log per change): id, alert_type, rule_name, severity (1–5), status, network, offending_content_url, perpetrator, asset and entity, assignee, tags, escalated, logs (the alert's history).",
+          "events": false,
+          "id": "alerts",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Alerts"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "zerofox-cloud-platform"
+      ],
+      "vendor": "ZeroFox",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {},
+      "secrets": [
+        "api_token"
+      ],
+      "test": "214 alerts"
     },
     "dashboards": []
   }
