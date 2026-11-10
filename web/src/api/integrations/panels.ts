@@ -6,7 +6,18 @@ import { searchSignals } from '../security/client';
 import { checkStatusQuery } from './checkStatus';
 import { signalFacet, signalSeries, type SignalPanelQuery } from './signals';
 import { logRequest, logSeries, throughputs, type LogPanelQuery } from './logs';
-import { aggregate, canonicalMetricQuery, formula, formulaUnit, normalizeRequest, preparePanelQuery, serverAggregator, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
+import {
+  aggregate,
+  canonicalMetricQuery,
+  formula,
+  formulaUnit,
+  normalizeRequest,
+  preparePanelQuery,
+  serverAggregator,
+  timeShifts,
+  type IntegrationWidgetDefinition,
+  type IntegrationFormula,
+} from './evaluate';
 
 export interface PanelSeries extends MetricSeries {
   column?: string;

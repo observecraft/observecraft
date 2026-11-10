@@ -273,8 +273,8 @@ function KubernetesHintSection({ check }: { check: string }) {
       <h3>On Kubernetes</h3>
       <p>
         With the Datadog Agent deployed by its Helm chart or the Datadog Operator (see <Link to="/integrations/kubernetes">Kubernetes</Link>), no configuration file is needed: annotate the pods and
-        the Agent on their node runs the check against them (Autodiscovery). <code>%%host%%</code> is the pod&apos;s address. Checks that read a whole cluster run once, as a cluster check of the
-        Cluster Agent; a database outside the cluster runs as a cluster check on the chart&apos;s cluster checks runners.
+        the Agent on their node runs the check against them (Autodiscovery). <code>%%host%%</code> is the pod&apos;s address. Some checks run by themselves; checks that read a whole cluster run once,
+        as cluster checks of the Cluster Agent set in the Datadog chart&apos;s values; a database outside the cluster runs as a cluster check on the chart&apos;s cluster checks runners.
       </p>
       {hint.variants.map((v) => (
         <div key={v.label}>
