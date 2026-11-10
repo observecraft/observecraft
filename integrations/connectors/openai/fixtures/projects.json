@@ -1,0 +1,4 @@
+{ "object": "list", "data": [
+  { "id": "proj_storefront01", "object": "organization.project", "name": "storefront-assistant", "created_at": 1767225600, "archived_at": null, "status": "active" },
+  { "id": "proj_catalog02", "object": "organization.project", "name": "catalog-enrichment", "created_at": 1767225600, "archived_at": null, "status": "active" }
+], "first_id": "proj_storefront01", "last_id": "proj_catalog02", "has_more": false }

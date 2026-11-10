@@ -1,0 +1,864 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_audio_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_cache_write_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_cached_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 20000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 182000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_uncached_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 162000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.output_audio_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.output_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 42000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.num_model_requests",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 370.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_audio_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "batch",
+          "true"
+        ],
+        [
+          "model",
+          "gpt-4o-2024-08-06"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_cache_write_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "batch",
+          "true"
+        ],
+        [
+          "model",
+          "gpt-4o-2024-08-06"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_cached_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "batch",
+          "true"
+        ],
+        [
+          "model",
+          "gpt-4o-2024-08-06"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "batch",
+          "true"
+        ],
+        [
+          "model",
+          "gpt-4o-2024-08-06"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 51000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_uncached_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "batch",
+          "true"
+        ],
+        [
+          "model",
+          "gpt-4o-2024-08-06"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 51000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.output_audio_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "batch",
+          "true"
+        ],
+        [
+          "model",
+          "gpt-4o-2024-08-06"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.output_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "batch",
+          "true"
+        ],
+        [
+          "model",
+          "gpt-4o-2024-08-06"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 9000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.num_model_requests",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "batch",
+          "true"
+        ],
+        [
+          "model",
+          "gpt-4o-2024-08-06"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 12.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_audio_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794304800000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_cache_write_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794304800000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_cached_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794304800000,
+      "value": 15000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794304800000,
+      "value": 120500.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.input_uncached_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794304800000,
+      "value": 105500.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.output_audio_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794304800000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.output_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794304800000,
+      "value": 30100.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.completions.num_model_requests",
+      "tags": [
+        [
+          "api_key_id",
+          "key_storefront_api"
+        ],
+        [
+          "batch",
+          "false"
+        ],
+        [
+          "model",
+          "gpt-4o-mini-2024-07-18"
+        ],
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794304800000,
+      "value": 241.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.embeddings.input_tokens",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "model",
+          "text-embedding-3-small"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 940000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.embeddings.num_model_requests",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "model",
+          "text-embedding-3-small"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ]
+      ],
+      "time_ms": 1794301200000,
+      "value": 1880.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.images.num_model_requests",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "model",
+          "gpt-image-1"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ],
+        [
+          "size",
+          "1024x1024"
+        ],
+        [
+          "source",
+          "image.generation"
+        ]
+      ],
+      "time_ms": 1794304800000,
+      "value": 24.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "openai.images.images",
+      "tags": [
+        [
+          "api_key_id",
+          "key_catalog_batch"
+        ],
+        [
+          "model",
+          "gpt-image-1"
+        ],
+        [
+          "project_id",
+          "proj_catalog02"
+        ],
+        [
+          "project_name",
+          "catalog-enrichment"
+        ],
+        [
+          "size",
+          "1024x1024"
+        ],
+        [
+          "source",
+          "image.generation"
+        ]
+      ],
+      "time_ms": 1794304800000,
+      "value": 24.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "openai.vector_stores.usage_bytes",
+      "tags": [
+        [
+          "project_id",
+          "proj_storefront01"
+        ],
+        [
+          "project_name",
+          "storefront-assistant"
+        ]
+      ],
+      "time_ms": 1794304800000,
+      "value": 734003200.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "audio_speeches": {
+        "cursor": 1794311100000
+      },
+      "audio_transcriptions": {
+        "cursor": 1794311100000
+      },
+      "code_interpreter_sessions": {
+        "cursor": 1794311100000
+      },
+      "completions": {
+        "cursor": 1794311100000
+      },
+      "embeddings": {
+        "cursor": 1794311100000
+      },
+      "images": {
+        "cursor": 1794311100000
+      },
+      "moderations": {
+        "cursor": 1794311100000
+      },
+      "vector_stores": {
+        "cursor": 1794311100000
+      }
+    }
+  }
+}

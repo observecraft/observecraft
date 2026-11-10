@@ -1,0 +1,247 @@
+# yaml-language-server: $schema=../connector.schema.json
+# OpenAI (https://platform.openai.com/docs/api-reference/usage): the organization's Usage API as the openai.<category>.*
+# counts of Datadog's integration (metadata.csv names and units, tags model, project_id, user_id, api_key_id, batch,
+# size, source), and its Costs API as Cloud Cost Management rows (providername:OpenAI). The tile's dashboards (Usage
+# Admin Overview, Cost Overview) are installed from integrations-core when a connection is saved.
+schema_version: 1
+id: openai
+name: OpenAI
+publisher: ObserveCraft
+vendor: OpenAI
+description: >-
+  An OpenAI organization's usage (tokens, requests, images, audio, vector store bytes, code interpreter sessions per
+  model, project, user and API key) as metrics, and its daily costs per project and line item in Cloud Cost
+  Management, read from OpenAI's Usage and Costs APIs with an Admin key.
+tiles: [openai]
+categories: [AI/ML, Cost Management, Metrics]
+docs_url: https://platform.openai.com/docs/api-reference/usage
+setup: |
+  1. In the OpenAI platform, open **Organization settings → Admin keys** (an organization Owner can) and create a key,
+     e.g. `observecraft-usage`. Project API keys can't read usage or costs.
+  2. Copy the key (`sk-admin-…`); OpenAI shows it once.
+  3. Usage is read in hourly buckets once each hour has closed (about 15 minutes after it ends); costs are read daily
+     for the last three days, which OpenAI keeps updating until a day closes.
+links:
+  - { label: Admin keys, url: "https://platform.openai.com/settings/organization/admin-keys" }
+instance: openai
+
+config:
+  - key: admin_key
+    label: Admin key
+    type: string
+    secret: true
+    required: true
+    placeholder: sk-admin-…
+    help: An organization Admin key; project keys are refused by the Usage and Costs APIs.
+
+auth:
+  kind: bearer
+  token: "{{ secrets.admin_key }}"
+
+# The organization endpoints' limits aren't published; a few requests a minute is plenty.
+rate_limit: { requests_per_minute: 20 }
+
+errors:
+  - status: [401, 403]
+    kind: auth
+    message: "OpenAI refused the key: the Usage and Costs APIs need an organization Admin key (sk-admin-…), not a project key"
+
+# The metrics of each usage category (metadata.csv of Datadog's integration), and what each can be grouped by.
+tables:
+  fields:
+    completions: [input_tokens, input_cached_tokens, input_cache_write_tokens, input_uncached_tokens, output_tokens, input_audio_tokens, output_audio_tokens, num_model_requests]
+    embeddings: [input_tokens, num_model_requests]
+    moderations: [input_tokens, num_model_requests]
+    images: [images, num_model_requests]
+    audio_speeches: [characters, num_model_requests]
+    audio_transcriptions: [seconds, num_model_requests]
+    code_interpreter_sessions: [num_sessions]
+    vector_stores: [usage_bytes]
+  group_by:
+    completions: [model, project_id, user_id, api_key_id, batch]
+    embeddings: [model, project_id, user_id, api_key_id]
+    moderations: [model, project_id, user_id, api_key_id]
+    images: [model, project_id, user_id, api_key_id, size, source]
+    audio_speeches: [model, project_id, user_id, api_key_id]
+    audio_transcriptions: [model, project_id, user_id, api_key_id]
+    code_interpreter_sessions: [project_id]
+    vector_stores: [project_id]
+
+streams:
+  - id: usage
+    name: Usage
+    description: >-
+      Hourly usage of every category (completions, embeddings, moderations, images, audio speeches and
+      transcriptions, code interpreter sessions) as openai.<category>.<field> counts, and openai.vector_stores.usage_bytes
+      as a gauge, tagged model, project_id, project_name, user_id, api_key_id, batch, size and source. Each hour is
+      sent once, after it closed.
+    interval: 15m
+    for_each: "{{ tables.fields | keys }}"
+    lookups:
+      - name: projects
+        request:
+          url: https://api.openai.com/v1/organization/projects
+          query: { limit: 100, after: "{{ page.cursor }}" }
+        records: "{{ response.data }}"
+        pagination: { kind: cursor, next: "{{ response.has_more ? response.last_id : null }}" }
+        key: "{{ record.id }}"
+        value: "{{ record.name }}"
+        ttl: 6h
+    request:
+      url: "{{ 'https://api.openai.com/v1/organization/usage/' + item }}"
+      query:
+        # Whole hours: the bucket an hour starts is read once that hour has closed (settle).
+        start_time: "{{ ((window.start / 3600000) | floor) * 3600 }}"
+        end_time: "{{ ((window.end / 3600000) | floor) * 3600 }}"
+        bucket_width: 1h
+        group_by: "{{ tables.group_by[item] }}"
+        limit: 168
+        page: "{{ page.cursor }}"
+    # One record per bucket and group: the bucket's start_time with the group's `results`.
+    records: "{{ response.data | explode('results') }}"
+    pagination: { kind: cursor, next: "{{ response.has_more ? response.next_page : null }}" }
+    record_id: >-
+      {{ [item, record.start_time, record.results.model, record.results.project_id, record.results.user_id, record.results.api_key_id, record.results.batch, record.results.size, record.results.source] | json }}
+    incremental:
+      kind: time
+      record_time: "{{ record.start_time }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 1h
+      settle: 15m
+    vars:
+      project: "{{ lookups.projects[record.results.project_id] }}"
+    output:
+      metrics:
+        - name: "{{ entry.key | endswith('_tokens') && entry.key in tables.fields[item] ? 'openai.' + item + '.' + entry.key : null }}"
+          type: count
+          each: "{{ record.results }}"
+          value: "{{ entry.value }}"
+          time: "{{ record.start_time * 1000 }}"
+          unit: token
+          description: Tokens of the hour (input, cached, uncached, cache writes, output, audio), per openai.<category>.
+          tags: &tags
+            model: "{{ record.results.model }}"
+            project_id: "{{ record.results.project_id }}"
+            project_name: "{{ vars.project }}"
+            user_id: "{{ record.results.user_id }}"
+            api_key_id: "{{ record.results.api_key_id }}"
+            batch: "{{ record.results.batch == null ? null : (record.results.batch | str) }}"
+            size: "{{ record.results.size }}"
+            source: "{{ record.results.source }}"
+        - name: "{{ 'openai.' + item + '.num_model_requests' }}"
+          type: count
+          filter: "{{ 'num_model_requests' in tables.fields[item] }}"
+          value: "{{ record.results.num_model_requests }}"
+          time: "{{ record.start_time * 1000 }}"
+          unit: request
+          description: Model requests of the hour, per openai.<category>.
+          tags: *tags
+        - name: openai.audio_transcriptions.seconds
+          type: count
+          filter: "{{ item == 'audio_transcriptions' }}"
+          value: "{{ record.results.seconds }}"
+          time: "{{ record.start_time * 1000 }}"
+          unit: second
+          description: Seconds of audio transcribed in the hour.
+          tags: *tags
+        - name: openai.audio_speeches.characters
+          type: count
+          filter: "{{ item == 'audio_speeches' }}"
+          value: "{{ record.results.characters }}"
+          time: "{{ record.start_time * 1000 }}"
+          description: Characters turned into speech in the hour.
+          tags: *tags
+        - name: openai.images.images
+          type: count
+          filter: "{{ item == 'images' }}"
+          value: "{{ record.results.images }}"
+          time: "{{ record.start_time * 1000 }}"
+          description: Images generated in the hour.
+          tags: *tags
+        - name: openai.code_interpreter_sessions.num_sessions
+          type: count
+          filter: "{{ item == 'code_interpreter_sessions' }}"
+          value: "{{ record.results.num_sessions }}"
+          time: "{{ record.start_time * 1000 }}"
+          unit: session
+          description: Code interpreter sessions of the hour.
+          tags: *tags
+        - name: openai.vector_stores.usage_bytes
+          filter: "{{ item == 'vector_stores' }}"
+          value: "{{ record.results.usage_bytes }}"
+          time: "{{ record.start_time * 1000 }}"
+          unit: byte
+          description: Bytes stored in vector stores.
+          tags: *tags
+
+  - id: costs
+    name: Costs
+    description: >-
+      Daily costs per project and line item (gpt-4o-mini, input; …) in Cloud Cost Management (providername:openai,
+      servicename the model or product, usagetype the line item). The last three days are read again every run and
+      replace their rows, as OpenAI updates a day until it closes.
+    interval: 1h
+    lookups:
+      - name: projects
+        request:
+          url: https://api.openai.com/v1/organization/projects
+          query: { limit: 100, after: "{{ page.cursor }}" }
+        records: "{{ response.data }}"
+        pagination: { kind: cursor, next: "{{ response.has_more ? response.last_id : null }}" }
+        key: "{{ record.id }}"
+        value: "{{ record.name }}"
+        ttl: 6h
+    request:
+      url: https://api.openai.com/v1/organization/costs
+      query:
+        start_time: "{{ ((now / 86400000) | floor) * 86400 - 2 * 86400 }}"
+        bucket_width: 1d
+        group_by: [project_id, line_item]
+        limit: 7
+        page: "{{ page.cursor }}"
+    records: "{{ response.data | explode('results') }}"
+    pagination: { kind: cursor, next: "{{ response.has_more ? response.next_page : null }}" }
+    record_id: "{{ [record.start_time, record.results.project_id, record.results.line_item] | json }}"
+    incremental: { kind: none }
+    filter: "{{ record.results.amount.value != null }}"
+    output:
+      costs:
+        provider: openai
+        date: "{{ (record.start_time * 1000) | strftime('%Y-%m-%d') }}"
+        cost: "{{ record.results.amount.value }}"
+        currency: "{{ (record.results.amount.currency ?? 'usd') | upper }}"
+        service: "{{ ((record.results.line_item ?? 'other') | split(',') | first | trim) }}"
+        usage_type: "{{ record.results.line_item }}"
+        account: "{{ lookups.projects[record.results.project_id] ?? record.results.project_id ?? 'organization' }}"
+        tags:
+          project_id: "{{ record.results.project_id }}"
+          project_name: "{{ lookups.projects[record.results.project_id] }}"
+          ai_vendor: OpenAI
+
+test:
+  request:
+    url: https://api.openai.com/v1/organization/usage/completions
+    query: { start_time: "{{ ((now / 1000) | floor) - 86400 }}", bucket_width: 1d, limit: 1 }
+  success: "{{ response.object == 'page' }}"
+  message: "Connected: the organization's usage is readable ({{ response.data | len }} day read)"
+
+mock:
+  secrets: { admin_key: sk-admin-test-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.openai.com/v1/organization/projects", file: fixtures/projects.json }
+    - { url: "https://api.openai.com/v1/organization/usage/completions", query: { bucket_width: 1d }, file: fixtures/test.json }
+    - { url: "https://api.openai.com/v1/organization/usage/completions", file: fixtures/usage-completions.json }
+    - { url: "https://api.openai.com/v1/organization/usage/embeddings", file: fixtures/usage-embeddings.json }
+    - { url: "https://api.openai.com/v1/organization/usage/images", file: fixtures/usage-images.json }
+    - { url: "https://api.openai.com/v1/organization/usage/vector_stores", file: fixtures/usage-vector_stores.json }
+    - { url: "https://api.openai.com/v1/organization/usage/moderations", file: fixtures/usage-empty.json }
+    - { url: "https://api.openai.com/v1/organization/usage/audio_speeches", file: fixtures/usage-empty.json }
+    - { url: "https://api.openai.com/v1/organization/usage/audio_transcriptions", file: fixtures/usage-empty.json }
+    - { url: "https://api.openai.com/v1/organization/usage/code_interpreter_sessions", file: fixtures/usage-empty.json }
+    - { url: "https://api.openai.com/v1/organization/costs", file: fixtures/costs.json }
+  expect:
+    usage: { records: 6, metrics: 29, rerun: 0, golden: fixtures/usage.expected.json }
+    costs: { records: 4, costs: 4, golden: fixtures/costs.expected.json }
+    test: { ok: true, message: "usage is readable" }
