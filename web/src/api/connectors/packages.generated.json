@@ -11496,6 +11496,71 @@
   {
     "entry": {
       "categories": [
+        "Cloud",
+        "Configuration & Deployment",
+        "Log Collection"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The Log Drain's signature verification secret (Vercel signs every delivery with it, in x-vercel-signature).",
+          "key": "drain_secret",
+          "label": "Drain signature secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Logs (functions, edge, builds, static requests, firewall) and traces of a Vercel team's deployments, sent by Vercel Log and Trace Drains, with the vercel.* request, function and build metrics computed from the logs.",
+      "docsUrl": "https://vercel.com/docs/drains/using-drains",
+      "id": "vercel",
+      "kind": "push",
+      "links": [],
+      "logo": "vercel",
+      "monitors": [],
+      "name": "Vercel",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": {
+        "canCreate": false,
+        "endpoints": [],
+        "headers": {
+          "DD-API-KEY": "{{ api_key }}"
+        },
+        "instructions": "Drains need a Vercel Pro or Enterprise plan.\n\n**Logs.** In Vercel, open **Team Settings → Drains → Add Drain**, choose **Logs**, the projects, sources\n(`lambda`, `edge`, `static`, `build`, `external`, `firewall`, `redirect`) and environments, then **Custom\nEndpoint**:\n\n- **Endpoint URL**: `{{ intake }}/api/v2/logs?ddsource=vercel`\n- **Format**: JSON\n- **Custom Headers**: `DD-API-KEY: {{ api_key }}`\n\nKeep the generated **Signature Verification Secret** and enter it here. Vercel tests the endpoint when the drain\nis created.\n\n**Traces.** Add another drain of type **Traces** for the same projects, with **Custom Endpoint**\n`{{ intake }}/v1/traces`, format **Protobuf** (or JSON) and the same header. Spans arrive as OpenTelemetry traces\n(APM); logs written during a traced request carry its `traceId` and `spanId`.\n",
+        "kind": "logs",
+        "signatureHeader": "x-vercel-signature",
+        "signatureSecret": "drain_secret",
+        "url": "{{ intake }}/api/v2/logs?ddsource=vercel",
+        "webhook": null
+      },
+      "setup": null,
+      "source": "vercel",
+      "streams": [],
+      "testable": false,
+      "thirdParty": false,
+      "tiles": [
+        "vercel"
+      ],
+      "vendor": "Vercel",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": null,
+      "secrets": null,
+      "test": null
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
         "Log Collection",
         "Metrics"
       ],

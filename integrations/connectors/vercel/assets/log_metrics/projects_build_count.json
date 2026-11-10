@@ -1,0 +1,24 @@
+{
+  "data": {
+    "type": "logs_metrics",
+    "id": "vercel.projects.build_count",
+    "attributes": {
+      "compute": {
+        "aggregation_type": "count"
+      },
+      "filter": {
+        "query": "source:vercel \"Build completed in\""
+      },
+      "group_by": [
+        {
+          "path": "@projectName",
+          "tag_name": "project_name"
+        },
+        {
+          "path": "@projectId",
+          "tag_name": "project_id"
+        }
+      ]
+    }
+  }
+}

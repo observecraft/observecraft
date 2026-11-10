@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Vercel (https://vercel.com/docs/drains): push-only. A team's Log Drain sends its deployments' logs (JSON arrays of
+# https://vercel.com/docs/drains/reference/logs records) to the intake's Datadog logs API as source:vercel, the shape
+# Datadog's Vercel integration receives, so integrations-extras' Vercel pipeline (REPORT lines parsed into lambda.*,
+# status from proxy.statusCode, service from projectName) and dashboard read them. A Trace Drain sends OTLP/HTTP spans
+# to the intake's /v1/traces. The vercel.* metrics Datadog derives from these logs are the log-based metrics under
+# assets/log_metrics (their names, queries and group-bys from integrations-extras' vercel/assets/logs/vercel.yaml,
+# BSD-3-Clause, Copyright Datadog, Inc.).
+# The intake doesn't check `x-vercel-signature` yet (the push signature is declared, not enforced); the ingest key in
+# the drain's headers authenticates it.
+schema_version: 1
+id: vercel
+name: Vercel
+publisher: ObserveCraft
+vendor: Vercel
+description: >-
+  Logs (functions, edge, builds, static requests, firewall) and traces of a Vercel team's deployments, sent by Vercel
+  Log and Trace Drains, with the vercel.* request, function and build metrics computed from the logs.
+tiles: [vercel]
+categories: [Cloud, Configuration & Deployment, Log Collection]
+source: vercel
+docs_url: https://vercel.com/docs/drains/using-drains
+
+config:
+  - key: drain_secret
+    label: Drain signature secret
+    type: string
+    secret: true
+    help: The Log Drain's signature verification secret (Vercel signs every delivery with it, in x-vercel-signature).
+
+push:
+  kind: logs
+  url: "{{ intake }}/api/v2/logs?ddsource=vercel"
+  headers: { DD-API-KEY: "{{ api_key }}" }
+  signature: { header: x-vercel-signature, algorithm: hmac_sha1, secret: drain_secret }
+  instructions: |
+    Drains need a Vercel Pro or Enterprise plan.
+
+    **Logs.** In Vercel, open **Team Settings → Drains → Add Drain**, choose **Logs**, the projects, sources
+    (`lambda`, `edge`, `static`, `build`, `external`, `firewall`, `redirect`) and environments, then **Custom
+    Endpoint**:
+
+    - **Endpoint URL**: `{{ intake }}/api/v2/logs?ddsource=vercel`
+    - **Format**: JSON
+    - **Custom Headers**: `DD-API-KEY: {{ api_key }}`
+
+    Keep the generated **Signature Verification Secret** and enter it here. Vercel tests the endpoint when the drain
+    is created.
+
+    **Traces.** Add another drain of type **Traces** for the same projects, with **Custom Endpoint**
+    `{{ intake }}/v1/traces`, format **Protobuf** (or JSON) and the same header. Spans arrive as OpenTelemetry traces
+    (APM); logs written during a traced request carry its `traceId` and `spanId`.
+
+assets:
+  log_metrics:
+    - assets/log_metrics/requests.json
+    - assets/log_metrics/functions_invocations.json
+    - assets/log_metrics/functions_errors.json
+    - assets/log_metrics/functions_duration.json
+    - assets/log_metrics/functions_execution.json
+    - assets/log_metrics/functions_max_memory_used.json
+    - assets/log_metrics/functions_memorysize.json
+    - assets/log_metrics/projects_build_count.json

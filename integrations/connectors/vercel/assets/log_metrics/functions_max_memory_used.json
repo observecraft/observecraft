@@ -1,0 +1,66 @@
+{
+  "data": {
+    "type": "logs_metrics",
+    "id": "vercel.functions.max_memory_used",
+    "attributes": {
+      "compute": {
+        "aggregation_type": "distribution",
+        "path": "@lambda.max_memory_used",
+        "include_percentiles": true
+      },
+      "filter": {
+        "query": "source:vercel @source:lambda REPORT"
+      },
+      "group_by": [
+        {
+          "path": "@projectName",
+          "tag_name": "project_name"
+        },
+        {
+          "path": "@path",
+          "tag_name": "path"
+        },
+        {
+          "path": "@branch",
+          "tag_name": "branch"
+        },
+        {
+          "path": "@environment",
+          "tag_name": "environment"
+        },
+        {
+          "path": "@projectId",
+          "tag_name": "project_id"
+        },
+        {
+          "path": "@statusCode",
+          "tag_name": "status_code"
+        },
+        {
+          "path": "@proxy.host",
+          "tag_name": "proxy_host"
+        },
+        {
+          "path": "@proxy.method",
+          "tag_name": "request_method"
+        },
+        {
+          "path": "@proxy.pathType",
+          "tag_name": "path_type"
+        },
+        {
+          "path": "@proxy.region",
+          "tag_name": "region"
+        },
+        {
+          "path": "@proxy.vercelCache",
+          "tag_name": "vercel_cache"
+        },
+        {
+          "path": "@source",
+          "tag_name": "source"
+        }
+      ]
+    }
+  }
+}
