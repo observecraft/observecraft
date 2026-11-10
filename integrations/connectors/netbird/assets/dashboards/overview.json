@@ -1,0 +1,1247 @@
+{
+  "title": "NetBird Overview",
+  "description": "Peers of a NetBird account (connected, last seen, expired logins, OS, client versions) and its audit log.",
+  "layout_type": "ordered",
+  "template_variables": [],
+  "widgets": [
+    {
+      "id": 2,
+      "definition": {
+        "type": "group",
+        "title": "",
+        "background_color": "vivid_blue",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "id": 1,
+            "definition": {
+              "type": "note",
+              "content": "**NetBird** connects devices, servers and cloud resources over a WireGuard® overlay network. This dashboard shows the peers of the connected NetBird account (connected or not, last seen, expired logins, client versions) and its audit log: who added or removed peers, changed policies, routes, DNS and networks, created setup keys or invited users.\n\nConnect an account in [Integrations → NetBird](/integrations/netbird): ObserveCraft reads its management API every minute, for NetBird Cloud and self-hosted NetBird alike.",
+              "background_color": "white",
+              "font_size": "14",
+              "text_align": "left",
+              "show_tick": false,
+              "tick_pos": "50%",
+              "tick_edge": "left",
+              "has_padding": true
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 2
+            }
+          }
+        ],
+        "show_title": false,
+        "banner_img": "/images/integrations/netbird-banner.svg"
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 5
+      }
+    },
+    {
+      "id": 9,
+      "definition": {
+        "type": "group",
+        "title": "Overview",
+        "background_color": "blue",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "id": 3,
+            "definition": {
+              "type": "query_value",
+              "title": "Peers",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.count{*}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "conditional_formats": [
+                    {
+                      "comparator": ">=",
+                      "value": 0,
+                      "palette": "white_on_gray"
+                    }
+                  ]
+                }
+              ],
+              "autoscale": true,
+              "precision": 0
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 2,
+              "height": 2
+            }
+          },
+          {
+            "id": 4,
+            "definition": {
+              "type": "query_value",
+              "title": "Connected",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.connected{*}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "conditional_formats": [
+                    {
+                      "comparator": ">=",
+                      "value": 0,
+                      "palette": "white_on_green"
+                    }
+                  ]
+                }
+              ],
+              "autoscale": true,
+              "precision": 0
+            },
+            "layout": {
+              "x": 2,
+              "y": 0,
+              "width": 2,
+              "height": 2
+            }
+          },
+          {
+            "id": 5,
+            "definition": {
+              "type": "query_value",
+              "title": "Disconnected",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.count{*}",
+                      "aggregator": "last"
+                    },
+                    {
+                      "data_source": "metrics",
+                      "name": "query2",
+                      "query": "sum:netbird.peer.connected{*}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1 - query2"
+                    }
+                  ],
+                  "conditional_formats": [
+                    {
+                      "comparator": ">",
+                      "value": 0,
+                      "palette": "white_on_yellow"
+                    },
+                    {
+                      "comparator": "<=",
+                      "value": 0,
+                      "palette": "white_on_green"
+                    }
+                  ]
+                }
+              ],
+              "autoscale": true,
+              "precision": 0
+            },
+            "layout": {
+              "x": 4,
+              "y": 0,
+              "width": 2,
+              "height": 2
+            }
+          },
+          {
+            "id": 6,
+            "definition": {
+              "type": "query_value",
+              "title": "Login expired",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.login_expired{*}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "conditional_formats": [
+                    {
+                      "comparator": ">",
+                      "value": 0,
+                      "palette": "white_on_red"
+                    },
+                    {
+                      "comparator": "<=",
+                      "value": 0,
+                      "palette": "white_on_green"
+                    }
+                  ]
+                }
+              ],
+              "autoscale": true,
+              "precision": 0
+            },
+            "layout": {
+              "x": 6,
+              "y": 0,
+              "width": 2,
+              "height": 2
+            }
+          },
+          {
+            "id": 7,
+            "definition": {
+              "type": "query_value",
+              "title": "Waiting for approval",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.approval_required{*}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "conditional_formats": [
+                    {
+                      "comparator": ">",
+                      "value": 0,
+                      "palette": "white_on_yellow"
+                    },
+                    {
+                      "comparator": "<=",
+                      "value": 0,
+                      "palette": "white_on_green"
+                    }
+                  ]
+                }
+              ],
+              "autoscale": true,
+              "precision": 0
+            },
+            "layout": {
+              "x": 8,
+              "y": 0,
+              "width": 2,
+              "height": 2
+            }
+          },
+          {
+            "id": 8,
+            "definition": {
+              "type": "query_value",
+              "title": "Audit events",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:netbird"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "conditional_formats": [
+                    {
+                      "comparator": ">=",
+                      "value": 0,
+                      "palette": "white_on_gray"
+                    }
+                  ]
+                }
+              ],
+              "autoscale": true,
+              "precision": 0,
+              "timeseries_background": {
+                "type": "bars"
+              }
+            },
+            "layout": {
+              "x": 10,
+              "y": 0,
+              "width": 2,
+              "height": 2
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 5,
+        "width": 12,
+        "height": 3
+      }
+    },
+    {
+      "id": 19,
+      "definition": {
+        "type": "group",
+        "title": "Peers",
+        "background_color": "green",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "id": 10,
+            "definition": {
+              "type": "geomap",
+              "title": "Peers around the world",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.count{*} by {country_code}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 20,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "palette": "hostmap_blues",
+                "palette_flip": false
+              },
+              "view": {
+                "focus": "WORLD"
+              }
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 8,
+              "height": 4
+            }
+          },
+          {
+            "id": 11,
+            "definition": {
+              "type": "sunburst",
+              "title": "Peers by OS",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.count{*} by {os}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 20,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "legend": {
+                "type": "inline"
+              }
+            },
+            "layout": {
+              "x": 8,
+              "y": 0,
+              "width": 4,
+              "height": 4
+            }
+          },
+          {
+            "id": 12,
+            "definition": {
+              "type": "sunburst",
+              "title": "Client versions",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.count{*} by {netbird_version}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 20,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "legend": {
+                "type": "inline"
+              }
+            },
+            "layout": {
+              "x": 0,
+              "y": 4,
+              "width": 4,
+              "height": 3
+            }
+          },
+          {
+            "id": 13,
+            "definition": {
+              "type": "treemap",
+              "title": "Peers by city",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.count{*} by {city}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 20,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 4,
+              "y": 4,
+              "width": 4,
+              "height": 3
+            }
+          },
+          {
+            "id": 14,
+            "definition": {
+              "type": "bar_chart",
+              "title": "Connected peers by OS",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.connected{*} by {os}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 20,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "palette": "classic"
+              }
+            },
+            "layout": {
+              "x": 8,
+              "y": 4,
+              "width": 4,
+              "height": 3
+            }
+          },
+          {
+            "id": 15,
+            "definition": {
+              "type": "timeseries",
+              "title": "Connected peers",
+              "title_size": "16",
+              "title_align": "left",
+              "show_legend": true,
+              "legend_layout": "auto",
+              "requests": [
+                {
+                  "response_format": "timeseries",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.connected{*}",
+                      "aggregator": "avg"
+                    },
+                    {
+                      "data_source": "metrics",
+                      "name": "query2",
+                      "query": "sum:netbird.peer.count{*}",
+                      "aggregator": "avg"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "alias": "connected",
+                      "formula": "query1"
+                    },
+                    {
+                      "alias": "peers",
+                      "formula": "query2"
+                    }
+                  ],
+                  "style": {
+                    "palette": "cool",
+                    "order_by": "values"
+                  },
+                  "display_type": "area"
+                }
+              ],
+              "yaxis": {
+                "include_zero": true
+              }
+            },
+            "layout": {
+              "x": 0,
+              "y": 7,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 16,
+            "definition": {
+              "type": "timeseries",
+              "title": "Connected peers by client version",
+              "title_size": "16",
+              "title_align": "left",
+              "show_legend": true,
+              "legend_layout": "auto",
+              "requests": [
+                {
+                  "response_format": "timeseries",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:netbird.peer.connected{*} by {netbird_version}",
+                      "aggregator": "avg"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "style": {
+                    "palette": "classic",
+                    "order_by": "values"
+                  },
+                  "display_type": "bars"
+                }
+              ],
+              "yaxis": {
+                "include_zero": true
+              }
+            },
+            "layout": {
+              "x": 6,
+              "y": 7,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 17,
+            "definition": {
+              "type": "toplist",
+              "title": "Longest unseen peers",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "max:netbird.peer.last_seen_age{*} by {peer}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 10,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  },
+                  "style": {
+                    "palette": "warm"
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 10,
+              "width": 4,
+              "height": 4
+            }
+          },
+          {
+            "id": 18,
+            "definition": {
+              "type": "query_table",
+              "title": "Peers",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "max:netbird.peer.connected{*} by {peer,os,netbird_version}",
+                      "aggregator": "last"
+                    },
+                    {
+                      "data_source": "metrics",
+                      "name": "query2",
+                      "query": "max:netbird.peer.last_seen_age{*} by {peer,os,netbird_version}",
+                      "aggregator": "last"
+                    },
+                    {
+                      "data_source": "metrics",
+                      "name": "query3",
+                      "query": "max:netbird.peer.login_expired{*} by {peer,os,netbird_version}",
+                      "aggregator": "last"
+                    },
+                    {
+                      "data_source": "metrics",
+                      "name": "query4",
+                      "query": "max:netbird.peer.accessible_peers{*} by {peer,os,netbird_version}",
+                      "aggregator": "last"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "alias": "connected",
+                      "formula": "query1"
+                    },
+                    {
+                      "alias": "seconds since seen",
+                      "formula": "query2"
+                    },
+                    {
+                      "alias": "login expired",
+                      "formula": "query3"
+                    },
+                    {
+                      "alias": "reachable peers",
+                      "formula": "query4"
+                    }
+                  ],
+                  "sort": {
+                    "count": 100,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 4,
+              "y": 10,
+              "width": 8,
+              "height": 4
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 8,
+        "width": 12,
+        "height": 14
+      }
+    },
+    {
+      "id": 29,
+      "definition": {
+        "type": "group",
+        "title": "Audit log",
+        "background_color": "purple",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "id": 20,
+            "definition": {
+              "type": "timeseries",
+              "title": "Events over time",
+              "title_size": "16",
+              "title_align": "left",
+              "show_legend": true,
+              "legend_layout": "auto",
+              "requests": [
+                {
+                  "response_format": "timeseries",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:netbird"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [
+                        {
+                          "facet": "@netbird.category",
+                          "limit": 10,
+                          "sort": {
+                            "aggregation": "count",
+                            "order": "desc"
+                          }
+                        }
+                      ],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "style": {
+                    "palette": "classic",
+                    "order_by": "values"
+                  },
+                  "display_type": "bars"
+                }
+              ],
+              "yaxis": {
+                "include_zero": true
+              }
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 8,
+              "height": 3
+            }
+          },
+          {
+            "id": 21,
+            "definition": {
+              "type": "sunburst",
+              "title": "Events by category",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:netbird"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [
+                        {
+                          "facet": "@netbird.category",
+                          "limit": 10,
+                          "sort": {
+                            "aggregation": "count",
+                            "order": "desc"
+                          }
+                        }
+                      ],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 20,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "legend": {
+                "type": "inline"
+              }
+            },
+            "layout": {
+              "x": 8,
+              "y": 0,
+              "width": 4,
+              "height": 3
+            }
+          },
+          {
+            "id": 22,
+            "definition": {
+              "type": "bar_chart",
+              "title": "Top activities",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:netbird"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [
+                        {
+                          "facet": "@evt.name",
+                          "limit": 10,
+                          "sort": {
+                            "aggregation": "count",
+                            "order": "desc"
+                          }
+                        }
+                      ],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 20,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "palette": "classic"
+              }
+            },
+            "layout": {
+              "x": 0,
+              "y": 3,
+              "width": 4,
+              "height": 3
+            }
+          },
+          {
+            "id": 23,
+            "definition": {
+              "type": "toplist",
+              "title": "Most active users",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:netbird @usr.email:*"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [
+                        {
+                          "facet": "@usr.email",
+                          "limit": 10,
+                          "sort": {
+                            "aggregation": "count",
+                            "order": "desc"
+                          }
+                        }
+                      ],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 10,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  },
+                  "style": {
+                    "palette": "purple"
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 4,
+              "y": 3,
+              "width": 4,
+              "height": 3
+            }
+          },
+          {
+            "id": 24,
+            "definition": {
+              "type": "query_value",
+              "title": "Warnings and errors",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:netbird status:(warn OR error)"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "conditional_formats": [
+                    {
+                      "comparator": ">",
+                      "value": 0,
+                      "palette": "white_on_red"
+                    },
+                    {
+                      "comparator": "<=",
+                      "value": 0,
+                      "palette": "white_on_green"
+                    }
+                  ]
+                }
+              ],
+              "autoscale": true,
+              "precision": 0,
+              "timeseries_background": {
+                "type": "bars"
+              }
+            },
+            "layout": {
+              "x": 8,
+              "y": 3,
+              "width": 4,
+              "height": 3
+            }
+          },
+          {
+            "id": 25,
+            "definition": {
+              "type": "log_stream",
+              "title": "Peers added, removed and expired",
+              "query": "source:netbird @evt.name:(peer.user.add OR peer.setupkey.add OR user.peer.delete OR peer.login.expire OR peer.approve OR peer.approval.revoke)",
+              "columns": [
+                "host",
+                "service"
+              ],
+              "indexes": [],
+              "message_display": "inline",
+              "show_date_column": true,
+              "show_message_column": true,
+              "sort": {
+                "column": "time",
+                "order": "desc"
+              }
+            },
+            "layout": {
+              "x": 0,
+              "y": 6,
+              "width": 6,
+              "height": 4
+            }
+          },
+          {
+            "id": 26,
+            "definition": {
+              "type": "log_stream",
+              "title": "Access changes: policies, routes, networks, DNS",
+              "query": "source:netbird @netbird.category:(policy OR rule OR route OR network OR nameserver OR dns OR posture)",
+              "columns": [
+                "host",
+                "service"
+              ],
+              "indexes": [],
+              "message_display": "inline",
+              "show_date_column": true,
+              "show_message_column": true,
+              "sort": {
+                "column": "time",
+                "order": "desc"
+              }
+            },
+            "layout": {
+              "x": 6,
+              "y": 6,
+              "width": 6,
+              "height": 4
+            }
+          },
+          {
+            "id": 27,
+            "definition": {
+              "type": "log_stream",
+              "title": "Users, setup keys and tokens",
+              "query": "source:netbird @netbird.category:(user OR setupkey OR personal OR service OR account)",
+              "columns": [
+                "host",
+                "service"
+              ],
+              "indexes": [],
+              "message_display": "inline",
+              "show_date_column": true,
+              "show_message_column": true,
+              "sort": {
+                "column": "time",
+                "order": "desc"
+              }
+            },
+            "layout": {
+              "x": 0,
+              "y": 10,
+              "width": 6,
+              "height": 4
+            }
+          },
+          {
+            "id": 28,
+            "definition": {
+              "type": "log_stream",
+              "title": "Warnings and errors",
+              "query": "source:netbird status:(warn OR error)",
+              "columns": [
+                "host",
+                "service"
+              ],
+              "indexes": [],
+              "message_display": "inline",
+              "show_date_column": true,
+              "show_message_column": true,
+              "sort": {
+                "column": "time",
+                "order": "desc"
+              }
+            },
+            "layout": {
+              "x": 6,
+              "y": 10,
+              "width": 6,
+              "height": 4
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 22,
+        "width": 12,
+        "height": 14
+      }
+    }
+  ]
+}

@@ -1,0 +1,179 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mongodb.atlas.connections.current",
+      "tags": [
+        [
+          "cluster_name",
+          "orders-prod"
+        ],
+        [
+          "hostname",
+          "orders-prod-shard-00-00.ab1cd.mongodb.net"
+        ],
+        [
+          "process_id",
+          "orders-prod-shard-00-00.ab1cd.mongodb.net:27017"
+        ],
+        [
+          "project_id",
+          "5f1a2b3c4d5e6f7a8b9c0d1e"
+        ],
+        [
+          "replica_set_name",
+          "atlas-xyz123-shard-0"
+        ],
+        [
+          "type",
+          "REPLICA_PRIMARY"
+        ]
+      ],
+      "time_ms": 1794311700000,
+      "value": 182.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mongodb.atlas.connections.current",
+      "tags": [
+        [
+          "cluster_name",
+          "orders-prod"
+        ],
+        [
+          "hostname",
+          "orders-prod-shard-00-00.ab1cd.mongodb.net"
+        ],
+        [
+          "process_id",
+          "orders-prod-shard-00-00.ab1cd.mongodb.net:27017"
+        ],
+        [
+          "project_id",
+          "5f1a2b3c4d5e6f7a8b9c0d1e"
+        ],
+        [
+          "replica_set_name",
+          "atlas-xyz123-shard-0"
+        ],
+        [
+          "type",
+          "REPLICA_PRIMARY"
+        ]
+      ],
+      "time_ms": 1794311760000,
+      "value": 190.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mongodb.atlas.opcounters.insert",
+      "tags": [
+        [
+          "cluster_name",
+          "orders-prod"
+        ],
+        [
+          "hostname",
+          "orders-prod-shard-00-00.ab1cd.mongodb.net"
+        ],
+        [
+          "process_id",
+          "orders-prod-shard-00-00.ab1cd.mongodb.net:27017"
+        ],
+        [
+          "project_id",
+          "5f1a2b3c4d5e6f7a8b9c0d1e"
+        ],
+        [
+          "replica_set_name",
+          "atlas-xyz123-shard-0"
+        ],
+        [
+          "type",
+          "REPLICA_PRIMARY"
+        ]
+      ],
+      "time_ms": 1794311760000,
+      "value": 41.3
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mongodb.atlas.system.cpu.norm.user",
+      "tags": [
+        [
+          "cluster_name",
+          "orders-prod"
+        ],
+        [
+          "hostname",
+          "orders-prod-shard-00-00.ab1cd.mongodb.net"
+        ],
+        [
+          "process_id",
+          "orders-prod-shard-00-00.ab1cd.mongodb.net:27017"
+        ],
+        [
+          "project_id",
+          "5f1a2b3c4d5e6f7a8b9c0d1e"
+        ],
+        [
+          "replica_set_name",
+          "atlas-xyz123-shard-0"
+        ],
+        [
+          "type",
+          "REPLICA_PRIMARY"
+        ]
+      ],
+      "time_ms": 1794311760000,
+      "value": 23.5
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mongodb.atlas.network.bytesout",
+      "tags": [
+        [
+          "cluster_name",
+          "orders-prod"
+        ],
+        [
+          "hostname",
+          "orders-prod-shard-00-00.ab1cd.mongodb.net"
+        ],
+        [
+          "process_id",
+          "orders-prod-shard-00-00.ab1cd.mongodb.net:27017"
+        ],
+        [
+          "project_id",
+          "5f1a2b3c4d5e6f7a8b9c0d1e"
+        ],
+        [
+          "replica_set_name",
+          "atlas-xyz123-shard-0"
+        ],
+        [
+          "type",
+          "REPLICA_PRIMARY"
+        ]
+      ],
+      "time_ms": 1794311760000,
+      "value": 1520034.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "orders-prod-shard-00-00.ab1cd.mongodb.net:27017": {
+        "cursor": 1794311880000
+      }
+    }
+  }
+}

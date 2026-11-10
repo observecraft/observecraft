@@ -1,0 +1,3246 @@
+{
+  "$defs": {
+    "Assets": {
+      "additionalProperties": false,
+      "properties": {
+        "dashboards": {
+          "description": "Dashboards in Datadog's JSON (`assets/dashboards/overview.json`), converted by `scripts/connector.mjs build`\ninto `dist/dashboards.json`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "log_metrics": {
+          "description": "Log-based metrics in Datadog's JSON (`datadog_logs_metric`), created when the integration is installed.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "metadata": {
+          "description": "Metric metadata in integrations-core's `metadata.csv` format.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "monitors": {
+          "description": "Recommended monitors in Datadog's monitor JSON.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pipeline": {
+          "description": "A log pipeline in Datadog's pipeline JSON, installed when a connection is saved.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "security_rules": {
+          "description": "Cloud SIEM detection rules in Datadog's rule JSON.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "AsyncExport": {
+      "additionalProperties": false,
+      "properties": {
+        "chunk": {
+          "$ref": "#/$defs/Request",
+          "description": "Read with `export.id` and `chunk`."
+        },
+        "chunks": {
+          "description": "Template over the status answer: the chunks' ids.",
+          "type": "string"
+        },
+        "create": {
+          "$ref": "#/$defs/Request"
+        },
+        "failed": {
+          "description": "Template over the status answer: true when the export failed (it is started again).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Template over the create answer.",
+          "type": "string"
+        },
+        "ready": {
+          "description": "Template over the status answer: true when the chunks can be read.",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/Request",
+          "description": "Polled with `export.id`."
+        }
+      },
+      "required": [
+        "create",
+        "id",
+        "status",
+        "ready",
+        "chunks",
+        "chunk"
+      ],
+      "type": "object"
+    },
+    "Auth": {
+      "description": "How a request authenticates. Templates here may read `secrets`.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "No credentials.",
+          "properties": {
+            "kind": {
+              "enum": [
+                "none"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A key in a header or the query (`Authorization: apikey {{ config.email }}:{{ secrets.key }}` works too).",
+          "properties": {
+            "in": {
+              "$ref": "#/$defs/KeyIn"
+            },
+            "kind": {
+              "enum": [
+                "api_key"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "description": "The header or query parameter's name.",
+              "type": "string"
+            },
+            "value": {
+              "description": "Template.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "value",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`Authorization: Bearer <token>`.",
+          "properties": {
+            "kind": {
+              "enum": [
+                "bearer"
+              ],
+              "type": "string"
+            },
+            "token": {
+              "description": "Template.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "token",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "HTTP basic authentication.",
+          "properties": {
+            "kind": {
+              "enum": [
+                "basic"
+              ],
+              "type": "string"
+            },
+            "password": {
+              "description": "Template.",
+              "type": "string"
+            },
+            "username": {
+              "description": "Template.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "username",
+            "password",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Several headers (templates).",
+          "properties": {
+            "headers": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "kind": {
+              "enum": [
+                "headers"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "headers",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "OAuth 2.0 client credentials: the token is fetched, cached until it expires, and sent as a bearer token.",
+          "properties": {
+            "client_auth": {
+              "$ref": "#/$defs/ClientAuth",
+              "description": "How the client authenticates to the token endpoint."
+            },
+            "client_id": {
+              "description": "Template.",
+              "type": "string"
+            },
+            "client_secret": {
+              "description": "Template.",
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "oauth2_client_credentials"
+              ],
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "More form parameters (`audience`, `resource`; templates).",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "scopes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "token_url": {
+              "description": "Template.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "token_url",
+            "client_id",
+            "client_secret",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "OAuth 2.0 refresh token grant (a token the user created or consented to). A rotated refresh token is saved\ninto the `rotate` secret.",
+          "properties": {
+            "client_auth": {
+              "$ref": "#/$defs/ClientAuth"
+            },
+            "client_id": {
+              "description": "Template.",
+              "type": "string"
+            },
+            "client_secret": {
+              "description": "Template; may be empty for public clients.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "oauth2_refresh_token"
+              ],
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "refresh_token": {
+              "description": "Template (usually `{{ secrets.refresh_token }}`).",
+              "type": "string"
+            },
+            "rotate": {
+              "description": "The secret field a rotated refresh token is saved into.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scopes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "token_url": {
+              "description": "Template.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "token_url",
+            "client_id",
+            "refresh_token",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "OAuth 2.0 authorization code (with PKCE): the page's \"Connect\" sends the admin to the vendor's consent page;\nObserveCraft's callback stores the tokens (sealed, `oauth_refresh_token` / `oauth_access_token`), and runs\nrefresh the access token like `oauth2_refresh_token`. The client is the operator's OAuth app for this\npackage (`OC_OAUTH_<ID>_CLIENT_ID` / `_CLIENT_SECRET`) unless `client_id` names the connection's own.",
+          "properties": {
+            "authorize_params": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "More query parameters of the consent page (`access_type: offline`, `prompt: consent`, `audience`; templates\nover `config`).",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "authorize_url": {
+              "description": "Template over `config` (a tenant's host): the consent page.",
+              "type": "string"
+            },
+            "client_auth": {
+              "$ref": "#/$defs/ClientAuth",
+              "description": "How the client authenticates to the token endpoint."
+            },
+            "client_id": {
+              "description": "Template: the connection's own OAuth app (`{{ config.client_id }}`) instead of the operator's.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "client_secret": {
+              "description": "Template (`{{ secrets.client_secret }}`), with `client_id`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "oauth2_authorization_code"
+              ],
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "More form parameters of the token requests (templates).",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "pkce": {
+              "description": "PKCE (S256), default on; off for vendors refusing it.",
+              "type": "boolean"
+            },
+            "scope_separator": {
+              "description": "How scopes are joined (default a space; Slack and others take `,`).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scopes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "token_url": {
+              "description": "Template over `config`.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "authorize_url",
+            "token_url",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "OAuth 2.0 client credentials with a signed client assertion (`private_key_jwt`: Okta service apps, Microsoft\nEntra certificate credentials): an RS256 JWT (`iss` = `sub` = the client id, `aud` the token URL) instead of a\nclient secret.",
+          "properties": {
+            "audience": {
+              "description": "The assertion's `aud` (template; default the token URL).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "client_id": {
+              "description": "Template.",
+              "type": "string"
+            },
+            "key_id": {
+              "description": "The JWT header's `kid` (template).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "oauth2_client_assertion"
+              ],
+              "type": "string"
+            },
+            "lifetime": {
+              "description": "How long an assertion is valid. Duration, default 5m.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "params": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "More form parameters of the token request (templates).",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "private_key": {
+              "description": "An RSA private key in PEM, PKCS#8 or PKCS#1 (template).",
+              "type": "string"
+            },
+            "scopes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "token_url": {
+              "description": "Template.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "token_url",
+            "client_id",
+            "private_key",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An RS256 JWT assertion exchanged for a token (Google service accounts, customer-registered OAuth apps).",
+          "properties": {
+            "claims": {
+              "description": "Claims (templates; `iat` and `exp` are added): `iss`, `sub`, `aud`, …"
+            },
+            "key_id": {
+              "description": "The JWT header's `kid` (template).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "jwt_bearer"
+              ],
+              "type": "string"
+            },
+            "lifetime": {
+              "description": "How long an assertion is valid. Duration, default 1h.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "params": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "More form parameters of the token request (templates).",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "private_key": {
+              "description": "An RSA private key in PEM, PKCS#8 or PKCS#1 (template), when there is no service account.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scopes": {
+              "description": "Added as the `scope` claim, space separated.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "service_account": {
+              "description": "A Google service account JSON key (template): gives the private key, `iss` and the token URL.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "token_url": {
+              "description": "Template; defaults to the service account's `token_uri`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A JWT signed with the connection's key and sent as the bearer token, renewed before it expires (Snowflake key\npairs). `headers` (templates over `auth.jwt`) replace `Authorization: Bearer`.",
+          "properties": {
+            "claims": {},
+            "headers": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "`kind: jwt` only: the headers carrying it (templates over `auth.jwt`), instead of `Authorization: Bearer`.",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "key_id": {
+              "description": "The header's `kid` (template).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "jwt"
+              ],
+              "type": "string"
+            },
+            "lifetime": {
+              "description": "Duration, default 1h (GitHub Apps: at most 10m).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "private_key": {
+              "description": "An RSA private key in PEM, PKCS#8 or PKCS#1 (template, a secret).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "private_key",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A login request whose answer gives a token (and other values, such as a base URL), used by the next\nrequests as `auth.<name>`; cached for `ttl` (or the answer's expiry).",
+          "properties": {
+            "capture": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Values taken from the answer (templates over `response`, `headers`): `token`, `base_url`, `cookie`, …",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "expires_in": {
+              "description": "Seconds the values are valid, from the answer (template); else `ttl`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "headers": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Headers sent on every request (templates over `auth`, `config`, `secrets`); default `Authorization: Bearer\n{{ auth.token }}`.",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "jwt": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/JwtSpec",
+                  "description": "A JWT signed for the login request, as `auth.jwt` (GitHub Apps: the app's JWT gets an installation token)."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "kind": {
+              "enum": [
+                "token_exchange"
+              ],
+              "type": "string"
+            },
+            "request": {
+              "$ref": "#/$defs/Request",
+              "description": "The login request (templates may read `secrets`, and `auth.jwt` with `jwt`)."
+            },
+            "ttl": {
+              "description": "Duration, default 1h.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "request",
+            "capture",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "One of several authentications, picked by a config field's value (a Shopify token or OAuth, Okta's SSWS\ntoken or OAuth): `options` maps each value of `field` to its auth.",
+          "properties": {
+            "field": {
+              "description": "A (select) config field.",
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "choice"
+              ],
+              "type": "string"
+            },
+            "options": {
+              "additionalProperties": {
+                "type": "object"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "field",
+            "options",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A request signer compiled into the server: `duo_hmac_v2`, `duo_hmac_v5`, `cortex_xdr_advanced`,\n`trend_micro_apex_central`, `akamai_edgegrid`.",
+          "properties": {
+            "kind": {
+              "enum": [
+                "signer"
+              ],
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "The signer's inputs (templates): Duo `ikey`, `skey`; Cortex XDR `key_id`, `key`, `level` (`advanced`,\nthe default, or `standard`); Apex Central `application_id`, `api_key`; EdgeGrid `client_token`,\n`client_secret`, `access_token`.",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "signer": {
+              "$ref": "#/$defs/Signer"
+            }
+          },
+          "required": [
+            "signer",
+            "params",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Budget": {
+      "additionalProperties": false,
+      "properties": {
+        "per": {
+          "$ref": "#/$defs/BudgetPeriod"
+        },
+        "requests": {
+          "format": "int32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "requests",
+        "per"
+      ],
+      "type": "object"
+    },
+    "BudgetPeriod": {
+      "enum": [
+        "hour",
+        "day",
+        "month"
+      ],
+      "type": "string"
+    },
+    "Call": {
+      "additionalProperties": false,
+      "description": "A one-off request (a setup step): its error rules and the message shown when it worked.",
+      "properties": {
+        "errors": {
+          "items": {
+            "$ref": "#/$defs/ErrorRule"
+          },
+          "type": "array"
+        },
+        "message": {
+          "description": "Template over `response`: what the page shows.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ok_status": {
+          "description": "Statuses that also count as done (409: the subscription exists).",
+          "items": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "request": {
+          "$ref": "#/$defs/Request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "type": "object"
+    },
+    "ClientAssertion": {
+      "additionalProperties": false,
+      "properties": {
+        "audience": {
+          "description": "The assertion's `aud` (template; default the token URL).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "client_id": {
+          "description": "Template.",
+          "type": "string"
+        },
+        "key_id": {
+          "description": "The JWT header's `kid` (template).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lifetime": {
+          "description": "How long an assertion is valid. Duration, default 5m.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "More form parameters of the token request (templates).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "private_key": {
+          "description": "An RSA private key in PEM, PKCS#8 or PKCS#1 (template).",
+          "type": "string"
+        },
+        "scopes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "token_url": {
+          "description": "Template.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token_url",
+        "client_id",
+        "private_key"
+      ],
+      "type": "object"
+    },
+    "ClientAuth": {
+      "enum": [
+        "basic",
+        "body"
+      ],
+      "type": "string"
+    },
+    "ConfigField": {
+      "additionalProperties": false,
+      "description": "A setup form field. Non-secret fields are `config.<key>` in templates; secret ones `secrets.<key>`.",
+      "properties": {
+        "default": {
+          "description": "The value when left empty."
+        },
+        "help": {
+          "description": "One line under the field.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "key": {
+          "description": "`^[a-z][a-z0-9_]*$`.",
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "options": {
+          "description": "The choices of a select or multiselect.",
+          "items": {
+            "$ref": "#/$defs/SelectOption"
+          },
+          "type": "array"
+        },
+        "pattern": {
+          "description": "A regular expression the value (each item of a list) must match.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "placeholder": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "secret": {
+          "description": "Sealed at rest, never answered, scrubbed from errors (string or text fields). A saved secret is only sent to\nthe URLs it was saved with: changing a `url` field asks for every secret again.",
+          "type": "boolean"
+        },
+        "strip_suffix": {
+          "description": "Suffixes a url field drops (`/api`), since the requests add them.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type": {
+          "$ref": "#/$defs/FieldKind"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "type"
+      ],
+      "type": "object"
+    },
+    "CostsOut": {
+      "additionalProperties": false,
+      "description": "A record as a cost (Cloud Cost Management).",
+      "properties": {
+        "account": {
+          "description": "Template: the account, workspace or organization.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cost": {
+          "description": "Template: the amount.",
+          "type": "string"
+        },
+        "currency": {
+          "description": "Template, default `USD`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "date": {
+          "description": "Template: the day (or hour) the cost is for.",
+          "type": "string"
+        },
+        "provider": {
+          "description": "The provider column (`anthropic`, `databricks`).",
+          "type": "string"
+        },
+        "service": {
+          "description": "Template: the service or product (`claude-opus`, `jobs-compute`).",
+          "type": "string"
+        },
+        "tags": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "usage_amount": {
+          "description": "Template: the usage quantity.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "usage_type": {
+          "description": "Template: the usage type or SKU.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "provider",
+        "date",
+        "cost",
+        "service"
+      ],
+      "type": "object"
+    },
+    "CursorValue": {
+      "enum": [
+        "window_end",
+        "last_record"
+      ],
+      "type": "string"
+    },
+    "Discovery": {
+      "additionalProperties": false,
+      "properties": {
+        "max_pages": {
+          "format": "int32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "`discovery.<name>`.",
+          "type": "string"
+        },
+        "pagination": {
+          "$ref": "#/$defs/Pagination",
+          "description": "Pages of a list (tenants, projects): their records are gathered as `records`."
+        },
+        "records": {
+          "description": "As a stream's `records`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "request": {
+          "$ref": "#/$defs/Request"
+        },
+        "ttl": {
+          "description": "Duration, default 1h.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "description": "Template over `response`, `headers` (and `records`, every page's, when paginated): what is kept (default the\nanswer, or the records when paginated).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "request"
+      ],
+      "type": "object"
+    },
+    "ErrorRule": {
+      "additionalProperties": false,
+      "description": "What a failed answer means. The first matching rule wins; without one, 401 is `auth`, 403 and 404\n`access_denied`, 429 `throttled`, others `other`.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/IssueKind"
+        },
+        "message": {
+          "description": "Template over `response`, `status`, `config`: what the page shows.",
+          "type": "string"
+        },
+        "reset": {
+          "description": "The stream's saved position is stale (an offset the API no longer has, HTTP 416): its token, backlog and\nexport are dropped, so the next run starts again from its initial token or its cursor's window.",
+          "type": "boolean"
+        },
+        "status": {
+          "description": "HTTP statuses it applies to (any when empty).",
+          "items": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "when": {
+          "description": "Template over `response`, `status`: also required to match.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "message"
+      ],
+      "type": "object"
+    },
+    "EventsOut": {
+      "additionalProperties": false,
+      "description": "A record as an event (Event Management, `otel.otel_events`).",
+      "properties": {
+        "aggregation_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "alert_type": {
+          "description": "Template: `error`, `warning`, `info` (default) or `success`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "date": {
+          "description": "Template: default the record's time.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "host": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "priority": {
+          "description": "Template: `normal` (default) or `low`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tags": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "text": {
+          "description": "Template.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Template.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "text"
+      ],
+      "type": "object"
+    },
+    "Expand": {
+      "additionalProperties": false,
+      "properties": {
+        "records": {
+          "description": "As a stream's `records` (`parent` readable).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "request": {
+          "$ref": "#/$defs/Request",
+          "description": "Templates read `parent` (the index entry) and the stream's request variables."
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "type": "object"
+    },
+    "Expectation": {
+      "additionalProperties": false,
+      "properties": {
+        "costs": {
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "events": {
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "golden": {
+          "description": "A file of the package with the expected output (`OC_CONNECTOR_UPDATE=1` rewrites it).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "logs": {
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "description": "For `test`: text its message contains.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metrics": {
+          "description": "Points.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "ok": {
+          "description": "For `test`: whether it succeeds.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "records": {
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "rerun": {
+          "description": "Records a second run right after reads (with the first run's state): what incremental reading skips.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "FieldKind": {
+      "enum": [
+        "string",
+        "text",
+        "url",
+        "number",
+        "boolean",
+        "select",
+        "multiselect",
+        "list"
+      ],
+      "type": "string"
+    },
+    "Format": {
+      "enum": [
+        "json",
+        "ndjson",
+        "prometheus",
+        "text",
+        "csv"
+      ],
+      "type": "string"
+    },
+    "Incremental": {
+      "description": "What a run reads again and what it skips.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Everything, every run (state snapshots: metrics).",
+          "properties": {
+            "kind": {
+              "enum": [
+                "none"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Only records whose `record_id` wasn't sent before (lists without times: breached accounts, findings).",
+          "properties": {
+            "kind": {
+              "enum": [
+                "new_records"
+              ],
+              "type": "string"
+            },
+            "max_seen": {
+              "description": "Ids remembered (oldest forgotten first). Default 100000.",
+              "format": "int32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "order": {
+              "$ref": "#/$defs/Order",
+              "description": "`newest_first`: a page with a record already sent ends the run's paging (the rest was sent before)."
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A time window from the cursor: `window.start` .. `window.end` (epoch ms) in request templates.",
+          "properties": {
+            "cursor": {
+              "$ref": "#/$defs/CursorValue",
+              "description": "Where the cursor moves after a full window: its end, or the newest record's time."
+            },
+            "kind": {
+              "enum": [
+                "time"
+              ],
+              "type": "string"
+            },
+            "lookback": {
+              "description": "How far back the first run reads. Duration, default 1d.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "max_window": {
+              "description": "The largest window per run (catching up in steps). Duration.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "order": {
+              "$ref": "#/$defs/Order",
+              "description": "The order the API answers in: `newest_first` and `unordered` windows not read to their end carry on next run\nfrom where they stopped (the cursor moves only once a window is read); `oldest_first` ones move the cursor to\nthe last record read. A `newest_first` page with a record older than the window ends the window (lists the\nrequest doesn't filter by time)."
+            },
+            "overlap": {
+              "description": "How far before the cursor each window starts (late data); records already sent are skipped by id. Duration,\ndefault 0s.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "record_time": {
+              "description": "Template over a record: its time (any form `epoch_ms` reads). Records outside the window are skipped.",
+              "type": "string"
+            },
+            "settle": {
+              "description": "How recent a record must not be to be read (still being written). Duration, default 0s.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "slice": {
+              "description": "Splits the window into slices read oldest first (APIs limiting a request's range). Duration.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "record_time",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An opaque checkpoint the API gives (`cursor.token` in request templates).",
+          "properties": {
+            "initial": {
+              "description": "Template over `config`: the first run's token (default null).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "token"
+              ],
+              "type": "string"
+            },
+            "next": {
+              "description": "Template over a page (`response`, `headers`, `records`, `last`): the token to keep; the last non-empty one\nis saved once the run's records are stored.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "next",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "IssueKind": {
+      "enum": [
+        "auth",
+        "access_denied",
+        "throttled",
+        "disabled",
+        "other"
+      ],
+      "type": "string"
+    },
+    "JwtBearer": {
+      "additionalProperties": false,
+      "properties": {
+        "claims": {
+          "description": "Claims (templates; `iat` and `exp` are added): `iss`, `sub`, `aud`, …"
+        },
+        "key_id": {
+          "description": "The JWT header's `kid` (template).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lifetime": {
+          "description": "How long an assertion is valid. Duration, default 1h.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "More form parameters of the token request (templates).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "private_key": {
+          "description": "An RSA private key in PEM, PKCS#8 or PKCS#1 (template), when there is no service account.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scopes": {
+          "description": "Added as the `scope` claim, space separated.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "service_account": {
+          "description": "A Google service account JSON key (template): gives the private key, `iss` and the token URL.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "token_url": {
+          "description": "Template; defaults to the service account's `token_uri`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "JwtSpec": {
+      "additionalProperties": false,
+      "description": "A JWT the engine signs (RS256). Claims are templates; `iat` and `exp` are added; `key.fingerprint` (`SHA256:` and\nthe base64 SHA-256 of the public key, as Snowflake names keys) can be read in them.",
+      "properties": {
+        "claims": {},
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "`kind: jwt` only: the headers carrying it (templates over `auth.jwt`), instead of `Authorization: Bearer`.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "key_id": {
+          "description": "The header's `kid` (template).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lifetime": {
+          "description": "Duration, default 1h (GitHub Apps: at most 10m).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "private_key": {
+          "description": "An RSA private key in PEM, PKCS#8 or PKCS#1 (template, a secret).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "private_key"
+      ],
+      "type": "object"
+    },
+    "KeyIn": {
+      "enum": [
+        "header",
+        "query"
+      ],
+      "type": "string"
+    },
+    "Link": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "url": {
+          "description": "Template over `config`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "url"
+      ],
+      "type": "object"
+    },
+    "LogsOut": {
+      "additionalProperties": false,
+      "description": "A record as a log (Datadog's log shape: standard attributes such as `usr.*`, `network.client.ip`, `evt.name`,\n`evt.outcome`). Templates read `record`, `vars`, `lookups`, `item`, `config`, `connection`, `tables`, `now`.",
+      "properties": {
+        "attributes": {
+          "description": "Attributes: a tree of templates; null, \"\" and empty objects are left out."
+        },
+        "date": {
+          "description": "Template: the log's time (default the record's time, else the run's).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "host": {
+          "description": "Template, default `connection.instance`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "keep_record_as": {
+          "description": "Keeps the whole record under this attribute (`bitwarden`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "description": "Template.",
+          "type": "string"
+        },
+        "service": {
+          "description": "Template, default the manifest's `source`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "description": "Template, default the manifest's `source`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "description": "Template: `info` (default), `warn`, `error`, … (what Datadog's status remapper takes).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tags": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "`ddtags` (templates; empty values are left out).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "type": "object"
+    },
+    "Lookup": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "description": "Template over a lookup record: its key.",
+          "type": "string"
+        },
+        "max_pages": {
+          "format": "int32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "`lookups.<name>`.",
+          "type": "string"
+        },
+        "pagination": {
+          "$ref": "#/$defs/Pagination"
+        },
+        "records": {
+          "description": "As a stream's `records`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "request": {
+          "$ref": "#/$defs/Request"
+        },
+        "ttl": {
+          "description": "Duration, default 1h.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "description": "Template over a lookup record: what is kept (default the record).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "when": {
+          "description": "Template over `config` (and `item`): the lookup is read only when truthy (else `lookups.<name>` is empty). A\nlookup whose templates read `item` is read per `for_each` item.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "request",
+        "key"
+      ],
+      "type": "object"
+    },
+    "Manifest": {
+      "additionalProperties": false,
+      "description": "A connector package's manifest.",
+      "properties": {
+        "assets": {
+          "$ref": "#/$defs/Assets",
+          "description": "Dashboards, log pipeline, monitors and detection rules shipped with the package."
+        },
+        "auth": {
+          "$ref": "#/$defs/Auth",
+          "description": "How requests authenticate (streams may override it). Default `none`."
+        },
+        "budget": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Budget",
+              "description": "A request quota for the whole connection (every stream and the test)."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "categories": {
+          "description": "Catalog categories (`Security`, `Collaboration`, …).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "config": {
+          "description": "The setup form.",
+          "items": {
+            "$ref": "#/$defs/ConfigField"
+          },
+          "type": "array"
+        },
+        "description": {
+          "description": "One or two sentences: what is collected and how.",
+          "type": "string"
+        },
+        "discover": {
+          "description": "Requests run before the streams, cached for their `ttl`, readable as `discovery.<name>` everywhere after\n`auth` (a data region's base URL, the tenants of a partner account).",
+          "items": {
+            "$ref": "#/$defs/Discovery"
+          },
+          "type": "array"
+        },
+        "docs_url": {
+          "description": "The vendor's API documentation.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "errors": {
+          "description": "Error rules for every request, after the stream's own.",
+          "items": {
+            "$ref": "#/$defs/ErrorRule"
+          },
+          "type": "array"
+        },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Headers on every request (templates), before the stream's own.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "id": {
+          "description": "The connector's id: lowercase letters, digits, `-`, `_`, `.`; the catalog tile's id when it implements one\n(`have-i-been-pwned`). Also its jobs' provider, so it never changes once published.",
+          "type": "string"
+        },
+        "instance": {
+          "description": "What identifies the connected account or instance, as a template over `config` (`{{ config.base_url | host\n}}`): logs' `host`, `connection.instance`, part of every log's identity. Defaults to the connector id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "links": {
+          "description": "Links shown with the setup (a consent URL, the vendor's key page); `url` is a template over `config`.",
+          "items": {
+            "$ref": "#/$defs/Link"
+          },
+          "type": "array"
+        },
+        "logo": {
+          "description": "Logo name (`web/src/api/integrations/integrationLogos.generated.ts`); defaults to the first tile.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mock": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Mock",
+              "description": "Recorded answers for tests and the UI's mock mode."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "description": "The name shown in the catalog and on the connector page (`Have I Been Pwned`).",
+          "type": "string"
+        },
+        "native": {
+          "description": "A native connector compiled into the server that runs the streams (non-HTTP sources: SQS and S3,\nWebSockets); its streams may then leave `request` out.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "on_connect": {
+          "description": "Requests sent once when a connection is saved (starting a subscription the API needs before it answers).",
+          "items": {
+            "$ref": "#/$defs/Call"
+          },
+          "type": "array"
+        },
+        "publisher": {
+          "description": "Who wrote and maintains the package (`ObserveCraft` for bundled packages; a company or person otherwise).",
+          "type": "string"
+        },
+        "push": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Push",
+              "description": "The vendor sends to ObserveCraft itself (a log drain, OTLP, a webhook): the page shows where to point it,\nand the package's assets are installed with Integrations → Install. No connection is stored."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rate_limit": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RateLimit",
+              "description": "Rate limits for every stream (a stream's own replaces it)."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema_version": {
+          "description": "The manifest format: 1.",
+          "format": "int32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "setup": {
+          "description": "Setup instructions shown above the form (Markdown: where to create the key, which role it needs).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "description": "Logs' `source` (`ddsource`) and the source integration pipelines filter on; defaults to `id`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "streams": {
+          "description": "What is collected by polling (empty for a push-only package).",
+          "items": {
+            "$ref": "#/$defs/Stream"
+          },
+          "type": "array"
+        },
+        "tables": {
+          "description": "Static tables for mappings (`tables.event_types[record.type | str]`)."
+        },
+        "test": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Test",
+              "description": "The connection test (the page's \"Test connection\"); required with streams."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tiles": {
+          "description": "Catalog tile ids this connector makes available (`web/src/api/integrations/catalog.generated.json`); empty\nfor a connector without a Datadog tile.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tls": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Tls",
+              "description": "A client certificate for mutual TLS."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vendor": {
+          "description": "The vendor whose API is called.",
+          "type": "string"
+        },
+        "version": {
+          "description": "The package's own version (semver).",
+          "type": "string"
+        },
+        "webhook": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Webhook",
+              "description": "Events the vendor pushes instead (an inbound webhook on the intake)."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "name",
+        "publisher",
+        "vendor",
+        "description"
+      ],
+      "type": "object"
+    },
+    "Method": {
+      "enum": [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH"
+      ],
+      "type": "string"
+    },
+    "MetricAggregate": {
+      "enum": [
+        "sum",
+        "min",
+        "max",
+        "avg",
+        "count",
+        "p50",
+        "p75",
+        "p90",
+        "p95",
+        "p99"
+      ],
+      "type": "string"
+    },
+    "MetricKind": {
+      "enum": [
+        "gauge",
+        "count"
+      ],
+      "type": "string"
+    },
+    "MetricOut": {
+      "additionalProperties": false,
+      "description": "One metric from each record (or from each entry of `each`). Templates read the record context and `entry`.",
+      "properties": {
+        "aggregate": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MetricAggregate",
+              "description": "Combines the run's points of the same name, tags, host and time into one (min/max across entities, a\nlatency percentile over the records): `sum`, `min`, `max`, `avg`, `count`, `p50`, `p75`, `p90`, `p95`, `p99`."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "each": {
+          "description": "Template: a list, or an object whose entries are `{key, value}`: one point per entry, as `entry`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "examples": {
+          "description": "Metric names a templated `name` gives, for the catalog's Data Collected tab (default: a `tables.<t>[…]` name's\ntable values).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "filter": {
+          "description": "Template over the record: points for which it is falsy are skipped.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "host": {
+          "description": "Template: the host the series is about (none by default: accounts aren't hosts).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Template (`netbird.peer.connected`, `openai.usage.{{ entry.key }}`).",
+          "type": "string"
+        },
+        "tags": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Tags (templates; empty values are left out).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "tags_from": {
+          "description": "Template: an object of more tags (Prometheus labels).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "time": {
+          "description": "Template: the point's time (default the run's minute).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "$ref": "#/$defs/MetricKind"
+        },
+        "unit": {
+          "description": "Datadog unit name (`second`, `byte`), for the metric catalog and dashboards; sent as the points' OTLP unit. A\ntemplate for families (`{{ tables.units[entry.key] }}`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "description": "Template: a number (records whose value is null are skipped).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "Mock": {
+      "additionalProperties": false,
+      "description": "Recorded answers (fictional data: `example.com`, the e-commerce demo names) for the replay tests and mock mode.",
+      "properties": {
+        "config": {
+          "description": "The connection's configuration."
+        },
+        "expect": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Expectation"
+          },
+          "description": "What each stream (by id) and `test` must give.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "now": {
+          "description": "The run's time (RFC 3339).",
+          "type": "string"
+        },
+        "responses": {
+          "items": {
+            "$ref": "#/$defs/MockResponse"
+          },
+          "type": "array"
+        },
+        "secrets": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Its secrets (fake).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "now",
+        "responses"
+      ],
+      "type": "object"
+    },
+    "MockResponse": {
+      "additionalProperties": false,
+      "description": "A recorded answer, for the requests matching it (first match; the last match repeats).",
+      "properties": {
+        "body": {
+          "description": "The answer inline."
+        },
+        "body_contains": {
+          "description": "Text the request body must contain.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "file": {
+          "description": "The answer from a file of the package (`fixtures/events.json`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "method": {
+          "$ref": "#/$defs/Method"
+        },
+        "query": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Query parameters the request must have (others are ignored).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "status": {
+          "format": "int32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "url": {
+          "description": "The URL without its query.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "OAuthClient": {
+      "additionalProperties": false,
+      "properties": {
+        "client_auth": {
+          "$ref": "#/$defs/ClientAuth",
+          "description": "How the client authenticates to the token endpoint."
+        },
+        "client_id": {
+          "description": "Template.",
+          "type": "string"
+        },
+        "client_secret": {
+          "description": "Template.",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "More form parameters (`audience`, `resource`; templates).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "scopes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "token_url": {
+          "description": "Template.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token_url",
+        "client_id",
+        "client_secret"
+      ],
+      "type": "object"
+    },
+    "OAuthCode": {
+      "additionalProperties": false,
+      "properties": {
+        "authorize_params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "More query parameters of the consent page (`access_type: offline`, `prompt: consent`, `audience`; templates\nover `config`).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "authorize_url": {
+          "description": "Template over `config` (a tenant's host): the consent page.",
+          "type": "string"
+        },
+        "client_auth": {
+          "$ref": "#/$defs/ClientAuth",
+          "description": "How the client authenticates to the token endpoint."
+        },
+        "client_id": {
+          "description": "Template: the connection's own OAuth app (`{{ config.client_id }}`) instead of the operator's.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "client_secret": {
+          "description": "Template (`{{ secrets.client_secret }}`), with `client_id`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "More form parameters of the token requests (templates).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "pkce": {
+          "description": "PKCE (S256), default on; off for vendors refusing it.",
+          "type": "boolean"
+        },
+        "scope_separator": {
+          "description": "How scopes are joined (default a space; Slack and others take `,`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scopes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "token_url": {
+          "description": "Template over `config`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "authorize_url",
+        "token_url"
+      ],
+      "type": "object"
+    },
+    "OAuthRefresh": {
+      "additionalProperties": false,
+      "properties": {
+        "client_auth": {
+          "$ref": "#/$defs/ClientAuth"
+        },
+        "client_id": {
+          "description": "Template.",
+          "type": "string"
+        },
+        "client_secret": {
+          "description": "Template; may be empty for public clients.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "refresh_token": {
+          "description": "Template (usually `{{ secrets.refresh_token }}`).",
+          "type": "string"
+        },
+        "rotate": {
+          "description": "The secret field a rotated refresh token is saved into.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scopes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "token_url": {
+          "description": "Template.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token_url",
+        "client_id",
+        "refresh_token"
+      ],
+      "type": "object"
+    },
+    "Order": {
+      "enum": [
+        "oldest_first",
+        "newest_first",
+        "unordered"
+      ],
+      "type": "string"
+    },
+    "Output": {
+      "additionalProperties": false,
+      "description": "Where a stream's records go.",
+      "properties": {
+        "costs": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CostsOut",
+              "description": "Cloud Cost Management's costs (`otel.cloud_costs`), one row per record."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "events": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/EventsOut"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "logs": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LogsOut"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/MetricOut"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Pagination": {
+      "description": "How a stream reads past its first page. Templates here read `response`, `headers` (lowercase names),\n`records` (the page's), `page` and the request's variables.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "One page.",
+          "properties": {
+            "kind": {
+              "enum": [
+                "none"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A token from the answer (body or headers; any JSON value), sent back as `page.cursor`; stops when it is null\nor \"\".",
+          "properties": {
+            "kind": {
+              "enum": [
+                "cursor"
+              ],
+              "type": "string"
+            },
+            "next": {
+              "description": "Template.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "next",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The next page's URL from the answer (absolute or relative); stops when null or \"\".",
+          "properties": {
+            "kind": {
+              "enum": [
+                "next_url"
+              ],
+              "type": "string"
+            },
+            "method": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Method",
+                  "description": "The next pages' method when it isn't the first request's (`GET` after a `POST` that started the query);\nthey are then sent without the first request's body."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "next": {
+              "description": "Template.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "next",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The `Link` header's `rel=\"next\"` URL (GitHub, Okta, Shopify).",
+          "properties": {
+            "kind": {
+              "enum": [
+                "link_header"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`page.offset` from `start`, `size` records a page (`page.size`); stops on a short page, or when the offset\nreaches `total`.",
+          "properties": {
+            "kind": {
+              "enum": [
+                "offset"
+              ],
+              "type": "string"
+            },
+            "max": {
+              "description": "The largest offset the API accepts: a time window reaching it is split in two and read again.",
+              "format": "int64",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "size": {
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "start": {
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "total": {
+              "description": "Template: the number of records.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "size",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`page.number` from `start` (default 1), `size` records a page; stops on a short page or after `total_pages`.",
+          "properties": {
+            "kind": {
+              "enum": [
+                "page"
+              ],
+              "type": "string"
+            },
+            "size": {
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "start": {
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "total_pages": {
+              "description": "Template.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "size",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An asynchronous export: `create` starts it (`export.id` from `id`), `status` is polled on later runs until\n`ready`, then `chunk` reads each of `chunks` (`chunk` variable). The stream's `request` is not used.",
+          "properties": {
+            "chunk": {
+              "$ref": "#/$defs/Request",
+              "description": "Read with `export.id` and `chunk`."
+            },
+            "chunks": {
+              "description": "Template over the status answer: the chunks' ids.",
+              "type": "string"
+            },
+            "create": {
+              "$ref": "#/$defs/Request"
+            },
+            "failed": {
+              "description": "Template over the status answer: true when the export failed (it is started again).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "description": "Template over the create answer.",
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "async_export"
+              ],
+              "type": "string"
+            },
+            "ready": {
+              "description": "Template over the status answer: true when the chunks can be read.",
+              "type": "string"
+            },
+            "status": {
+              "$ref": "#/$defs/Request",
+              "description": "Polled with `export.id`."
+            }
+          },
+          "required": [
+            "create",
+            "id",
+            "status",
+            "ready",
+            "chunks",
+            "chunk",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Push": {
+      "additionalProperties": false,
+      "description": "Where a push-only vendor sends, shown on the connector page.",
+      "properties": {
+        "create": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Call",
+              "description": "A request creating the push job or webhook on the vendor's side with the config entered (a Cloudflare Logpush\njob, a PagerDuty webhook subscription); `push.url` is readable as `push_url`."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "endpoints": {
+          "description": "More endpoints the vendor sends to (a Vercel trace drain beside its log drain), each shown with its URL.",
+          "items": {
+            "$ref": "#/$defs/PushEndpoint"
+          },
+          "type": "array"
+        },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Headers the vendor must send (templates; `{{ api_key }}` is the org's ingest key placeholder).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "instructions": {
+          "description": "Steps in the vendor's console (Markdown); `{{ intake }}` and `{{ source }}` are replaced.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/PushKind"
+        },
+        "signature": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/PushSignature",
+              "description": "How the vendor signs its requests, checked by the intake when set."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "url": {
+          "description": "The URL to paste in the vendor's console (a template over `intake`, `source`, `config`; default by kind:\n`{{ intake }}/api/v2/logs?ddsource={{ source }}`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "instructions"
+      ],
+      "type": "object"
+    },
+    "PushEndpoint": {
+      "additionalProperties": false,
+      "description": "Another endpoint of a push package.",
+      "properties": {
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "instructions": {
+          "description": "Markdown shown with it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/PushKind"
+        },
+        "label": {
+          "description": "What is sent there (`Traces`).",
+          "type": "string"
+        },
+        "url": {
+          "description": "As `push.url` (default by kind).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "label",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "PushKind": {
+      "enum": [
+        "logs",
+        "otlp",
+        "webhook",
+        "splunk_hec"
+      ],
+      "type": "string"
+    },
+    "PushSignature": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "$ref": "#/$defs/SignatureAlgorithm"
+        },
+        "header": {
+          "description": "The header carrying it (`x-vercel-signature`).",
+          "type": "string"
+        },
+        "prefix": {
+          "description": "Text before the value in the header, dropped before comparing (`sha256=` for GitHub's `X-Hub-Signature-256`,\n`Bearer ` for a token).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "secret": {
+          "description": "The config field holding the shared secret.",
+          "type": "string"
+        },
+        "tolerance": {
+          "description": "Stripe: how old a signed timestamp may be (default `5m`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "header",
+        "algorithm",
+        "secret"
+      ],
+      "type": "object"
+    },
+    "RateLimit": {
+      "additionalProperties": false,
+      "properties": {
+        "min_interval": {
+          "description": "The least time between two requests. Duration.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requests_per_minute": {
+          "format": "int32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "Request": {
+      "additionalProperties": false,
+      "description": "One HTTP request. Every string is a template.",
+      "properties": {
+        "body": {
+          "description": "A JSON body (a tree of templates): GraphQL queries and variables, search bodies with paging fields."
+        },
+        "form": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "A form body (`application/x-www-form-urlencoded`).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "format": {
+          "$ref": "#/$defs/Format",
+          "description": "The answer's format."
+        },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "method": {
+          "$ref": "#/$defs/Method"
+        },
+        "query": {
+          "description": "Query parameters; a value rendering to `null` or \"\" is left out, a list repeats the parameter."
+        },
+        "url": {
+          "description": "The URL; its host must not change while paginating.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "SelectOption": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "type": "object"
+    },
+    "SignatureAlgorithm": {
+      "enum": [
+        "hmac_sha1",
+        "hmac_sha256",
+        "stripe",
+        "pagerduty_v3",
+        "token"
+      ],
+      "type": "string"
+    },
+    "Signer": {
+      "enum": [
+        "duo_hmac_v2",
+        "duo_hmac_v5",
+        "cortex_xdr_advanced",
+        "trend_micro_apex_central",
+        "akamai_edgegrid"
+      ],
+      "type": "string"
+    },
+    "Stream": {
+      "additionalProperties": false,
+      "description": "Something collected: one request (with pagination) per run, its records mapped to logs, metrics, events or\ncosts.",
+      "properties": {
+        "auth": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Auth",
+              "description": "Replaces the manifest's `auth`."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "budget": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Budget",
+              "description": "A request quota for this stream alone (a daily quota per log type)."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "default_enabled": {
+          "description": "Whether a new connection collects it (admins can turn streams on and off).",
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "errors": {
+          "description": "Checked before the manifest's.",
+          "items": {
+            "$ref": "#/$defs/ErrorRule"
+          },
+          "type": "array"
+        },
+        "expand": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Expand",
+              "description": "Index-then-download: each record of the pages is an index entry (`parent`) whose `request` is read, and its\nrecords replace it (Salesforce EventLogFile CSVs, Microsoft 365 content blobs)."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "filter": {
+          "description": "Template over a record: records for which it is falsy are skipped.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "for_each": {
+          "description": "A list (template over `config`, `discovery`, `tables`): the stream runs once per item, as `item`, each with\nits own cursor (domains, projects, tenants, metric groups).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "`^[a-z][a-z0-9_]*$`: the job's scope.",
+          "type": "string"
+        },
+        "incremental": {
+          "$ref": "#/$defs/Incremental",
+          "description": "What a run reads again and what it skips."
+        },
+        "interval": {
+          "description": "How often it runs. Duration, at least 1m, default 1m.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lookups": {
+          "description": "Other endpoints read once per run (cached for `ttl`) to enrich records: `lookups.<name>[key]`.",
+          "items": {
+            "$ref": "#/$defs/Lookup"
+          },
+          "type": "array"
+        },
+        "max_pages": {
+          "description": "Pages read per run (default 20); a time window not read to its end carries on next run. A list read again\nevery run (`none`, `new_records`) that has more pages warns that the rest was skipped.",
+          "format": "int32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "output": {
+          "$ref": "#/$defs/Output"
+        },
+        "pagination": {
+          "$ref": "#/$defs/Pagination"
+        },
+        "rate_limit": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RateLimit",
+              "description": "Replaces the manifest's rate limit."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "record_id": {
+          "description": "Template over a record: its identity, for dedupe and logs' identity. Without one, the record's content is.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "records": {
+          "description": "Template over `response`, `headers`: the page's records (a list; an object is one record). Default\n`{{ response }}`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "request": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Request",
+              "description": "Required unless `native` or an `async_export`."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "truncated": {
+          "description": "Template over a page (`response`, `headers`, `records`): true when the API cut its answer short (a list capped\nat its newest 10,000 records). The run then warns that records may be missing, unless the page already reaches\npast the window (older records: nothing missed).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vars": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Values computed per record (templates over the record), readable as `vars.<name>` in the output. A var can't\nread another var.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "output"
+      ],
+      "type": "object"
+    },
+    "Test": {
+      "additionalProperties": false,
+      "description": "The connection test: one request (or a stream's first page) and the message shown.",
+      "properties": {
+        "errors": {
+          "items": {
+            "$ref": "#/$defs/ErrorRule"
+          },
+          "type": "array"
+        },
+        "failure": {
+          "description": "Template: the message when `success` is false.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "description": "Template over `response`, `records`: the success message.",
+          "type": "string"
+        },
+        "request": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Request"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stream": {
+          "description": "A stream whose first page is read instead of `request` (`records` is then its records).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "success": {
+          "description": "Template over `response`: whether it worked (default: the request succeeded).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "type": "object"
+    },
+    "TimeCursor": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "$ref": "#/$defs/CursorValue",
+          "description": "Where the cursor moves after a full window: its end, or the newest record's time."
+        },
+        "lookback": {
+          "description": "How far back the first run reads. Duration, default 1d.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "max_window": {
+          "description": "The largest window per run (catching up in steps). Duration.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "order": {
+          "$ref": "#/$defs/Order",
+          "description": "The order the API answers in: `newest_first` and `unordered` windows not read to their end carry on next run\nfrom where they stopped (the cursor moves only once a window is read); `oldest_first` ones move the cursor to\nthe last record read. A `newest_first` page with a record older than the window ends the window (lists the\nrequest doesn't filter by time)."
+        },
+        "overlap": {
+          "description": "How far before the cursor each window starts (late data); records already sent are skipped by id. Duration,\ndefault 0s.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "record_time": {
+          "description": "Template over a record: its time (any form `epoch_ms` reads). Records outside the window are skipped.",
+          "type": "string"
+        },
+        "settle": {
+          "description": "How recent a record must not be to be read (still being written). Duration, default 0s.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "slice": {
+          "description": "Splits the window into slices read oldest first (APIs limiting a request's range). Duration.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "record_time"
+      ],
+      "type": "object"
+    },
+    "Tls": {
+      "additionalProperties": false,
+      "properties": {
+        "certificate": {
+          "description": "The client certificate chain in PEM (template, usually a secret).",
+          "type": "string"
+        },
+        "key": {
+          "description": "Its private key in PEM (template, a secret).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "certificate",
+        "key"
+      ],
+      "type": "object"
+    },
+    "TokenExchange": {
+      "additionalProperties": false,
+      "properties": {
+        "capture": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Values taken from the answer (templates over `response`, `headers`): `token`, `base_url`, `cookie`, …",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "expires_in": {
+          "description": "Seconds the values are valid, from the answer (template); else `ttl`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Headers sent on every request (templates over `auth`, `config`, `secrets`); default `Authorization: Bearer\n{{ auth.token }}`.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "jwt": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/JwtSpec",
+              "description": "A JWT signed for the login request, as `auth.jwt` (GitHub Apps: the app's JWT gets an installation token)."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request": {
+          "$ref": "#/$defs/Request",
+          "description": "The login request (templates may read `secrets`, and `auth.jwt` with `jwt`)."
+        },
+        "ttl": {
+          "description": "Duration, default 1h.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "request",
+        "capture"
+      ],
+      "type": "object"
+    },
+    "Webhook": {
+      "additionalProperties": false,
+      "description": "An inbound webhook (`/intake/webhook/<name>` on the intake), mapped like a stream's logs. `record` is each of\n`records` (template over `body`, default the body).",
+      "properties": {
+        "events": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/EventsOut",
+              "description": "Each record as an event (Event Management)."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "filter": {
+          "description": "Template over `record`: records for which it is falsy are dropped (pings, test deliveries).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "logs": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LogsOut",
+              "description": "Each record as a log."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "description": "The URL's last segment (default the id).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "record_id": {
+          "description": "Template over `record`: the record's id (a log's identity: a delivery retried is stored once). Default: the\nrecord's JSON.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "records": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://observecraft.dev/schemas/connector.schema.json",
+  "$ref": "#/$defs/Manifest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Generated by `oc-connector schema` from server/crates/oc-connectors/src/manifest.rs; see docs/connectors.md.",
+  "title": "ObserveCraft connector package (connector.yaml)"
+}

@@ -1,0 +1,188 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.domains_count",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "domain",
+          "shop.example.com"
+        ],
+        [
+          "status",
+          "verified"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.domain_status",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "domain",
+          "shop.example.com"
+        ],
+        [
+          "status",
+          "verified"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.domains_count",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "domain",
+          "www.shop.example.com"
+        ],
+        [
+          "status",
+          "verified"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.domain_status",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "domain",
+          "www.shop.example.com"
+        ],
+        [
+          "status",
+          "verified"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.domains_count",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "domain",
+          "api.example.com"
+        ],
+        [
+          "status",
+          "verified"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.domain_status",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "domain",
+          "api.example.com"
+        ],
+        [
+          "status",
+          "verified"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "c0a1b2c3d4e5f601": {},
+      "c0a1b2c3d4e5f602": {},
+      "c0a1b2c3d4e5f603": {}
+    }
+  }
+}

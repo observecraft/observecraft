@@ -1,0 +1,48 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c51d-6380-7138-b0d1-eea9694a2995"
+      },
+      "action": "User created",
+      "actor": "jane.doe@example.com",
+      "date": 1794308400000,
+      "ddsource": "valence-security",
+      "details": "Created user john.smith@example.com with role \"viewer\" with access to all platforms and permission sets None",
+      "host": "app.valencesecurity.com",
+      "ipAddress": "203.0.113.24",
+      "message": "Created user john.smith@example.com with role \"viewer\" with access to all platforms and permission sets None",
+      "service": "audit-logs",
+      "status": "ok",
+      "success": true,
+      "timeEpoch": 1794308400
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c526-8b40-7ade-b84c-96bb4eebd8cb"
+      },
+      "action": "Login",
+      "actor": "john.smith@example.com",
+      "date": 1794309000000,
+      "ddsource": "valence-security",
+      "details": "Login failed for john.smith@example.com",
+      "host": "app.valencesecurity.com",
+      "ipAddress": "198.51.100.12",
+      "message": "Login failed for john.smith@example.com",
+      "service": "audit-logs",
+      "status": "error",
+      "success": false,
+      "timeEpoch": 1794309000
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

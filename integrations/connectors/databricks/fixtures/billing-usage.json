@@ -1,0 +1,39 @@
+{
+  "statement_id": "01ef0000-0000-1000-8000-000000000001",
+  "status": { "state": "SUCCEEDED" },
+  "manifest": {
+    "format": "JSON_ARRAY",
+    "schema": {
+      "column_count": 12,
+      "columns": [
+        { "name": "usage_date", "type_name": "DATE", "position": 0 },
+        { "name": "workspace_id", "type_name": "STRING", "position": 1 },
+        { "name": "sku_name", "type_name": "STRING", "position": 2 },
+        { "name": "billing_origin_product", "type_name": "STRING", "position": 3 },
+        { "name": "usage_unit", "type_name": "STRING", "position": 4 },
+        { "name": "cluster_id", "type_name": "STRING", "position": 5 },
+        { "name": "job_id", "type_name": "STRING", "position": 6 },
+        { "name": "warehouse_id", "type_name": "STRING", "position": 7 },
+        { "name": "endpoint_name", "type_name": "STRING", "position": 8 },
+        { "name": "usage_quantity", "type_name": "DECIMAL", "position": 9 },
+        { "name": "list_cost", "type_name": "DOUBLE", "position": 10 },
+        { "name": "currency_code", "type_name": "STRING", "position": 11 }
+      ]
+    },
+    "total_chunk_count": 1,
+    "total_row_count": 5,
+    "truncated": false
+  },
+  "result": {
+    "chunk_index": 0,
+    "row_offset": 0,
+    "row_count": 5,
+    "data_array": [
+      ["2026-11-08", "1234567890123456", "PREMIUM_JOBS_COMPUTE", "JOBS", "DBU", "1108-093000-orders01", "512", null, null, "42.500000", "6.375", "USD"],
+      ["2026-11-08", "1234567890123456", "PREMIUM_SERVERLESS_SQL_COMPUTE_US_EAST_N_VIRGINIA", "SQL", "DBU", null, null, "0123456789abcdef", null, "18.250000", "12.775", "USD"],
+      ["2026-11-09", "1234567890123456", "PREMIUM_JOBS_COMPUTE", "JOBS", "DBU", "1109-093000-orders02", "512", null, null, "40.000000", "6.0", "USD"],
+      ["2026-11-09", "1234567890123456", "PREMIUM_SERVERLESS_REAL_TIME_INFERENCE_US_EAST_N_VIRGINIA", "MODEL_SERVING", "DBU", null, null, null, "product-recs", "96.000000", "6.72", "USD"],
+      ["2026-11-09", "1234567890123456", "PREMIUM_NETWORKING_DATA_TRANSFER", "NETWORKING", "GB", null, null, null, null, "3.000000", null, null]
+    ]
+  }
+}

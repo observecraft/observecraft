@@ -1,0 +1,88 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4af-7f2b-7adf-b183-22ded3704bfd"
+      },
+      "bytes_scanned": 734003200.0,
+      "compilation_time": 210.0,
+      "credits_used_cloud_services": 0.000123,
+      "database_name": "SHOP",
+      "date": "2026-11-10T08:59:58.123+00:00",
+      "ddsource": "snowflake",
+      "duration": 5321000000,
+      "end_time": "2026-11-10T08:59:58.123+00:00",
+      "execution_status": "SUCCESS",
+      "execution_time": 5012.0,
+      "host": "exampleorg-analytics",
+      "message": "SELECT by ETL_SVC on ANALYTICS_WH: SUCCESS",
+      "query_id": "01b8a2c4-0000-1a2b-0000-00000000abcd",
+      "query_text": "select order_id, total from orders where created_at > dateadd(day, -1, current_date())",
+      "query_type": "SELECT",
+      "queued_overload_time": 0.0,
+      "role_name": "TRANSFORMER",
+      "rows_produced": 1842.0,
+      "schema_name": "PUBLIC",
+      "service": "query_history",
+      "session_id": "25044301234567",
+      "start_time": "2026-11-10T08:59:52.802+00:00",
+      "status": "info",
+      "total_elapsed_time": 5321.0,
+      "user_name": "ETL_SVC",
+      "usr": {
+        "name": "ETL_SVC"
+      },
+      "warehouse_name": "ANALYTICS_WH",
+      "warehouse_size": "X-Small"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4ca-ff5c-792c-9c41-8a3ff71795a0"
+      },
+      "bytes_scanned": 0.0,
+      "compilation_time": 402.0,
+      "credits_used_cloud_services": 0.000021,
+      "database_name": "SHOP",
+      "date": "2026-11-10T09:30:00.412+00:00",
+      "ddsource": "snowflake",
+      "duration": 412000000,
+      "end_time": "2026-11-10T09:30:00.412+00:00",
+      "error": {
+        "code": "002003",
+        "message": "SQL compilation error: Object 'INVENTORY_STAGE' does not exist or not authorized."
+      },
+      "execution_status": "FAIL",
+      "execution_time": 0.0,
+      "host": "exampleorg-analytics",
+      "message": "INSERT by JORDAN_PATEL on ANALYTICS_WH: FAIL (SQL compilation error: Object 'INVENTORY_STAGE' does not exist or not authorized.)",
+      "query_id": "01b8a2c4-0000-1a2b-0000-00000000abce",
+      "query_text": "insert into inventory_snapshots select * from inventory_stage",
+      "query_type": "INSERT",
+      "queued_overload_time": 0.0,
+      "role_name": "ANALYST",
+      "rows_produced": 0.0,
+      "schema_name": "PUBLIC",
+      "service": "query_history",
+      "session_id": "25044301234568",
+      "start_time": "2026-11-10T09:30:00.000+00:00",
+      "status": "error",
+      "total_elapsed_time": 412.0,
+      "user_name": "JORDAN_PATEL",
+      "usr": {
+        "name": "JORDAN_PATEL"
+      },
+      "warehouse_name": "ANALYTICS_WH",
+      "warehouse_size": "X-Small"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794308400000
+      }
+    }
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bb-2ee0-75f9-85f6-fe472e000ca2"
+      },
+      "category": "command_and_control",
+      "certainty": 60,
+      "d_type_vname": "Hidden HTTPS Tunnel",
+      "date": "2026-11-10T09:12:44Z",
+      "ddsource": "vectra",
+      "detail": {
+        "bytes_sent": 482113,
+        "dst_ips": [
+          "203.0.113.40"
+        ],
+        "dst_ports": [
+          443
+        ]
+      },
+      "detection_href": "https://example.portal.vectra.ai/detections/36224?detail_id=148200",
+      "detection_id": 36224,
+      "detection_type": "Hidden HTTPS Tunnel",
+      "entity_id": 1083,
+      "entity_name": "i-0a1b2c3d4e5f60003",
+      "entity_uid": "i-0a1b2c3d4e5f60003",
+      "event_timestamp": 1794301964000,
+      "host": "example.portal.vectra.ai",
+      "id": 146679,
+      "message": "Hidden HTTPS Tunnel on i-0a1b2c3d4e5f60003",
+      "mitre": [
+        "T1071",
+        "T1573"
+      ],
+      "service": "vectra",
+      "severity": 7,
+      "status": "critical",
+      "threat": 70,
+      "triaged": false,
+      "type": "host",
+      "url": "https://example.portal.vectra.ai/hosts/1083",
+      "vendor": {
+        "endpoint": "detection-events"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e9-3808-7f29-b209-78e485033a72"
+      },
+      "category": "exfiltration",
+      "certainty": 50,
+      "d_type_vname": "M365 Suspicious Mail Forwarding",
+      "date": "2026-11-10T10:03:01Z",
+      "ddsource": "vectra",
+      "detail": {
+        "forward_to": "archive@example.net",
+        "operation": "New-InboxRule"
+      },
+      "detection_href": "https://example.portal.vectra.ai/detections/36230?detail_id=148231",
+      "detection_id": 36230,
+      "detection_type": "M365 Suspicious Mail Forwarding",
+      "entity_id": 1090,
+      "entity_name": "O365:jane.doe@example.com",
+      "entity_uid": "O365:jane.doe@example.com",
+      "event_timestamp": 1794304981000,
+      "host": "example.portal.vectra.ai",
+      "id": 146680,
+      "message": "M365 Suspicious Mail Forwarding on O365:jane.doe@example.com",
+      "mitre": [
+        "T1114"
+      ],
+      "service": "vectra",
+      "severity": 4,
+      "status": "notice",
+      "threat": 35,
+      "triaged": false,
+      "type": "account",
+      "url": "https://example.portal.vectra.ai/accounts/1090",
+      "vendor": {
+        "endpoint": "detection-events"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": 146680
+      }
+    }
+  }
+}

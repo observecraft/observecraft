@@ -1,0 +1,125 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c54b-2a40-7421-92dd-9a86b65beaf8"
+      },
+      "api_version": "2026-10-29.acacia",
+      "created": 1794311400,
+      "data": {
+        "object": {
+          "amount": 4999,
+          "currency": "eur",
+          "customer": "cus_RaBcDeFgHi0001",
+          "failure_code": "card_declined",
+          "failure_message": "Your card was declined.",
+          "id": "ch_3QBcDeFgHiJkLmN1",
+          "object": "charge",
+          "outcome": {
+            "network_status": "declined_by_network",
+            "reason": "generic_decline",
+            "risk_level": "normal",
+            "type": "issuer_declined"
+          },
+          "payment_intent": "pi_3QBcDeFgHiJkLmN1",
+          "status": "failed"
+        }
+      },
+      "date": "2026-11-10T11:50:00.000Z",
+      "ddsource": "stripe",
+      "evt": {
+        "name": "charge.failed",
+        "outcome": "failure"
+      },
+      "host": "example-shop",
+      "id": "evt_1QBcDeFgHiJkLmN1",
+      "livemode": false,
+      "message": "charge.failed ch_3QBcDeFgHiJkLmN1 (Your card was declined.)",
+      "object": "event",
+      "pending_webhooks": 0,
+      "request": {
+        "id": "req_AbCdEf123456",
+        "idempotency_key": "3f0e8f1c-1a2b-4c3d-9e8f-0a1b2c3d4e5f"
+      },
+      "service": "stripe",
+      "status": "error",
+      "type": "charge.failed"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c514-3bc0-7f08-9814-8cecd402f991"
+      },
+      "api_version": "2026-10-29.acacia",
+      "created": 1794307800,
+      "data": {
+        "object": {
+          "amount_paid": 2900,
+          "currency": "eur",
+          "customer": "cus_RaBcDeFgHi0002",
+          "id": "in_1QBcDeFgHiJkLmN2",
+          "object": "invoice",
+          "status": "paid",
+          "subscription": "sub_1QBcDeFgHiJkLmN2"
+        }
+      },
+      "date": "2026-11-10T10:50:00.000Z",
+      "ddsource": "stripe",
+      "evt": {
+        "name": "invoice.paid",
+        "outcome": "success"
+      },
+      "host": "example-shop",
+      "id": "evt_1QBcDeFgHiJkLmN2",
+      "livemode": false,
+      "message": "invoice.paid in_1QBcDeFgHiJkLmN2",
+      "object": "event",
+      "pending_webhooks": 0,
+      "service": "stripe",
+      "status": "info",
+      "type": "invoice.paid"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4af-8680-70bb-b29f-4dbe2e2a3dc2"
+      },
+      "api_version": "2026-10-29.acacia",
+      "created": 1794301200,
+      "data": {
+        "object": {
+          "amount": 12900,
+          "charge": "ch_3QAaBbCcDdEeFf03",
+          "currency": "eur",
+          "id": "dp_1QBcDeFgHiJkLmN3",
+          "object": "dispute",
+          "reason": "fraudulent",
+          "status": "needs_response"
+        }
+      },
+      "date": "2026-11-10T09:00:00.000Z",
+      "ddsource": "stripe",
+      "evt": {
+        "name": "charge.dispute.created",
+        "outcome": "success"
+      },
+      "host": "example-shop",
+      "id": "evt_1QBcDeFgHiJkLmN3",
+      "livemode": false,
+      "message": "charge.dispute.created dp_1QBcDeFgHiJkLmN3",
+      "object": "event",
+      "pending_webhooks": 0,
+      "service": "stripe",
+      "status": "warn",
+      "type": "charge.dispute.created"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

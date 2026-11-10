@@ -1,0 +1,112 @@
+{
+  "totalCount": 2,
+  "count": 2,
+  "items": [
+    {
+      "uuid": "5e1c0000-0000-4000-8000-000000000001",
+      "source": "endpointActivityData",
+      "detectedDateTime": "2026-11-10T10:58:12Z",
+      "ingestedDateTime": "2026-11-10T11:00:40Z",
+      "entityType": "endpoint",
+      "entityName": "i-0a1b2c3d4e5f60002(10.0.12.34)",
+      "endpoint": {
+        "agentGuid": "801b7e5f-0000-4000-8000-000000000001",
+        "endpointName": "i-0a1b2c3d4e5f60002",
+        "ips": [
+          "10.0.12.34"
+        ]
+      },
+      "filters": [
+        {
+          "id": "F1507",
+          "name": "Creation of Scheduled Task",
+          "description": "Creation of Scheduled Task via command line",
+          "riskLevel": "low",
+          "type": "preset",
+          "mitreTacticIds": [
+            "TA0002",
+            "TA0003"
+          ],
+          "mitreTechniqueIds": [
+            "T1053",
+            "T1053.005"
+          ],
+          "highlightedObjects": [
+            {
+              "field": "processCmd",
+              "type": "command_line",
+              "value": "C:\\Windows\\System32\\schtasks.exe /create /tn updater /tr C:\\ProgramData\\tools\\invoice-tool.exe"
+            }
+          ]
+        }
+      ],
+      "detail": {
+        "eventId": "1",
+        "eventSubId": 2,
+        "filterRiskLevel": "low",
+        "endpointHostName": "i-0a1b2c3d4e5f60002",
+        "processCmd": "C:\\Windows\\System32\\schtasks.exe /create /tn updater /tr C:\\ProgramData\\tools\\invoice-tool.exe",
+        "processUser": "build-agent",
+        "userDomain": "SHOP",
+        "osDescription": "Windows Server 2022 (64 bit) build 20348",
+        "tags": [
+          "MITRE.T1053.005",
+          "XSAE.F1507"
+        ]
+      }
+    },
+    {
+      "uuid": "5e1c0000-0000-4000-8000-000000000002",
+      "source": "endpointActivityData",
+      "detectedDateTime": "2026-11-10T11:20:01Z",
+      "ingestedDateTime": "2026-11-10T11:21:15Z",
+      "entityType": "endpoint",
+      "entityName": "i-0a1b2c3d4e5f60001(10.0.11.20)",
+      "endpoint": {
+        "agentGuid": "801b7e5f-0000-4000-8000-000000000002",
+        "endpointName": "i-0a1b2c3d4e5f60001",
+        "ips": [
+          "10.0.11.20"
+        ]
+      },
+      "filters": [
+        {
+          "id": "F1507",
+          "name": "Encoded PowerShell Command",
+          "description": "Encoded PowerShell Command via command line",
+          "riskLevel": "medium",
+          "type": "preset",
+          "mitreTacticIds": [
+            "TA0002"
+          ],
+          "mitreTechniqueIds": [
+            "T1059.001"
+          ],
+          "highlightedObjects": [
+            {
+              "field": "processCmd",
+              "type": "command_line",
+              "value": "powershell.exe -enc SQBFAFgA"
+            }
+          ]
+        }
+      ],
+      "detail": {
+        "eventId": "3",
+        "eventSubId": 204,
+        "filterRiskLevel": "medium",
+        "endpointHostName": "i-0a1b2c3d4e5f60001",
+        "processCmd": "powershell.exe -enc SQBFAFgA",
+        "processUser": "svc-orders",
+        "userDomain": "SHOP",
+        "src": "10.0.11.20",
+        "dst": "198.51.100.40",
+        "dpt": 443,
+        "osDescription": "Windows 11 Pro (64 bit) build 22631",
+        "tags": [
+          "MITRE.T1059.001"
+        ]
+      }
+    }
+  ]
+}

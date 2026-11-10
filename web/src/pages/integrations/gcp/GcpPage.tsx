@@ -15,6 +15,8 @@ import '../integrations.css';
 import '../aws/aws.css';
 
 const SERVICES = seed.services as GcpService[];
+/** User-defined metric domains, collected only once turned on (gcp/naming.rs collected). */
+const CUSTOM = seed.custom_namespaces as { prefix: string; short: string; name: string }[];
 const DESCRIPTION = 'Google Cloud is a collection of cloud services. The integration collects Cloud Monitoring metrics from the projects a service account can see, which ObserveCraft impersonates.';
 const splitList = (s: string) =>
   s
@@ -234,11 +236,14 @@ function Save({ dirty, pending, onSave }: { dirty: boolean; pending: boolean; on
   );
 }
 
-function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="aws-toggle">
       <button type="button" role="switch" aria-checked={value} className={`switch${value ? ' on' : ''}`} onClick={() => onChange(!value)} />
-      <span>{label}</span>
+      <span>
+        {label}
+        {hint && <small className="muted">{hint}</small>}
+      </span>
     </label>
   );
 }
@@ -288,23 +293,54 @@ const RESOURCE_TYPES: [string, string][] = [
 
 function Metrics({ config, pending, onSave }: { config: GcpConfig; pending: boolean; onSave: (i: GcpAccountInput) => void }) {
   const filtersOf = (type: string) => (config.monitored_resource_configs.find((c) => c.type === type)?.filters ?? []).join(', ');
+  const isCustom = (id: string) => CUSTOM.some((c) => c.short === id);
   const [automute, setAutomute] = useState(config.automute);
+  const [quota, setQuota] = useState(config.is_per_project_quota_enabled);
+  const [regions, setRegions] = useState(config.region_filter_configs.join(', '));
+  const [global, setGlobal] = useState(config.is_global_location_enabled);
   const [filters, setFilters] = useState<Record<string, string>>(Object.fromEntries(RESOURCE_TYPES.map(([t]) => [t, filtersOf(t)])));
-  const [disabled, setDisabled] = useState<string[]>(config.metric_namespace_configs.filter((c) => c.disabled).map((c) => c.id));
+  const [disabled, setDisabled] = useState<string[]>(config.metric_namespace_configs.filter((c) => c.disabled && !isCustom(c.id)).map((c) => c.id));
+  const [custom, setCustom] = useState<string[]>(config.metric_namespace_configs.filter((c) => !c.disabled && isCustom(c.id)).map((c) => c.id));
   const monitored = RESOURCE_TYPES.map(([type]) => ({ type, filters: splitList(filters[type]) })).filter((c) => c.filters.length);
-  const namespaces = disabled.map((id) => ({ id, disabled: true, filters: [] }));
+  const namespaces = [...disabled.map((id) => ({ id, disabled: true, filters: [] })), ...custom.map((id) => ({ id, disabled: false, filters: [] }))];
+  const saved = config.metric_namespace_configs
+    .filter((c) => (isCustom(c.id) ? !c.disabled : c.disabled))
+    .map((c) => `${c.id}:${!!c.disabled}`)
+    .sort()
+    .join();
   const dirty =
     automute !== config.automute ||
+    quota !== config.is_per_project_quota_enabled ||
+    global !== config.is_global_location_enabled ||
+    splitList(regions).join() !== config.region_filter_configs.join() ||
     JSON.stringify(monitored) !== JSON.stringify(config.monitored_resource_configs.filter((c) => c.filters.length)) ||
-    disabled.slice().sort().join() !==
-      config.metric_namespace_configs
-        .filter((c) => c.disabled)
-        .map((c) => c.id)
-        .sort()
-        .join();
+    namespaces
+      .map((c) => `${c.id}:${c.disabled}`)
+      .sort()
+      .join() !== saved;
+  const switchOf = (name: string, on: boolean, toggle: () => void) => (
+    <button type="button" role="switch" aria-label={name} aria-checked={on} className={`switch${on ? ' on' : ''}`} onClick={toggle} />
+  );
   return (
     <div className="aws-form">
-      <Toggle label="Mute monitors for expected instance shutdowns" value={automute} onChange={setAutomute} />
+      <Toggle
+        label="Mute monitors for expected instance shutdowns"
+        hint="Not applied yet: stored for Terraform and API clients; monitors aren't muted when an instance is stopped or preempted."
+        value={automute}
+        onChange={setAutomute}
+      />
+      <Toggle
+        label="Bill API calls to each monitored project's quota"
+        hint="Not applied yet: stored for Terraform and API clients; Cloud Monitoring calls count against the service account's project."
+        value={quota}
+        onChange={setQuota}
+      />
+      <h4 className="aws-subhead">Locations</h4>
+      <label className="rt-field">
+        <span>Regions, zones or multi-regions</span>
+        <input value={regions} onChange={(e) => setRegions(e.target.value)} placeholder="europe-west1, us-central1-a, eu (empty: all)" />
+      </label>
+      <Toggle label="Collect global resources" hint="Resources without a location, or located in global." value={global} onChange={setGlobal} />
       <h4 className="aws-subhead">Resource filters</h4>
       <div className="aws-note">
         <Info size={16} />
@@ -325,19 +361,42 @@ function Metrics({ config, pending, onSave }: { config: GcpConfig; pending: bool
               <span>
                 {s.name} <span className="muted mono">gcp.{s.short}.*</span>
               </span>
-              <button
-                type="button"
-                role="switch"
-                aria-label={s.name}
-                aria-checked={on}
-                className={`switch${on ? ' on' : ''}`}
-                onClick={() => setDisabled((d) => (on ? [...d, s.short] : d.filter((x) => x !== s.short)))}
-              />
+              {switchOf(s.name, on, () => setDisabled((d) => (on ? [...d, s.short] : d.filter((x) => x !== s.short))))}
             </li>
           );
         })}
       </ul>
-      <Save dirty={dirty} pending={pending} onSave={() => onSave({ automute, monitored_resource_configs: monitored, metric_namespace_configs: namespaces })} />
+      <h4 className="aws-subhead">User-defined metrics</h4>
+      <ul className="aws-source-list aws-namespaces">
+        {CUSTOM.map((c) => {
+          const on = custom.includes(c.short);
+          return (
+            <li key={c.short}>
+              <span>
+                {c.name}{' '}
+                <span className="muted mono">
+                  {c.prefix}* → gcp.{c.short}.*
+                </span>
+              </span>
+              {switchOf(c.name, on, () => setCustom((d) => (on ? d.filter((x) => x !== c.short) : [...d, c.short])))}
+            </li>
+          );
+        })}
+      </ul>
+      <Save
+        dirty={dirty}
+        pending={pending}
+        onSave={() =>
+          onSave({
+            automute,
+            is_per_project_quota_enabled: quota,
+            is_global_location_enabled: global,
+            region_filter_configs: splitList(regions),
+            monitored_resource_configs: monitored,
+            metric_namespace_configs: namespaces,
+          })
+        }
+      />
     </div>
   );
 }

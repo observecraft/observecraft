@@ -1,11 +1,17 @@
 // A dashboard per AWS service, Azure resource type and Google Cloud service, as Datadog has one for each service of its cloud
-// integrations: the service's icon and what it shows, its key numbers, then every metric the service publishes
-// (scripts/import-cloud-metrics.mjs) over time by the service's resource. Our own dashboards: Datadog's aren't open.
+// integrations: the service's icon, what it shows, its monitors and key numbers, then groups of charts. The most used AWS
+// services, Azure resource types and Google Cloud services have a layout designed for them (scripts/aws-service-layouts.mjs,
+// scripts/azure-service-layouts.mjs, scripts/gcp-service-layouts.mjs); the others chart every metric the service
+// publishes (scripts/import-cloud-metrics.mjs) by the service's resource, grouped by what it measures. Our own
+// dashboards: Datadog's aren't open.
 // They join the integration dashboards an org gets once the service's metrics arrive (routes/integration_dashboards.rs).
 // node scripts/cloud-service-dashboards.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import { AWS_LAYOUTS, queriesOver } from './aws-service-layouts.mjs';
+import { AZURE_LAYOUTS } from './azure-service-layouts.mjs';
+import { GCP_LAYOUTS } from './gcp-service-layouts.mjs';
 import { convertDashboard } from './import-integration-dashboards.mjs';
 
 const seeds = new URL('../server/seeds/', import.meta.url);
@@ -19,7 +25,8 @@ const underscored = (s) =>
     .replace(/^_+|_+$/g, '');
 const snake = (m) => underscored(m.replace(/([a-z])([A-Z])/g, '$1_$2'));
 
-/** The statistics the AWS crawler reads and their name suffixes (aws/naming.rs STATS); others read the average. */
+/** The suffixes of the statistics the AWS crawler reads (aws/naming.rs STATS). The metric's own statistic is also its
+ *  bare name (the Average's only), so a chart of a Sum or Maximum metric reads its suffixed name and the others the bare. */
 const AWS_STATS = { Average: '', Sum: '.sum', Maximum: '.maximum' };
 
 /** Namespaces Datadog doesn't name `aws.<namespace>.` (aws/naming.rs PREFIXES). */
@@ -71,14 +78,85 @@ const keyRank = (display) => {
 /** At most this many charts per dashboard: the services with hundreds of metrics show their key ones, then their first. */
 const MAX_CHARTS = 48;
 
-const AGGREGATION = { sum: ' (sum)', max: ' (max)', avg: '' };
+const AGGREGATION = { sum: ' (sum)', max: ' (max)', min: ' (min)', avg: '' };
+
+/** What a metric measures, from its name: the groups of a generated dashboard, in this order (first match wins). */
+export const CATEGORIES = [
+  ['Errors', /error|fail|fault|throttl|reject|drop|denied|timed ?out|timeout|5xx|4xx|unhealthy|dead ?letter|exceeded|abort|invalid/i],
+  ['Latency', /latency|duration|response ?time|\btime\b|[a-z](?<!up)time$|\bage\b|[a-z]age$(?<!percentage|usage|storage)|\blag\b|delay|wait/i],
+  ['Saturation', /utili[sz]ation|usage|percent|pressure|balance|credit|concurren|queue|load|memory|cpu|swap|quota|capacity used/i],
+  ['Throughput', /request|invocation|execution|bytes|packets|records|messages|connection|ops\b|iops|throughput|sent|received|transfer|calls|\bin\b|\bout\b|reads?\b|writes?\b|hits|miss/i],
+  ['Capacity', /size|storage|count|capacity|objects|items|space|instances|nodes|shards|documents|available/i],
+];
+const categoryOf = (title) => CATEGORIES.find(([, r]) => r.test(title))?.[0] ?? 'Other metrics';
+
+// ---------------------------------------------------------------- layout
+
+/** Widgets placed in a group's columns, each where it rises least (left first), so smaller ones stack beside a tall one. */
+function pack(items, cols, next) {
+  const sky = Array(cols).fill(0);
+  return items.map((item) => {
+    const w = Math.min(item.width, cols);
+    let at = { x: 0, y: Infinity };
+    for (let x = 0; x + w <= cols; x++) {
+      const y = Math.max(...sky.slice(x, x + w));
+      if (y < at.y) at = { x, y };
+    }
+    for (let x = at.x; x < at.x + w; x++) sky[x] = at.y + item.height;
+    return { id: next(), definition: item.definition, layout: { x: at.x, y: at.y, width: w, height: item.height } };
+  });
+}
 
 /**
- * A service's dashboard (Datadog's widget format, then converted): its icon and what it shows, an overview of its
- * key numbers, then each metric over time by the service's resource.
+ * A service's dashboard in Datadog's widget format, converted to ours: an About group (its icon, what it shows, its
+ * monitors and key numbers), then its themed groups ({ group, title, widgets: sized widgets, color, width }) and its
+ * logs. Our icon of the service in place of the image; our dashboard, not integrations-core's.
+ */
+function serviceDoc({ cloud, service, note, variables, monitors, kpis, groups, logs = [], color, description, source }) {
+  let id = 0;
+  const next = () => ++id;
+  const about = [
+    { definition: { type: 'image', url: '' }, width: 3, height: 2 },
+    { definition: { type: 'note', content: `## ${service.name}\n\n${note}`, background_color: 'white', font_size: '14', text_align: 'left' }, width: 5, height: 2 },
+    { definition: { type: 'manage_status', title: 'Monitors', query: monitors, summary_type: 'monitors', display_format: 'countsAndList', sort: 'status,asc' }, width: 4, height: 2 },
+    // Wide enough for their titles: up to four in a row, else rows of three.
+    ...kpis.slice(0, 6).map((k) => ({ ...k, width: kpis.length <= 4 ? 12 / Math.max(kpis.length, 1) : 4 })),
+  ];
+  const withLogs = logs.length
+    ? [
+        ...groups,
+        { group: true, title: 'Logs', color: 'gray', width: 12, widgets: logs.map(([title, query]) => ({ definition: { type: 'log_stream', title, query }, width: 12 / logs.length, height: 4 })) },
+      ]
+    : groups;
+  const all = [{ group: true, title: 'Overview', color, width: 12, widgets: about }, ...withLogs];
+  let x = 0;
+  const widgets = all.map((g) => {
+    const children = pack(g.widgets, g.width, next);
+    const height = Math.max(...children.map((c) => c.layout.y + c.layout.height));
+    if (x + g.width > 12) x = 0;
+    const w = { id: next(), definition: { type: 'group', title: g.title, background_color: g.color, layout_type: 'ordered', widgets: children }, layout: { x, y: 0, width: g.width, height } };
+    x += g.width;
+    return w;
+  });
+  const doc = { title: service.name, layout_type: 'ordered', template_variables: variables.map((v) => ({ name: v.name, prefix: v.prefix, default: '*' })), widgets };
+  const d = convertDashboard(doc, cloud, `services/${service.id}.json`, 'observecraft');
+  const icon = (ws) =>
+    ws.map((w) =>
+      w.definition.type === 'image'
+        ? { ...w, definition: { type: 'image', title: service.name, logo: `tile:${service.id}`, background: '#ffffff' } }
+        : w.definition.type === 'group'
+          ? { ...w, definition: { ...w.definition, widgets: icon(w.definition.widgets) } }
+          : w,
+    );
+  return { ...d, id: `${service.id}-overview`, description, logo: `tile:${service.id}`, widgets: icon(d.widgets), source };
+}
+
+/**
+ * A service's generated dashboard, for the services without a designed one: its key numbers, then each metric over
+ * time by the service's resource, grouped by what it measures (errors, latency, throughput, saturation, capacity).
  * charts: [{ title, metric, agg: 'sum' | 'avg' | 'max', grouped, key: a key metric (true, or its rank) or not }]
  */
-function serviceDashboard({ cloud, service, note, variables, tag, charts, color, metricsSource }) {
+function serviceDashboard({ cloud, service, note, variables, tag, charts, color, metricsSource, prefix }) {
   const vars = variables.map((v) => `$${v.name}`);
   // A chart may split by its own tag and keep tags of its own (filters: `rule:ALL`, `dbinstanceidentifier:*`).
   const query = (c, grouped = true) => `${c.agg}:${c.metric}{${[...vars, ...(c.filters ?? [])].join(',')}}${grouped && c.grouped ? ` by {${c.tag ?? tag}}` : ''}`;
@@ -92,86 +170,104 @@ function serviceDashboard({ cloud, service, note, variables, tag, charts, color,
   // One number per kind of key metric first (CPU, requests, errors, latency…), then the next ones.
   const firstOfRank = ranked.filter((c, i) => c.key !== undefined && c.key !== false && (c.key === true || ranked.findIndex((o) => o.key === c.key) === i));
   const keys = [...new Set([...firstOfRank, ...ranked])].filter((c) => kept.has(c)).slice(0, 4);
-  let id = 0;
-  const widget = (definition, width, height) => ({ id: ++id, definition, layout: { x: 0, y: 0, width, height } });
-  const timeseries = charts.map((c) =>
-    widget(
-      {
-        type: 'timeseries',
-        title: `${c.title}${AGGREGATION[c.agg]}${c.grouped ? ` by ${c.tag ?? tag}` : ''}`,
-        requests: [
-          { response_format: 'timeseries', queries: [{ data_source: 'metrics', name: 'query1', query: query(c) }], formulas: [{ formula: 'query1' }], display_type: c.agg === 'sum' ? 'bars' : 'line' },
-        ],
-        show_legend: false,
-      },
-      6,
-      3,
-    ),
-  );
-  // Ordered layout: widgets flow in rows in this order (x is each one's place in its row).
-  const flow = (ws) => {
-    let x = 0;
-    return ws.map((w) => {
-      if (x + w.layout.width > 12) x = 0;
-      w.layout.x = x;
-      x += w.layout.width;
-      return w;
-    });
-  };
-  const doc = {
-    title: service.name,
-    layout_type: 'ordered',
-    template_variables: variables.map((v) => ({ name: v.name, prefix: v.prefix, default: '*' })),
-    widgets: flow([
-      widget({ type: 'image', url: '' }, 3, 3),
-      widget({ type: 'note', content: `## ${service.name}\n\n${note}`, background_color: 'white', font_size: '14', text_align: 'left' }, 9, 3),
-      widget(
+  const kpis = keys.map((c) => ({
+    definition: {
+      type: 'query_value',
+      title: `${c.title}${AGGREGATION[c.agg]}`,
+      requests: [
         {
-          type: 'group',
-          title: 'Overview',
-          background_color: color,
-          layout_type: 'ordered',
-          widgets: flow(
-            keys.map((c) =>
-              widget(
-                {
-                  type: 'query_value',
-                  title: `${c.title}${AGGREGATION[c.agg]}`,
-                  requests: [
-                    {
-                      response_format: 'scalar',
-                      queries: [{ data_source: 'metrics', name: 'query1', query: query(c, false), aggregator: c.time ?? (c.agg === 'sum' ? 'sum' : 'avg') }],
-                      formulas: [{ formula: 'query1' }],
-                    },
-                  ],
-                  precision: 2,
-                },
-                3,
-                2,
-              ),
-            ),
-          ),
+          response_format: 'scalar',
+          queries: [{ data_source: 'metrics', name: 'query1', query: query(c, false), aggregator: c.time ?? (c.agg === 'sum' ? 'sum' : 'avg') }],
+          formulas: [{ formula: 'query1' }],
         },
-        12,
-        3,
-      ),
-      widget({ type: 'group', title: 'Metrics', background_color: color, layout_type: 'ordered', widgets: flow(timeseries) }, 12, 3 * Math.ceil(timeseries.length / 2)),
-    ]),
-  };
-  const d = convertDashboard(doc, cloud, `services/${service.id}.json`, 'observecraft');
-  // Our icon of the service in place of the image; our dashboard, not integrations-core's.
-  const icon = (ws) => ws.map((w) => (w.definition.type === 'image' ? { ...w, definition: { type: 'image', title: service.name, logo: `tile:${service.id}`, background: '#ffffff' } } : w));
-  return {
-    ...d,
-    id: `${service.id}-overview`,
+      ],
+      precision: 2,
+    },
+    width: 3,
+    height: 2,
+  }));
+  const chart = (c, width) => ({
+    definition: {
+      type: 'timeseries',
+      title: `${c.title}${AGGREGATION[c.agg]}${c.grouped ? ` by ${c.tag ?? tag}` : ''}`,
+      requests: [
+        { response_format: 'timeseries', queries: [{ data_source: 'metrics', name: 'query1', query: query(c) }], formulas: [{ formula: 'query1' }], display_type: c.agg === 'sum' ? 'bars' : 'line' },
+      ],
+      show_legend: false,
+    },
+    width,
+    height: 2,
+  });
+  const byCategory = new Map([...CATEGORIES.map(([name]) => [name, []]), ['Other metrics', []]]);
+  for (const c of charts) byCategory.get(categoryOf(c.title)).push(c);
+  const groups = [...byCategory]
+    .filter(([, cs]) => cs.length)
+    .map(([title, cs]) => ({ group: true, title, color: color.replace(/^vivid_/, ''), width: 12, widgets: cs.map((c) => chart(c, cs.length === 1 ? 12 : cs.length === 2 ? 6 : 4)) }));
+  return serviceDoc({
+    cloud,
+    service,
+    note,
+    variables,
+    monitors: prefix,
+    kpis,
+    groups,
+    color,
     description: `${service.name}: the metrics ${{ aws: 'CloudWatch', azure: 'Azure Monitor', gcp: 'Cloud Monitoring' }[cloud]} publishes for it.`,
-    logo: `tile:${service.id}`,
-    widgets: icon(d.widgets),
     source: { repository: 'observecraft', path: 'scripts/cloud-service-dashboards.mjs', metrics: metricsSource },
-  };
+  });
+}
+
+/** Every name the AWS crawler publishes for a metric of the catalog (aws/naming.rs series_names): its bare name (and
+ *  the Datadog variant of its dimension set) with no suffix (its own statistic), `.sum`, `.maximum`, `.minimum` and
+ *  its percentiles. */
+export function namesOf(namespace, m) {
+  const prefix = awsPrefix(namespace);
+  const leaf = m.datadog_name ?? snake(m.name);
+  const has = (d) => m.dimensions.includes(d);
+  const bases =
+    namespace === 'AWS/ECS' && has('ServiceName')
+      ? [`${prefix}.${leaf}`, `${prefix}.service.${leaf}`]
+      : namespace === 'AWS/ECS' && m.dimensions.length === 1 && has('ClusterName')
+        ? [`${prefix}.${leaf}`, `${prefix}.cluster.${leaf}`]
+        : namespace === 'ECS/ContainerInsights' && has('TaskDefinitionFamily')
+          ? [`${prefix}.family.${leaf}`]
+          : [`${prefix}.${leaf}`];
+  const own = m.statistic ?? 'Average';
+  const suffixes = ['', '.sum', '.maximum', '.minimum', ...(['Average', 'Sum', 'Maximum', 'Minimum'].includes(own) ? [] : [`.${own.toLowerCase()}`]), ...(m.percentiles ?? []).map((p) => `.${p}`)];
+  return bases.flatMap((b) => suffixes.map((s) => `${b}${s}`));
+}
+
+/** Every metric name the AWS crawler publishes for a namespace of the catalog. */
+export const publishedNames = (namespace) => new Set((json('integrations/cloud/aws-metrics.json').namespaces[namespace]?.metrics ?? []).flatMap((m) => namesOf(namespace, m)));
+
+/** A designed AWS service dashboard (scripts/aws-service-layouts.mjs); every metric it charts must be published. */
+function designedDashboard(service, layout, source) {
+  const extra = layout.vars;
+  const variables = [{ name: 'account', prefix: 'aws_account' }, { name: 'region', prefix: 'region' }, ...extra.map((v) => ({ name: v, prefix: v }))];
+  const f = variables.map((v) => `$${v.name}`).join(',');
+  const { kpis, groups } = layout.build({ ...queriesOver(f), f });
+  const prefix = awsPrefix(service.namespace);
+  const d = serviceDoc({
+    cloud: 'aws',
+    service,
+    note: `${layout.note} Collected by the [AWS integration](/integrations/aws).`,
+    variables,
+    monitors: `tag:(integration:${layout.monitor}) OR ${prefix}.`,
+    kpis,
+    groups,
+    logs: layout.logs,
+    color: 'vivid_orange',
+    description: `${service.name}: ${layout.note.split(':')[0].toLowerCase()} and their health, from CloudWatch.`,
+    source: { repository: 'observecraft', path: 'scripts/aws-service-layouts.mjs', metrics: source },
+  });
+  const published = publishedNames(service.namespace);
+  for (const [, name] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{/g))
+    if (!published.has(name)) throw new Error(`${service.namespace}: ${name} isn't a name the AWS crawler publishes (aws-metrics.json)`);
+  return d;
 }
 
 function awsDashboard(service, spec, source) {
+  if (AWS_LAYOUTS[service.namespace]) return designedDashboard(service, AWS_LAYOUTS[service.namespace], source);
   const dim = spec.dimension;
   const tag = dim ? underscored(dim) : null;
   const agg = (m) => m.space ?? (m.statistic === 'Sum' ? 'sum' : m.statistic === 'Maximum' ? 'max' : 'avg');
@@ -201,17 +297,106 @@ function awsDashboard(service, spec, source) {
       };
     }),
     metricsSource: source,
+    prefix: `${awsPrefix(service.namespace)}.`,
   });
 }
 
-/** Azure Monitor's default aggregations and what our crawler publishes for them (azure/naming.rs AGGREGATIONS):
- *  totals and counts as `.total`, maxima as `.maximum`, the rest averaged. */
-const AZURE_AGGREGATIONS = { Total: ['sum', '.total'], Count: ['sum', '.total'], Maximum: ['max', '.maximum'] };
+/** How a metric's series combine, by its primary aggregation: our crawler publishes that aggregation under the bare
+ *  name, as Datadog does (azure/naming.rs `aggregations`), so totals and counts add up, maxima and minima stay
+ *  extremes and the rest is averaged. */
+const AZURE_AGGREGATIONS = { Total: 'sum', Count: 'sum', Maximum: 'max', Minimum: 'min' };
 
-/** `Percentage CPU` of a VM → `azure.vm.percentage_cpu` (azure/naming.rs metric_name). */
-export const azureMetricOf = (prefix, metric, aggregation) => `${prefix}.${snake(metric)}${(AZURE_AGGREGATIONS[aggregation] ?? ['avg', ''])[1]}`;
+/** `Percentage CPU` of a VM → `azure.vm.percentage_cpu` (azure/naming.rs metric_name; the primary aggregation). */
+export const azureMetricOf = (prefix, metric) => `${prefix}.${snake(metric)}`;
+
+/** The aggregations the Azure crawler publishes a metric with and their suffixes (azure/naming.rs `aggregations`): its
+ *  primary one bare (none: the average, else its first), and `.max` where Azure Monitor has a maximum beside it. */
+export function azureSuffixes(primary, supported) {
+  const all = supported.map((a) => a.toLowerCase());
+  let own = primary.toLowerCase();
+  if (own === '' || own === 'none') own = !all.length || all.includes('average') ? 'average' : all[0];
+  return ['', ...(own !== 'maximum' && all.includes('maximum') ? ['.max'] : [])];
+}
+
+/** The dimensions the Azure crawler splits metrics by (azure/naming.rs SPLITS, lowercase types), tagged in lowercase;
+ *  the Rust test every_azure_dashboard_charts_what_the_crawler_publishes checks the dashboards against the crawler's. */
+const AZURE_SPLITS = {
+  'microsoft.web/sites': ['Instance'],
+  'microsoft.web/sites (functionapp)': ['Instance'],
+  'microsoft.web/serverfarms': ['Instance'],
+  'microsoft.storage/storageaccounts': ['ApiName', 'ResponseType'],
+  'microsoft.storage/storageaccounts/blobservices': ['ApiName', 'ResponseType', 'BlobType', 'Tier'],
+  'microsoft.storage/storageaccounts/fileservices': ['ApiName', 'ResponseType', 'FileShare'],
+  'microsoft.storage/storageaccounts/queueservices': ['ApiName', 'ResponseType'],
+  'microsoft.storage/storageaccounts/tableservices': ['ApiName', 'ResponseType'],
+  'microsoft.documentdb/databaseaccounts': ['DatabaseName', 'CollectionName', 'Region', 'StatusCode'],
+  'microsoft.cache/redis': ['ShardId'],
+  'microsoft.eventhub/namespaces': ['EntityName'],
+  'microsoft.servicebus/namespaces': ['EntityName'],
+  'microsoft.network/loadbalancers': ['FrontendIPAddress', 'BackendIPAddress'],
+  'microsoft.network/applicationgateways': ['Listener', 'BackendSettingsPool', 'HttpStatusGroup'],
+  'microsoft.keyvault/vaults': ['ActivityType', 'ActivityName', 'StatusCode'],
+  'microsoft.apimanagement/service': ['Location', 'ApiId', 'GatewayResponseCodeCategory'],
+  'microsoft.containerservice/managedclusters': ['nodepool', 'node', 'phase'],
+  'microsoft.network/frontdoors': ['HttpStatusGroup', 'Backend'],
+  'microsoft.cdn/profiles': ['Endpoint', 'HttpStatusGroup'],
+  'microsoft.sql/servers/elasticpools': ['DatabaseResourceId'],
+  'microsoft.recoveryservices/vaults': ['healthStatus', 'dataSourceType'],
+  'microsoft.dataprotection/backupvaults': ['healthStatus', 'dataSourceType'],
+  'microsoft.app/containerapps': ['revisionName', 'statusCodeCategory'],
+  'microsoft.cognitiveservices/accounts': ['ModelDeploymentName', 'StatusCode'],
+  'microsoft.eventgrid/topics': ['EventSubscriptionName'],
+  'microsoft.eventgrid/systemtopics': ['EventSubscriptionName'],
+  'microsoft.synapse/workspaces': ['Result'],
+};
+/** Tags every Azure series carries: the resource's (and the resource count's Resource Health status). */
+const AZURE_RESOURCE_TAGS = ['subscription_id', 'resource_group', 'region', 'name', 'status'];
+
+/** Every name the Azure crawler publishes for a resource type (its metrics and `azure.<type>.count`), with the tags
+ *  each name splits by beside the resource's. */
+export function azurePublished(type) {
+  const prefix = json('azure_integration.json').resource_types.find((t) => t.type === type).prefix;
+  const wanted = AZURE_SPLITS[type.toLowerCase()] ?? [];
+  const out = new Map([[`${prefix}.count`, []]]);
+  for (const m of json('integrations/cloud/azure-metrics.json').resource_types[type]?.metrics ?? []) {
+    const tags = wanted.filter((w) => (m.dimensions ?? []).some((d) => d.toLowerCase() === w.toLowerCase())).map(underscored);
+    for (const suffix of azureSuffixes(m.aggregation, m.aggregations ?? [])) out.set(`${azureMetricOf(prefix, m.name)}${suffix}`, tags);
+  }
+  return out;
+}
+export const azurePublishedNames = (type) => new Set(azurePublished(type).keys());
+
+/** A designed Azure dashboard (scripts/azure-service-layouts.mjs); every metric it charts, and every tag it splits by,
+ *  must be published. */
+function designedAzureDashboard(type, layout, source) {
+  const variables = ['subscription_id', 'resource_group', 'region', 'name', ...layout.vars].map((n) => ({ name: n, prefix: n }));
+  const f = variables.map((v) => `$${v.name}`).join(',');
+  const q = queriesOver(f);
+  const { kpis, groups } = layout.build({ ...q, f, prefix: type.prefix, count: (by, ...filters) => q.sum(`${type.prefix}.count`, by, ...filters) });
+  const d = serviceDoc({
+    cloud: 'azure',
+    service: type,
+    note: `${layout.note} Collected by the [Azure integration](/integrations/azure).`,
+    variables,
+    monitors: `tag:(integration:${layout.monitor}) OR ${type.prefix}.`,
+    kpis,
+    groups,
+    logs: layout.logs,
+    color: 'vivid_blue',
+    description: `${type.name}: ${layout.note.split(':')[0].toLowerCase()} and their health, from Azure Monitor.`,
+    source: { repository: 'observecraft', path: 'scripts/azure-service-layouts.mjs', metrics: source },
+  });
+  const published = azurePublished(type.type);
+  for (const [, name, by] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{[^}]*\}(?: by \{([a-z0-9_,]+)\})?/g)) {
+    if (!published.has(name)) throw new Error(`${type.type}: ${name} isn't a name the Azure crawler publishes (azure-metrics.json)`);
+    for (const tag of (by ?? '').split(',').filter(Boolean))
+      if (!AZURE_RESOURCE_TAGS.includes(tag) && !published.get(name).includes(tag)) throw new Error(`${type.type}: ${name} isn't split by ${tag} (azure/naming.rs SPLITS)`);
+  }
+  return d;
+}
 
 function azureDashboard(type, spec, source) {
+  if (AZURE_LAYOUTS[type.type]) return designedAzureDashboard(type, AZURE_LAYOUTS[type.type], source);
   return serviceDashboard({
     cloud: 'azure',
     service: type,
@@ -221,22 +406,99 @@ function azureDashboard(type, spec, source) {
     tag: 'name',
     charts: spec.metrics.map((m) => ({
       title: m.display,
-      metric: azureMetricOf(type.prefix, m.name, m.aggregation),
-      agg: (AZURE_AGGREGATIONS[m.aggregation] ?? ['avg'])[0],
+      metric: azureMetricOf(type.prefix, m.name),
+      agg: AZURE_AGGREGATIONS[m.aggregation] ?? 'avg',
       grouped: true,
       key: keyRank(m.display),
     })),
     metricsSource: source,
+    prefix: `${type.prefix}.`,
   });
 }
 
 /** `compute.googleapis.com/instance/cpu/utilization` → `gcp.gce.instance.cpu.utilization` (gcp/naming.rs metric_name). */
 export const gcpMetricOf = (short, type) => `gcp.${short}.${type.split('/').slice(1).map(underscored).filter(Boolean).join('.')}`;
 
+/** The distributions Datadog also gives `.p95` / `.p99` (server/seeds/gcp_integration.json `percentiles`). */
+const GCP_PERCENTILES = new Set(json('gcp_integration.json').percentiles);
+
+/** Every name the GCP crawler publishes for a metric (gcp/naming.rs stats): numbers under the bare name, cumulative
+ *  counters also `.delta`, distributions `.avg`, `.samplecount`, `.sumsqdev` and, for some, `.p95` / `.p99`; strings
+ *  and money aren't collected. */
+export function gcpNamesOf(short, m) {
+  const base = gcpMetricOf(short, m.type);
+  if (m.value === 'DISTRIBUTION') return ['.avg', '.samplecount', '.sumsqdev', ...(GCP_PERCENTILES.has(m.type) ? ['.p95', '.p99'] : [])].map((s) => base + s);
+  if (!['DOUBLE', 'INT64', 'BOOL'].includes(m.value)) return [];
+  if (m.kind === 'CUMULATIVE' && m.value !== 'BOOL') return [base, `${base}.delta`];
+  return [base];
+}
+
+const gcpShort = (prefix) => json('gcp_integration.json').services.find((s) => s.prefix === prefix).short;
+const gcpMetrics = (prefix) => {
+  const spec = json('integrations/cloud/gcp-metrics.json').services[prefix];
+  return spec ? [...spec.metrics, ...(spec.others ?? [])] : [];
+};
+
+/** Every name the GCP crawler publishes for a service (its main resource's metrics and its other resources'). */
+export const gcpPublishedNames = (prefix) => new Set(gcpMetrics(prefix).flatMap((m) => gcpNamesOf(gcpShort(prefix), m)));
+
+/** Tags every Google Cloud series can carry beside its resource's and metric's labels (gcp/crawler.rs series_tags). */
+const GCP_COMMON_TAGS = ['project_id', 'region', 'zone', 'location'];
+
+/** A designed Google Cloud dashboard (scripts/gcp-service-layouts.mjs): every metric it charts must be published, a
+ *  cumulative counter by its change (`.delta`, not its running total), and it splits and filters only by the labels
+ *  Cloud Monitoring gives the service's resources and metrics (`labels`). */
+function designedGcpDashboard(service, layout, source) {
+  const variables = ['project_id', ...layout.vars].map((n) => ({ name: n, prefix: n }));
+  const f = variables.map((v) => `$${v.name}`).join(',');
+  const { kpis, groups } = layout.build({ ...queriesOver(f), f, short: service.short });
+  const d = serviceDoc({
+    cloud: 'gcp',
+    service,
+    note: `${layout.note} Collected by the [Google Cloud integration](/integrations/gcp).`,
+    variables,
+    monitors: `tag:(integration:${layout.monitor}) OR gcp.${service.short}.`,
+    kpis,
+    groups,
+    logs: layout.logs,
+    color: 'vivid_blue',
+    description: `${service.name}: what Cloud Monitoring reports for it, laid out for the service.`,
+    source: { repository: 'observecraft', path: 'scripts/gcp-service-layouts.mjs', metrics: source },
+  });
+  const published = gcpPublishedNames(service.prefix);
+  const running = new Set(
+    gcpMetrics(service.prefix)
+      .filter((m) => m.kind === 'CUMULATIVE' && ['DOUBLE', 'INT64'].includes(m.value))
+      .map((m) => gcpMetricOf(service.short, m.type)),
+  );
+  const tags = new Set([...GCP_COMMON_TAGS, ...layout.vars, ...layout.labels]);
+  for (const v of layout.vars) if (![...GCP_COMMON_TAGS, ...layout.labels].includes(v)) throw new Error(`${service.prefix}: the template variable ${v} isn't a label of its resources or metrics`);
+  for (const [, name, filters, by] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{([^}]*)\}(?: by \{([a-z0-9_,]+)\})?/g)) {
+    if (!published.has(name)) throw new Error(`${service.prefix}: ${name} isn't a name the GCP crawler publishes (gcp-metrics.json)`);
+    if (running.has(name)) throw new Error(`${service.prefix}: ${name} is a cumulative counter's running total; chart ${name}.delta`);
+    const used = [
+      ...(by ?? '').split(','),
+      ...filters
+        .split(',')
+        .filter((t) => !t.startsWith('$'))
+        .map((t) => t.replace(/^!/, '').split(':')[0]),
+    ].filter(Boolean);
+    for (const tag of used) if (!tags.has(tag)) throw new Error(`${service.prefix}: ${name} has no ${tag} label (add it to the layout's labels if Cloud Monitoring sets it)`);
+  }
+  return d;
+}
+
 function gcpDashboard(service, spec, source) {
+  if (GCP_LAYOUTS[service.prefix]) return designedGcpDashboard(service, GCP_LAYOUTS[service.prefix], source);
   const tag = spec.dimension;
-  // As the crawler aligns them (gcp/api.rs aligner): gauges averaged, deltas and cumulative counts summed per minute.
-  const agg = (m) => (m.value !== 'DISTRIBUTION' && (m.kind === 'DELTA' || m.kind === 'CUMULATIVE') ? 'sum' : 'avg');
+  // As the crawler publishes them (gcp/naming.rs stats): gauges averaged, deltas summed, cumulative counters by their
+  // change (.delta, summed), distributions by their mean (.avg).
+  const chart = (m) => {
+    const base = gcpMetricOf(service.short, m.type);
+    if (m.value === 'DISTRIBUTION') return { metric: `${base}.avg`, agg: 'avg' };
+    if (m.kind === 'CUMULATIVE') return { metric: `${base}.delta`, agg: 'sum' };
+    return { metric: base, agg: m.kind === 'DELTA' ? 'sum' : 'avg' };
+  };
   return serviceDashboard({
     cloud: 'gcp',
     service,
@@ -244,8 +506,9 @@ function gcpDashboard(service, spec, source) {
     note: `The ${service.name} metrics Cloud Monitoring publishes (\`${service.prefix}\`, resource \`${spec.resource}\`), collected by the [Google Cloud integration](/integrations/gcp). Filter by project${tag ? ` and ${tag}` : ''} above; each chart splits ${tag ? `by ${tag}` : 'the whole service'}.`,
     variables: [{ name: 'project_id', prefix: 'project_id' }, ...(tag ? [{ name: tag, prefix: tag }] : [])],
     tag,
-    charts: spec.metrics.map((m) => ({ title: m.display || words(m.type.split('/').at(-1)), metric: gcpMetricOf(service.short, m.type), agg: agg(m), grouped: !!tag, key: keyRank(m.display) })),
+    charts: spec.metrics.map((m) => ({ title: m.display || words(m.type.split('/').at(-1)), ...chart(m), grouped: !!tag, key: keyRank(m.display) })),
     metricsSource: source,
+    prefix: `gcp.${service.short}.`,
   });
 }
 
@@ -278,16 +541,24 @@ export function serviceUnits() {
         if (m.unit) {
           for (const variant of [m.variant, undefined]) {
             const name = metricOf(ns, m.name, m.statistic, { datadog: true, datadog_name: m.datadog_name, variant });
-            for (const suffix of ['', '.sum', '.maximum']) units.set(`${name}${suffix}`, m.unit);
+            for (const suffix of ['', '.sum', '.maximum', '.minimum']) units.set(`${name}${suffix}`, m.unit);
           }
         }
+  // AWS: the units the designed dashboards give their metrics (scripts/aws-service-layouts.mjs), on every name.
+  const awsMetrics = json('integrations/cloud/aws-metrics.json').namespaces;
+  for (const [ns, layout] of Object.entries(AWS_LAYOUTS))
+    for (const [metric, unit] of Object.entries(layout.units ?? {})) {
+      const specs = awsMetrics[ns].metrics.filter((m) => m.name === metric);
+      if (!specs.length) throw new Error(`${ns}: no metric ${metric} for its unit`);
+      for (const m of specs) for (const name of namesOf(ns, m)) units.set(name, unit);
+    }
   for (const [type, spec] of Object.entries(json('integrations/cloud/azure-metrics.json').resource_types)) {
     const prefix = json('azure_integration.json').resource_types.find((t) => t.type === type).prefix;
-    for (const m of spec.metrics) if (m.unit) for (const suffix of ['', '.total', '.maximum']) units.set(`${prefix}.${snake(m.name)}${suffix}`, m.unit);
+    for (const m of spec.metrics) if (m.unit) for (const suffix of ['', '.max']) units.set(`${azureMetricOf(prefix, m.name)}${suffix}`, m.unit);
   }
   const short = new Map(json('gcp_integration.json').services.map((s) => [s.prefix, s.short]));
   for (const [prefix, spec] of Object.entries(json('integrations/cloud/gcp-metrics.json').services))
-    for (const m of spec.metrics) if (m.unit) units.set(gcpMetricOf(short.get(prefix), m.type), m.unit);
+    for (const m of [...spec.metrics, ...(spec.others ?? [])]) if (m.unit) for (const name of gcpNamesOf(short.get(prefix), m)) if (!/\.(samplecount|sumsqdev)$/.test(name)) units.set(name, m.unit);
   return [...units].sort(([a], [b]) => a.localeCompare(b));
 }
 
@@ -296,7 +567,9 @@ export function serviceUnits() {
 export const MOCK_SERVICES = [
   'tile:aws-apigateway',
   'tile:aws-applicationelb',
+  'tile:aws-autoscaling',
   'tile:aws-cloudfront',
+  'tile:aws-docdb',
   'tile:aws-dynamodb',
   'tile:aws-ec2',
   'tile:aws-ecs',
@@ -304,13 +577,22 @@ export const MOCK_SERVICES = [
   'tile:aws-lambda',
   'tile:aws-rds',
   'tile:aws-s3',
+  'tile:aws-sqs',
   'tile:aws-wafv2',
+  'tile:azure-cdn-profiles',
   'tile:azure-compute-virtualmachines',
+  'tile:azure-functions',
+  'tile:azure-keyvault-vaults',
+  'tile:azure-sql-servers-databases',
+  'tile:azure-sql-servers-elasticpools',
   'tile:azure-storage-storageaccounts',
   'tile:azure-web-sites',
+  'tile:gcp-alloydb',
+  'tile:gcp-artifactregistry',
   'tile:gcp-cloudsql',
   'tile:gcp-gce',
   'tile:gcp-gcs',
+  'tile:gcp-pubsub',
   'tile:gcp-run',
 ];
 

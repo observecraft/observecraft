@@ -1,0 +1,121 @@
+# yaml-language-server: $schema=../connector.schema.json
+# LastPass (Enterprise API, cmd=reporting): the account's user and admin activity events, as the logs Datadog's
+# integration sends (source:lastpass, service:reporting-events, the event as LastPass answers it: Time, Username,
+# IP_Address, Action, Data, plus timestamp in epoch ms). integrations-core's log pipeline and its dashboard for the
+# tile read them as they are. LastPass gives times in the account's time zone, without one: set it in the form.
+# How LastPass pages a full answer (`next`) is written from its API guide's description; check it on an account.
+schema_version: 1
+id: lastpass
+name: LastPass
+publisher: ObserveCraft
+vendor: LastPass
+description: >-
+  The reporting events of a LastPass Business account (logins, vault and shared folder changes, policy and admin
+  actions, group membership), one log per event, read from LastPass's Enterprise API.
+tiles: [lastpass]
+categories: [Log Collection, Security, SIEM]
+source: lastpass
+docs_url: https://support.lastpass.com/s/document-item?language=en_US&bundleId=lastpass&topicId=LastPass%2Fapi_event_reporting.html
+setup: |
+  1. In the Admin Console, open **Advanced → Enterprise API**.
+  2. Copy the **account number** (CID) and create (or reveal) a **provisioning hash**.
+  3. Set the time zone the account reports in (**Account settings → Time zone**): LastPass's event times carry none.
+instance: "{{ config.account_number }}"
+
+config:
+  - key: region
+    label: Data center
+    type: select
+    required: true
+    default: us
+    options:
+      - { value: us, label: United States (lastpass.com) }
+      - { value: eu, label: Europe (lastpass.eu) }
+  - key: account_number
+    label: Account number (CID)
+    type: string
+    required: true
+    pattern: "[0-9]+"
+  - key: provisioning_hash
+    label: Provisioning hash
+    type: string
+    secret: true
+    required: true
+  - key: time_zone
+    label: Account time zone
+    type: string
+    required: true
+    default: UTC
+    placeholder: America/New_York
+    help: The IANA name of the time zone set in LastPass (event times are in it).
+
+tables:
+  host: { us: "https://lastpass.com", eu: "https://lastpass.eu" }
+
+errors:
+  - status: [401, 403]
+    kind: auth
+    message: LastPass refused the account number or provisioning hash
+  - status: [200]
+    when: "{{ response.status == 'FAIL' }}"
+    kind: auth
+    message: "LastPass refused the request: {{ response.error ?? 'check the account number and provisioning hash' }}"
+
+streams:
+  - id: reporting_events
+    name: Reporting events
+    description: >-
+      Every reporting event as a log (service:reporting-events): Time, Username, IP_Address, Action, Data and
+      timestamp (Time read in the account's time zone).
+    interval: 5m
+    request:
+      method: POST
+      url: "{{ tables.host[config.region] }}/enterpriseapi.php"
+      body:
+        cid: "{{ config.account_number }}"
+        provhash: "{{ secrets.provisioning_hash }}"
+        cmd: reporting
+        data:
+          from: "{{ window.start | strftime('%Y-%m-%d %H:%M:%S', config.time_zone) }}"
+          to: "{{ window.end | strftime('%Y-%m-%d %H:%M:%S', config.time_zone) }}"
+          user: allusers
+          format: siem
+          next: "{{ page.cursor }}"
+    records: "{{ (response.data ?? {}) | values }}"
+    pagination: { kind: cursor, next: "{{ response.next }}" }
+    # Events carry no id: the event's JSON is its identity.
+    incremental:
+      kind: time
+      record_time: "{{ record.Time | epoch_ms(config.time_zone) }}"
+      order: unordered
+      lookback: 12h
+      overlap: 10m
+      settle: 2m
+      # LastPass answers a bounded number of events per request: windows are read an hour at a time.
+      slice: 1h
+    output:
+      logs:
+        service: reporting-events
+        message: "{{ record.Action + (' by ' + record.Username ?? '') + (': ' + (record.Data | nonempty) ?? '') }}"
+        date: "{{ record.Time | epoch_ms(config.time_zone) }}"
+        attributes: "{{ record + {timestamp: record.Time | epoch_ms(config.time_zone)} }}"
+
+test:
+  request:
+    method: POST
+    url: "{{ tables.host[config.region] }}/enterpriseapi.php"
+    body: { cid: "{{ config.account_number }}", provhash: "{{ secrets.provisioning_hash }}", cmd: getuserdata, data: { pagesize: 1 } }
+  success: "{{ response.status != 'FAIL' && !response.error }}"
+  message: "Connected to LastPass account {{ config.account_number }}"
+  failure: "LastPass refused the request: {{ response.error ?? 'check the account number and provisioning hash' }}"
+
+mock:
+  config: { region: us, account_number: "8771312", time_zone: America/New_York }
+  secrets: { provisioning_hash: test-provisioning-hash }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://lastpass.com/enterpriseapi.php", body_contains: "\"cmd\":\"reporting\"", file: fixtures/reporting.json }
+    - { method: POST, url: "https://lastpass.com/enterpriseapi.php", body_contains: "getuserdata", body: { total: 42, count: 1, Users: { "1001": { username: admin@example.com } } } }
+  expect:
+    reporting_events: { records: 3, logs: 3, rerun: 0, golden: fixtures/reporting_events.expected.json }
+    test: { ok: true, message: "Connected to LastPass account 8771312" }

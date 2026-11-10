@@ -1,8 +1,10 @@
 //! The Azure APIs the crawler calls, behind [`AzureApi`] (tests use a fake), and their implementation
 //! over REST ([`Rest`]): an app registration's token (OAuth client credentials, cached until it
 //! expires), the subscriptions it can read, their resources and metric definitions (Azure Resource
-//! Manager), and metric values from the Azure Monitor batch API (`metrics:getBatch`: up to 50
-//! resources of one type and region and 20 metrics per call).
+//! Manager), Resource Health's availability of each resource, and metric values from the Azure Monitor
+//! batch API (`metrics:getBatch`: up to 50 resources of one type and region and 20 metrics per call), or,
+//! for global resources (location `global`: DNS zones, Front Door, Traffic Manager), which no regional
+//! endpoint serves, from Azure Resource Manager's per-resource metrics API.
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -25,19 +27,113 @@ pub struct Resource {
     pub name: String,
     /// `Microsoft.Compute/virtualMachines`
     pub kind: String,
+    /// The resource's own `kind`, when its type has several (`functionapp,linux` for a function app, `StorageV2`).
+    pub azure_kind: String,
     pub location: String,
     pub resource_group: String,
     /// `key:value`
     pub tags: Vec<String>,
 }
 
-/// One metric and aggregation of one resource.
+/// What Azure Monitor has for one metric of a resource type (its metric definition).
+#[derive(Clone, Debug, PartialEq)]
+pub struct MetricDef {
+    pub name: String,
+    /// `primaryAggregationType`: `Average`, `Total`, `Count`, `Maximum`, `Minimum` or `None`.
+    pub primary: String,
+    /// `supportedAggregationTypes` (empty when Azure doesn't say).
+    pub aggregations: Vec<String>,
+    /// Its finest time grain (one minute when Azure doesn't say).
+    pub grain_ms: i64,
+    /// Its dimensions (`ApiName`, `Instance`, …).
+    pub dimensions: Vec<String>,
+}
+
+/// One metric and aggregation of one resource (and one combination of the split dimensions' values).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Series {
     pub resource_id: String,
     pub metric: String,
     pub aggregation: String,
+    /// The split dimensions' values, as Azure names them (`apiname`, `GetBlob`).
+    pub dimensions: Vec<(String, String)>,
     pub points: Vec<(i64, f64)>,
+}
+
+/// A metrics read: `aggregations` of `metrics` of `resource_ids` (one type and region; at most 50 resources and 20
+/// metrics) at one time grain, split by `dimensions` (each one the metrics have).
+#[derive(Clone, Copy, Debug)]
+pub struct MetricsQuery<'a> {
+    pub subscription: &'a str,
+    pub region: &'a str,
+    pub resource_type: &'a str,
+    pub resource_ids: &'a [String],
+    pub metrics: &'a [String],
+    pub aggregations: &'a [&'a str],
+    pub grain_ms: i64,
+    pub dimensions: &'a [String],
+    pub start_ms: i64,
+    pub end_ms: i64,
+}
+
+/// Time series per metric and resource when splitting by dimensions (the APIs' `top`, 10 by default).
+pub const TOP: usize = 50;
+
+/// Whether a region is global: no regional metrics endpoint serves its resources.
+pub fn is_global(region: &str) -> bool {
+    region.is_empty() || region.eq_ignore_ascii_case("global")
+}
+
+/// An ISO 8601 time grain (`PT1M`, `PT6H`, `P1D`) in milliseconds.
+pub fn grain_ms(grain: &str) -> Option<i64> {
+    let (rest, unit_ms) = if let Some(r) = grain.strip_prefix("PT") {
+        match r.chars().last()? {
+            'M' => (&r[..r.len() - 1], 60_000),
+            'H' => (&r[..r.len() - 1], 3_600_000),
+            'S' => (&r[..r.len() - 1], 1_000),
+            _ => return None,
+        }
+    } else {
+        (grain.strip_prefix('P')?.strip_suffix('D')?, 86_400_000)
+    };
+    rest.parse::<i64>().ok().filter(|n| *n > 0).map(|n| n * unit_ms)
+}
+
+/// Milliseconds as an ISO 8601 time grain.
+pub fn iso_grain(ms: i64) -> String {
+    match ms {
+        m if m % 86_400_000 == 0 => format!("P{}D", m / 86_400_000),
+        m if m % 3_600_000 == 0 => format!("PT{}H", m / 3_600_000),
+        m => format!("PT{}M", (m / 60_000).max(1)),
+    }
+}
+
+/// A metrics API filter splitting by every one of `dimensions` (`ApiName eq '*' and ResponseType eq '*'`).
+fn split_filter(dimensions: &[String]) -> Option<String> {
+    (!dimensions.is_empty()).then(|| dimensions.iter().map(|d| format!("{d} eq '*'")).collect::<Vec<_>>().join(" and "))
+}
+
+/// The series of one resource's metrics response (`value`: metrics, each with `timeseries`).
+fn parse_series(resource_id: &str, metrics: &[Value], aggregations: &[&str], out: &mut Vec<Series>) {
+    for metric in metrics {
+        let name = metric["name"]["value"].as_str().unwrap_or_default();
+        for ts in metric["timeseries"].as_array().map(Vec::as_slice).unwrap_or_default() {
+            let dimensions: Vec<(String, String)> = ts["metadatavalues"]
+                .as_array()
+                .map(Vec::as_slice)
+                .unwrap_or_default()
+                .iter()
+                .filter_map(|m| Some((m["name"]["value"].as_str()?.to_string(), m["value"].as_str().unwrap_or_default().to_string())))
+                .collect();
+            let data = ts["data"].as_array().map(Vec::as_slice).unwrap_or_default();
+            for aggregation in aggregations {
+                let points: Vec<(i64, f64)> = data.iter().filter_map(|d| Some((chrono::DateTime::parse_from_rfc3339(d["timeStamp"].as_str()?).ok()?.timestamp_millis(), d[*aggregation].as_f64()?))).collect();
+                if !points.is_empty() {
+                    out.push(Series { resource_id: resource_id.to_string(), metric: name.to_string(), aggregation: aggregation.to_string(), dimensions: dimensions.clone(), points });
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -58,11 +154,12 @@ pub trait AzureApi: Send + Sync {
     /// The ids of the enabled subscriptions the app registration can read.
     async fn subscriptions(&self, c: &Credentials) -> Result<Vec<String>, AzureError>;
     async fn resources(&self, c: &Credentials, subscription: &str) -> Result<Vec<Resource>, AzureError>;
-    /// The metric names of a resource (one per resource type is enough).
-    async fn metric_names(&self, c: &Credentials, resource_id: &str) -> Result<Vec<String>, AzureError>;
-    /// `aggregations` of `metrics` for `resource_ids` (one type and region; at most 50 resources and 20 metrics).
-    #[allow(clippy::too_many_arguments)]
-    async fn metrics(&self, c: &Credentials, subscription: &str, region: &str, resource_type: &str, resource_ids: &[String], metrics: &[String], aggregations: &[&str], start_ms: i64, end_ms: i64) -> Result<Vec<Series>, AzureError>;
+    /// The metric definitions of a resource (one per resource type is enough).
+    async fn metric_definitions(&self, c: &Credentials, resource_id: &str) -> Result<Vec<MetricDef>, AzureError>;
+    async fn metrics(&self, c: &Credentials, q: &MetricsQuery<'_>) -> Result<Vec<Series>, AzureError>;
+    /// Resource Health's availability state of the subscription's resources (`Available`, `Degraded`,
+    /// `Unavailable`, `Unknown`), by lowercase resource id.
+    async fn availability(&self, c: &Credentials, subscription: &str) -> Result<HashMap<String, String>, AzureError>;
 }
 
 /// Azure's public cloud endpoints.
@@ -73,17 +170,20 @@ pub struct Endpoints {
     pub metrics: String,
     /// Blob Storage; `{account}` is replaced by the storage account.
     pub blob: String,
+    /// Microsoft Graph (Entra ID's sign-in and audit logs, `crate::entra`).
+    pub graph: String,
 }
 
 impl Default for Endpoints {
     fn default() -> Self {
-        Endpoints { login: "https://login.microsoftonline.com".into(), management: "https://management.azure.com".into(), metrics: "https://{region}.metrics.monitor.azure.com".into(), blob: "https://{account}.blob.core.windows.net".into() }
+        Endpoints { login: "https://login.microsoftonline.com".into(), management: "https://management.azure.com".into(), metrics: "https://{region}.metrics.monitor.azure.com".into(), blob: "https://{account}.blob.core.windows.net".into(), graph: "https://graph.microsoft.com".into() }
     }
 }
 
 const MANAGEMENT_SCOPE: &str = "https://management.azure.com/.default";
 const METRICS_SCOPE: &str = "https://metrics.monitor.azure.com/.default";
 const STORAGE_SCOPE: &str = "https://storage.azure.com/.default";
+const GRAPH_SCOPE: &str = "https://graph.microsoft.com/.default";
 /// The Blob Storage REST version the calls ask for.
 const BLOB_VERSION: &str = "2021-08-06";
 /// What reading a cost export's blobs needs (the Storage Blob Data Reader role).
@@ -110,7 +210,7 @@ pub fn classify(status: u16, body: &str) -> AzureError {
             let action = message.split("perform action '").nth(1).and_then(|s| s.split('\'').next()).map(str::to_string);
             AzureError::Forbidden { action, message }
         }
-        429 => AzureError::Throttled(message),
+        429 | 503 | 529 => AzureError::Throttled(message),
         _ => AzureError::Other(format!("HTTP {status}: {message}")),
     }
 }
@@ -225,6 +325,33 @@ impl Rest {
         Ok(res.bytes().await.map_err(|e| AzureError::Other(e.to_string()))?.to_vec())
     }
 
+    /// A Microsoft Graph GET (`crate::entra`): `target` is a path under `/v1.0` or an `@odata.nextLink` Graph
+    /// returned, followed only on Graph so the token goes nowhere else. Graph's error code leads a refusal's message
+    /// (`Authorization_RequestDenied: …`), as its codes tell a missing permission from a missing license.
+    pub async fn graph_get(&self, c: &Credentials, target: &str) -> Result<Value, AzureError> {
+        let root = format!("{}/v1.0", self.endpoints.graph.trim_end_matches('/'));
+        let url = if target.starts_with('/') {
+            format!("{root}{target}")
+        } else if target.starts_with(&format!("{root}/")) {
+            target.to_string()
+        } else {
+            return Err(AzureError::Other(format!("not Microsoft Graph: {target}")));
+        };
+        let token = self.token(c, GRAPH_SCOPE).await?;
+        let res = self.http.get(url).bearer_auth(token).send().await.map_err(|e| AzureError::Other(e.to_string()))?;
+        let status = res.status().as_u16();
+        let body = res.text().await.unwrap_or_default();
+        if !(200..300).contains(&status) {
+            let code = serde_json::from_str::<Value>(&body).ok().and_then(|v| v["error"]["code"].as_str().map(str::to_string));
+            return Err(match (classify(status, &body), code) {
+                (AzureError::Forbidden { action, message }, Some(code)) => AzureError::Forbidden { action, message: format!("{code}: {message}") },
+                (AzureError::Rejected(m), Some(code)) => AzureError::Rejected(format!("{code}: {m}")),
+                (e, _) => e,
+            });
+        }
+        serde_json::from_str(&body).map_err(|e| AzureError::Other(e.to_string()))
+    }
+
     /// Every page of a Resource Manager list (`value`, `nextLink`).
     async fn pages(&self, c: &Credentials, first: String) -> Result<Vec<Value>, AzureError> {
         let token = self.token(c, MANAGEMENT_SCOPE).await?;
@@ -260,6 +387,7 @@ impl AzureApi for Rest {
                     resource_group: resource_group(&id),
                     name: r["name"].as_str().unwrap_or_default().to_string(),
                     kind: r["type"].as_str()?.to_string(),
+                    azure_kind: r["kind"].as_str().unwrap_or_default().to_string(),
                     location: r["location"].as_str().unwrap_or_default().to_string(),
                     tags: r["tags"].as_object().map(|t| t.iter().map(|(k, v)| format!("{}:{}", k.to_ascii_lowercase(), v.as_str().unwrap_or_default())).collect()).unwrap_or_default(),
                     id,
@@ -268,49 +396,72 @@ impl AzureApi for Rest {
             .collect())
     }
 
-    async fn metric_names(&self, c: &Credentials, resource_id: &str) -> Result<Vec<String>, AzureError> {
+    async fn metric_definitions(&self, c: &Credentials, resource_id: &str) -> Result<Vec<MetricDef>, AzureError> {
         let all = self.pages(c, format!("{}{resource_id}/providers/Microsoft.Insights/metricDefinitions?api-version=2018-01-01", self.endpoints.management)).await?;
-        // The batch calls ask for one-minute points, which some metrics don't have (only hourly ones).
-        let per_minute = |d: &Value| d["metricAvailabilities"].as_array().is_none_or(|a| a.iter().any(|g| g["timeGrain"] == "PT1M"));
-        Ok(all.iter().filter(|d| per_minute(d)).filter_map(|d| d["name"]["value"].as_str().map(str::to_string)).collect())
+        let strings = |v: &Value, key: &str| -> Vec<String> { v.as_array().map(Vec::as_slice).unwrap_or_default().iter().filter_map(|x| if key.is_empty() { x.as_str() } else { x[key].as_str() }.map(str::to_string)).collect() };
+        Ok(all
+            .iter()
+            .filter_map(|d| {
+                let grain_ms = d["metricAvailabilities"].as_array().map(Vec::as_slice).unwrap_or_default().iter().filter_map(|g| grain_ms(g["timeGrain"].as_str()?)).min().unwrap_or(60_000);
+                Some(MetricDef {
+                    name: d["name"]["value"].as_str()?.to_string(),
+                    primary: d["primaryAggregationType"].as_str().unwrap_or("Average").to_string(),
+                    aggregations: strings(&d["supportedAggregationTypes"], ""),
+                    grain_ms,
+                    dimensions: strings(&d["dimensions"], "value"),
+                })
+            })
+            .collect())
     }
 
-    async fn metrics(&self, c: &Credentials, subscription: &str, region: &str, resource_type: &str, resource_ids: &[String], metrics: &[String], aggregations: &[&str], start_ms: i64, end_ms: i64) -> Result<Vec<Series>, AzureError> {
-        let token = self.token(c, METRICS_SCOPE).await?;
-        let url = format!("{}/subscriptions/{subscription}/metrics:getBatch", self.endpoints.metrics.replace("{region}", region));
-        let names = metrics.iter().map(|m| m.replace(',', "%2")).collect::<Vec<_>>().join(",");
-        let query = [
-            ("starttime", iso(start_ms)),
-            ("endtime", iso(end_ms)),
-            ("interval", "PT1M".into()),
-            ("metricnamespace", resource_type.to_string()),
-            ("metricnames", names),
-            ("aggregation", aggregations.join(",")),
-            ("api-version", "2024-02-01".into()),
-        ];
-        let body = serde_json::json!({ "resourceids": resource_ids });
-        let v = self.send(self.http.post(url).query(&query).bearer_auth(token).json(&body)).await?;
+    async fn metrics(&self, c: &Credentials, q: &MetricsQuery<'_>) -> Result<Vec<Series>, AzureError> {
+        let names = q.metrics.iter().map(|m| m.replace(',', "%2")).collect::<Vec<_>>().join(",");
+        let filter = split_filter(q.dimensions);
+        let mut common = vec![("interval", iso_grain(q.grain_ms)), ("metricnamespace", q.resource_type.to_string()), ("metricnames", names), ("aggregation", q.aggregations.join(","))];
+        if filter.is_some() {
+            common.push(("top", TOP.to_string()));
+        }
         let mut out = vec![];
-        for resource in v["values"].as_array().map(Vec::as_slice).unwrap_or_default() {
-            let resource_id = resource["resourceid"].as_str().unwrap_or_default();
-            for metric in resource["value"].as_array().map(Vec::as_slice).unwrap_or_default() {
-                let name = metric["name"]["value"].as_str().unwrap_or_default();
-                for aggregation in aggregations {
-                    let points: Vec<(i64, f64)> = metric["timeseries"]
-                        .as_array()
-                        .map(Vec::as_slice)
-                        .unwrap_or_default()
-                        .iter()
-                        .flat_map(|ts| ts["data"].as_array().cloned().unwrap_or_default())
-                        .filter_map(|d| Some((chrono::DateTime::parse_from_rfc3339(d["timeStamp"].as_str()?).ok()?.timestamp_millis(), d[*aggregation].as_f64()?)))
-                        .collect();
-                    if !points.is_empty() {
-                        out.push(Series { resource_id: resource_id.to_string(), metric: name.to_string(), aggregation: aggregation.to_string(), points });
-                    }
+        if is_global(q.region) {
+            // Resource Manager's per-resource API (`$filter`, `timespan`), one resource a call.
+            let token = self.token(c, MANAGEMENT_SCOPE).await?;
+            for id in q.resource_ids {
+                let mut query = common.clone();
+                query.extend([("timespan", format!("{}/{}", iso(q.start_ms), iso(q.end_ms))), ("api-version", "2023-10-01".into())]);
+                if let Some(f) = &filter {
+                    query.push(("$filter", f.clone()));
                 }
+                let url = format!("{}{id}/providers/Microsoft.Insights/metrics", self.endpoints.management);
+                let v = self.send(self.http.get(url).query(&query).bearer_auth(&token)).await?;
+                parse_series(id, v["value"].as_array().map(Vec::as_slice).unwrap_or_default(), q.aggregations, &mut out);
             }
+            return Ok(out);
+        }
+        let token = self.token(c, METRICS_SCOPE).await?;
+        let url = format!("{}/subscriptions/{}/metrics:getBatch", self.endpoints.metrics.replace("{region}", q.region), q.subscription);
+        let mut query = common;
+        query.extend([("starttime", iso(q.start_ms)), ("endtime", iso(q.end_ms)), ("api-version", "2024-02-01".into())]);
+        if let Some(f) = filter {
+            query.push(("filter", f));
+        }
+        let body = serde_json::json!({ "resourceids": q.resource_ids });
+        let v = self.send(self.http.post(url).query(&query).bearer_auth(token).json(&body)).await?;
+        for resource in v["values"].as_array().map(Vec::as_slice).unwrap_or_default() {
+            parse_series(resource["resourceid"].as_str().unwrap_or_default(), resource["value"].as_array().map(Vec::as_slice).unwrap_or_default(), q.aggregations, &mut out);
         }
         Ok(out)
+    }
+
+    async fn availability(&self, c: &Credentials, subscription: &str) -> Result<HashMap<String, String>, AzureError> {
+        let all = self.pages(c, format!("{}/subscriptions/{subscription}/providers/Microsoft.ResourceHealth/availabilityStatuses?api-version=2022-10-01", self.endpoints.management)).await?;
+        Ok(all
+            .iter()
+            .filter_map(|s| {
+                let id = s["id"].as_str()?.to_ascii_lowercase();
+                let resource = id.split("/providers/microsoft.resourcehealth/").next()?.to_string();
+                Some((resource, s["properties"]["availabilityState"].as_str()?.to_string()))
+            })
+            .collect())
     }
 }
 
@@ -332,6 +483,17 @@ mod tests {
             AzureError::Forbidden { action: Some("Microsoft.Insights/metrics/read".into()), message: "The client 'c' with object id 'o' does not have authorization to perform action 'Microsoft.Insights/metrics/read' over scope '/subscriptions/s'".into() }
         );
         assert!(matches!(classify(429, "{}"), AzureError::Throttled(_)));
+        // The metrics data plane throttles with 529; 503 is a busy backend.
+        assert!(matches!(classify(529, "{}"), AzureError::Throttled(_)));
+        assert!(matches!(classify(503, "{}"), AzureError::Throttled(_)));
+        assert_eq!(grain_ms("PT1M"), Some(60_000));
+        assert_eq!(grain_ms("PT30M"), Some(1_800_000));
+        assert_eq!(grain_ms("PT12H"), Some(43_200_000));
+        assert_eq!(grain_ms("P1D"), Some(86_400_000));
+        assert_eq!(grain_ms("bogus"), None);
+        assert_eq!(iso_grain(300_000), "PT5M");
+        assert_eq!(iso_grain(3_600_000), "PT1H");
+        assert_eq!(iso_grain(86_400_000), "P1D");
         assert!(matches!(classify(400, r#"{"code":"BadRequest","message":"Microsoft.Compute/restorePointCollections is not a supported platform metric namespace"}"#), AzureError::Rejected(m) if m.contains("restorePointCollections")));
         assert_eq!(resource_group("/subscriptions/s/resourceGroups/Storefront-RG/providers/Microsoft.Compute/virtualMachines/web-1"), "storefront-rg");
     }
@@ -367,16 +529,18 @@ mod tests {
             .route(
                 "/subscriptions/sub-a/resources",
                 get(|| async {
-                    Json(json!({ "value": [{ "id": "/subscriptions/sub-a/resourceGroups/Storefront/providers/Microsoft.Compute/virtualMachines/web-1", "name": "web-1", "type": "Microsoft.Compute/virtualMachines", "location": "westeurope", "tags": { "Env": "prod" } }] }))
+                    Json(json!({ "value": [{ "id": "/subscriptions/sub-a/resourceGroups/Storefront/providers/Microsoft.Compute/virtualMachines/web-1", "name": "web-1", "type": "Microsoft.Compute/virtualMachines", "location": "westeurope", "tags": { "Env": "prod" } },
+                        { "id": "/subscriptions/sub-a/resourceGroups/Storefront/providers/Microsoft.Web/sites/order-functions", "name": "order-functions", "type": "Microsoft.Web/sites", "kind": "functionapp,linux", "location": "westeurope" }] }))
                 }),
             )
             .route(
                 "/subscriptions/sub-a/resourceGroups/Storefront/providers/Microsoft.Compute/virtualMachines/web-1/providers/Microsoft.Insights/metricDefinitions",
                 get(|| async {
                     Json(json!({ "value": [
-                        { "name": { "value": "Percentage CPU" }, "metricAvailabilities": [{ "timeGrain": "PT1M" }, { "timeGrain": "PT1H" }] },
-                        { "name": { "value": "Network In Total" } },
-                        { "name": { "value": "StorageUsed" }, "metricAvailabilities": [{ "timeGrain": "PT1H" }] }
+                        { "name": { "value": "Percentage CPU" }, "primaryAggregationType": "Average", "supportedAggregationTypes": ["None", "Average", "Minimum", "Maximum", "Total", "Count"], "metricAvailabilities": [{ "timeGrain": "PT1H" }, { "timeGrain": "PT1M" }] },
+                        { "name": { "value": "Network In Total" }, "primaryAggregationType": "Total" },
+                        { "name": { "value": "Disk Read Bytes/sec" }, "primaryAggregationType": "Average", "dimensions": [{ "value": "LUN", "localizedValue": "LUN" }], "metricAvailabilities": [{ "timeGrain": "PT1M" }] },
+                        { "name": { "value": "StorageUsed" }, "primaryAggregationType": "Average", "metricAvailabilities": [{ "timeGrain": "PT1H" }, { "timeGrain": "P1D" }] }
                     ] }))
                 }),
             )
@@ -384,13 +548,36 @@ mod tests {
                 "/subscriptions/sub-a/metrics:getBatch",
                 post(move |h: HeaderMap, Query(q): Query<HashMap<String, String>>, Json(body): Json<Value>| async move {
                     assert_eq!(bearer(&h), "Bearer tok-https://metrics.monitor.azure.com/.default");
-                    assert_eq!(q["metricnamespace"], "Microsoft.Compute/virtualMachines");
-                    assert_eq!(q["aggregation"], "average,maximum");
-                    assert_eq!(q["interval"], "PT1M");
-                    Json(json!({ "values": [{ "resourceid": body["resourceids"][0], "value": [{ "name": { "value": "Percentage CPU" }, "timeseries": [{ "data": [
-                        { "timeStamp": "2023-11-14T22:13:00Z", "average": 12.5, "maximum": 40.0 },
-                        { "timeStamp": "2023-11-14T22:14:00Z", "average": 13.0 }
-                    ] }] }] }] }))
+                    assert_eq!(q["metricnamespace"], "Microsoft.Storage/storageAccounts");
+                    assert_eq!(q["aggregation"], "total,maximum");
+                    assert_eq!(q["interval"], "PT1H");
+                    assert_eq!((q["filter"].as_str(), q["top"].as_str()), ("ApiName eq '*' and ResponseType eq '*'", "50"));
+                    Json(json!({ "values": [{ "resourceid": body["resourceids"][0], "value": [{ "name": { "value": "Transactions" }, "timeseries": [
+                        { "metadatavalues": [{ "name": { "value": "apiname" }, "value": "GetBlob" }, { "name": { "value": "responsetype" }, "value": "Success" }], "data": [
+                            { "timeStamp": "2023-11-14T22:00:00Z", "total": 12.0, "maximum": 4.0 },
+                            { "timeStamp": "2023-11-14T23:00:00Z", "total": 13.0 }
+                        ] }
+                    ] }] }] }))
+                }),
+            )
+            .route(
+                "/subscriptions/sub-a/resourceGroups/dns/providers/Microsoft.Network/dnszones/example.com/providers/Microsoft.Insights/metrics",
+                get(move |h: HeaderMap, Query(q): Query<HashMap<String, String>>| async move {
+                    // A global resource: Azure Resource Manager's per-resource metrics API.
+                    assert_eq!(bearer(&h), "Bearer tok-https://management.azure.com/.default");
+                    assert_eq!((q["metricnamespace"].as_str(), q["metricnames"].as_str(), q["aggregation"].as_str(), q["interval"].as_str()), ("Microsoft.Network/dnszones", "QueryVolume", "total", "PT5M"));
+                    assert_eq!(q["timespan"], "2023-11-14T22:10:00Z/2023-11-14T22:20:00Z");
+                    assert!(!q.contains_key("$filter"));
+                    Json(json!({ "value": [{ "name": { "value": "QueryVolume" }, "timeseries": [{ "data": [{ "timeStamp": "2023-11-14T22:10:00Z", "total": 7.0 }, { "timeStamp": "2023-11-14T22:15:00Z", "total": 9.0 }] }] }] }))
+                }),
+            )
+            .route(
+                "/subscriptions/sub-a/providers/Microsoft.ResourceHealth/availabilityStatuses",
+                get(|| async {
+                    Json(json!({ "value": [
+                        { "id": "/subscriptions/sub-a/resourceGroups/Storefront/providers/Microsoft.Compute/virtualMachines/web-1/providers/Microsoft.ResourceHealth/availabilityStatuses/current", "properties": { "availabilityState": "Available" } },
+                        { "id": "/subscriptions/sub-a/resourceGroups/Storefront/providers/Microsoft.Web/sites/api/providers/Microsoft.ResourceHealth/availabilityStatuses/current", "properties": { "availabilityState": "Degraded" } }
+                    ] }))
                 }),
             )
             .route(
@@ -408,6 +595,18 @@ mod tests {
             )
             .route("/examplecostexports/costs/{*name}", get(|axum::extract::Path(name): axum::extract::Path<String>| async move { format!("bytes of {name}") }))
             .route(
+                "/v1.0/auditLogs/signIns",
+                get(move |h: HeaderMap, Query(q): Query<HashMap<String, String>>| async move {
+                    // Microsoft Graph: its own token; refusals carry Graph's error code.
+                    assert_eq!(bearer(&h), "Bearer tok-https://graph.microsoft.com/.default");
+                    if q.get("$filter").is_some_and(|f| f.contains("premium")) {
+                        let body = json!({ "error": { "code": "Authentication_RequestFromNonPremiumTenantOrB2CTenant", "message": "Neither tenant is B2C or tenant doesn't have premium license" } });
+                        return (axum::http::StatusCode::FORBIDDEN, Json(body));
+                    }
+                    (axum::http::StatusCode::OK, Json(json!({ "value": [{ "id": "s-1" }], "filter": q.get("$filter") })))
+                }),
+            )
+            .route(
                 "/deniedaccount/costs",
                 get(|| async { (axum::http::StatusCode::FORBIDDEN, "<?xml version=\"1.0\" encoding=\"utf-8\"?><Error><Code>AuthorizationPermissionMismatch</Code><Message>This request is not authorized to perform this operation using this permission.</Message></Error>") }),
             )
@@ -419,7 +618,7 @@ mod tests {
     #[tokio::test]
     async fn blobs_are_listed_page_by_page_and_downloaded() {
         let (base, _) = fake_azure().await;
-        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: format!("{base}/{{account}}") });
+        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: format!("{base}/{{account}}"), graph: base.clone() });
         let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
         let blobs = rest.list_blobs(&c, "examplecostexports", "costs", "cost-exports/observecraft-actual/").await.unwrap();
         assert_eq!(
@@ -434,17 +633,47 @@ mod tests {
     #[tokio::test]
     async fn the_rest_client_signs_in_lists_and_reads_batches() {
         let (base, seen) = fake_azure().await;
-        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base.clone() });
+        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base.clone(), graph: base.clone() });
         let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
         let resources = rest.resources(&c, "sub-a").await.unwrap();
-        assert_eq!(resources.len(), 1);
+        assert_eq!(resources.len(), 2);
         assert_eq!((resources[0].kind.as_str(), resources[0].resource_group.as_str(), resources[0].tags.clone()), ("Microsoft.Compute/virtualMachines", "storefront", vec!["env:prod".to_string()]));
-        // Metrics without a one-minute grain aren't read (the batch calls ask for PT1M).
-        assert_eq!(rest.metric_names(&c, &resources[0].id).await.unwrap(), ["Percentage CPU", "Network In Total"]);
-        let series = rest.metrics(&c, "sub-a", "westeurope", "Microsoft.Compute/virtualMachines", &[resources[0].id.clone()], &["Percentage CPU".into()], &["average", "maximum"], 1_700_000_000_000, 1_700_000_600_000).await.unwrap();
+        // The resource's `kind` (function apps are `Microsoft.Web/sites` of kind `functionapp`).
+        assert_eq!((resources[0].azure_kind.as_str(), resources[1].azure_kind.as_str()), ("", "functionapp,linux"));
+        // Each metric's primary and supported aggregations, finest grain and dimensions.
+        let defs = rest.metric_definitions(&c, &resources[0].id).await.unwrap();
+        let s = |a: &[&str]| a.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        assert_eq!(defs[0], MetricDef { name: "Percentage CPU".into(), primary: "Average".into(), aggregations: s(&["None", "Average", "Minimum", "Maximum", "Total", "Count"]), grain_ms: 60_000, dimensions: vec![] });
+        assert_eq!((defs[1].grain_ms, defs[1].primary.as_str()), (60_000, "Total"));
+        assert_eq!(defs[2].dimensions, ["LUN"]);
+        assert_eq!(defs[3].grain_ms, 3_600_000);
+        let storage = "/subscriptions/sub-a/resourceGroups/Storefront/providers/Microsoft.Storage/storageAccounts/assets".to_string();
+        let q = MetricsQuery {
+            subscription: "sub-a",
+            region: "westeurope",
+            resource_type: "Microsoft.Storage/storageAccounts",
+            resource_ids: std::slice::from_ref(&storage),
+            metrics: &["Transactions".into()],
+            aggregations: &["total", "maximum"],
+            grain_ms: 3_600_000,
+            dimensions: &["ApiName".into(), "ResponseType".into()],
+            start_ms: 1_699_999_200_000,
+            end_ms: 1_700_006_400_000,
+        };
+        let series = rest.metrics(&c, &q).await.unwrap();
         assert_eq!(series.len(), 2);
-        assert_eq!(series[0].points, [(1_699_999_980_000, 12.5), (1_700_000_040_000, 13.0)]);
+        assert_eq!(series[0].points, [(1_699_999_200_000, 12.0), (1_700_002_800_000, 13.0)]);
+        assert_eq!(series[0].dimensions, [("apiname".to_string(), "GetBlob".to_string()), ("responsetype".to_string(), "Success".to_string())]);
         assert_eq!((series[1].aggregation.as_str(), series[1].points.len()), ("maximum", 1));
+        // A global resource (DNS zones, Front Door, Traffic Manager) is read through Azure Resource Manager, one resource a call.
+        let zone = "/subscriptions/sub-a/resourceGroups/dns/providers/Microsoft.Network/dnszones/example.com".to_string();
+        let q = MetricsQuery { region: "global", resource_type: "Microsoft.Network/dnszones", resource_ids: std::slice::from_ref(&zone), metrics: &["QueryVolume".into()], aggregations: &["total"], grain_ms: 300_000, dimensions: &[], start_ms: 1_700_000_000_000 - 200_000, end_ms: 1_700_000_400_000, ..q };
+        let series = rest.metrics(&c, &q).await.unwrap();
+        assert_eq!((series.len(), series[0].resource_id.as_str(), series[0].points.len()), (1, zone.as_str(), 2));
+        // Resource Health: each resource's availability, by lowercase id.
+        let health = rest.availability(&c, "sub-a").await.unwrap();
+        assert_eq!(health.get(&resources[0].id.to_ascii_lowercase()).map(String::as_str), Some("Available"));
+        assert_eq!(health.len(), 2);
         // One token per scope, cached.
         rest.resources(&c, "sub-a").await.unwrap();
         let tokens: Vec<String> = seen.lock().unwrap().iter().filter(|s| s.starts_with("token")).cloned().collect();
@@ -455,9 +684,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn graph_reads_paths_and_its_own_links_with_its_token() {
+        let (base, seen) = fake_azure().await;
+        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base.clone(), graph: base.clone() });
+        let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
+        let page = rest.graph_get(&c, "/auditLogs/signIns?$filter=createdDateTime ge 2026-11-06T10:00:00Z").await.unwrap();
+        assert_eq!((page["value"][0]["id"].as_str(), page["filter"].as_str()), (Some("s-1"), Some("createdDateTime ge 2026-11-06T10:00:00Z")));
+        // An `@odata.nextLink` is absolute: followed on Graph only, so the token never goes elsewhere.
+        let link = rest.graph_get(&c, &format!("{base}/v1.0/auditLogs/signIns?$skiptoken=x")).await.unwrap();
+        assert_eq!(link["value"][0]["id"], "s-1");
+        assert!(matches!(rest.graph_get(&c, "https://elsewhere.example.com/v1.0/auditLogs/signIns").await, Err(AzureError::Other(m)) if m.contains("not Microsoft Graph")));
+        let denied = rest.graph_get(&c, "/auditLogs/signIns?$filter=premium").await.unwrap_err();
+        assert!(matches!(&denied, AzureError::Forbidden { action: None, message } if message.starts_with("Authentication_RequestFromNonPremiumTenantOrB2CTenant: ")), "{denied:?}");
+        assert_eq!(seen.lock().unwrap().iter().filter(|s| s.starts_with("token")).count(), 1, "one Graph token, cached");
+    }
+
+    #[tokio::test]
     async fn subscriptions_follow_next_links_and_skip_disabled_ones() {
         let (base, _) = fake_azure().await;
-        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base });
+        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base.clone(), graph: base });
         let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
         assert_eq!(rest.subscriptions(&c).await.unwrap(), ["sub-a"]);
     }

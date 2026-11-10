@@ -5,7 +5,7 @@ use std::sync::Mutex as StdMutex;
 
 use serde_json::{json, Value};
 
-use super::api::{FleetApi, FleetError};
+use super::api::{FleetApi, FleetError, ACTIVITIES_PAGE_SIZE};
 
 /// An activity as `GET /api/v1/fleet/activities` lists it.
 pub fn activity(id: u64, kind: &str, created_at: &str, details: Value) -> Value {
@@ -80,17 +80,57 @@ pub fn policies() -> Value {
     ] })
 }
 
+/// The vulnerabilities on the most hosts: Premium's scores on the first two, none on the third (Fleet Free).
+pub fn vulnerabilities() -> Value {
+    json!({ "vulnerabilities": [
+        { "cve": "CVE-2024-3094", "created_at": "2024-03-29T17:15:00Z", "hosts_count": 7, "cvss_score": 10.0, "epss_probability": 0.86, "cisa_known_exploit": true },
+        { "cve": "CVE-2023-4863", "created_at": "2023-09-12T15:15:00Z", "hosts_count": 4, "cvss_score": 8.8, "epss_probability": 0.42, "cisa_known_exploit": false },
+        { "cve": "CVE-2022-30190", "created_at": "2022-06-01T00:15:00Z", "hosts_count": 1 }
+    ], "count": 123, "meta": { "has_next_results": true, "has_previous_results": false } })
+}
+
 /// Fleet answering from a table of paths; records requests; `refuse` answers 401 to every request.
 #[derive(Default)]
 pub struct FakeFleet {
     pub answers: StdMutex<HashMap<String, Value>>,
+    /// The server's activities (by id), answered to `activities_path` filtered and paged as Fleet does.
+    pub activities: StdMutex<Option<Vec<Value>>>,
     pub requests: StdMutex<Vec<String>>,
     pub refuse: bool,
+    /// A Fleet too old for `start_created_at`: it answers its whole log.
+    pub ignores_start: bool,
+    /// Activities created right after the next newest-first page is answered (they shift the later pages).
+    pub arrive: StdMutex<Vec<Value>>,
 }
 
 impl FakeFleet {
     pub fn answer(&self, path: impl Into<String>, body: Value) {
         self.answers.lock().unwrap().insert(path.into(), body);
+    }
+
+    pub fn log(&self, activities: &[Value]) {
+        *self.activities.lock().unwrap() = Some(activities.to_vec());
+    }
+
+    /// `/activities?page=…&start_created_at=…` over [`Self::log`].
+    fn list_activities(&self, path: &str) -> Option<Value> {
+        let log = self.activities.lock().unwrap().clone()?;
+        let query = path.strip_prefix("/activities?")?;
+        let param = |k: &str| query.split('&').find_map(|p| p.strip_prefix(&format!("{k}=")).map(str::to_string));
+        let page: usize = param("page")?.parse().ok()?;
+        let start = param("start_created_at").filter(|_| !self.ignores_start).map_or(i64::MIN, |t| chrono::DateTime::parse_from_rfc3339(&t).unwrap().timestamp_millis());
+        let created = |a: &Value| chrono::DateTime::parse_from_rfc3339(a["created_at"].as_str().unwrap()).unwrap().timestamp_millis();
+        let mut matching: Vec<Value> = log.into_iter().filter(|a| created(a) >= start).collect();
+        matching.sort_by_key(|a| a["id"].as_u64());
+        if param("order_direction").as_deref() == Some("desc") {
+            matching.reverse();
+            let arrived: Vec<Value> = std::mem::take(&mut *self.arrive.lock().unwrap());
+            self.activities.lock().unwrap().get_or_insert_with(Vec::new).extend(arrived);
+        }
+        let rows: Vec<Value> = matching.iter().skip(page * ACTIVITIES_PAGE_SIZE).take(ACTIVITIES_PAGE_SIZE).cloned().collect();
+        let next = matching.len() > (page + 1) * ACTIVITIES_PAGE_SIZE;
+        // Fleet answers `null` when there are none.
+        Some(json!({ "activities": if rows.is_empty() { Value::Null } else { Value::Array(rows) }, "meta": { "has_next_results": next, "has_previous_results": page > 0 } }))
     }
 
     pub fn requested(&self) -> Vec<String> {
@@ -105,6 +145,9 @@ impl FleetApi for FakeFleet {
         self.requests.lock().unwrap().push(path.to_string());
         if self.refuse {
             return Err(FleetError::Auth("Authentication required".into()));
+        }
+        if let Some(answer) = self.list_activities(path) {
+            return Ok(answer);
         }
         self.answers.lock().unwrap().get(path).cloned().ok_or_else(|| FleetError::NotFound(format!("no answer for {path}")))
     }

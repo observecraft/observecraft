@@ -1,0 +1,144 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c51b-bda0-7d60-a032-99fa3561e07b"
+      },
+      "date": "2026-11-10T10:58:12Z",
+      "ddsource": "trend-micro-vision-one-xdr",
+      "detail": {
+        "endpointHostName": "i-0a1b2c3d4e5f60002",
+        "eventId": "1",
+        "eventSubId": 2,
+        "filterRiskLevel": "low",
+        "osDescription": "Windows Server 2022 (64 bit) build 20348",
+        "processCmd": "C:\\Windows\\System32\\schtasks.exe /create /tn updater /tr C:\\ProgramData\\tools\\invoice-tool.exe",
+        "processUser": "build-agent",
+        "tags": [
+          "MITRE.T1053.005",
+          "XSAE.F1507"
+        ],
+        "userDomain": "SHOP"
+      },
+      "detectedDateTime": "2026-11-10T10:58:12Z",
+      "endpoint": {
+        "agentGuid": "801b7e5f-0000-4000-8000-000000000001",
+        "endpointName": "i-0a1b2c3d4e5f60002",
+        "ips": [
+          "10.0.12.34"
+        ]
+      },
+      "entityName": "i-0a1b2c3d4e5f60002(10.0.12.34)",
+      "entityType": "endpoint",
+      "filters": [
+        {
+          "description": "Creation of Scheduled Task via command line",
+          "highlightedObjects": [
+            {
+              "field": "processCmd",
+              "type": "command_line",
+              "value": "C:\\Windows\\System32\\schtasks.exe /create /tn updater /tr C:\\ProgramData\\tools\\invoice-tool.exe"
+            }
+          ],
+          "id": "F1507",
+          "mitreTacticIds": [
+            "TA0002",
+            "TA0003"
+          ],
+          "mitreTechniqueIds": [
+            "T1053",
+            "T1053.005"
+          ],
+          "name": "Creation of Scheduled Task",
+          "riskLevel": "low",
+          "type": "preset"
+        }
+      ],
+      "host": "api.xdr.trendmicro.com",
+      "ingestedDateTime": "2026-11-10T11:00:40Z",
+      "message": "{\"detail\":{\"endpointHostName\":\"i-0a1b2c3d4e5f60002\",\"eventId\":\"1\",\"eventSubId\":2,\"filterRiskLevel\":\"low\",\"osDescription\":\"Windows Server 2022 (64 bit) build 20348\",\"processCmd\":\"C:\\\\Windows\\\\System32\\\\schtasks.exe /create /tn updater /tr C:\\\\ProgramData\\\\tools\\\\invoice-tool.exe\",\"processUser\":\"build-agent\",\"tags\":[\"MITRE.T1053.005\",\"XSAE.F1507\"],\"userDomain\":\"SHOP\"},\"detectedDateTime\":\"2026-11-10T10:58:12Z\",\"endpoint\":{\"agentGuid\":\"801b7e5f-0000-4000-8000-000000000001\",\"endpointName\":\"i-0a1b2c3d4e5f60002\",\"ips\":[\"10.0.12.34\"]},\"entityName\":\"i-0a1b2c3d4e5f60002(10.0.12.34)\",\"entityType\":\"endpoint\",\"filters\":[{\"description\":\"Creation of Scheduled Task via command line\",\"highlightedObjects\":[{\"field\":\"processCmd\",\"type\":\"command_line\",\"value\":\"C:\\\\Windows\\\\System32\\\\schtasks.exe /create /tn updater /tr C:\\\\ProgramData\\\\tools\\\\invoice-tool.exe\"}],\"id\":\"F1507\",\"mitreTacticIds\":[\"TA0002\",\"TA0003\"],\"mitreTechniqueIds\":[\"T1053\",\"T1053.005\"],\"name\":\"Creation of Scheduled Task\",\"riskLevel\":\"low\",\"type\":\"preset\"}],\"ingestedDateTime\":\"2026-11-10T11:00:40Z\",\"source\":\"endpointActivityData\",\"uuid\":\"5e1c0000-0000-4000-8000-000000000001\"}",
+      "service": "trend-micro-vision-one-xdr",
+      "source": "endpointActivityData",
+      "status": "info",
+      "uuid": "5e1c0000-0000-4000-8000-000000000001",
+      "vendor": {
+        "endpoint": "observed-attack-techniques"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c52f-b6e8-7279-8034-95b803f4b13e"
+      },
+      "date": "2026-11-10T11:20:01Z",
+      "ddsource": "trend-micro-vision-one-xdr",
+      "detail": {
+        "dpt": 443,
+        "dst": "198.51.100.40",
+        "endpointHostName": "i-0a1b2c3d4e5f60001",
+        "eventId": "3",
+        "eventSubId": 204,
+        "filterRiskLevel": "medium",
+        "osDescription": "Windows 11 Pro (64 bit) build 22631",
+        "processCmd": "powershell.exe -enc SQBFAFgA",
+        "processUser": "svc-orders",
+        "src": "10.0.11.20",
+        "tags": [
+          "MITRE.T1059.001"
+        ],
+        "userDomain": "SHOP"
+      },
+      "detectedDateTime": "2026-11-10T11:20:01Z",
+      "endpoint": {
+        "agentGuid": "801b7e5f-0000-4000-8000-000000000002",
+        "endpointName": "i-0a1b2c3d4e5f60001",
+        "ips": [
+          "10.0.11.20"
+        ]
+      },
+      "entityName": "i-0a1b2c3d4e5f60001(10.0.11.20)",
+      "entityType": "endpoint",
+      "filters": [
+        {
+          "description": "Encoded PowerShell Command via command line",
+          "highlightedObjects": [
+            {
+              "field": "processCmd",
+              "type": "command_line",
+              "value": "powershell.exe -enc SQBFAFgA"
+            }
+          ],
+          "id": "F1507",
+          "mitreTacticIds": [
+            "TA0002"
+          ],
+          "mitreTechniqueIds": [
+            "T1059.001"
+          ],
+          "name": "Encoded PowerShell Command",
+          "riskLevel": "medium",
+          "type": "preset"
+        }
+      ],
+      "host": "api.xdr.trendmicro.com",
+      "ingestedDateTime": "2026-11-10T11:21:15Z",
+      "message": "{\"detail\":{\"dpt\":443,\"dst\":\"198.51.100.40\",\"endpointHostName\":\"i-0a1b2c3d4e5f60001\",\"eventId\":\"3\",\"eventSubId\":204,\"filterRiskLevel\":\"medium\",\"osDescription\":\"Windows 11 Pro (64 bit) build 22631\",\"processCmd\":\"powershell.exe -enc SQBFAFgA\",\"processUser\":\"svc-orders\",\"src\":\"10.0.11.20\",\"tags\":[\"MITRE.T1059.001\"],\"userDomain\":\"SHOP\"},\"detectedDateTime\":\"2026-11-10T11:20:01Z\",\"endpoint\":{\"agentGuid\":\"801b7e5f-0000-4000-8000-000000000002\",\"endpointName\":\"i-0a1b2c3d4e5f60001\",\"ips\":[\"10.0.11.20\"]},\"entityName\":\"i-0a1b2c3d4e5f60001(10.0.11.20)\",\"entityType\":\"endpoint\",\"filters\":[{\"description\":\"Encoded PowerShell Command via command line\",\"highlightedObjects\":[{\"field\":\"processCmd\",\"type\":\"command_line\",\"value\":\"powershell.exe -enc SQBFAFgA\"}],\"id\":\"F1507\",\"mitreTacticIds\":[\"TA0002\"],\"mitreTechniqueIds\":[\"T1059.001\"],\"name\":\"Encoded PowerShell Command\",\"riskLevel\":\"medium\",\"type\":\"preset\"}],\"ingestedDateTime\":\"2026-11-10T11:21:15Z\",\"source\":\"endpointActivityData\",\"uuid\":\"5e1c0000-0000-4000-8000-000000000002\"}",
+      "service": "trend-micro-vision-one-xdr",
+      "source": "endpointActivityData",
+      "status": "notice",
+      "uuid": "5e1c0000-0000-4000-8000-000000000002",
+      "vendor": {
+        "endpoint": "observed-attack-techniques"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

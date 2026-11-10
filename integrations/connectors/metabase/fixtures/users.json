@@ -1,0 +1,77 @@
+{
+ "data": {
+  "rows": [
+   [
+    1,
+    "user_1",
+    "personal",
+    "jane.doe@example.com",
+    "Jane",
+    "Doe",
+    "Jane Doe",
+    true,
+    true
+   ],
+   [
+    2,
+    "user_2",
+    "personal",
+    "sam.rivera@example.com",
+    "Sam",
+    "Rivera",
+    "Sam Rivera",
+    false,
+    true
+   ]
+  ],
+  "cols": [
+   {
+    "name": "user_id",
+    "display_name": "User Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "entity_qualified_id",
+    "display_name": "Entity Qualified Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "type",
+    "display_name": "Type",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "email",
+    "display_name": "Email",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "first_name",
+    "display_name": "First Name",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "last_name",
+    "display_name": "Last Name",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "full_name",
+    "display_name": "Full Name",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "is_admin",
+    "display_name": "Is Admin",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "is_active",
+    "display_name": "Is Active",
+    "base_type": "type/Text"
+   }
+  ]
+ },
+ "row_count": 2,
+ "status": "completed"
+}

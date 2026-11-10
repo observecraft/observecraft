@@ -1,0 +1,207 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Twilio (https://www.twilio.com/docs/usage/api): an account's Monitor alerts and events, message records (never
+# their bodies) and Voice Insights call summaries as the logs Datadog's Twilio integration collects (source:twilio,
+# one service per kind), and its daily usage as Cloud Cost Management costs. Datadog has no integrations-core tile
+# for it, so the package adds its own tile and dashboard.
+schema_version: 1
+id: twilio
+name: Twilio
+publisher: ObserveCraft
+vendor: Twilio
+description: >-
+  A Twilio account's debugger alerts, account events (keys, numbers, settings changed), message delivery records
+  (without their bodies) and Voice Insights call summaries as logs, and its daily usage and spend as costs.
+logo: twilio
+categories: [Notifications, Collaboration, Cost Management, Log Collection]
+docs_url: https://www.twilio.com/docs/usage/api
+setup: |
+  1. In the Twilio Console, open **Account → API keys & tokens** and **Create API key**, e.g. `observecraft`, of type
+     **Standard**. Copy its SID (`SK…`) and secret; Twilio shows the secret once.
+  2. Copy the **Account SID** (`AC…`) from the Console's dashboard.
+  3. Call summaries need Voice Insights Advanced Features turned on for the account.
+links:
+  - { label: API keys, url: "https://console.twilio.com/us1/account/keys-credentials/api-keys" }
+instance: "{{ config.account_sid }}"
+
+config:
+  - { key: account_sid, label: Account SID, type: string, required: true, placeholder: AC…, pattern: "AC[0-9a-f]{32}" }
+  - { key: api_key_sid, label: API key SID, type: string, required: true, placeholder: SK…, pattern: "SK[0-9a-f]{32}" }
+  - { key: api_key_secret, label: API key secret, type: string, secret: true, required: true }
+
+auth:
+  kind: basic
+  username: "{{ config.api_key_sid }}"
+  password: "{{ secrets.api_key_secret }}"
+
+# Twilio limits concurrent requests per account; a connector's few requests a minute stay far below.
+rate_limit: { requests_per_minute: 60 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: "Twilio refused the API key ({{ response.message ?? 'authenticate' }})"
+  - status: [403]
+    kind: access_denied
+    message: "The API key can't read this ({{ response.message ?? 'forbidden' }}): use a Standard or Main key of the account"
+  - status: [404]
+    when: "{{ response.code == 20404 }}"
+    kind: access_denied
+    message: "Not found for account {{ config.account_sid }}: is the Account SID the API key's?"
+  - status: [429]
+    kind: throttled
+    message: Twilio's concurrency limit was reached (error 20429)
+
+streams:
+  - id: alerts
+    name: Debugger alerts
+    description: >-
+      Every Monitor alert (the Debugger's errors and warnings) as a log (service:alerts): error.code is Twilio's error
+      code, with the resource it concerns. Errors are errors, warnings warnings.
+    request:
+      url: https://monitor.twilio.com/v1/Alerts
+      query: { StartDate: "{{ window.start | rfc3339_s }}", EndDate: "{{ window.end | rfc3339_s }}", PageSize: 1000 }
+    records: "{{ response.alerts }}"
+    pagination: { kind: next_url, next: "{{ response.meta.next_page_url }}" }
+    record_id: "{{ record.sid }}"
+    incremental: { kind: time, record_time: "{{ record.date_created }}", order: newest_first, lookback: 1d, overlap: 2m }
+    output:
+      logs:
+        service: alerts
+        message: "{{ record.error_code }}: {{ record.alert_text ?? 'Twilio alert' }}"
+        status: "{{ record.log_level == 'error' ? 'error' : record.log_level == 'warning' ? 'warn' : 'info' }}"
+        date: "{{ record.date_created }}"
+        attributes: "{{ record + {error: {code: record.error_code, message: record.alert_text}, http: {url: record.request_url}} }}"
+
+  - id: events
+    name: Account events
+    description: >-
+      Every Monitor event (API keys created, numbers bought, settings changed, users invited) as a log
+      (service:events): evt.name is the event type, usr.id the actor, network.client.ip the source IP.
+    interval: 5m
+    request:
+      url: https://monitor.twilio.com/v1/Events
+      query: { StartDate: "{{ window.start | rfc3339_s }}", EndDate: "{{ window.end | rfc3339_s }}", PageSize: 1000 }
+    records: "{{ response.events }}"
+    pagination: { kind: next_url, next: "{{ response.meta.next_page_url }}" }
+    record_id: "{{ record.sid }}"
+    incremental: { kind: time, record_time: "{{ record.event_date }}", order: newest_first, lookback: 1d, overlap: 5m }
+    output:
+      logs:
+        service: events
+        message: "{{ record.description ?? record.event_type }}"
+        date: "{{ record.event_date }}"
+        attributes: "{{ record + {evt: {name: record.event_type}, usr: {id: record.actor_sid}, network: {client: {ip: record.source_ip_address}}} }}"
+
+  - id: messages
+    name: Messages
+    description: >-
+      Every SMS, MMS and WhatsApp message's delivery record as a log (service:messages): delivery_status, direction, segments,
+      price and error code, never the body. Failed and undelivered messages are errors. A message read again
+      (status changed) rewrites the same log.
+    interval: 5m
+    # DateSent filters by day: the window's first day is read again and records outside it are skipped.
+    request:
+      url: "https://api.twilio.com/2010-04-01/Accounts/{{ config.account_sid }}/Messages.json"
+      query: { "DateSent>": "{{ window.start | strftime('%Y-%m-%d') }}", PageSize: 1000 }
+    records: "{{ response.messages }}"
+    pagination: { kind: next_url, next: "{{ response.next_page_uri }}" }
+    record_id: "{{ record.sid }}"
+    incremental: { kind: time, record_time: "{{ record.date_sent ?? record.date_created }}", order: newest_first, lookback: 1d, overlap: 1h }
+    output:
+      logs:
+        service: messages
+        message: "Message {{ record.sid }} {{ record.status }} ({{ record.direction }}){{ ', error ' + record.error_code ?? '' }}"
+        status: "{{ record.status in ['failed', 'undelivered'] ? 'error' : 'info' }}"
+        date: "{{ (record.date_sent ?? record.date_created) | rfc3339 }}"
+        attributes:
+          sid: "{{ record.sid }}"
+          account_sid: "{{ record.account_sid }}"
+          messaging_service_sid: "{{ record.messaging_service_sid }}"
+          delivery_status: "{{ record.status }}"
+          direction: "{{ record.direction }}"
+          from: "{{ record.from }}"
+          to: "{{ record.to }}"
+          num_segments: "{{ record.num_segments | int }}"
+          num_media: "{{ record.num_media | int }}"
+          price: "{{ record.price | float }}"
+          price_unit: "{{ record.price_unit }}"
+          api_version: "{{ record.api_version }}"
+          date_created: "{{ record.date_created }}"
+          date_sent: "{{ record.date_sent }}"
+          date_updated: "{{ record.date_updated }}"
+          error: { code: "{{ record.error_code | str }}", message: "{{ record.error_message }}" }
+
+  - id: call_summaries
+    name: Call summaries
+    description: >-
+      Every Voice Insights call summary as a log (service:calls): call type and state, duration, who hung up,
+      quality tags. Needs Voice Insights Advanced Features; summaries are final about 30 minutes after a call.
+    interval: 10m
+    default_enabled: false
+    request:
+      url: https://insights.twilio.com/v1/Voice/Summaries
+      query: { StartTime: "{{ window.start | rfc3339_s }}", EndTime: "{{ window.end | rfc3339_s }}", PageSize: 1000 }
+    records: "{{ response.call_summaries }}"
+    pagination: { kind: next_url, next: "{{ response.meta.next_page_url }}" }
+    record_id: "{{ record.call_sid }}"
+    incremental: { kind: time, record_time: "{{ record.start_time }}", order: newest_first, lookback: 1d, overlap: 1h, settle: 30m }
+    output:
+      logs:
+        service: calls
+        message: "Call {{ record.call_sid }} {{ record.call_state }} ({{ record.call_type }}, {{ record.duration }}s)"
+        status: "{{ record.call_state in ['failed', 'busy', 'noanswer'] ? 'warn' : 'info' }}"
+        date: "{{ record.start_time }}"
+        attributes: "{{ record }}"
+
+  - id: usage
+    name: Daily usage and spend
+    description: >-
+      The account's usage per category and day (SMS, voice minutes, phone numbers, …) as Cloud Cost Management costs
+      (provider twilio): the last three days, read again every hour as Twilio finalizes them.
+    interval: 1h
+    request:
+      url: "https://api.twilio.com/2010-04-01/Accounts/{{ config.account_sid }}/Usage/Records/Daily.json"
+      query: { StartDate: "{{ (now - 2 * 86400000) | strftime('%Y-%m-%d') }}", EndDate: "{{ now | strftime('%Y-%m-%d') }}", PageSize: 1000 }
+    records: "{{ response.usage_records }}"
+    pagination: { kind: next_url, next: "{{ response.next_page_uri }}" }
+    filter: "{{ (record.price | float) > 0 && record.category != 'totalprice' }}"
+    output:
+      costs:
+        provider: twilio
+        date: "{{ record.start_date }}"
+        cost: "{{ record.price | float }}"
+        currency: "{{ record.price_unit | upper }}"
+        service: "{{ record.category }}"
+        account: "{{ record.account_sid }}"
+        usage_type: "{{ record.description ?? record.category }}"
+        usage_amount: "{{ record.usage | float }}"
+        tags: { usage_unit: "{{ record.usage_unit }}" }
+
+test:
+  request: { url: "https://api.twilio.com/2010-04-01/Accounts/{{ config.account_sid }}.json" }
+  success: "{{ response.status == 'active' }}"
+  message: "Connected to {{ response.friendly_name }} ({{ response.type }} account)"
+  failure: "The account is {{ response.status }}"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { account_sid: ACexample_account_sid, api_key_sid: SKexample_api_key }
+  secrets: { api_key_secret: twilio-test-secret-000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://monitor.twilio.com/v1/Alerts", file: fixtures/alerts.json }
+    - { url: "https://monitor.twilio.com/v1/Events", file: fixtures/events.json }
+    - { url: "https://api.twilio.com/2010-04-01/Accounts/ACexample_account_sid/Messages.json", query: { Page: "1" }, file: fixtures/messages-2.json }
+    - { url: "https://api.twilio.com/2010-04-01/Accounts/ACexample_account_sid/Messages.json", file: fixtures/messages-1.json }
+    - { url: "https://insights.twilio.com/v1/Voice/Summaries", file: fixtures/call_summaries.json }
+    - { url: "https://api.twilio.com/2010-04-01/Accounts/ACexample_account_sid/Usage/Records/Daily.json", file: fixtures/usage.json }
+    - { url: "https://api.twilio.com/2010-04-01/Accounts/ACexample_account_sid.json", body: { sid: ACexample_account_sid, friendly_name: Example Shop, status: active, type: Full } }
+  expect:
+    alerts: { records: 2, logs: 2, rerun: 0, golden: fixtures/alerts.expected.json }
+    events: { records: 1, logs: 1, rerun: 0, golden: fixtures/events.expected.json }
+    messages: { records: 3, logs: 3, rerun: 0, golden: fixtures/messages.expected.json }
+    call_summaries: { records: 1, logs: 1, rerun: 0, golden: fixtures/call_summaries.expected.json }
+    usage: { records: 3, costs: 3, golden: fixtures/usage.expected.json }
+    test: { ok: true, message: "Connected to Example Shop (Full account)" }

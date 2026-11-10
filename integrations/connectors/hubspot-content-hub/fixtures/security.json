@@ -1,0 +1,8 @@
+{
+  "results": [
+    { "id": "5002", "type": "PERSONAL_ACCESS_KEY_CREATED", "createdAt": "2026-11-10T09:15:00.000Z", "userId": 70700061, "actingUser": "jane@example.com", "ipAddress": "203.0.113.24", "location": "berlin, germany", "countryCode": "de", "regionCode": "be", "objectId": "7781", "infoUrl": "https://app.hubspot.com/personal-access-key/12345678" },
+    { "id": "5001", "type": "TWO_FACTOR_AUTH_DISABLED", "createdAt": "2026-11-09T21:40:00.000Z", "userId": 70700058, "actingUser": "sam@example.com", "ipAddress": "198.51.100.23", "location": "lisbon, portugal", "countryCode": "pt", "regionCode": "11" },
+    { "id": "4999", "type": "PASSWORD_CHANGED", "createdAt": "2026-11-01T08:00:00.000Z", "userId": 70700058, "actingUser": "sam@example.com", "ipAddress": "198.51.100.23" }
+  ],
+  "paging": { "next": { "after": "NDk5OQ" } }
+}

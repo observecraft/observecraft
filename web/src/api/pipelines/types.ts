@@ -71,13 +71,57 @@ export interface UrlParser extends Base {
   target: string;
 }
 
+export interface UserAgentParser extends Base {
+  type: 'user-agent-parser';
+  sources: string[];
+  target: string;
+  /** The user agent is URL-encoded. */
+  encoded?: boolean;
+}
+
+export interface GeoIpParser extends Base {
+  type: 'geo-ip-parser';
+  sources: string[];
+  target: string;
+}
+
+export interface ArrayProcessor extends Base {
+  type: 'array-processor';
+  operation:
+    | { type: 'select'; source: string; target: string; filter: string; valueToExtract: string }
+    | { type: 'append'; source: string; target: string; preserveSource?: boolean }
+    | { type: 'length'; source: string; target: string }
+    /** Each element's `keyToExtract` and `valueToExtract` as an attribute, under `target` (or at the root when empty). */
+    | { type: 'key-value'; source: string; target: string; keyToExtract: string; valueToExtract: string; overrideOnConflict?: boolean };
+}
+
+/** An OCSF sub-pipeline's mapping onto an event class (integration pipelines); runs, edited through the API only. */
+export interface SchemaProcessor extends Base {
+  type: 'schema-processor';
+  schema: { schemaType: string; version: string; className: string; classUid: number };
+  mappers: unknown[];
+}
+
 export interface NestedPipeline extends Base {
   type: 'pipeline';
   filter: { query: string };
   processors: Processor[];
 }
 
-export type Processor = GrokParser | ReservedRemapper | AttributeRemapper | CategoryProcessor | StringBuilder | LookupProcessor | ArithmeticProcessor | UrlParser | NestedPipeline;
+export type Processor =
+  | GrokParser
+  | ReservedRemapper
+  | AttributeRemapper
+  | CategoryProcessor
+  | StringBuilder
+  | LookupProcessor
+  | ArithmeticProcessor
+  | UrlParser
+  | UserAgentParser
+  | GeoIpParser
+  | ArrayProcessor
+  | SchemaProcessor
+  | NestedPipeline;
 export type ProcessorType = Processor['type'];
 
 /** The processor types the engine runs, with their labels. Others (from imported pipelines) are kept but skipped. */
@@ -94,11 +138,17 @@ export const PROCESSOR_TYPES: { type: ProcessorType; label: string; hint: string
   { type: 'lookup-processor', label: 'Lookup Processor', hint: 'Map values through a table' },
   { type: 'arithmetic-processor', label: 'Arithmetic Processor', hint: 'Compute a number from attributes' },
   { type: 'url-parser', label: 'URL Parser', hint: 'Split a URL into its parts' },
+  { type: 'user-agent-parser', label: 'User-Agent Parser', hint: 'Read the browser, OS and device of a user agent' },
+  { type: 'geo-ip-parser', label: 'GeoIP Parser', hint: 'Locate an IP address (no location database ships: addresses get no location)' },
+  { type: 'array-processor', label: 'Array Processor', hint: 'Select from, append to or count an array' },
   { type: 'pipeline', label: 'Nested Pipeline', hint: 'Processors for a subset of the logs' },
 ];
 
-export const isSupported = (type: string): type is ProcessorType => PROCESSOR_TYPES.some((t) => t.type === type);
-export const processorLabel = (type: string) => PROCESSOR_TYPES.find((t) => t.type === type)?.label ?? type;
+/** Types that run but aren't added from the editor. */
+const RUN_ONLY: { type: ProcessorType; label: string }[] = [{ type: 'schema-processor', label: 'Schema Processor (OCSF)' }];
+
+export const isSupported = (type: string): type is ProcessorType => [...PROCESSOR_TYPES, ...RUN_ONLY].some((t) => t.type === type);
+export const processorLabel = (type: string) => [...PROCESSOR_TYPES, ...RUN_ONLY].find((t) => t.type === type)?.label ?? type;
 
 export type LogPipeline = Omit<S['LogPipeline'], 'processors'> & { processors: Processor[] };
 export type LogPipelineInput = { name: string; filter: string; enabled: boolean; processors: Processor[] };

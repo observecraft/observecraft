@@ -1,0 +1,887 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.total_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "issued"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.canceled_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "canceled"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.denied_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "denied"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.expired_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "expired"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.issued_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "issued"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.pending_issuance_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "pending_issuance"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.pending_rekey_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "pending_rekey"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.pending_revocation_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "pending_revocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.revoked_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "revoked"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.unused_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "unused"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.certificate_status",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "issued"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.certificate_expiration_days",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f601"
+        ],
+        [
+          "commonname",
+          "shop.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "issued"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 20.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.total_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "issued"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.canceled_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "canceled"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.denied_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "denied"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.expired_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "expired"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.issued_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "issued"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.pending_issuance_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "pending_issuance"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.pending_rekey_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "pending_rekey"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.pending_revocation_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "pending_revocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.revoked_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "revoked"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.unused_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "unused"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.certificate_status",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "issued"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.certificate_expiration_days",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f602"
+        ],
+        [
+          "commonname",
+          "api.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "issued"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 111.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.total_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f603"
+        ],
+        [
+          "commonname",
+          "checkout.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "pending_issuance"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.canceled_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f603"
+        ],
+        [
+          "commonname",
+          "checkout.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "canceled"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.denied_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f603"
+        ],
+        [
+          "commonname",
+          "checkout.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "denied"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.expired_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f603"
+        ],
+        [
+          "commonname",
+          "checkout.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "expired"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.issued_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f603"
+        ],
+        [
+          "commonname",
+          "checkout.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "issued"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.pending_issuance_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f603"
+        ],
+        [
+          "commonname",
+          "checkout.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "pending_issuance"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.pending_rekey_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f603"
+        ],
+        [
+          "commonname",
+          "checkout.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "pending_rekey"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.pending_revocation_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f603"
+        ],
+        [
+          "commonname",
+          "checkout.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "pending_revocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.revoked_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f603"
+        ],
+        [
+          "commonname",
+          "checkout.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "revoked"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.unused_certificates",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f603"
+        ],
+        [
+          "commonname",
+          "checkout.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "unused"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "godaddy.certificate.certificate_status",
+      "tags": [
+        [
+          "certificateid",
+          "c0a1b2c3d4e5f603"
+        ],
+        [
+          "commonname",
+          "checkout.example.com"
+        ],
+        [
+          "customer_id",
+          "0f6e5d4c-0000-4000-8000-000000000001"
+        ],
+        [
+          "status",
+          "pending_issuance"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

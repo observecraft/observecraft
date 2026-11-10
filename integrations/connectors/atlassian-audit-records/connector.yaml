@@ -1,0 +1,184 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Atlassian audit records: a Jira Cloud site's audit records (https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-audit-records/),
+# its Confluence audit records (https://developer.atlassian.com/cloud/confluence/rest/v1/api-group-audit/) and the
+# organization's audit log (https://developer.atlassian.com/cloud/admin/organization/rest/api-group-events/), as the
+# logs of Datadog's Atlassian Audit Records integration (one source per product; the records' fields at the top
+# level). Datadog has no integrations-core tile for it, so the package adds its own tile and dashboard. The sources'
+# names follow Datadog's public description of the integration and weren't checked against a sample of its logs.
+schema_version: 1
+id: atlassian-audit-records
+name: Atlassian Audit Records
+publisher: ObserveCraft
+vendor: Atlassian
+source: atlassian
+description: >-
+  A Jira Cloud site's and its Confluence's audit records (permissions, groups, users, projects, spaces, workflows
+  and settings changed) and, with an organization API key, the Atlassian organization's audit log, as logs read
+  every five minutes.
+logo: jira
+categories: [Collaboration, Security, SIEM, Log Collection]
+docs_url: https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-audit-records/
+setup: |
+  1. Jira and Confluence audit records: as a **site administrator** (Jira and Confluence admin), create an API token
+     at [id.atlassian.com](https://id.atlassian.com/manage-profile/security/api-tokens) and enter its email and token.
+  2. The organization's audit log (every product, admins' and users' activity): as an **organization admin**, open
+     [admin.atlassian.com](https://admin.atlassian.com) → **Settings → API keys**, create a key and copy the key and
+     the organization id. Turn on **Organization audit log** below. The full log needs Atlassian Guard.
+links:
+  - { label: API tokens, url: "https://id.atlassian.com/manage-profile/security/api-tokens" }
+  - { label: Organization API keys, url: "https://admin.atlassian.com" }
+instance: "{{ config.site }}"
+
+config:
+  - key: site
+    label: Site
+    type: string
+    required: true
+    placeholder: example.atlassian.net
+    pattern: "[a-z0-9-]+\\.atlassian\\.net"
+  - { key: email, label: Admin email, type: string, required: true, placeholder: admin@example.com }
+  - { key: api_token, label: API token, type: string, secret: true, required: true, help: The site administrator's API token. }
+  - { key: org_id, label: Organization id, type: string, help: For the organization's audit log. }
+  - { key: org_api_key, label: Organization API key, type: string, secret: true, help: An organization admin API key (for the organization's audit log). }
+
+auth:
+  kind: basic
+  username: "{{ config.email }}"
+  password: "{{ secrets.api_token }}"
+
+headers:
+  Accept: application/json
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Atlassian refused the credentials (email and API token, or the organization API key, expired or revoked)
+  - status: [403]
+    kind: access_denied
+    message: "The account can't read audit records: it must be a site administrator of {{ config.site }} (organization log: an organization admin's API key)"
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Atlassian (retry after {{ headers['retry-after'] ?? '?' }}s)"
+
+streams:
+  - id: jira
+    name: Jira audit records
+    description: >-
+      Every Jira audit record as a log (source:jira-audit-records): evt.name is the summary, evt.category the
+      category, usr.id the author's account id, network.client.ip the remote address.
+    interval: 5m
+    request:
+      url: "https://{{ config.site }}/rest/api/3/auditing/record"
+      query:
+        from: "{{ window.start | rfc3339 }}"
+        to: "{{ window.end | rfc3339 }}"
+        offset: "{{ page.offset }}"
+        limit: 1000
+    records: "{{ response.records }}"
+    pagination: { kind: offset, size: 1000, total: "{{ response.total }}" }
+    record_id: "{{ record.id | str }}"
+    incremental: { kind: time, record_time: "{{ record.created }}", order: newest_first, lookback: 1d, overlap: 5m }
+    output:
+      logs:
+        source: jira-audit-records
+        service: jira
+        message: "{{ record.summary }}{{ ': ' + record.objectItem.name ?? '' }}"
+        date: "{{ record.created }}"
+        attributes: >-
+          {{ record + {
+               evt: {name: record.summary, category: record.category},
+               usr: {id: record.authorAccountId},
+               network: {client: {ip: record.remoteAddress}}
+             } }}
+
+  - id: confluence
+    name: Confluence audit records
+    description: >-
+      Every Confluence audit record as a log (source:confluence-audit-records): evt.name is the summary,
+      evt.category the category, usr.* the author.
+    interval: 5m
+    request:
+      url: "https://{{ config.site }}/wiki/rest/api/audit"
+      query:
+        startDate: "{{ window.start }}"
+        endDate: "{{ window.end }}"
+        start: "{{ page.offset }}"
+        limit: 1000
+    records: "{{ response.results }}"
+    pagination: { kind: offset, size: 1000 }
+    record_id: "{{ (record.creationDate + '|' + record.summary + '|' + (record.author.accountId ?? '') + '|' + (record.affectedObject.name ?? '')) | sha256 }}"
+    incremental: { kind: time, record_time: "{{ record.creationDate }}", order: newest_first, lookback: 1d, overlap: 5m }
+    output:
+      logs:
+        source: confluence-audit-records
+        service: confluence
+        message: "{{ record.summary }}{{ ': ' + record.affectedObject.name ?? '' }}"
+        date: "{{ record.creationDate | rfc3339 }}"
+        attributes: >-
+          {{ record + {
+               evt: {name: record.summary, category: record.category},
+               usr: {id: record.author.accountId, name: record.author.displayName},
+               network: {client: {ip: record.remoteAddress}}
+             } }}
+
+  - id: organization
+    name: Organization audit log
+    description: >-
+      Every event of the Atlassian organization's audit log (all products) as a log (source:atlassian): evt.name is
+      the action, usr.* the actor, network.client.* the location. Needs the organization id and API key.
+    default_enabled: false
+    interval: 5m
+    auth:
+      kind: bearer
+      token: "{{ secrets.org_api_key }}"
+    # 10 requests a minute per user and per path.
+    rate_limit: { requests_per_minute: 6 }
+    request:
+      url: "https://api.atlassian.com/admin/v1/orgs/{{ config.org_id }}/events"
+      query:
+        from: "{{ window.start }}"
+        to: "{{ window.end }}"
+    records: "{{ response.data }}"
+    pagination: { kind: next_url, next: "{{ response.links.next }}" }
+    record_id: "{{ record.id }}"
+    incremental: { kind: time, record_time: "{{ record.attributes.time }}", order: newest_first, lookback: 1d, overlap: 15m }
+    vars:
+      a: "{{ record.attributes }}"
+    output:
+      logs:
+        source: atlassian
+        service: organization
+        message: "{{ vars.a.action }} by {{ vars.a.actor.name ?? vars.a.actor.email ?? vars.a.actor.id }}"
+        date: "{{ vars.a.time }}"
+        attributes: >-
+          {{ vars.a + {
+               id: record.id,
+               evt: {name: vars.a.action},
+               usr: {id: vars.a.actor.id, name: vars.a.actor.name, email: vars.a.actor.email},
+               network: {client: {ip: vars.a.location.ip, geoip: {country: vars.a.location.countryName, city: vars.a.location.city}}}
+             } }}
+
+test:
+  request:
+    url: "https://{{ config.site }}/rest/api/3/auditing/record"
+    query: { limit: 1 }
+  message: "Connected to {{ config.site }}: {{ response.total }} audit records"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { site: example.atlassian.net, email: admin@example.com, org_id: 0a1b2c3d-4e5f-6789-abcd-ef0123456789 }
+  secrets: { api_token: ATATT3xFfGF0-test-token, org_api_key: ATCTT3xFfGN0-test-org-key }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://example.atlassian.net/rest/api/3/auditing/record", query: { limit: "1" }, body: { offset: 0, limit: 1, total: 2, records: [] } }
+    - { url: "https://example.atlassian.net/rest/api/3/auditing/record", file: fixtures/jira.json }
+    - { url: "https://example.atlassian.net/wiki/rest/api/audit", file: fixtures/confluence.json }
+    - { url: "https://api.atlassian.com/admin/v1/orgs/0a1b2c3d-4e5f-6789-abcd-ef0123456789/events", query: { cursor: "c2Vjb25k" }, file: fixtures/org-events-2.json }
+    - { url: "https://api.atlassian.com/admin/v1/orgs/0a1b2c3d-4e5f-6789-abcd-ef0123456789/events", file: fixtures/org-events-1.json }
+  expect:
+    jira: { records: 2, logs: 2, rerun: 0, golden: fixtures/jira.expected.json }
+    confluence: { records: 2, logs: 2, rerun: 0, golden: fixtures/confluence.expected.json }
+    organization: { records: 2, logs: 2, rerun: 0, golden: fixtures/organization.expected.json }
+    test: { ok: true, message: "2 audit records" }

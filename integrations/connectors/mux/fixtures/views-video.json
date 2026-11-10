@@ -1,0 +1,10 @@
+{
+  "data": [
+    { "field": "storefront-autumn-teaser", "value": 320, "views": 320, "negative_impact": 1, "total_watch_time": 40210000, "total_playing_time": 38110000 },
+    { "field": "how-to-brew-pour-over", "value": 141, "views": 141, "negative_impact": 2, "total_watch_time": 61330000, "total_playing_time": 59020000 },
+    { "field": "catalog-walkthrough-2026", "value": 22, "views": 22, "negative_impact": 3, "total_watch_time": 5100000, "total_playing_time": 4930000 }
+  ],
+  "total_row_count": 3,
+  "timeframe": [1794308400, 1794312000],
+  "meta": { "total_row_count": 3, "granularity": "minute", "aggregation": "view_end" }
+}

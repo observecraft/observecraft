@@ -25,6 +25,58 @@ pub trait Schema: Sync {
     fn ignored(&self, _key: &str) -> bool {
         false
     }
+    /// `expr <op> ?` as numbers, the bound value a number's text (`@duration:>1000`); NULL (no match) when not a number.
+    fn compare(&self, expr: &str, op: &str) -> String {
+        format!("toFloat64OrNull({expr}) {op} toFloat64(?)")
+    }
+    /// `cond` (on `_v`, with its params) for any element value `key` reaches inside an array of objects
+    /// (`@install_targets.name`), ORed after the key's own match; None for tables without such arrays.
+    fn element_match(&self, _key: &str, _cond: &str, _cond_params: &[Param]) -> Option<(String, Vec<Param>)> {
+        None
+    }
+}
+
+/// The arrays a dotted attribute path may reach into, as Datadog flattens arrays of objects: each strict prefix
+/// (`install_targets` of `install_targets.name`) with the path inside its elements (`name`).
+pub(crate) fn array_paths(path: &str) -> Vec<(String, Vec<String>)> {
+    let segments: Vec<&str> = path.split('.').collect();
+    if segments.iter().any(|s| s.is_empty()) {
+        return vec![];
+    }
+    (1..segments.len()).map(|i| (segments[..i].join("."), segments[i..].iter().map(|s| s.to_string()).collect())).collect()
+}
+
+/// The values of `rest` in the elements of the JSON array `attr[prefix]`, as `Array(String)`: strings as they
+/// are, other values as JSON (`2`, `true`), as the log normalizer writes attributes.
+fn ch_elements(prefix: &str, rest: &[String]) -> (String, Vec<Param>) {
+    let keys = vec!["?"; rest.len()].join(", ");
+    let mut params: Vec<Param> = (0..3).flat_map(|_| rest.iter().map(|k| Param::Str(k.clone()))).collect();
+    params.push(Param::Str(prefix.to_string()));
+    (format!("arrayMap(_e -> if(JSONType(_e, {keys}) = 'String', JSONExtractString(_e, {keys}), JSONExtractRaw(_e, {keys})), JSONExtractArrayRaw(attr[?]))"), params)
+}
+
+impl LogsSchema {
+    /// Every value `key` reaches inside arrays of objects, as `Array(String)` without empty values (a group-by
+    /// counts a log in each element's group); None when the key can't reach into one (not a dotted `@` path).
+    pub fn element_values(&self, key: &str) -> Option<(String, Vec<Param>)> {
+        let paths = array_paths(key.strip_prefix('@')?);
+        if paths.is_empty() {
+            return None;
+        }
+        let (mut parts, mut params) = (vec![], vec![]);
+        for (prefix, rest) in &paths {
+            let (e, p) = ch_elements(prefix, rest);
+            parts.push(e);
+            params.extend(p);
+        }
+        Some((format!("arrayFilter(_v -> _v != '', arrayConcat({}))", parts.join(", ")), params))
+    }
+}
+
+/// `>46080`, `<=1.5`: a numeric comparison (operator, number text) of a search value.
+pub fn comparison(value: &str) -> Option<(&'static str, &str)> {
+    let (op, rest) = [">=", "<=", ">", "<"].iter().find_map(|op| value.strip_prefix(op).map(|rest| (*op, rest)))?;
+    rest.parse::<f64>().ok().filter(|n| n.is_finite()).map(|_| (op, rest))
 }
 
 /// `oc.logs`: reserved columns (`index` is the log index), `@attr.path` → `attr[...]`, anything else → `tags[...]`.
@@ -41,6 +93,21 @@ impl Schema for LogsSchema {
     }
     fn text_expr(&self) -> &'static str {
         "lower(message)"
+    }
+    fn element_match(&self, key: &str, cond: &str, cond_params: &[Param]) -> Option<(String, Vec<Param>)> {
+        let paths = array_paths(key.strip_prefix('@')?);
+        if paths.is_empty() {
+            return None;
+        }
+        let (mut parts, mut params) = (vec![], vec![]);
+        for (prefix, rest) in &paths {
+            let (e, p) = ch_elements(prefix, rest);
+            parts.push(format!("(mapContains(attr, ?) AND arrayExists(_v -> {cond}, {e}))"));
+            params.push(Param::Str(prefix.clone()));
+            params.extend_from_slice(cond_params);
+            params.extend(p);
+        }
+        Some((parts.join(" OR "), params))
     }
 }
 
@@ -125,16 +192,29 @@ pub fn build_where(schema: &dyn Schema, terms: &[Term], skip_key: Option<&str>) 
                     if let Some(kp) = &key_param {
                         params.push(kp.clone());
                     }
-                    if v.contains('*') {
-                        ors.push(format!("{expr} ILIKE ?"));
-                        params.push(Param::Str(like_pattern(v)));
-                    } else {
-                        ors.push(format!("{expr} = ?"));
-                        params.push(Param::Str(v.clone()));
+                    let (op, value) = match comparison(v) {
+                        Some((op, number)) => (op, number.to_string()),
+                        None if v.contains('*') => ("ILIKE", like_pattern(v)),
+                        None => ("=", v.clone()),
+                    };
+                    let cond = |e: &str| if matches!(op, "=" | "ILIKE") { format!("{e} {op} ?") } else { schema.compare(e, op) };
+                    let value = Param::Str(value);
+                    params.push(value.clone());
+                    match schema.element_match(key, &cond("_v"), std::slice::from_ref(&value)) {
+                        Some((elements, p)) => {
+                            ors.push(format!("{} OR {elements}", cond(&expr)));
+                            params.extend(p);
+                        }
+                        None => ors.push(cond(&expr)),
                     }
                 }
                 let joined = ors.join(" OR ");
                 parts.push(if *negate { format!("NOT ({joined})") } else { format!("({joined})") });
+            }
+            Term::Any { alternatives, negate } => {
+                let any = any_of(alternatives.iter().map(|a| build_where(schema, a, skip_key)).collect(), "0");
+                parts.push(format!("{}({})", if *negate { "NOT " } else { "" }, any.clause));
+                params.extend(any.params);
             }
         }
     }
@@ -176,8 +256,16 @@ mod tests {
     }
 
     #[test]
+    fn groups_across_attributes() {
+        let f = build_where(&LogsSchema, &parse_query("source:scfw (@warning:true OR @warned:true) -(env:qa OR oops)"), None);
+        assert_eq!(f.clause, "(source = ?) AND (((attr[?] = ?)) OR ((attr[?] = ?))) AND NOT (((tags[?] = ?)) OR ((lower(message) LIKE ?)))");
+        assert_eq!(f.params.len(), 8);
+        assert_eq!((&f.params[1], &f.params[2], &f.params[3]), (&Param::Str("warning".into()), &Param::Str("true".into()), &Param::Str("warned".into())));
+    }
+
+    #[test]
     fn builds_bound_sql() {
-        let f = build_where(&LogsSchema, &parse_query("service:(a OR b*) -env:qa @http.method:GET oops"), None);
+        let f = build_where(&LogsSchema, &parse_query("service:(a OR b*) -env:qa @method:GET oops"), None);
         assert_eq!(f.clause, "(service = ? OR service ILIKE ?) AND NOT (tags[?] = ?) AND (attr[?] = ?) AND (lower(message) LIKE ?)");
         assert_eq!(
             f.params,
@@ -186,7 +274,7 @@ mod tests {
                 Param::Str("b%".into()),
                 Param::Str("env".into()),
                 Param::Str("qa".into()),
-                Param::Str("http.method".into()),
+                Param::Str("method".into()),
                 Param::Str("GET".into()),
                 Param::Str("%oops%".into()),
             ]
@@ -226,6 +314,41 @@ mod tests {
         let f = build_any(&LogsSchema, &[]);
         assert_eq!(f.clause, "0");
         assert!(f.params.is_empty());
+    }
+
+    #[test]
+    fn numeric_comparisons_compare_numbers() {
+        let f = build_where(&LogsSchema, &parse_query("source:vault @token_ttl:>46080 @duration:<=1.5"), None);
+        assert_eq!(f.clause, "(source = ?) AND (toFloat64OrNull(attr[?]) > toFloat64(?)) AND (toFloat64OrNull(attr[?]) <= toFloat64(?))");
+        assert_eq!(f.params[1..3], [Param::Str("token_ttl".into()), Param::Str("46080".into())]);
+        // Not a number: compared as text, as before.
+        assert_eq!(build_where(&LogsSchema, &parse_query("@path:>x"), None).clause, "(attr[?] = ?)");
+    }
+
+    /// Datadog flattens arrays of objects: `@install_targets.name:urllib3` matches a log whose `install_targets`
+    /// array (stored as JSON) has an element named urllib3. The array's key guards it, for the key bloom filter.
+    #[test]
+    fn dotted_keys_reach_into_arrays_of_objects() {
+        let f = build_where(&LogsSchema, &parse_query("@install_targets.name:urllib3"), None);
+        let element = "if(JSONType(_e, ?) = 'String', JSONExtractString(_e, ?), JSONExtractRaw(_e, ?))";
+        assert_eq!(f.clause, format!("(attr[?] = ? OR (mapContains(attr, ?) AND arrayExists(_v -> _v = ?, arrayMap(_e -> {element}, JSONExtractArrayRaw(attr[?])))))"));
+        let s = |v: &str| Param::Str(v.into());
+        assert_eq!(f.params, [s("install_targets.name"), s("urllib3"), s("install_targets"), s("urllib3"), s("name"), s("name"), s("name"), s("install_targets")]);
+        // Every array a longer path may start at; a plain key has none.
+        let f = build_where(&LogsSchema, &parse_query("-@a.b.c:>2"), None);
+        assert_eq!(f.clause.matches("mapContains(attr, ?)").count(), 2, "{}", f.clause);
+        assert!(f.clause.starts_with("NOT (toFloat64OrNull(attr[?]) > toFloat64(?) OR (mapContains(attr, ?) AND arrayExists(_v -> toFloat64OrNull(_v) > toFloat64(?), "), "{}", f.clause);
+        assert_eq!(f.clause.matches('?').count(), f.params.len());
+        assert_eq!(build_where(&LogsSchema, &parse_query("@warning:true"), None).clause, "(attr[?] = ?)");
+    }
+
+    /// Group-by over an element path: every element's value (a log counts in each group).
+    #[test]
+    fn element_values_of_a_dotted_key() {
+        let (expr, params) = LogsSchema.element_values("@install_targets.name").unwrap();
+        assert_eq!(expr, "arrayFilter(_v -> _v != '', arrayConcat(arrayMap(_e -> if(JSONType(_e, ?) = 'String', JSONExtractString(_e, ?), JSONExtractRaw(_e, ?)), JSONExtractArrayRaw(attr[?]))))");
+        assert_eq!(params.len(), 4);
+        assert!(LogsSchema.element_values("@warning").is_none() && LogsSchema.element_values("env").is_none());
     }
 
     #[test]

@@ -1,0 +1,246 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Mimecast (API 2.0, https://developer.services.mimecast.com/): audit events, DLP, rejections and Targeted Threat
+# Protection (attachment, impersonation, URL) logs, as the logs Datadog's integration sends (source:mimecast,
+# service audit, dlp, rejection, ttp-attachment-protection, ttp-impersonation or ttp-url, the log record as Mimecast
+# answers it). integrations-core's log pipeline and its six dashboards for the tile read them as they are.
+# The rejections endpoint takes no time range (it keeps 7 days, newest first) and the wrapping of the DLP, TTP and
+# rejection lists (data[0].<list> or data) is read both ways: check them against a tenant.
+schema_version: 1
+id: mimecast
+name: Mimecast
+publisher: ObserveCraft
+vendor: Mimecast
+description: >-
+  Mimecast's audit log, DLP policy hits, rejected messages and Targeted Threat Protection logs (attachment
+  sandboxing, impersonation, URL clicks), one log per record, read from Mimecast's API 2.0.
+tiles: [mimecast]
+categories: [Log Collection, Security, SIEM]
+source: mimecast
+docs_url: https://developer.services.mimecast.com/
+setup: |
+  1. In the Mimecast Administration Console, open **Integrations → API and Platform Integrations → Your API 2.0
+     Applications** and **Add API Application**.
+  2. Pick the category **SIEM Integration**, the products **Audit Events**, **Data Leak Prevention**, **Gateway**
+     (rejections) and **Targeted Threat Protection**, and a role with log access (e.g. **Basic Administrator**).
+  3. Copy the client id and client secret.
+instance: "{{ config.client_id }}"
+
+config:
+  - key: gateway
+    label: API gateway
+    type: select
+    required: true
+    default: api.services.mimecast.com
+    options:
+      - { value: api.services.mimecast.com, label: Global (api.services.mimecast.com) }
+      - { value: uk-api.services.mimecast.com, label: United Kingdom (uk-api.services.mimecast.com) }
+      - { value: us-api.services.mimecast.com, label: United States (us-api.services.mimecast.com) }
+  - key: client_id
+    label: Client id
+    type: string
+    required: true
+  - key: client_secret
+    label: Client secret
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "https://{{ config.gateway }}/oauth/token"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: body
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Mimecast refused the API 2.0 application's client id and secret
+  - status: [403]
+    kind: access_denied
+    message: The API application's role or products don't allow reading this log
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Mimecast (resets in {{ headers['x-ratelimit-reset'] ?? '?' }} ms)"
+
+streams:
+  - id: audit
+    name: Audit events
+    description: Every audit event of the administration console (logins, policy and user changes, exports) as a log (service:audit).
+    interval: 5m
+    request:
+      method: POST
+      url: "https://{{ config.gateway }}/api/audit/get-audit-events"
+      body:
+        meta: { pagination: { pageSize: 500, pageToken: "{{ page.cursor }}" } }
+        data: [{ startDateTime: "{{ window.start | strftime('%Y-%m-%dT%H:%M:%S%z') }}", endDateTime: "{{ window.end | strftime('%Y-%m-%dT%H:%M:%S%z') }}" }]
+    records: "{{ response.data }}"
+    pagination: { kind: cursor, next: "{{ response.meta.pagination.next }}" }
+    record_id: "{{ record.id }}"
+    incremental: &recent
+      kind: time
+      record_time: "{{ record.eventTime }}"
+      order: unordered
+      lookback: 1d
+      overlap: 15m
+      settle: 2m
+    output:
+      logs:
+        service: audit
+        message: "{{ record.auditType + (' by ' + record.user ?? '') + (': ' + record.eventInfo ?? '') }}"
+        date: "{{ record.eventTime | epoch_ms }}"
+        attributes: "{{ record }}"
+
+  - id: dlp
+    name: DLP
+    description: Every message a Data Leak Prevention policy acted on as a log (service:dlp).
+    interval: 5m
+    request:
+      method: POST
+      url: "https://{{ config.gateway }}/api/dlp/get-logs"
+      body:
+        meta: { pagination: { pageSize: 500, pageToken: "{{ page.cursor }}" } }
+        data: [{ from: "{{ window.start | strftime('%Y-%m-%dT%H:%M:%S%z') }}", to: "{{ window.end | strftime('%Y-%m-%dT%H:%M:%S%z') }}" }]
+    records: "{{ response.data[0].dlpLogs ?? response.data }}"
+    pagination: { kind: cursor, next: "{{ response.meta.pagination.next }}" }
+    record_id: "{{ record.messageId + '|' + record.eventTime + '|' + (record.policy ?? '') + '|' + (record.recipientAddress ?? '') }}"
+    incremental: *recent
+    output:
+      logs:
+        service: dlp
+        message: "{{ 'DLP ' + record.action + ' (' + record.policy + '): ' + record.senderAddress + ' to ' + record.recipientAddress }}"
+        date: "{{ record.eventTime | epoch_ms }}"
+        attributes: "{{ record }}"
+
+  - id: rejection
+    name: Rejections
+    description: Every message Mimecast's gateway rejected (spam, viruses, policies) as a log (service:rejection).
+    interval: 15m
+    max_pages: 10
+    request:
+      method: POST
+      url: "https://{{ config.gateway }}/api/gateway/get-rejections"
+      body:
+        meta: { pagination: { pageSize: 500, pageToken: "{{ page.cursor }}" } }
+        data: [{}]
+    records: "{{ response.data[0].rejections ?? response.data }}"
+    pagination: { kind: cursor, next: "{{ response.meta.pagination.next }}" }
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.created }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 15m
+      settle: 2m
+    output:
+      logs:
+        service: rejection
+        message: "{{ 'Rejected ' + record.fromAddress + ' to ' + record.toAddress + ': ' + record.description }}"
+        status: warn
+        date: "{{ record.created | epoch_ms }}"
+        attributes: "{{ record }}"
+
+  - id: ttp_attachment
+    name: TTP attachment protection
+    description: Every attachment Targeted Threat Protection sandboxed as a log (service:ttp-attachment-protection).
+    interval: 5m
+    request:
+      method: POST
+      url: "https://{{ config.gateway }}/api/ttp/attachment/get-logs"
+      body:
+        meta: { pagination: { pageSize: 500, pageToken: "{{ page.cursor }}" } }
+        data: [{ from: "{{ window.start | strftime('%Y-%m-%dT%H:%M:%S%z') }}", to: "{{ window.end | strftime('%Y-%m-%dT%H:%M:%S%z') }}", route: all, result: all }]
+    records: "{{ response.data[0].attachmentLogs ?? response.data }}"
+    pagination: { kind: cursor, next: "{{ response.meta.pagination.next }}" }
+    record_id: "{{ record.messageId + '|' + record.date + '|' + (record.fileHash ?? record.fileName ?? '') + '|' + (record.recipientAddress ?? '') }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.date }}"
+      order: unordered
+      lookback: 1d
+      overlap: 15m
+      settle: 2m
+    output:
+      logs:
+        service: ttp-attachment-protection
+        message: "{{ 'Attachment ' + record.fileName + ' ' + record.result + ' (' + record.actionTriggered + ') from ' + record.senderAddress }}"
+        status: "{{ record.result == 'malicious' ? 'error' : 'info' }}"
+        date: "{{ record.date | epoch_ms }}"
+        attributes: "{{ record }}"
+
+  - id: ttp_impersonation
+    name: TTP impersonation protection
+    description: Every message Impersonation Protection flagged as a log (service:ttp-impersonation).
+    interval: 5m
+    request:
+      method: POST
+      url: "https://{{ config.gateway }}/api/ttp/impersonation/get-logs"
+      body:
+        meta: { pagination: { pageSize: 500, pageToken: "{{ page.cursor }}" } }
+        data: [{ from: "{{ window.start | strftime('%Y-%m-%dT%H:%M:%S%z') }}", to: "{{ window.end | strftime('%Y-%m-%dT%H:%M:%S%z') }}" }]
+    records: "{{ response.data[0].impersonationLogs ?? response.data }}"
+    pagination: { kind: cursor, next: "{{ response.meta.pagination.next }}" }
+    record_id: "{{ record.id }}"
+    incremental: *recent
+    output:
+      logs:
+        service: ttp-impersonation
+        message: "{{ 'Impersonation ' + record.action + ': ' + record.senderAddress + ' to ' + record.recipientAddress + ' (' + (record.identifiers | join(', ')) + ')' }}"
+        status: "{{ record.taggedMalicious ? 'warn' : 'info' }}"
+        date: "{{ record.eventTime | epoch_ms }}"
+        attributes: "{{ record }}"
+
+  - id: ttp_url
+    name: TTP URL protection
+    description: Every URL click URL Protection scanned as a log (service:ttp-url).
+    interval: 5m
+    request:
+      method: POST
+      url: "https://{{ config.gateway }}/api/ttp/url/get-logs"
+      body:
+        meta: { pagination: { pageSize: 500, pageToken: "{{ page.cursor }}" } }
+        data: [{ from: "{{ window.start | strftime('%Y-%m-%dT%H:%M:%S%z') }}", to: "{{ window.end | strftime('%Y-%m-%dT%H:%M:%S%z') }}", route: all, scanResult: all }]
+    records: "{{ response.data[0].clickLogs ?? response.data }}"
+    pagination: { kind: cursor, next: "{{ response.meta.pagination.next }}" }
+    record_id: "{{ record.messageId + '|' + record.date + '|' + record.url + '|' + (record.userEmailAddress ?? '') }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.date }}"
+      order: unordered
+      lookback: 1d
+      overlap: 15m
+      settle: 2m
+    output:
+      logs:
+        service: ttp-url
+        message: "{{ record.userEmailAddress + ' clicked ' + record.url + ': ' + record.scanResult + ' (' + record.action + ')' }}"
+        status: "{{ record.scanResult == 'malicious' ? 'error' : 'info' }}"
+        date: "{{ record.date | epoch_ms }}"
+        attributes: "{{ record }}"
+
+test:
+  stream: audit
+  message: "Connected: Mimecast's audit log is readable"
+
+mock:
+  config: { gateway: api.services.mimecast.com, client_id: 0a1b2c3d-0000-4000-8000-000000000001 }
+  secrets: { client_secret: test-client-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://api.services.mimecast.com/oauth/token", body_contains: "grant_type=client_credentials", body: { access_token: test-access-token, token_type: Bearer, expires_in: 1800 } }
+    - { method: POST, url: "https://api.services.mimecast.com/api/audit/get-audit-events", body_contains: "eNoVpage2", file: fixtures/audit-2.json }
+    - { method: POST, url: "https://api.services.mimecast.com/api/audit/get-audit-events", file: fixtures/audit-1.json }
+    - { method: POST, url: "https://api.services.mimecast.com/api/dlp/get-logs", file: fixtures/dlp.json }
+    - { method: POST, url: "https://api.services.mimecast.com/api/gateway/get-rejections", file: fixtures/rejection.json }
+    - { method: POST, url: "https://api.services.mimecast.com/api/ttp/attachment/get-logs", file: fixtures/ttp_attachment.json }
+    - { method: POST, url: "https://api.services.mimecast.com/api/ttp/impersonation/get-logs", file: fixtures/ttp_impersonation.json }
+    - { method: POST, url: "https://api.services.mimecast.com/api/ttp/url/get-logs", file: fixtures/ttp_url.json }
+  expect:
+    audit: { records: 2, logs: 2, rerun: 0, golden: fixtures/audit.expected.json }
+    dlp: { records: 1, logs: 1, rerun: 0, golden: fixtures/dlp.expected.json }
+    rejection: { records: 1, logs: 1, rerun: 0, golden: fixtures/rejection.expected.json }
+    ttp_attachment: { records: 1, logs: 1, rerun: 0, golden: fixtures/ttp_attachment.expected.json }
+    ttp_impersonation: { records: 1, logs: 1, rerun: 0, golden: fixtures/ttp_impersonation.expected.json }
+    ttp_url: { records: 1, logs: 1, rerun: 0, golden: fixtures/ttp_url.expected.json }
+    test: { ok: true, message: "audit log is readable" }

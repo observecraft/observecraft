@@ -1,0 +1,16 @@
+{
+  "next": null,
+  "previous": "https://example.api.kandji.io/api/v1/audit/events?limit=500&sort_by=occurred_at",
+  "results": [
+    {
+      "id": "01K9EXAMPLE00000000000003", "occurred_at": "2026-11-10T11:03:43.383000Z", "action": "threat_detected",
+      "actor_type": "system", "actor_id": null,
+      "target_type": "file_detection", "target_component": "edr", "target_id": "41b60000-0000-4000-8000-000000000001",
+      "new_state": {
+        "threat_name": "EICAR-Test-File", "classification": "malware", "status": "quarantined",
+        "file_path": "/Users/jdoe/Downloads/eicar.com", "file_hash": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+        "device_id": "1e5e0000-0000-4000-8000-000000000001", "device_name": "Jane's MacBook Pro"
+      }
+    }
+  ]
+}

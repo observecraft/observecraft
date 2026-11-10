@@ -1,0 +1,615 @@
+{
+  "title": "Akamai Application Security - Overview",
+  "description": "Akamai App & API Protector security events: attacks by rule, action, client and target.",
+  "layout_type": "ordered",
+  "template_variables": [],
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "group",
+        "title": "",
+        "background_color": "vivid_blue",
+        "show_title": false,
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "id": 2,
+            "definition": {
+              "type": "note",
+              "content": "**Akamai App & API Protector** (and Kona Site Defender) filter attacks at Akamai's edge. This dashboard reads their security events from the SIEM API (source `akamai`, service `appsec`): which rules fired, what was denied, from which clients and countries, against which hosts and paths.\n\nConnect configurations in [Integrations → Akamai Application Security](/integrations/connectors/akamai) with an EdgeGrid API client allowed the SIEM API.",
+              "background_color": "white",
+              "font_size": "14",
+              "text_align": "left",
+              "show_tick": false,
+              "tick_pos": "50%",
+              "tick_edge": "left",
+              "has_padding": true
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 2
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 3
+      }
+    },
+    {
+      "id": 13,
+      "definition": {
+        "type": "group",
+        "title": "Attacks",
+        "background_color": "blue",
+        "show_title": true,
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "id": 3,
+            "definition": {
+              "type": "query_value",
+              "title": "Security events",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:akamai service:appsec"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "conditional_formats": [
+                    {
+                      "comparator": ">=",
+                      "value": 0,
+                      "palette": "white_on_gray"
+                    }
+                  ]
+                }
+              ],
+              "autoscale": true,
+              "precision": 0
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 3,
+              "height": 2
+            }
+          },
+          {
+            "id": 4,
+            "definition": {
+              "type": "query_value",
+              "title": "Denied",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:akamai service:appsec @rule_action:deny"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "conditional_formats": [
+                    {
+                      "comparator": ">=",
+                      "value": 0,
+                      "palette": "white_on_gray"
+                    }
+                  ]
+                }
+              ],
+              "autoscale": true,
+              "precision": 0
+            },
+            "layout": {
+              "x": 3,
+              "y": 0,
+              "width": 3,
+              "height": 2
+            }
+          },
+          {
+            "id": 5,
+            "definition": {
+              "type": "query_value",
+              "title": "Client IPs",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:akamai service:appsec"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "cardinality",
+                        "metric": "@network.client.ip"
+                      },
+                      "group_by": [],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "conditional_formats": [
+                    {
+                      "comparator": ">=",
+                      "value": 0,
+                      "palette": "white_on_gray"
+                    }
+                  ]
+                }
+              ],
+              "autoscale": true,
+              "precision": 0
+            },
+            "layout": {
+              "x": 6,
+              "y": 0,
+              "width": 3,
+              "height": 2
+            }
+          },
+          {
+            "id": 6,
+            "definition": {
+              "type": "query_value",
+              "title": "Hosts attacked",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:akamai service:appsec"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "cardinality",
+                        "metric": "@http.url_details.host"
+                      },
+                      "group_by": [],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "conditional_formats": [
+                    {
+                      "comparator": ">=",
+                      "value": 0,
+                      "palette": "white_on_gray"
+                    }
+                  ]
+                }
+              ],
+              "autoscale": true,
+              "precision": 0
+            },
+            "layout": {
+              "x": 9,
+              "y": 0,
+              "width": 3,
+              "height": 2
+            }
+          },
+          {
+            "id": 7,
+            "definition": {
+              "type": "timeseries",
+              "title": "Events by action",
+              "title_size": "16",
+              "title_align": "left",
+              "show_legend": true,
+              "legend_layout": "auto",
+              "requests": [
+                {
+                  "response_format": "timeseries",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:akamai service:appsec"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [
+                        {
+                          "facet": "@rule_action",
+                          "limit": 10,
+                          "sort": {
+                            "aggregation": "count",
+                            "order": "desc"
+                          }
+                        }
+                      ],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "style": {
+                    "palette": "classic",
+                    "order_by": "values"
+                  },
+                  "display_type": "bars"
+                }
+              ],
+              "yaxis": {
+                "include_zero": true
+              }
+            },
+            "layout": {
+              "x": 0,
+              "y": 2,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 8,
+            "definition": {
+              "type": "toplist",
+              "title": "Top rules",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:akamai service:appsec"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [
+                        {
+                          "facet": "@rule_message",
+                          "limit": 10,
+                          "sort": {
+                            "aggregation": "count",
+                            "order": "desc"
+                          }
+                        }
+                      ],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 10,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "palette": "warm"
+              }
+            },
+            "layout": {
+              "x": 6,
+              "y": 2,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 9,
+            "definition": {
+              "type": "toplist",
+              "title": "Attacking IPs",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:akamai service:appsec"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [
+                        {
+                          "facet": "@network.client.ip",
+                          "limit": 10,
+                          "sort": {
+                            "aggregation": "count",
+                            "order": "desc"
+                          }
+                        }
+                      ],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 10,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "palette": "warm"
+              }
+            },
+            "layout": {
+              "x": 0,
+              "y": 5,
+              "width": 4,
+              "height": 3
+            }
+          },
+          {
+            "id": 10,
+            "definition": {
+              "type": "toplist",
+              "title": "Countries",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:akamai service:appsec"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [
+                        {
+                          "facet": "@network.client.geoip.country.iso_code",
+                          "limit": 10,
+                          "sort": {
+                            "aggregation": "count",
+                            "order": "desc"
+                          }
+                        }
+                      ],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 10,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "palette": "dog_classic"
+              }
+            },
+            "layout": {
+              "x": 4,
+              "y": 5,
+              "width": 4,
+              "height": 3
+            }
+          },
+          {
+            "id": 11,
+            "definition": {
+              "type": "toplist",
+              "title": "Targeted paths",
+              "title_size": "16",
+              "title_align": "left",
+              "requests": [
+                {
+                  "response_format": "scalar",
+                  "queries": [
+                    {
+                      "data_source": "logs",
+                      "name": "query1",
+                      "search": {
+                        "query": "source:akamai service:appsec"
+                      },
+                      "indexes": [
+                        "*"
+                      ],
+                      "compute": {
+                        "aggregation": "count"
+                      },
+                      "group_by": [
+                        {
+                          "facet": "@http.url_details.path",
+                          "limit": 10,
+                          "sort": {
+                            "aggregation": "count",
+                            "order": "desc"
+                          }
+                        }
+                      ],
+                      "storage": "hot"
+                    }
+                  ],
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "sort": {
+                    "count": 10,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "palette": "dog_classic"
+              }
+            },
+            "layout": {
+              "x": 8,
+              "y": 5,
+              "width": 4,
+              "height": 3
+            }
+          },
+          {
+            "id": 12,
+            "definition": {
+              "type": "log_stream",
+              "title": "Denied requests",
+              "title_size": "16",
+              "title_align": "left",
+              "query": "source:akamai service:appsec @rule_action:deny",
+              "indexes": [],
+              "columns": [
+                "host",
+                "service"
+              ],
+              "show_date_column": true,
+              "show_message_column": true,
+              "message_display": "expanded-md",
+              "sort": {
+                "column": "time",
+                "order": "desc"
+              }
+            },
+            "layout": {
+              "x": 0,
+              "y": 8,
+              "width": 12,
+              "height": 4
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 13
+      }
+    }
+  ]
+}

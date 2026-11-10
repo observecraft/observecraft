@@ -1,0 +1,12 @@
+[
+  { "Id": "a1b2c3d4-e5f6-4071-8293-a4b5c6d7e8f9", "RecordType": 6, "CreationTime": "2026-11-10T07:58:12", "Operation": "FileDownloaded", "OrganizationId": "11111111-2222-3333-4444-555555555555",
+    "UserType": 0, "UserKey": "i:0h.f|membership|10037ffe8a1b2c3d@live.com", "Workload": "OneDrive", "ClientIP": "198.51.100.44", "UserId": "jordan.patel@example.com",
+    "ObjectId": "https://example-my.sharepoint.com/personal/jordan_patel_example_com/Documents/q4-pricing.xlsx", "SourceFileName": "q4-pricing.xlsx", "SiteUrl": "https://example-my.sharepoint.com/personal/jordan_patel_example_com/",
+    "UserAgent": "Mozilla/5.0 (Macintosh) Edg/141.0" },
+  { "Id": "b2c3d4e5-f607-4182-93a4-b5c6d7e8f901", "RecordType": 14, "CreationTime": "2026-11-10T08:01:40", "Operation": "SharingSet", "OrganizationId": "11111111-2222-3333-4444-555555555555",
+    "UserType": 0, "UserKey": "i:0h.f|membership|10037ffe8a1b2c3e@live.com", "Workload": "SharePoint", "ClientIP": "203.0.113.20", "UserId": "sam.lee@example.com",
+    "ObjectId": "https://example.sharepoint.com/sites/storefront/Shared Documents/roadmap.docx", "TargetUserOrGroupName": "partner@example.net", "TargetUserOrGroupType": "Guest" },
+  { "Id": "c3d4e5f6-0718-4293-a4b5-c6d7e8f90a12", "RecordType": 6, "CreationTime": "2026-11-10T08:02:05", "Operation": "FileDeleted", "OrganizationId": "11111111-2222-3333-4444-555555555555",
+    "UserType": 0, "Workload": "SharePoint", "ClientIP": "203.0.113.20", "UserId": "sam.lee@example.com", "ResultStatus": "Failed",
+    "ObjectId": "https://example.sharepoint.com/sites/storefront/Shared Documents/old-prices.csv" }
+]

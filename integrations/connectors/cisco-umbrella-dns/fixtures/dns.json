@@ -1,0 +1,31 @@
+{
+  "meta": {},
+  "data": [
+    {
+      "timestamp": 1794310620000, "date": "2026-11-10", "time": "11:37:00", "type": "dns",
+      "domain": "cdn-update.badsite.example", "querytype": "A", "returncode": 0, "verdict": "blocked",
+      "internalip": "10.20.1.15", "externalip": "203.0.113.60",
+      "categories": [{ "id": 67, "label": "Malware", "type": "security", "deprecated": false, "integration": false }],
+      "policycategories": [{ "id": 67, "label": "Malware", "type": "security", "deprecated": false, "integration": false }],
+      "identities": [{ "id": 617800001, "label": "laptop-jdoe", "deleted": false, "type": { "id": 9, "label": "Roaming Computers", "type": "roaming" } }],
+      "allapplications": [], "threats": [{ "label": "Example.Trojan", "type": "Trojan" }]
+    },
+    {
+      "timestamp": 1794310500000, "date": "2026-11-10", "time": "11:35:00", "type": "dns",
+      "domain": "api.storefront.example.com", "querytype": "AAAA", "returncode": 0, "verdict": "allowed",
+      "internalip": "10.20.5.9", "externalip": "203.0.113.61",
+      "categories": [{ "id": 148, "label": "Application", "type": "application", "deprecated": false, "integration": false }],
+      "policycategories": [],
+      "identities": [{ "id": 617800002, "label": "HQ network", "deleted": false, "type": { "id": 1, "label": "Networks", "type": "network" } }],
+      "allapplications": [{ "id": 989001, "label": "Storefront API", "category": { "id": 1, "label": "Application Development and Testing" } }]
+    },
+    {
+      "timestamp": 1794309900000, "date": "2026-11-10", "time": "11:25:00", "type": "dns",
+      "domain": "nonexistent.example.net", "querytype": "A", "returncode": 3, "verdict": "allowed",
+      "internalip": "10.20.1.15", "externalip": "203.0.113.60",
+      "categories": [], "policycategories": [],
+      "identities": [{ "id": 617800001, "label": "laptop-jdoe", "deleted": false, "type": { "id": 9, "label": "Roaming Computers", "type": "roaming" } }],
+      "allapplications": []
+    }
+  ]
+}

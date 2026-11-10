@@ -1,0 +1,36 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c448-1220-74ca-84df-cf974803d1c2"
+      },
+      "activity": "Cloudsummary, RestAPI",
+      "application": "CloudApps",
+      "date": 1794294420000,
+      "ddsource": "forcepoint-security-service-edge",
+      "email": "admin@example.com",
+      "host": "portal.bitglass.com",
+      "message": "Cloudsummary, RestAPI 400 cloudapps/summary",
+      "requestmethod": "GET",
+      "responsecode": "400",
+      "service": "forcepoint-sse-healthsystem",
+      "status": "warn",
+      "syslogheader": "<110>1 2026-11-10T07:07:00.000000Z api.bitglass.com NILVALUE NILVALUE access",
+      "time": "10 Nov 2026 07:07:00",
+      "transactionid": "77ee0000ee01 [10 Nov 2026 07:07:00]",
+      "url": "cloudapps/summary",
+      "user": "Shop Admin",
+      "usergroup": "['All Users']"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "healthsystem-t1"
+      }
+    }
+  }
+}

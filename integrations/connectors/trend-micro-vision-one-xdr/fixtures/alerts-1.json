@@ -1,0 +1,92 @@
+{
+  "totalCount": 2,
+  "count": 1,
+  "items": [
+    {
+      "schemaVersion": "1.15",
+      "id": "WB-12345-20261110-00001",
+      "incidentId": "IC-12345-20261110-00001",
+      "investigationStatus": "New",
+      "status": "Open",
+      "investigationResult": "No Findings",
+      "workbenchLink": "https://portal.xdr.trendmicro.com/index.html#/workbench/alerts/WB-12345-20261110-00001",
+      "alertProvider": "SAE",
+      "modelId": "5727ebf9-9e6a-47f3-b27f-4129763f7688",
+      "model": "Possible Credential Dumping via LSASS",
+      "modelType": "preset",
+      "score": 71,
+      "severity": "high",
+      "createdDateTime": "2026-11-10T09:00:00Z",
+      "updatedDateTime": "2026-11-10T09:00:05Z",
+      "description": "A process accessed the memory of the LSASS process, a sign of credential dumping.",
+      "impactScope": {
+        "desktopCount": 1,
+        "serverCount": 0,
+        "accountCount": 1,
+        "emailAddressCount": 0,
+        "containerCount": 0,
+        "cloudIdentityCount": 0,
+        "entities": [
+          {
+            "entityType": "host",
+            "entityId": "b159820e-0000-4000-8000-000000000001",
+            "entityValue": {
+              "name": "i-0a1b2c3d4e5f60001",
+              "guid": "b159820e-0000-4000-8000-000000000001",
+              "ips": [
+                "10.0.11.20"
+              ]
+            },
+            "relatedIndicatorIds": [
+              1
+            ],
+            "provenance": [
+              "Alert"
+            ]
+          }
+        ]
+      },
+      "matchedRules": [
+        {
+          "id": "b52ebb2a-0000-4000-8000-000000000001",
+          "name": "Possible Credential Dumping via LSASS",
+          "matchedFilters": [
+            {
+              "id": "15d9a461-0000-4000-8000-000000000001",
+              "name": "Possible Credential Dumping via LSASS",
+              "matchedDateTime": "2026-11-10T09:00:00Z",
+              "mitreTechniqueIds": [
+                "T1003"
+              ],
+              "matchedEvents": [
+                {
+                  "uuid": "966495ba-0000-4000-8000-000000000001",
+                  "matchedDateTime": "2026-11-10T09:00:00Z",
+                  "type": "TELEMETRY_EVENT"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "indicators": [
+        {
+          "id": 1,
+          "type": "fullpath",
+          "field": "processFilePath",
+          "value": "C:\\Windows\\Temp\\tool.exe",
+          "relatedEntities": [
+            "b159820e-0000-4000-8000-000000000001"
+          ],
+          "filterIds": [
+            "15d9a461-0000-4000-8000-000000000001"
+          ],
+          "provenance": [
+            "Alert"
+          ]
+        }
+      ]
+    }
+  ],
+  "nextLink": "https://api.xdr.trendmicro.com/v3.0/workbench/alerts?skipToken=p2"
+}

@@ -1,0 +1,35 @@
+{
+  "Meta": {
+    "Result": 1,
+    "ErrorCode": 0,
+    "ErrorMsg": ""
+  },
+  "PermissionCtrl": {
+    "permission": "255",
+    "elements": null
+  },
+  "FeatureCtrl": {
+    "mode": "0"
+  },
+  "SystemCtrl": {
+    "TmcmSoDist_Role": "none"
+  },
+  "Data": {
+    "SyslogName": "",
+    "SyslogType": "",
+    "SyslogOutputFormat": "CEF",
+    "Count": 1,
+    "Next": "",
+    "Logs": [
+      "Nov 10 2026 11:10:20 a1b2c3.manage.trendmicro.com CEF:0|Trend Micro|Apex Central|2019|700211|Attack Discovery Detections|3|deviceExternalId=41 rt=Nov 10 2026 11:10:10 GMT+00:00 dhost=i-0a1b2c3d4e5f60001 dst=10.0.11.20 cn1Label=SLF_RiskLevel cn1=2 cs1Label=SLF_RuleID cs1=powershell invoke expression cat=point of entry cs2Label=SLF_ADEObjectGroup_Info_1 cs2=process - powershell.exe - {USER: jane.doe} deviceNtDomain=SHOP dntdom=Workgroup TMCMLogDetectedHost=i-0a1b2c3d4e5f60001 TMCMLogDetectedIP=10.0.11.20 ApexCentralHost=Standard Endpoint Protection Manager TMCMdevicePlatform=Windows 11 10.0 (Build 22631)"
+    ],
+    "CurrentPage": {
+      "SinceTime": 1794225600,
+      "PageToken": 0
+    },
+    "NextPage": {
+      "SinceTime": 1794225600,
+      "PageToken": 42
+    }
+  }
+}

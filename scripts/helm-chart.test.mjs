@@ -162,3 +162,33 @@ test('collector.autoscaling: never more replicas than Kafka partitions (extra co
   assert.ok(!r.ok, 'render must fail');
   assert.match(r.err, /maxReplicas.*kafka\.partitions/);
 });
+
+const kafka = (out) => doc(out, 'StatefulSet', 'oc-observecraft-kafka');
+
+test('kafka.jmx off by default: no JMX port and no Agent annotation on the bundled brokers', { skip: !hasHelm }, () => {
+  const r = render();
+  assert.ok(r.ok, r.err);
+  assert.doesNotMatch(kafka(r.out), /KAFKA_JMX_PORT|ad\.datadoghq\.com/);
+});
+
+test('kafka.jmx.enabled: JMX on each broker and the Datadog Agent’s kafka check annotation (Autodiscovery)', { skip: !hasHelm }, () => {
+  const r = render(['kafka.jmx.enabled=true']);
+  assert.ok(r.ok, r.err);
+  const sts = kafka(r.out);
+  assert.match(sts, /name: KAFKA_JMX_PORT, value: "9999"/);
+  assert.match(sts, /containerPort: 9999/);
+  const annotation = sts.match(/ad\.datadoghq\.com\/kafka\.checks: '([^']+)'/) ?? sts.match(/ad\.datadoghq\.com\/kafka\.checks: \|\n((?: {10}.*\n)+)/);
+  assert.ok(annotation, 'the annotation is rendered');
+  const check = JSON.parse(annotation[1]).kafka;
+  assert.equal(check.init_config.is_jmx, true);
+  assert.deepEqual(check.instances[0], { host: '%%host%%', port: '9999', tags: ['kafka_cluster:oc-observecraft-kafka'] });
+  // The network policy lets the Agent (another namespace) reach the JMX port.
+  const policy = doc(r.out, 'NetworkPolicy', 'oc-observecraft-kafka');
+  assert.match(policy, /- ports: \[\{ port: 9999 \}\]\n(?! {6}from:)/);
+});
+
+test('kafka.jmx.allowFrom restricts who reaches the JMX port', { skip: !hasHelm }, () => {
+  const r = render(['kafka.jmx.enabled=true', 'kafka.jmx.allowFrom[0].namespaceSelector.matchLabels.name=datadog']);
+  assert.ok(r.ok, r.err);
+  assert.match(doc(r.out, 'NetworkPolicy', 'oc-observecraft-kafka'), /- ports: \[\{ port: 9999 \}\]\n {6}from:\n {8}- namespaceSelector:\n {12}matchLabels:\n {14}name: datadog/);
+});

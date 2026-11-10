@@ -1,0 +1,4 @@
+[
+  { "DomainName": "example.com", "PwnCount": 3, "PwnCountExcludingSpamLists": 3, "PwnCountExcludingSpamListsAtLastSubscriptionRenewal": 2, "NextSubscriptionRenewal": "2027-01-01T00:00:00" },
+  { "DomainName": "shop.example.com", "PwnCount": 1, "PwnCountExcludingSpamLists": 1, "PwnCountExcludingSpamListsAtLastSubscriptionRenewal": 1, "NextSubscriptionRenewal": "2027-01-01T00:00:00" }
+]

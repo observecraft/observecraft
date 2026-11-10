@@ -1,0 +1,219 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c51d-6380-77cc-80bd-720e432b3b97"
+      },
+      "date": "2026-11-10T11:00:00+00:00",
+      "ddsource": "cisco-secure-endpoint",
+      "endpoint_details": {
+        "connector_version": "8.4.3.30777",
+        "external_ip": "203.0.113.50",
+        "faults": [],
+        "group_guid": "7a2b0000-0000-4000-8000-000000000010",
+        "internal_ips": [
+          "10.20.1.15"
+        ],
+        "is_compromised": true,
+        "isolation": {
+          "available": true,
+          "status": "not_isolated"
+        },
+        "last_seen": "2026-11-10T11:58:00Z",
+        "operating_system": "Windows 11, SP 0.0 (Build 22631.4460)",
+        "policy": {
+          "guid": "8d3c0000-0000-4000-8000-000000000020",
+          "name": "Workstations - Protect"
+        }
+      },
+      "event": {
+        "computer": {
+          "active": true,
+          "connector_guid": "4c1e0000-0000-4000-8000-000000000001",
+          "external_ip": "203.0.113.50",
+          "hostname": "laptop-jdoe.example.com",
+          "network_addresses": [
+            {
+              "ip": "10.20.1.15",
+              "mac": "00:00:5e:00:53:01"
+            }
+          ],
+          "user": "jdoe@LAPTOP-JDOE"
+        },
+        "connector_guid": "4c1e0000-0000-4000-8000-000000000001",
+        "date": "2026-11-10T11:00:00+00:00",
+        "event_type": "Quarantine Success",
+        "event_type_id": 553648143,
+        "file": {
+          "disposition": "Malicious",
+          "file_name": "invoice-2026-11.pdf.exe",
+          "file_path": "\\\\?\\C:\\Users\\jdoe\\Downloads\\invoice-2026-11.pdf.exe",
+          "identity": {
+            "sha256": "9f2c0e5d1a2f3e4d5c6b7a8998877665544332211aabbccddeeff00112233445"
+          }
+        },
+        "group_guids": [
+          "7a2b0000-0000-4000-8000-000000000010"
+        ],
+        "id": 6400000000000000003,
+        "severity": "Medium",
+        "timestamp": 1794308400,
+        "timestamp_nanoseconds": 120000000
+      },
+      "host": "api.amp.cisco.com",
+      "message": "Quarantine Success on laptop-jdoe.example.com: invoice-2026-11.pdf.exe",
+      "service": "event",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c51c-7920-797f-8bb2-60a4582b78ce"
+      },
+      "date": "2026-11-10T10:59:00+00:00",
+      "ddsource": "cisco-secure-endpoint",
+      "endpoint_details": {
+        "connector_version": "8.4.3.30777",
+        "external_ip": "203.0.113.50",
+        "faults": [],
+        "group_guid": "7a2b0000-0000-4000-8000-000000000010",
+        "internal_ips": [
+          "10.20.1.15"
+        ],
+        "is_compromised": true,
+        "isolation": {
+          "available": true,
+          "status": "not_isolated"
+        },
+        "last_seen": "2026-11-10T11:58:00Z",
+        "operating_system": "Windows 11, SP 0.0 (Build 22631.4460)",
+        "policy": {
+          "guid": "8d3c0000-0000-4000-8000-000000000020",
+          "name": "Workstations - Protect"
+        }
+      },
+      "event": {
+        "computer": {
+          "active": true,
+          "connector_guid": "4c1e0000-0000-4000-8000-000000000001",
+          "external_ip": "203.0.113.50",
+          "hostname": "laptop-jdoe.example.com",
+          "network_addresses": [
+            {
+              "ip": "10.20.1.15",
+              "mac": "00:00:5e:00:53:01"
+            }
+          ],
+          "user": "jdoe@LAPTOP-JDOE"
+        },
+        "connector_guid": "4c1e0000-0000-4000-8000-000000000001",
+        "date": "2026-11-10T10:59:00+00:00",
+        "detection": "W32.Example.Trojan",
+        "detection_id": "6400000000000000102",
+        "event_type": "Threat Detected",
+        "event_type_id": 1090519054,
+        "file": {
+          "disposition": "Malicious",
+          "file_name": "invoice-2026-11.pdf.exe",
+          "file_path": "\\\\?\\C:\\Users\\jdoe\\Downloads\\invoice-2026-11.pdf.exe",
+          "identity": {
+            "sha256": "9f2c0e5d1a2f3e4d5c6b7a8998877665544332211aabbccddeeff00112233445"
+          },
+          "parent": {
+            "disposition": "Clean",
+            "file_name": "chrome.exe",
+            "identity": {
+              "sha256": "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809"
+            },
+            "process_id": 9584
+          }
+        },
+        "group_guids": [
+          "7a2b0000-0000-4000-8000-000000000010"
+        ],
+        "id": 6400000000000000002,
+        "severity": "High",
+        "tactics": [
+          "TA0002"
+        ],
+        "techniques": [
+          "T1204",
+          "T1204.002"
+        ],
+        "timestamp": 1794308340,
+        "timestamp_nanoseconds": 659000000
+      },
+      "host": "api.amp.cisco.com",
+      "message": "Threat Detected on laptop-jdoe.example.com: W32.Example.Trojan",
+      "service": "event",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c478-9800-7b32-8754-b2b520025da1"
+      },
+      "date": "2026-11-10T08:00:00+00:00",
+      "ddsource": "cisco-secure-endpoint",
+      "endpoint_details": {
+        "connector_version": "1.24.2.1060",
+        "external_ip": "203.0.113.51",
+        "faults": [],
+        "group_guid": "7a2b0000-0000-4000-8000-000000000011",
+        "internal_ips": [
+          "10.20.5.9"
+        ],
+        "is_compromised": false,
+        "isolation": {
+          "available": false,
+          "status": "not_isolated"
+        },
+        "last_seen": "2026-11-10T11:59:30Z",
+        "operating_system": "Ubuntu 24.04",
+        "policy": {
+          "guid": "8d3c0000-0000-4000-8000-000000000021",
+          "name": "Linux servers"
+        }
+      },
+      "event": {
+        "computer": {
+          "active": true,
+          "connector_guid": "4c1e0000-0000-4000-8000-000000000002",
+          "external_ip": "203.0.113.51",
+          "hostname": "build-01.example.com"
+        },
+        "connector_guid": "4c1e0000-0000-4000-8000-000000000002",
+        "date": "2026-11-10T08:00:00+00:00",
+        "event_type": "Scan Completed, No Detections",
+        "event_type_id": 554696714,
+        "group_guids": [
+          "7a2b0000-0000-4000-8000-000000000011"
+        ],
+        "id": 6400000000000000001,
+        "scan": {
+          "clean": true,
+          "description": "Flash Scan",
+          "malicious_detections": 0,
+          "scanned_files": 21470,
+          "scanned_paths": 0,
+          "scanned_processes": 312
+        },
+        "severity": "Low",
+        "timestamp": 1794297600,
+        "timestamp_nanoseconds": 0
+      },
+      "host": "api.amp.cisco.com",
+      "message": "Scan Completed, No Detections on build-01.example.com",
+      "service": "event",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}

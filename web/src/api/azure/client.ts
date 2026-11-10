@@ -1,7 +1,8 @@
 // Integrations → Microsoft Azure. Outside live mode the in-browser mock (mock/azure.ts) answers.
-import { API_MODE, del, get, post, put } from '../http';
+import { API_MODE, del, get, post, postTo, put } from '../http';
 import * as mock from '../mock/azure';
-import type { AzureAccount, AzureAccountInput, AzureAccountStatus } from './types';
+import * as entraMock from '../mock/entra';
+import type { AzureAccount, AzureAccountInput, AzureAccountStatus, EntraLogs, EntraLogsInput, EntraLogsTest } from './types';
 
 export * from './types';
 
@@ -14,3 +15,9 @@ export const updateAzureAccount = (id: string, input: AzureAccountInput): Promis
   live ? (put('/api/v1/integrations/azure/accounts/{id}', { id }, input as never) as Promise<unknown> as Promise<AzureAccount>) : mock.updateAzureAccount(id, input);
 export const deleteAzureAccount = (id: string): Promise<void> => (live ? del('/api/v1/integrations/azure/accounts/{id}', { id }) : mock.deleteAzureAccount(id));
 export const getAzureAccountStatus = (id: string): Promise<AzureAccountStatus> => (live ? get('/api/v1/integrations/azure/accounts/{id}/status', { id }) : mock.getAzureAccountStatus(id));
+
+// An app registration's Entra ID logs (routes/entra_logs.rs; mock/entra.ts).
+export const getEntraLogs = (id: string): Promise<EntraLogs> => (live ? get('/api/v1/integrations/azure/accounts/{id}/entra-logs', { id }) : entraMock.getEntraLogs(id));
+export const saveEntraLogs = (id: string, input: EntraLogsInput): Promise<EntraLogs> =>
+  live ? put('/api/v1/integrations/azure/accounts/{id}/entra-logs', { id }, input) : entraMock.saveEntraLogs(id, input);
+export const testEntraLogs = (id: string): Promise<EntraLogsTest> => (live ? postTo('/api/v1/integrations/azure/accounts/{id}/entra-logs/test', { id }, undefined) : entraMock.testEntraLogs());

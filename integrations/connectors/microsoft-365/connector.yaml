@@ -1,0 +1,154 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Office 365 Management Activity API (https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference):
+# a tenant's unified audit log as the logs Datadog's Microsoft 365 integration sends (source:microsoft-365, service
+# the record's workload, the record's fields at the top level). Saving a connection starts a subscription per
+# content type (on_connect; one already started answers 400 AF20024, taken as done); each run lists the content
+# blobs created in its window and downloads them (expand). Content appears 30 minutes to many hours after the
+# events, so windows are by the blobs' creation. Datadog has no integrations-core tile for it, so the package adds
+# its own tile and dashboard.
+schema_version: 1
+id: microsoft-365
+name: Microsoft 365
+publisher: ObserveCraft
+vendor: Microsoft
+description: >-
+  A Microsoft 365 tenant's unified audit log (Exchange, SharePoint, OneDrive, Teams, Entra ID sign-ins and admin
+  actions, Power Platform, DLP) as logs, read from the Office 365 Management Activity API with an app registration.
+logo: microsoft-365
+categories: [Collaboration, Security, SIEM, Log Collection]
+docs_url: https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference
+setup: |
+  1. Auditing must be on for the tenant (Microsoft Purview → **Audit**; it is by default).
+  2. In the Microsoft Entra admin center, **App registrations → New registration**, e.g. `ObserveCraft`. Under **API
+     permissions**, add **Office 365 Management APIs → Application permissions → ActivityFeed.Read** (and
+     **ActivityFeed.ReadDlp** for DLP events), then **Grant admin consent**.
+  3. **Certificates & secrets → New client secret**; copy its value, the application (client) id and the directory
+     (tenant) id.
+links:
+  - { label: App registrations, url: "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" }
+instance: "{{ config.tenant_id }}"
+
+config:
+  - { key: tenant_id, label: Directory (tenant) id, type: string, required: true, pattern: "[0-9a-fA-F-]{36}" }
+  - { key: client_id, label: Application (client) id, type: string, required: true, pattern: "[0-9a-fA-F-]{36}" }
+  - { key: client_secret, label: Client secret, type: string, secret: true, required: true }
+  - key: endpoint
+    label: Cloud
+    type: select
+    default: manage.office.com
+    options:
+      - { value: manage.office.com, label: Commercial }
+      - { value: manage-gcc.office.com, label: GCC }
+  - key: content_types
+    label: Content types
+    type: multiselect
+    options:
+      - { value: Audit.AzureActiveDirectory, label: Entra ID (Audit.AzureActiveDirectory) }
+      - { value: Audit.Exchange, label: Exchange (Audit.Exchange) }
+      - { value: Audit.SharePoint, label: SharePoint and OneDrive (Audit.SharePoint) }
+      - { value: Audit.General, label: "Teams, Power Platform and others (Audit.General)" }
+      - { value: DLP.All, label: Data loss prevention (DLP.All) }
+    help: "Default every Audit.* type; DLP.All needs ActivityFeed.ReadDlp."
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "https://login.microsoftonline.com/{{ config.tenant_id }}/oauth2/v2.0/token"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: body
+  scopes: ["https://{{ config.endpoint }}/.default"]
+
+# 2,000 requests a minute per tenant (with PublisherIdentifier, the tenant's own quota).
+rate_limit: { requests_per_minute: 300 }
+
+errors:
+  - status: [400, 401]
+    when: "{{ response.error in ['invalid_client', 'unauthorized_client', 'invalid_request'] }}"
+    kind: auth
+    message: "Microsoft Entra refused the app ({{ response.error_description ?? response.error }})"
+  - status: [401, 403]
+    kind: access_denied
+    message: "The app can't read the activity feed ({{ response.error.message ?? 'forbidden' }}): grant ActivityFeed.Read with admin consent"
+  - status: [400]
+    when: "{{ response.error.code == 'AF20022' || response.error.code == 'AF20023' }}"
+    kind: access_denied
+    message: "No subscription for this content type yet ({{ response.error.message }}): save the connection again to start it"
+  - status: [429]
+    kind: throttled
+    message: Rate limited by the Management Activity API
+
+on_connect:
+  - request: { method: POST, url: "https://{{ config.endpoint }}/api/v1.0/{{ config.tenant_id }}/activity/feed/subscriptions/start", query: { contentType: Audit.AzureActiveDirectory, PublisherIdentifier: "{{ config.tenant_id }}" } }
+    ok_status: [400]
+    message: "Audit.AzureActiveDirectory: {{ response.status ?? response.error.message }}"
+  - request: { method: POST, url: "https://{{ config.endpoint }}/api/v1.0/{{ config.tenant_id }}/activity/feed/subscriptions/start", query: { contentType: Audit.Exchange, PublisherIdentifier: "{{ config.tenant_id }}" } }
+    ok_status: [400]
+    message: "Audit.Exchange: {{ response.status ?? response.error.message }}"
+  - request: { method: POST, url: "https://{{ config.endpoint }}/api/v1.0/{{ config.tenant_id }}/activity/feed/subscriptions/start", query: { contentType: Audit.SharePoint, PublisherIdentifier: "{{ config.tenant_id }}" } }
+    ok_status: [400]
+    message: "Audit.SharePoint: {{ response.status ?? response.error.message }}"
+  - request: { method: POST, url: "https://{{ config.endpoint }}/api/v1.0/{{ config.tenant_id }}/activity/feed/subscriptions/start", query: { contentType: Audit.General, PublisherIdentifier: "{{ config.tenant_id }}" } }
+    ok_status: [400]
+    message: "Audit.General: {{ response.status ?? response.error.message }}"
+
+streams:
+  - id: audit
+    name: Unified audit log
+    description: >-
+      Every audit record of the tenant as a log (source:microsoft-365, service the workload: Exchange, SharePoint,
+      OneDrive, MicrosoftTeams, AzureActiveDirectory, …): evt.name is the operation, evt.outcome the result,
+      usr.id the user, network.client.ip the client's IP. Failed operations are warnings.
+    interval: 5m
+    for_each: "{{ config.content_types ?? ['Audit.AzureActiveDirectory', 'Audit.Exchange', 'Audit.SharePoint', 'Audit.General'] }}"
+    request:
+      url: "https://{{ config.endpoint }}/api/v1.0/{{ config.tenant_id }}/activity/feed/subscriptions/content"
+      query:
+        contentType: "{{ item }}"
+        startTime: "{{ window.start | strftime('%Y-%m-%dT%H:%M:%S') }}"
+        endTime: "{{ window.end | strftime('%Y-%m-%dT%H:%M:%S') }}"
+        PublisherIdentifier: "{{ config.tenant_id }}"
+    pagination: { kind: next_url, next: "{{ headers['nextpageuri'] }}" }
+    max_pages: 50
+    expand:
+      request:
+        url: "{{ parent.contentUri }}"
+        query: { PublisherIdentifier: "{{ config.tenant_id }}" }
+    record_id: "{{ record.Id }}"
+    # A listing covers at most 24 hours of the last 7 days.
+    incremental: { kind: time, record_time: "{{ parent.contentCreated }}", order: oldest_first, lookback: 1d, overlap: 1h, max_window: 24h }
+    output:
+      logs:
+        service: "{{ record.Workload ?? 'microsoft-365' }}"
+        message: "{{ record.Operation }}{{ ' by ' + record.UserId ?? '' }}{{ ' on ' + (record.ObjectId ?? record.SourceFileName) ?? '' }}"
+        status: "{{ record.ResultStatus in ['Failed', 'Failure', 'false', 'PartiallySucceeded'] ? 'warn' : 'info' }}"
+        date: "{{ record.CreationTime | epoch_ms('UTC') | rfc3339 }}"
+        tags: { content_type: "{{ item }}" }
+        attributes: >-
+          {{ record + {
+               evt: {name: record.Operation, outcome: record.ResultStatus},
+               usr: {id: record.UserId, name: record.UserKey},
+               network: {client: {ip: record.ClientIP ?? record.ActorIpAddress}}
+             } }}
+
+test:
+  request:
+    url: "https://{{ config.endpoint }}/api/v1.0/{{ config.tenant_id }}/activity/feed/subscriptions/list"
+    query: { PublisherIdentifier: "{{ config.tenant_id }}" }
+  message: "Connected: {{ response | where('status', 'enabled') | len }} content types subscribed ({{ response | where('status', 'enabled') | pluck('contentType') | join(', ') }})"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { tenant_id: 11111111-2222-3333-4444-555555555555, client_id: 66666666-7777-8888-9999-000000000000, content_types: [Audit.SharePoint, Audit.AzureActiveDirectory] }
+  secrets: { client_secret: m365-test-client-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/oauth2/v2.0/token", body: { access_token: m365-test-token, token_type: Bearer, expires_in: 3599 } }
+    - { url: "https://manage.office.com/api/v1.0/11111111-2222-3333-4444-555555555555/activity/feed/subscriptions/content", query: { contentType: Audit.SharePoint }, file: fixtures/content-sharepoint.json }
+    - { url: "https://manage.office.com/api/v1.0/11111111-2222-3333-4444-555555555555/activity/feed/subscriptions/content", query: { contentType: Audit.AzureActiveDirectory }, body: [] }
+    - { url: "https://manage.office.com/api/v1.0/11111111-2222-3333-4444-555555555555/activity/feed/audit/20261110080000519005466$20261110080500519005466$audit_sharepoint$Audit_SharePoint$na0034", file: fixtures/blob-sharepoint.json }
+    - { url: "https://manage.office.com/api/v1.0/11111111-2222-3333-4444-555555555555/activity/feed/subscriptions/list", body: [ { contentType: Audit.SharePoint, status: enabled, webhook: null }, { contentType: Audit.AzureActiveDirectory, status: enabled, webhook: null }, { contentType: Audit.Exchange, status: disabled, webhook: null } ] }
+  expect:
+    audit: { records: 3, logs: 3, rerun: 0, golden: fixtures/audit.expected.json }
+    test: { ok: true, message: "Connected: 2 content types subscribed (Audit.SharePoint, Audit.AzureActiveDirectory)" }

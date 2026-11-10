@@ -4,8 +4,20 @@
 // Generated configs are templates — verify field names against the pinned collector version.
 import type { CollectedMetric, CollectorConfig, IntegrationDetail, IntegrationHost, IntegrationStatus, IntegrationSummary } from '../integrations/types';
 import { rng } from './generator';
+import { authentikConnected } from './authentik';
+import { fleetdmConnected } from './fleetdm';
+import { gitlabAuditConnected } from './gitlabAudit';
+import { googleWorkspaceConnected } from './googleWorkspace';
+import { entraConnected } from './entra';
+import { connectorConnected, connectorEntries } from './connectors';
+import { awsConnected } from './aws';
+import { azureConnected } from './azure';
+import { gcpConnected } from './gcp';
+import { slackConnected } from './slack';
 import { coreCatalog, type CoreIntegration } from '../integrations/catalog';
+import { coreSteps } from '../integrations/setupSteps';
 import { linkCore } from '../integrations/coreLink';
+import { availableHere, installable, ownIntegration, tileConnector, unavailableReason, type Collection, type CollectionInfo } from '../integrations/collection';
 import { awsMetricPrefix } from '../integrations/detection';
 import awsCatalog from '../../../../server/seeds/aws_integration.json';
 import azureCatalog from '../../../../server/seeds/azure_integration.json';
@@ -70,6 +82,10 @@ interface Entry {
   about?: string;
   /** The integrations-core entry for the same integration. */
   core?: CoreIntegration;
+  /** How Datadog collects it, when it isn't its integrations-core entry's (curated entries without one). */
+  collection?: Collection;
+  /** Where ObserveCraft covers it instead, when it isn't one of our integration pages (collection.ts). */
+  related?: { to: string; label: string };
 }
 
 const REDIS: M[] = [
@@ -342,31 +358,23 @@ const CURATED: Entry[] = [
     collect: { kind: 'otel', receiver: 'redis', fields: ['endpoint: ${env:REDIS_ENDPOINT}', 'password: ${env:REDIS_PASSWORD}'], metrics: REDIS },
   },
   { id: 'dotnet', name: '.NET Runtime Metrics', categories: ['Languages', 'Tracing'], status: 'installed', collect: { kind: 'otlp', metrics: RUNTIME('dotnet') } },
+  // integrations-core's active_directory check: the Datadog Agent on Windows domain controllers reads their
+  // performance counters (`active_directory.dra.*`, LDAP, Kerberos, NTLM), which its dashboard charts. The
+  // OpenTelemetry Collector's receiver names its metrics differently (`active_directory.ds.*`).
   {
     id: 'active-directory',
     name: 'Active Directory',
     categories: ['Windows', 'Security'],
     status: 'installed',
     os: ['Windows'],
-    logs: 'windows_event_log',
-    collect: {
-      kind: 'otel',
-      receiver: 'active_directory_ds',
-      fields: [],
-      metrics: [
-        ['active_directory.ds.replication.network.io', 'count', 'Replication traffic', 'By'],
-        ['active_directory.ds.thread.count', 'gauge', 'Threads in use'],
-        ['active_directory.ds.bind.rate', 'rate', 'Binds per second'],
-        ['active_directory.ds.ldap.search.rate', 'rate', 'LDAP searches per second'],
-      ],
-    },
+    about: "Replication, LDAP, Kerberos and NTLM metrics of Windows domain controllers, read by the Datadog Agent's Active Directory check.",
+    collect: { kind: 'agent' },
   },
   {
     id: 'aws',
     name: 'Amazon Web Services',
     logo: 'amazonwebservices',
     categories: ['AWS', 'Cost Management'],
-    status: 'installed',
     collect: { kind: 'cloud', cloud: 'aws', prefix: 'aws.' },
   },
   {
@@ -422,7 +430,7 @@ const CURATED: Entry[] = [
     collect: { kind: 'otel', receiver: 'rabbitmq', fields: ['endpoint: http://localhost:15672', 'username: ${env:RABBITMQ_USER}', 'password: ${env:RABBITMQ_PASSWORD}'], metrics: RABBIT },
   },
   { id: 'opentelemetry', name: 'OpenTelemetry', categories: ['Tracing', 'Metrics', 'Log Collection'], status: 'installed', collect: { kind: 'otlp', metrics: [] } },
-  { id: 'slack', name: 'Slack', categories: ['Collaboration', 'Notifications', 'Alerting'], status: 'installed', collect: { kind: 'notify', settings: NOTIFY_WEBHOOK } },
+  { id: 'slack', name: 'Slack', categories: ['Collaboration', 'Notifications', 'Alerting'], collect: { kind: 'notify', settings: NOTIFY_WEBHOOK } },
   {
     id: 'pagerduty',
     name: 'PagerDuty',
@@ -430,12 +438,16 @@ const CURATED: Entry[] = [
     status: 'installed',
     collect: { kind: 'notify', settings: [{ key: 'routing_key', label: 'Integration (routing) key', placeholder: 'R0…', secret: true }] },
   },
+  // Datadog's GitHub integration is a GitHub App its own service reads (audit log, repositories, pull requests): not
+  // something an Agent or a webhook here receives. The Developer Portal links GitHub repositories itself.
   {
     id: 'github',
     name: 'GitHub',
     categories: ['Source Control', 'Developer Tools'],
-    status: 'installed',
-    collect: { kind: 'notify', settings: [{ key: 'app_installation', label: 'GitHub App installation ID', placeholder: '12345678' }] },
+    about: 'Datadog reads GitHub through a GitHub App installed on its own service.',
+    collection: 'crawler',
+    related: { to: '/portal/settings/sources', label: 'Developer Portal sources' },
+    collect: { kind: 'notify', settings: [] },
   },
   // ---- available
   {
@@ -443,7 +455,6 @@ const CURATED: Entry[] = [
     name: 'Microsoft Azure',
     logo: 'tile:azure',
     categories: ['Azure', 'Cost Management'],
-    status: 'installed',
     collect: { kind: 'cloud', cloud: 'azure', prefix: 'azure.' },
   },
   {
@@ -451,7 +462,6 @@ const CURATED: Entry[] = [
     name: 'Google Cloud Platform',
     logo: 'googlecloud',
     categories: ['Google Cloud', 'Cost Management'],
-    status: 'installed',
     collect: { kind: 'cloud', cloud: 'gcp', prefix: 'gcp.' },
   },
   {
@@ -501,11 +511,14 @@ const CURATED: Entry[] = [
       ],
     },
   },
+  // integrations-core's gitlab check: the Agent scrapes a self-hosted GitLab's Prometheus endpoint. Its CI pipelines
+  // are Software Delivery's (the modal links that setup).
   {
     id: 'gitlab',
     name: 'GitLab',
     categories: ['Source Control', 'Developer Tools'],
-    collect: { kind: 'notify', settings: [{ key: 'token', label: 'Access token', placeholder: 'glpat-…', secret: true }] },
+    about: "Metrics of a self-hosted GitLab, read from its Prometheus endpoint by the Datadog Agent's gitlab check.",
+    collect: { kind: 'agent' },
   },
   {
     id: 'terraform',
@@ -767,7 +780,8 @@ const CURATED: Entry[] = [
     id: 'authentik',
     name: 'authentik',
     categories: ['Security', 'Log Collection'],
-    about: 'Events of an authentik identity provider (logins, access requests, users and policies changed, errors), read through its API and stored as logs.',
+    about:
+      'Events of an authentik identity provider (logins and failed logins, MFA, passwords, impersonation, applications authorized, access requests, users and policies changed, errors), read through its API and stored as logs, with a log pipeline and a dashboard.',
     collect: {
       kind: 'notify',
       settings: [
@@ -801,6 +815,34 @@ const CURATED: Entry[] = [
       settings: [
         { key: 'base_url', label: 'Fleet URL', placeholder: 'https://fleet.example.com' },
         { key: 'token', label: 'API token', placeholder: '••••', secret: true },
+      ],
+    },
+  },
+  {
+    id: 'gitlab-audit-events',
+    name: 'GitLab Audit Events',
+    categories: ['Security', 'Source Control', 'Log Collection'],
+    about:
+      "Audit events of a GitLab instance, group or project (Premium or Ultimate): failed logins, access tokens, members and their roles, OAuth applications authorized, merge request approvals and merges, project, group and CI/CD settings, read through GitLab's API and stored as logs, with a log pipeline, Cloud SIEM rules and a dashboard.",
+    collect: {
+      kind: 'notify',
+      settings: [
+        { key: 'base_url', label: 'GitLab URL', placeholder: 'https://gitlab.com' },
+        { key: 'token', label: 'Access token (read_api)', placeholder: '••••', secret: true },
+      ],
+    },
+  },
+  {
+    id: 'google-workspace',
+    name: 'Google Workspace',
+    categories: ['Security', 'Collaboration', 'Log Collection'],
+    about:
+      'Audit activities of a Google Workspace account: logins and failed or suspicious logins, 2-step verification, Admin console changes, Drive files shared outside the domain, OAuth apps authorized, groups and mobile devices, read through the Admin SDK Reports API with a service account and stored as logs, with a log pipeline, Cloud SIEM rules and a dashboard.',
+    collect: {
+      kind: 'notify',
+      settings: [
+        { key: 'subject', label: 'Administrator to act as', placeholder: 'admin@example.com' },
+        { key: 'service_account_key', label: 'Service account JSON key', placeholder: '••••', secret: true },
       ],
     },
   },
@@ -924,7 +966,21 @@ const CLOUDS: Record<CloudId, { page: string; source: string; steps: string[] }>
 };
 
 /** AWS services the demo account collects (mock mode). */
-const DEMO_AWS = new Set(['AWS/ApiGateway', 'AWS/ApplicationELB', 'AWS/CloudFront', 'AWS/DynamoDB', 'AWS/EC2', 'AWS/ECS', 'ECS/ContainerInsights', 'AWS/Lambda', 'AWS/RDS', 'AWS/S3', 'AWS/WAFV2']);
+const DEMO_AWS = new Set([
+  'AWS/ApiGateway',
+  'AWS/ApplicationELB',
+  'AWS/AutoScaling',
+  'AWS/CloudFront',
+  'AWS/DocDB',
+  'AWS/DynamoDB',
+  'AWS/EC2',
+  'AWS/ECS',
+  'ECS/ContainerInsights',
+  'AWS/Lambda',
+  'AWS/RDS',
+  'AWS/S3',
+  'AWS/WAFV2',
+]);
 
 /** One tile per CloudWatch namespace of the AWS integration's catalog (server/seeds/aws_integration.json). */
 const AWS_SERVICES: Entry[] = awsCatalog.namespaces.map((n) => ({
@@ -937,7 +993,7 @@ const AWS_SERVICES: Entry[] = awsCatalog.namespaces.map((n) => ({
 }));
 
 /** Google Cloud services the demo service account collects (mock mode). */
-const DEMO_GCP = new Set(['gce', 'cloudsql', 'gcs', 'run']);
+const DEMO_GCP = new Set(['gce', 'cloudsql', 'storage', 'run', 'pubsub', 'alloydb', 'artifactregistry']);
 
 /** One tile per service of the GCP integration's catalog (server/seeds/gcp_integration.json). */
 const GCP_SERVICES: Entry[] = gcpCatalog.services.map((s) => ({
@@ -950,7 +1006,16 @@ const GCP_SERVICES: Entry[] = gcpCatalog.services.map((s) => ({
 }));
 
 /** Azure services the demo app registration collects (mock mode). */
-const DEMO_AZURE = new Set(['Microsoft.Compute/virtualMachines', 'Microsoft.Web/sites', 'Microsoft.Sql/servers/databases', 'Microsoft.Storage/storageAccounts']);
+const DEMO_AZURE = new Set([
+  'Microsoft.Compute/virtualMachines',
+  'Microsoft.Web/sites',
+  'Microsoft.Web/sites (functionapp)',
+  'Microsoft.Sql/servers/databases',
+  'Microsoft.Sql/servers/elasticPools',
+  'Microsoft.Storage/storageAccounts',
+  'Microsoft.KeyVault/vaults',
+  'Microsoft.Cdn/profiles',
+]);
 
 /** One tile per resource type of the Azure integration's catalog (server/seeds/azure_integration.json). */
 const AZURE_SERVICES: Entry[] = azureCatalog.resource_types.map((t) => ({
@@ -963,12 +1028,22 @@ const AZURE_SERVICES: Entry[] = azureCatalog.resource_types.map((t) => ({
 }));
 
 const CORE_LINKS = linkCore(CURATED, coreCatalog.integrations);
-const CATALOG: Entry[] = [
+const LISTED: Entry[] = [
   ...CURATED.map((e) => ({ ...e, core: CORE_LINKS.linked.get(e.id) })),
   ...AWS_SERVICES,
   ...AZURE_SERVICES,
   ...GCP_SERVICES,
   ...CORE_LINKS.unlinked.map((c): Entry => ({ id: c.id, name: c.name, categories: c.categories, os: c.supportedOs, collect: { kind: 'agent' }, core: c })),
+];
+/** Connector packages without a catalog tile add their own (docs/connectors.md). */
+export function connectorTile(c: { id: string; name: string; categories: string[]; description: string; logo: string }): Entry {
+  return { id: c.id, name: c.name, logo: c.logo, categories: c.categories, about: c.description, collect: { kind: 'notify', settings: [] } };
+}
+const CATALOG: Entry[] = [
+  ...LISTED,
+  ...connectorEntries()
+    .filter((c) => c.kind !== 'native' && !LISTED.some((e) => e.id === c.id || c.tiles.includes(e.id)))
+    .map(connectorTile),
 ];
 
 // ---------------------------------------------------------------- derivation
@@ -979,7 +1054,37 @@ const HOSTS = ['i-0a1b2c3d4e5f60001', 'i-0a1b2c3d4e5f60002', 'i-0a1b2c3d4e5f6000
 /** Session-local install state (the mock's "database"). */
 const statusOverride = new Map<string, IntegrationStatus>();
 
+/** How Datadog collects an entry: our own collection (OpenTelemetry, Prometheus, OTLP, clouds) has none. */
+function collectionInfo(e: Entry): CollectionInfo {
+  if (e.collection) return { collection: e.collection };
+  if (e.collect.kind !== 'agent' && e.collect.kind !== 'notify') return {};
+  return e.core ? { collection: e.core.collection, customEndpoint: e.core.customEndpoint } : {};
+}
+
+/** Install refuses what Datadog's own service collects, ours included when it shares that integration's id. */
+function entryInstallable(e: Entry): boolean {
+  return installable(collectionInfo(e).collection) && installable(e.core?.collection);
+}
+
+/** Integrations set up on their own page: installed while their mock connection is saved, as the server counts one. */
+const CONNECTED: Record<string, () => boolean> = {
+  authentik: authentikConnected,
+  aws: awsConnected,
+  azure: azureConnected,
+  'azure-active-directory': entraConnected,
+  fleetdm: fleetdmConnected,
+  'gitlab-audit-events': gitlabAuditConnected,
+  'google-workspace': googleWorkspaceConnected,
+  'google-cloud': gcpConnected,
+  slack: slackConnected,
+};
+
 function statusOf(e: Entry): IntegrationStatus {
+  if (!availableHere(collectionInfo(e), e.id)) return 'unavailable';
+  if (CONNECTED[e.id]?.()) return 'installed';
+  // A connector package's tile: installed while it has a connection (connectors::connected).
+  const connector = tileConnector(e.id);
+  if (connector && connectorConnected(connector.id)) return 'installed';
   return statusOverride.get(e.id) ?? e.status ?? 'available';
 }
 
@@ -997,10 +1102,12 @@ function summary(e: Entry): IntegrationSummary {
     logo: e.logo ?? e.id,
     status,
     categories: e.categories,
-    description: e.core?.description || `Monitor the health and performance of ${e.name}.`,
+    // Our own entries (authentik, GitLab Audit Events, …) describe themselves in their first sentence.
+    description: e.core?.description || e.about?.replace(/\. .*$/s, '.') || `Monitor the health and performance of ${e.name}.`,
     warning: status === 'warning' ? e.warning : undefined,
     repository: e.core?.repository,
     waitingForData: waitingForData(e) || undefined,
+    ...collectionInfo(e),
   };
 }
 
@@ -1108,7 +1215,7 @@ function metricsFor(e: Entry): CollectedMetric[] {
 }
 
 function hostsFor(e: Entry, status: IntegrationStatus): IntegrationHost[] {
-  if (status === 'available' || waitingForData(e) || e.collect.kind === 'notify' || e.collect.kind === 'cloud') return [];
+  if (status === 'available' || status === 'unavailable' || waitingForData(e) || e.collect.kind === 'notify' || e.collect.kind === 'cloud') return [];
   const r = rng(e.id.length * 131 + e.id.charCodeAt(0));
   const n = 1 + Math.floor(r() * 4);
   const now = Date.now();
@@ -1119,6 +1226,24 @@ function hostsFor(e: Entry, status: IntegrationStatus): IntegrationHost[] {
     lastReported: now - Math.round(r() * 90e3),
     message: status === 'warning' && i === 0 ? e.warning : status === 'detected' ? `${e.name} process detected; integration not configured` : undefined,
   }));
+}
+
+/**
+ * The steps of a tile collected by the OpenTelemetry Collector (or a Prometheus scrape). A tile that is also an
+ * integrations-core Agent check (Kafka, MongoDB, …) gives the Agent's steps first: its dashboards read the check's metrics.
+ */
+function collectorSteps(e: Entry): string[] {
+  const collector = [
+    'Apply the configuration template to your own collector and supply the required endpoints and credentials.',
+    'Add the receiver to the appropriate collector service pipeline and configure an exporter to the ObserveCraft intake with your organization ingest key.',
+    'Restart or reload the collector. Detection is based on matching metrics received during the last 24 hours.',
+  ];
+  if (e.core?.collection !== 'agent') return collector;
+  const receiver = e.collect.kind === 'otel' ? `its ${e.collect.receiver} receiver` : 'the scrape below';
+  return [
+    ...coreSteps(e.core),
+    `Or, with the OpenTelemetry Collector only, use ${receiver}: its metrics have the Collector's names, which the ${e.name} dashboards don't chart. ${collector.join(' ')}`,
+  ];
 }
 
 function detail(e: Entry): IntegrationDetail {
@@ -1146,39 +1271,47 @@ function detail(e: Entry): IntegrationDetail {
               ? `the Datadog Agent's ${e.core!.check} check`
               : 'the provider API — no collector changes are required';
   const steps =
-    c.kind === 'notify'
-      ? [`Fill in the ${e.name} settings below.`, 'Click Install. ObserveCraft validates the credentials.', `Reference @${e.id} in monitor notifications.`]
-      : c.kind === 'otlp'
-        ? [
-            'Add the OpenTelemetry SDK and auto-instrumentation to your service.',
-            'Point OTEL_EXPORTER_OTLP_ENDPOINT at the local collector (port 4317).',
-            'Click Install to enable the bundled dashboards and monitors.',
-          ]
-        : c.kind === 'agent'
-          ? AGENT_STEPS(e.core!)
-          : c.kind === 'cloud'
-            ? CLOUDS[c.cloud].steps
-            : [
-                `Click Install. The fleet manager adds the configuration below to collectors on matching hosts.`,
-                'Set any referenced environment variables (credentials, endpoints) via your secret store.',
-                `Data appears within a few minutes under the "${e.id}" source.`,
-              ];
+    s.status === 'unavailable'
+      ? []
+      : c.kind === 'notify'
+        ? [`Fill in the ${e.name} settings below.`, 'Click Install. ObserveCraft validates the credentials.', `Reference @${e.id} in monitor notifications.`]
+        : c.kind === 'otlp'
+          ? [
+              'Add the OpenTelemetry SDK and auto-instrumentation to your service.',
+              'Point OTEL_EXPORTER_OTLP_ENDPOINT at the local collector (port 4317).',
+              'Click Install to enable the bundled dashboards and monitors.',
+            ]
+          : c.kind === 'agent'
+            ? coreSteps(e.core!)
+            : c.kind === 'cloud'
+              ? CLOUDS[c.cloud].steps
+              : collectorSteps(e);
   return {
     ...s,
-    overview: `${e.about ? `${e.about} ` : ''}This integration collects ${e.name} telemetry through ${how}.`,
+    overview:
+      s.status === 'unavailable'
+        ? `${e.about ? `${e.about} ` : ''}${unavailableReason(e.name, collectionInfo(e))}`
+        : `${e.about ? `${e.about} ` : ''}This integration collects ${e.name} telemetry through ${how}.`,
     offerings: e.core?.offerings.length ? e.core.offerings : ['Integration'],
     supportedOs: e.os ?? (e.core?.supportedOs.length ? e.core.supportedOs : ['Linux', 'Windows', 'macOS']),
     dataTypes,
     minCollectorVersion: COLLECTOR_VERSION,
     setupSteps: steps,
     configureUrl: c.kind === 'cloud' ? CLOUDS[c.cloud].page : undefined,
+    installable: entryInstallable(e),
+    logSource: e.core?.logSource ?? null,
+    related: e.related ?? ownIntegration(e.id),
     configs: configsFor(e),
     settings: c.kind === 'notify' ? c.settings : [],
     metrics: metricsFor(e),
     logs: e.logs
       ? `Logs are collected by Vector and tagged source:${e.id}.`
       : e.core?.logSource
-        ? `The Datadog Agent collects logs with source:${e.core.logSource} when log collection is enabled for the check.`
+        ? s.collection === 'webhook' || s.collection === 'push-site'
+          ? `Logs arrive with source:${e.core.logSource} once ${e.name} sends them to the intake.`
+          : s.collection === 'agent' || s.collection === 'logs'
+            ? `The Datadog Agent collects logs with source:${e.core.logSource} when log collection is enabled for the check.`
+            : `Datadog's own service collects these logs with source:${e.core.logSource}.`
         : null,
     agent: e.core ? { check: e.core.check, configurable: e.core.configurable, source: coreCatalog.source } : undefined,
     coreId: e.core?.id,
@@ -1208,14 +1341,6 @@ function coreDataTypes(c: CoreIntegration): string[] {
   if (c.dataTypes.length) return c.dataTypes;
   return [...(c.metricPrefix ? ['Metrics'] : []), ...(c.logSource ? ['Logs'] : [])];
 }
-
-const AGENT_STEPS = (c: CoreIntegration) => [
-  'Install the Datadog Agent on the host and point it at ObserveCraft (DD_SITE / DD_DD_URL and your ingest key as DD_API_KEY).',
-  c.configurable
-    ? `Fill in the settings below and save the result as conf.d/${c.check}.d/conf.yaml in the Agent's configuration directory.`
-    : `Configure the ${c.name} integration as its integrations-core documentation describes.`,
-  'Restart the Agent. Data appears within a few minutes; detection uses metrics received during the last 24 hours.',
-];
 
 const BY_ID = new Map(CATALOG.map((e) => [e.id, e]));
 
@@ -1267,18 +1392,15 @@ export function integrationMetadata(id: string): IntegrationDetail {
     hosts: [],
     resources: [],
     releaseNotes: [],
-    setupSteps:
-      e.collect.kind === 'agent'
-        ? AGENT_STEPS(e.core!)
+    setupSteps: !availableHere(collectionInfo(e), e.id)
+      ? []
+      : e.collect.kind === 'agent'
+        ? coreSteps(e.core!)
         : e.collect.kind === 'cloud'
           ? CLOUDS[e.collect.cloud].steps
           : e.collect.kind === 'notify'
             ? ['Configure a supported notification channel in Organization Settings. This catalog does not provision provider connections.']
-            : [
-                'Apply the configuration template to your own collector and supply the required endpoints and credentials.',
-                'Add the receiver to the appropriate collector service pipeline and configure an exporter to the ObserveCraft intake with your organization ingest key.',
-                'Restart or reload the collector. Detection is based on matching metrics received during the last 24 hours.',
-              ],
+            : collectorSteps(e),
   };
 }
 

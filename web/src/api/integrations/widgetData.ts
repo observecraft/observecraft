@@ -32,6 +32,46 @@ export function distributionBuckets(values: number[], count = 12): { from: numbe
   return buckets;
 }
 
+/**
+ * A host map's query: its fill per node (a host, or a container with `node_type: container`) and per value of its
+ * group tags; the fill's own `by {…}` is the node it was written for and is replaced.
+ */
+export function hostmapQuery(def: { requests?: unknown; node_type?: unknown; group?: unknown }): string | undefined {
+  const fill = (def.requests as { fill?: { q?: string } } | undefined)?.fill?.q;
+  if (!fill) return undefined;
+  const node = def.node_type === 'container' ? 'container_id' : 'host';
+  const groups = Array.isArray(def.group) ? def.group.filter((g): g is string => typeof g === 'string' && g !== node) : [];
+  return `${fill.replace(/\s+by\s+\{[^}]*\}/, '')} by {${[node, ...groups].join(',')}}`;
+}
+
+/** The metric and filters a host map reads (`system.load.1{field:apps:argocd}`), its template variables left out. */
+export function hostmapScope(query: string): string {
+  const m = /:([\w.]+)\{([^}]*)\}/.exec(query);
+  if (!m) return query;
+  const filters = m[2]
+    .split(',')
+    .map((f) => f.trim())
+    .filter((f) => f && !f.startsWith('$') && f !== '*');
+  return `${m[1]}{${filters.join(',') || '*'}}`;
+}
+
+/** A host map's boxes: one per value of its group tags (one unnamed box without groups), with its nodes by name. */
+export function hostmapGroups(values: { name: string; value: number }[], groups: string[]): { label: string; nodes: { name: string; value: number }[] }[] {
+  const boxes = new Map<string, { name: string; value: number }[]>();
+  for (const { name, value } of values) {
+    const tags = new Map(
+      name.split(', ').map((pair) => {
+        const i = pair.indexOf(':');
+        return i < 0 ? [pair, ''] : [pair.slice(0, i), pair.slice(i + 1)];
+      }),
+    );
+    const label = groups.map((g) => tags.get(g) ?? 'N/A').join(', ');
+    const node = [...tags].find(([k]) => !groups.includes(k))?.[1] ?? name;
+    boxes.set(label, [...(boxes.get(label) ?? []), { name: node, value }]);
+  }
+  return [...boxes].map(([label, nodes]) => ({ label, nodes: nodes.sort((a, b) => a.name.localeCompare(b.name)) })).sort((a, b) => a.label.localeCompare(b.label));
+}
+
 /** Datadog's default host map palette: green for the lowest values to orange for the highest. */
 const HOSTMAP = ['#3a9e48', '#7cb342', '#c0ca33', '#fdd835', '#ffb300', '#fb8c00', '#f4511e'];
 
@@ -70,4 +110,11 @@ export function sunburstTree(values: { name: string; value: number }[]): { total
   const sort = (nodes: SunburstNode[]): SunburstNode[] => nodes.sort((a, b) => b.value - a.value).map((n) => ({ ...n, children: sort(n.children) }));
   const nodes = sort(root.children);
   return { total: root.value, nodes, legend: nodes.map((n) => ({ name: n.name, value: n.value, percent: root.value ? (n.value / root.value) * 100 : 0 })) };
+}
+
+/** How a timeseries draws a request's `display_type`: bars and areas stacked per type, as Datadog draws them. */
+export function seriesDisplay(display: string | undefined): { type: 'bar' | 'line'; stack?: string; areaStyle?: { opacity: number } } {
+  if (display === 'bars') return { type: 'bar', stack: 'bars' };
+  if (display === 'area') return { type: 'line', stack: 'total', areaStyle: { opacity: 0.4 } };
+  return { type: 'line' };
 }

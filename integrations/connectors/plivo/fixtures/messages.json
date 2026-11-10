@@ -1,0 +1,36 @@
+{
+  "api_id": "0b1c2d3e-0000-4000-8000-000000000002",
+  "meta": { "limit": 20, "next": null, "offset": 0, "previous": null },
+  "objects": [
+    {
+      "carrier_fees": "0.00000", "carrier_fees_rate": "0.00000", "conversation_expiration_timestamp": "", "conversation_id": "",
+      "conversation_origin": "", "destination_country_iso2": "US", "destination_network": "Example Mobile", "dlt_entity_id": "",
+      "dlt_template_category": "", "dlt_template_id": "", "error_code": "30", "error_message": "Destination number unreachable", "from_number": "15550100001",
+      "is_domestic": true, "log_preference": "true", "mcc": "310", "message_direction": "outbound", "message_sent_time": "2026-11-10 08:40:12.120334+00:00",
+      "message_state": "undelivered", "message_time": "2026-11-10 08:40:12.120334+00:00", "message_type": "sms", "message_updated_time": "2026-11-10 08:40:19.004211+00:00",
+      "message_uuid": "6c1f0a00-0000-4000-8000-000000000003", "mnc": "260", "replaced_sender": "", "requester_ip": "203.0.113.24",
+      "resource_uri": "/v1/Account/MAEXAMPLE0000000000A/Message/6c1f0a00-0000-4000-8000-000000000003/", "to_number": "15550100099",
+      "total_amount": "0.00790", "total_rate": "0.00790", "units": 1
+    },
+    {
+      "carrier_fees": "0.00300", "carrier_fees_rate": "0.00300", "conversation_expiration_timestamp": "", "conversation_id": "",
+      "conversation_origin": "", "destination_country_iso2": "US", "destination_network": "Example Mobile", "dlt_entity_id": "",
+      "dlt_template_category": "", "dlt_template_id": "", "error_code": "000", "error_message": "", "from_number": "15550100001",
+      "is_domestic": true, "log_preference": "true", "mcc": "310", "message_direction": "outbound", "message_sent_time": "2026-11-10 07:15:03.551002+00:00",
+      "message_state": "delivered", "message_time": "2026-11-10 07:15:03.551002+00:00", "message_type": "sms", "message_updated_time": "2026-11-10 07:15:06.100877+00:00",
+      "message_uuid": "6c1f0a00-0000-4000-8000-000000000002", "mnc": "260", "replaced_sender": "", "requester_ip": "203.0.113.24",
+      "resource_uri": "/v1/Account/MAEXAMPLE0000000000A/Message/6c1f0a00-0000-4000-8000-000000000002/", "to_number": "15550100042",
+      "total_amount": "0.00790", "total_rate": "0.00490", "units": 1
+    },
+    {
+      "carrier_fees": "0.00000", "carrier_fees_rate": "0.00000", "conversation_expiration_timestamp": "", "conversation_id": "",
+      "conversation_origin": "", "destination_country_iso2": "DE", "destination_network": "", "dlt_entity_id": "",
+      "dlt_template_category": "", "dlt_template_id": "", "error_code": "000", "error_message": "", "from_number": "4915550100007",
+      "is_domestic": false, "log_preference": "true", "mcc": "", "message_direction": "inbound", "message_sent_time": "2026-11-09 22:02:44.000000+00:00",
+      "message_state": "received", "message_time": "2026-11-09 22:02:44.000000+00:00", "message_type": "sms", "message_updated_time": "2026-11-09 22:02:44.000000+00:00",
+      "message_uuid": "6c1f0a00-0000-4000-8000-000000000001", "mnc": "", "replaced_sender": "", "requester_ip": "",
+      "resource_uri": "/v1/Account/MAEXAMPLE0000000000A/Message/6c1f0a00-0000-4000-8000-000000000001/", "to_number": "15550100001",
+      "total_amount": "0.00000", "total_rate": "0.00000", "units": 1
+    }
+  ]
+}

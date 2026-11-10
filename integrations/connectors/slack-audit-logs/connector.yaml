@@ -1,0 +1,116 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Slack Audit Logs API (https://docs.slack.dev/admins/audit-logs-api): an Enterprise organization's audit log, as the
+# logs Datadog's Slack integration collects (source:slack, Slack's entry fields at the top level). Its id isn't
+# `slack`: Integrations → Slack is ObserveCraft's own notification integration (routes/slack.rs), which this package
+# leaves alone; it adds its own tile and dashboard.
+schema_version: 1
+id: slack-audit-logs
+name: Slack Audit Logs
+publisher: ObserveCraft
+vendor: Slack
+source: slack
+description: >-
+  An Enterprise Slack organization's audit log (sign-ins, users, workspaces, channels, files, apps and admin
+  settings) as logs, read every minute from Slack's Audit Logs API.
+logo: slack
+categories: [Collaboration, Security, SIEM, Log Collection]
+docs_url: https://docs.slack.dev/admins/audit-logs-api
+setup: |
+  1. The Audit Logs API is for Enterprise organizations (Enterprise Grid). Create a Slack app at
+     [api.slack.com/apps](https://api.slack.com/apps), e.g. `ObserveCraft audit logs`, and add the **user** token
+     scope `auditlogs:read` under **OAuth & Permissions**.
+  2. An **Org Owner** installs the app on the organization (not a single workspace) and copies the user OAuth token
+     (`xoxp-…`).
+  3. If the app rotates tokens, turn rotation off for this app: the connection keeps the token you paste.
+links:
+  - { label: Your Slack apps, url: "https://api.slack.com/apps" }
+instance: "{{ config.organization }}"
+
+config:
+  - key: organization
+    label: Organization name
+    type: string
+    required: true
+    placeholder: example-org
+    help: A name for the organization (shown as the logs' host).
+  - key: token
+    label: User OAuth token
+    type: string
+    secret: true
+    required: true
+    placeholder: xoxp-…
+    help: The org-installed app's user token with auditlogs:read.
+
+auth:
+  kind: bearer
+  token: "{{ secrets.token }}"
+
+# The Audit Logs API is a Tier 3 method (about 50 requests a minute).
+rate_limit: { requests_per_minute: 20 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: "Slack refused the token ({{ response.error ?? 'invalid_auth' }})"
+  - status: [403]
+    kind: access_denied
+    message: >-
+      Slack refused the audit log ({{ response.error ?? 'forbidden' }}): it needs an Enterprise organization and a
+      user token with auditlogs:read of an app the Org Owner installed on the organization
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Slack (retry after {{ headers['retry-after'] ?? '?' }}s)"
+
+streams:
+  - id: audit_logs
+    name: Audit logs
+    description: >-
+      Every audit log entry as a log (service:slack): evt.name is the action (user_login, file_downloaded,
+      app_installed, …), usr.* the actor, network.client.ip and http.useragent the context's.
+    request:
+      url: https://api.slack.com/audit/v1/logs
+      query:
+        oldest: "{{ window.start | epoch_s }}"
+        latest: "{{ window.end | epoch_s }}"
+        limit: 1000
+        cursor: "{{ page.cursor }}"
+    records: "{{ response.entries }}"
+    pagination: { kind: cursor, next: "{{ response.response_metadata.next_cursor }}" }
+    record_id: "{{ record.id }}"
+    incremental: { kind: time, record_time: "{{ record.date_create }}", order: newest_first, lookback: 1d, overlap: 2m }
+    vars:
+      user: "{{ record.actor.user }}"
+      target: "{{ record.entity[record.entity.type] }}"
+    output:
+      logs:
+        service: slack
+        message: >-
+          {{ record.action }} by {{ vars.user.email ?? vars.user.name ?? record.actor.type }}{{ ' on ' + record.entity.type + ' ' + (vars.target.name ?? vars.target.id) ?? '' }}
+        status: "{{ record.action | matches('(_failed|_denied|_blocked|_deleted|_removed|anomaly)') ? 'warn' : 'info' }}"
+        date: "{{ record.date_create | rfc3339 }}"
+        attributes: >-
+          {{ record + {
+               evt: {name: record.action},
+               usr: {id: vars.user.id, name: vars.user.name, email: vars.user.email},
+               network: {client: {ip: record.context.ip_address}},
+               http: {useragent: record.context.ua}
+             } }}
+
+test:
+  request: { url: "https://api.slack.com/audit/v1/schemas" }
+  message: "Connected: the token reads the audit log of {{ config.organization }} ({{ response.schemas | len }} entity types)"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { organization: example-org }
+  secrets: { token: xoxp-0000000000-0000000000-test }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.slack.com/audit/v1/logs", query: { cursor: "dXNlcjpVMEc5V0ZYTlo=" }, file: fixtures/logs-2.json }
+    - { url: "https://api.slack.com/audit/v1/logs", file: fixtures/logs-1.json }
+    - { url: "https://api.slack.com/audit/v1/schemas", body: { schemas: [ { type: workspace }, { type: enterprise }, { type: user }, { type: file }, { type: channel }, { type: app } ] } }
+  expect:
+    audit_logs: { records: 4, logs: 4, rerun: 0, golden: fixtures/audit_logs.expected.json }
+    test: { ok: true, message: "6 entity types" }

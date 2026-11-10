@@ -1,0 +1,128 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Have I Been Pwned (https://haveibeenpwned.com/API/v3): the breached accounts of the subscription's verified domains
+# and the latest breach, as the logs Datadog's integration sends (source:have-i-been-pwned; service:breach, one log per
+# account and breach, the breach's fields at the top with user_details; service:latest-breach). integrations-core's
+# log pipeline and "Have I Been Pwned - Overview" dashboard for the tile read them as they are, so this package ships
+# neither: saving a connection installs the tile's.
+schema_version: 1
+id: have-i-been-pwned
+name: Have I Been Pwned
+publisher: ObserveCraft
+vendor: Have I Been Pwned
+description: >-
+  The accounts of your verified domains found in data breaches, one log per account and breach with the breach's
+  details, and the most recently added breach, read from Have I Been Pwned's API.
+tiles: [have-i-been-pwned]
+categories: [Log Collection, Security, SIEM]
+docs_url: https://haveibeenpwned.com/API/v3
+setup: |
+  1. Domain search needs a [paid subscription](https://haveibeenpwned.com/API/Key) and your domains verified in the
+     [domain search dashboard](https://haveibeenpwned.com/DomainSearch).
+  2. Copy the API key from [your dashboard](https://haveibeenpwned.com/API/Key).
+links:
+  - { label: Get an API key, url: "https://haveibeenpwned.com/API/Key" }
+  - { label: Verify your domains, url: "https://haveibeenpwned.com/DomainSearch" }
+
+config:
+  - key: domains
+    label: Domains
+    type: list
+    pattern: "[a-z0-9.-]+"
+    placeholder: example.com
+    help: Leave empty to read every domain verified for the subscription.
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: api_key
+  name: hibp-api-key
+  value: "{{ secrets.api_key }}"
+
+# The cheapest plan allows 10 requests a minute.
+rate_limit: { requests_per_minute: 10 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Have I Been Pwned refused the API key
+  - status: [403]
+    kind: access_denied
+    message: >-
+      The subscription doesn't allow this search: a domain must be verified for the key, and have no more breached
+      accounts than the plan's limit
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Have I Been Pwned (retry after {{ headers['retry-after'] ?? '?' }}s)"
+
+discover:
+  - name: domains
+    request: { url: "https://haveibeenpwned.com/api/v3/subscribeddomains" }
+    value: "{{ response | pluck('DomainName') }}"
+    ttl: 6h
+
+streams:
+  - id: breached_accounts
+    name: Breached accounts
+    description: >-
+      One log per account of a verified domain and breach it was found in (service:breach), with the breach's
+      details (Title, BreachDate, DataClasses, IsVerified, IsSensitive, …) and user_details.user_name /
+      email_domain; sent once, when Have I Been Pwned first lists the account in the breach.
+    interval: 1h
+    for_each: "{{ config.domains ?? discovery.domains }}"
+    lookups:
+      - name: breaches
+        request: { url: "https://haveibeenpwned.com/api/v3/breaches" }
+        key: "{{ record.Name }}"
+        ttl: 6h
+    request:
+      url: "{{ 'https://haveibeenpwned.com/api/v3/breacheddomain/' + item }}"
+    records: "{{ response | entries | explode('value') }}"
+    record_id: "{{ item + ':' + record.key + ':' + record.value }}"
+    incremental: { kind: new_records }
+    output:
+      logs:
+        service: breach
+        status: warn
+        message: >-
+          {{ lookups.breaches[record.value].Description ?? (record.key + '@' + item + ' was found in the ' + record.value + ' breach') }}
+        attributes: >-
+          {{ (lookups.breaches[record.value] ?? {Name: record.value}) + {user_details: {user_name: record.key, email_domain: item}, usr: {name: record.key, email: record.key + '@' + item}} }}
+
+  - id: latest_breach
+    name: Latest breach
+    description: The breach most recently added to Have I Been Pwned (service:latest-breach), once per breach.
+    interval: 1h
+    request: { url: "https://haveibeenpwned.com/api/v3/latestbreach" }
+    record_id: "{{ record.Name }}"
+    incremental: { kind: new_records, max_seen: 1000 }
+    output:
+      logs:
+        service: latest-breach
+        message: "{{ record.Description ?? record.Title }}"
+        date: "{{ record.AddedDate }}"
+        attributes: "{{ record }}"
+
+test:
+  request: { url: "https://haveibeenpwned.com/api/v3/subscription/status" }
+  success: "{{ response.SubscriptionName }}"
+  message: >-
+    Connected: {{ response.SubscriptionName }} subscription ({{ response.Rpm }} requests a minute, domains with up to
+    {{ response.DomainSearchMaxBreachedAccounts }} breached accounts)
+
+mock:
+  secrets: { api_key: hibp-test-key-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://haveibeenpwned.com/api/v3/subscribeddomains", file: fixtures/subscribeddomains.json }
+    - { url: "https://haveibeenpwned.com/api/v3/breacheddomain/example.com", file: fixtures/breacheddomain-example.com.json }
+    - { url: "https://haveibeenpwned.com/api/v3/breacheddomain/shop.example.com", file: fixtures/breacheddomain-shop.example.com.json }
+    - { url: "https://haveibeenpwned.com/api/v3/breaches", file: fixtures/breaches.json }
+    - { url: "https://haveibeenpwned.com/api/v3/latestbreach", file: fixtures/latestbreach.json }
+    - { url: "https://haveibeenpwned.com/api/v3/subscription/status", file: fixtures/subscription-status.json }
+  expect:
+    breached_accounts: { records: 4, logs: 4, rerun: 0, golden: fixtures/breached_accounts.expected.json }
+    latest_breach: { records: 1, logs: 1, rerun: 0, golden: fixtures/latest_breach.expected.json }
+    test: { ok: true, message: "Pwned 1 subscription" }

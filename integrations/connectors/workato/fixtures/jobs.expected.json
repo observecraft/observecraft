@@ -1,0 +1,128 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c542-3d18-7cab-8201-6d42fcb60a24"
+      },
+      "completed_at": "2026-11-10T11:40:15.000Z",
+      "date": "2026-11-10T11:40:15.000Z",
+      "ddsource": "workato",
+      "duration": 3000000,
+      "host": "www.workato.com",
+      "id": "j-BQx7ZkQe-uYb4c1",
+      "is_error": false,
+      "level": "ok",
+      "message": "{\"message\":\"Order 100244 created\",\"status\":\"succeeded\"}",
+      "project": {
+        "description": "Order to cash",
+        "folder_id": 25081360,
+        "id": 12466695,
+        "name": "Order Ops"
+      },
+      "recipe": {
+        "description": "New orders from storefront-api become invoices",
+        "folder_id": 25081370,
+        "id": 62567615,
+        "job_succeeded_count": 6244,
+        "lifetime_task_count": 12473,
+        "name": "Sync orders to billing",
+        "tags": [
+          "critical",
+          "billing"
+        ]
+      },
+      "recipe_id": 62567615,
+      "service": "jobs",
+      "started_at": "2026-11-10T11:40:12.000Z",
+      "title": "Order 100244 created"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c539-ccf0-7c34-8e71-7007712afc09"
+      },
+      "completed_at": "2026-11-10T11:31:02.000Z",
+      "date": "2026-11-10T11:31:02.000Z",
+      "ddsource": "workato",
+      "duration": 0,
+      "error_parts": {
+        "error_id": "5d0e3a2c-8f41-4b7a-9c1e-2a3b4c5d6e7f",
+        "error_type": "Database adapter error",
+        "message": "duplicate key value violates unique constraint \"invoices_order_id_key\""
+      },
+      "host": "www.workato.com",
+      "id": "j-BQx7Yt2p-kTe9d0",
+      "is_error": true,
+      "level": "error",
+      "message": "{\"message\":\"Order 100243 created\",\"status\":\"failed\"}",
+      "project": {
+        "description": "Order to cash",
+        "folder_id": 25081360,
+        "id": 12466695,
+        "name": "Order Ops"
+      },
+      "recipe": {
+        "description": "New orders from storefront-api become invoices",
+        "folder_id": 25081370,
+        "id": 62567615,
+        "job_succeeded_count": 6244,
+        "lifetime_task_count": 12473,
+        "name": "Sync orders to billing",
+        "tags": [
+          "critical",
+          "billing"
+        ]
+      },
+      "recipe_id": 62567615,
+      "service": "jobs",
+      "started_at": "2026-11-10T11:31:02.000Z",
+      "title": "Order 100243 created"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4eb-08e0-7ee0-8332-bcb9b48eaead"
+      },
+      "completed_at": "2026-11-10T10:05:00.000Z",
+      "date": "2026-11-10T10:05:00.000Z",
+      "ddsource": "workato",
+      "duration": 2000000,
+      "host": "www.workato.com",
+      "id": "j-BQx6Pp0a-Zx1q22",
+      "is_error": false,
+      "level": "ok",
+      "message": "{\"message\":\"Low stock for SKU-1042\",\"status\":\"succeeded\"}",
+      "project": {
+        "description": "Processes for inventory-service",
+        "folder_id": 25077197,
+        "id": 12464630,
+        "name": "Inventory"
+      },
+      "recipe": {
+        "folder_id": 25077197,
+        "id": 62605996,
+        "job_succeeded_count": 27941,
+        "lifetime_task_count": 55882,
+        "name": "Restock alerts",
+        "tags": [
+          "critical"
+        ]
+      },
+      "recipe_id": 62605996,
+      "service": "jobs",
+      "started_at": "2026-11-10T10:04:58.000Z",
+      "title": "Low stock for SKU-1042"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "62567615": {
+        "cursor": 1794312000000
+      },
+      "62605996": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

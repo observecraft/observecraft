@@ -754,8 +754,6 @@ const CLOUD_UNITS: &str = include_str!("../../../../../seeds/integrations/cloud/
 const SERVICE_UNITS: &str = include_str!("../../../../../seeds/integrations/cloud/service-units.csv");
 /// Every integrations-core metric's unit (scripts/import-integration-dashboards.mjs --all).
 const CORE_UNITS: &str = include_str!("../../../../../seeds/integrations/core/units.csv");
-/// Units of the NetBird integration's peer metrics (scripts/netbird-dashboard.mjs).
-const NETBIRD_UNITS: &str = include_str!("../../../../../seeds/integrations/netbird/units.csv");
 /// Units of the FleetDM integration's host metrics (scripts/fleetdm-dashboard.mjs).
 const FLEETDM_UNITS: &str = include_str!("../../../../../seeds/integrations/fleetdm/units.csv");
 /// Units of ObserveCraft's own health metrics (self_monitoring.rs, scripts/observecraft-dashboard.mjs).
@@ -769,9 +767,9 @@ pub(super) fn metric_unit(metric: &str, reported: &str) -> Option<String> {
         return Some(reported.to_string());
     }
     let units = UNITS.get_or_init(|| {
-        CORE_UNITS.lines().chain(INTEGRATION_UNITS.lines()).chain(CLOUD_UNITS.lines()).chain(SERVICE_UNITS.lines()).chain(NETBIRD_UNITS.lines()).chain(FLEETDM_UNITS.lines()).chain(OBSERVECRAFT_UNITS.lines()).filter(|l| !l.starts_with('#')).filter_map(|l| l.split_once(',')).collect()
+        CORE_UNITS.lines().chain(INTEGRATION_UNITS.lines()).chain(CLOUD_UNITS.lines()).chain(SERVICE_UNITS.lines()).chain(FLEETDM_UNITS.lines()).chain(OBSERVECRAFT_UNITS.lines()).filter(|l| !l.starts_with('#')).filter_map(|l| l.split_once(',')).collect()
     });
-    units.get(metric).map(|u| u.to_string())
+    units.get(metric).map(|u| u.to_string()).or_else(|| crate::connectors::unit(metric))
 }
 
 /// What a metric measures: as its sender described it, else integrations-core's description.
@@ -795,7 +793,7 @@ mod tests {
         assert_eq!(metric_unit("gcp.gce.instance.cpu.utilization", "").as_deref(), Some("fraction"));
         assert_eq!(metric_unit("kubernetes.memory.usage", "").as_deref(), Some("byte"));
         assert_eq!(metric_unit("aws.ec2.network_in.sum", "bit").as_deref(), Some("bit"), "a reported unit wins");
-        assert_eq!(metric_unit("azure.vm.available_memory_bytes.maximum", "").as_deref(), Some("byte"), "the service dashboards' units");
+        assert_eq!(metric_unit("azure.vm.available_memory_bytes.max", "").as_deref(), Some("byte"), "the service dashboards' units");
         assert_eq!(metric_unit("gcp.cloudsql.database.disk.bytes_used_by_data_type", "").as_deref(), Some("byte"));
     }
 

@@ -1,0 +1,109 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Symantec VIP (Broadcom), its Report Streaming Service (VIP Report Streaming Service Developer's Guide): the account's
+# user management and authentication transactions, as the logs Datadog's integration sends (source:symantec-vip,
+# service:event-logs, the event's fields at the top, flat keys such as `result.status` being the same attribute paths as
+# Datadog's nested ones). integrations-core's pipeline and dashboard for the tile are installed with the connection.
+schema_version: 1
+id: symantec-vip
+name: Symantec VIP
+publisher: ObserveCraft
+vendor: Broadcom
+description: >-
+  The user management and authentication events of a Symantec VIP account (users created, credentials added and
+  updated, authentications, temporary passwords) as logs, streamed every minute from the VIP Report Streaming
+  Service with the account's VIP certificate.
+tiles: [symantec-vip]
+categories: [Log Collection, Security, SIEM]
+source: symantec-vip
+docs_url: https://techdocs.broadcom.com/us/en/symantec-security-software/identity-security/vip/cloud/vip-web-services-and-apis-v127046027-d2278e2328/VIP-Reporting-Streaming-Service/about-the-v109910016-d2376e10.html
+setup: |
+  1. Ask Symantec (Broadcom) support to enable the **Report Streaming Service** for the VIP account.
+  2. In VIP Manager, open **Account → Manage VIP Certificates**, request a certificate for web services and download it
+     in **PEM** format (it holds the certificate and its private key).
+  3. Activate the service once with the certificate: `curl --cert vip_cert.pem -X POST https://streaming-auth.vip.symantec.com/activate`.
+  4. Copy the **jurisdiction hash** from **Account → Account Information** in VIP Manager.
+  Events are kept 24 hours by the service: a connection paused longer misses the older ones.
+instance: "{{ config.jurisdiction_hash }}"
+
+config:
+  - key: jurisdiction_hash
+    label: Jurisdiction hash
+    type: string
+    required: true
+    pattern: "[A-Za-z0-9]+"
+    help: Account → Account Information in VIP Manager.
+  - key: certificate
+    label: VIP certificate (PEM)
+    type: text
+    secret: true
+    required: true
+    placeholder: "-----BEGIN CERTIFICATE-----"
+    help: The content of the VIP certificate's .pem file, with its private key.
+  - key: private_key
+    label: Private key (PEM)
+    type: text
+    secret: true
+    help: Only when the private key is in a file of its own.
+
+tls:
+  certificate: "{{ secrets.certificate }}"
+  key: "{{ secrets.private_key ?? '' }}"
+
+# Symantec recommends a few seconds between calls; one run reads up to 20 pages a minute.
+rate_limit: { min_interval: 2s }
+
+errors:
+  - status: [401, 403]
+    kind: auth
+    message: VIP refused the certificate, or the Report Streaming Service isn't enabled and activated for the account
+  - status: [404]
+    kind: access_denied
+    message: "No Report Streaming Service for the jurisdiction hash {{ config.jurisdiction_hash }}"
+
+streams:
+  - id: event_logs
+    name: Event logs
+    description: >-
+      Every VIP event as a log (service:event-logs): operation, extUserId (usr.name), credId, txnId, requestId,
+      result.status / statusMessage / credType and the nested calls. The stream resumes from the service's marker,
+      or from the last 24 hours on the first run.
+    request:
+      url: "https://streaming-auth.vip.symantec.com/streaming/{{ config.jurisdiction_hash }}"
+      query:
+        scrollKey: "{{ page.cursor ?? cursor.token }}"
+        # The first run only: the service keeps 24 hours.
+        startFromUtcSeconds: "{{ (page.cursor ?? cursor.token) ? null : ((now / 1000) | floor) - 86000 }}"
+    records: "{{ response.messages }}"
+    # nextUrl is the marker: only its scroll key is kept, so requests never leave the configured host.
+    pagination: { kind: cursor, next: "{{ response.nextUrl | split('scrollKey=') | last }}" }
+    record_id: "{{ (record.txnId ?? '') + ':' + (record._id ?? record.requestId ?? '') }}"
+    incremental:
+      kind: token
+      next: "{{ response.nextUrl | split('scrollKey=') | last }}"
+    output:
+      logs:
+        service: event-logs
+        status: "{{ (record['result.status'] ?? '0000') == '0000' ? 'info' : 'warn' }}"
+        message: "{{ record | json }}"
+        date: "{{ record.ts | replace(' +0000', 'Z') | replace(' ', 'T') }}"
+        attributes: "{{ record }}"
+
+test:
+  request: { url: "https://streaming-auth.vip.symantec.com/activate" }
+  success: "{{ response.statusCode == 0 }}"
+  message: "Connected: {{ response.detailMessage ?? response.statusMessage }}"
+  failure: "VIP answered {{ response.statusMessage }}: {{ response.detailMessage }}"
+
+mock:
+  config: { jurisdiction_hash: "4815162" }
+  secrets: { certificate: "-----BEGIN CERTIFICATE-----\nMIIBtest\n-----END CERTIFICATE-----\n-----BEGIN PRIVATE KEY-----\nMIIEtest\n-----END PRIVATE KEY-----" }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://streaming-auth.vip.symantec.com/streaming/4815162", query: { scrollKey: "4959644139515036903501650644574422180314684442962768692" }, file: fixtures/streaming-2.json }
+    - { url: "https://streaming-auth.vip.symantec.com/streaming/4815162", query: { scrollKey: "4959644139515036903501650644574422180314684442962768693" }, file: fixtures/streaming-3.json }
+    - { url: "https://streaming-auth.vip.symantec.com/streaming/4815162", query: { scrollKey: "4959644139515036903501650644574422180314684442962768694" }, file: fixtures/streaming-3.json }
+    - { url: "https://streaming-auth.vip.symantec.com/streaming/4815162", query: { startFromUtcSeconds: "1794226000" }, file: fixtures/streaming-1.json }
+    - { url: "https://streaming-auth.vip.symantec.com/activate", body: { statusCode: 0, statusMessage: Success, detailMessage: "The streaming service is active" } }
+  expect:
+    event_logs: { records: 3, logs: 3, rerun: 0, golden: fixtures/event_logs.expected.json }
+    test: { ok: true, message: "The streaming service is active" }

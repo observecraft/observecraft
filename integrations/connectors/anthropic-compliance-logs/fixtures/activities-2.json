@@ -1,0 +1,10 @@
+{
+  "data": [
+    {
+      "id": "activity_01ExampleActivity00003", "type": "sso_login_succeeded", "created_at": "2026-11-10T09:15:13.701734Z",
+      "actor": { "type": "user_actor", "email_address": "jane.doe@example.com", "user_id": "user_01ExampleJane", "ip_address": "203.0.113.7", "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36" },
+      "organization_id": "org_01ExampleOrg", "organization_uuid": "a1b2c3d4-0000-4000-8000-000000000001"
+    }
+  ],
+  "has_more": false, "first_id": "activity_01ExampleActivity00003", "last_id": "activity_01ExampleActivity00003"
+}

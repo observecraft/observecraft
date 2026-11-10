@@ -3,8 +3,9 @@
 //! host. Every series has `fleet_instance` (the Fleet server's host name).
 //!
 //! Per host (`GET /hosts`), tagged `fleet_host` (its display name), `fleet_host_id`, `platform`, `os_version`,
-//! `osquery_version`, `team` (Fleet's team or fleet), `hardware_model`, and `country_code` / `city` (Fleet's GeoIP
-//! location of the host) when Fleet knows them:
+//! `osquery_version`, `team` (Fleet's team or fleet), `hardware_model`, `mdm_status` (Fleet's MDM enrollment status:
+//! `On (automatic)`, `On (manual)`, `Pending`, `Off`), and `country_code` / `city` (Fleet's GeoIP location of the host)
+//! when Fleet knows them:
 //!
 //! - `fleetdm.host.count`: 1, so a sum counts the hosts of any tag (OS version, team, …).
 //! - `fleetdm.host.online`, `.offline`, `.missing`: 1 for the host's status (Fleet's `online`, `offline`, `missing`
@@ -21,6 +22,11 @@
 //!
 //! Per global policy (`GET /global/policies`), tagged `policy`, `policy_id`, `critical` and `platform`:
 //! `fleetdm.policy.passing_hosts`, `fleetdm.policy.failing_hosts` (as Fleet last counted them).
+//!
+//! Vulnerabilities (`GET /vulnerabilities`, the [`super::api::VULNERABILITIES`] on the most hosts):
+//! `fleetdm.vulnerabilities.total` (every CVE Fleet found on the hosts) and `fleetdm.vulnerability.hosts` per CVE,
+//! tagged `cve`, `severity` (from its CVSS score: critical, high, medium, low; `unknown` without Fleet Premium's
+//! scores) and `known_exploited` (CISA's catalog, Premium).
 
 use serde_json::Value;
 
@@ -60,6 +66,9 @@ pub fn host_points(hosts: &[Value], instance: &str, time_ms: i64) -> Vec<Point> 
         }
         if let Some(team) = text(host, "fleet_name").or_else(|| text(host, "team_name")) {
             tags.push(("team".into(), team.into()));
+        }
+        if let Some(mdm) = host.pointer("/mdm/enrollment_status").and_then(Value::as_str).filter(|s| !s.is_empty()) {
+            tags.push(("mdm_status".into(), mdm.into()));
         }
         // Where Fleet located the host (its GeoIP database): the dashboard's world map.
         let geo = host.get("geolocation").cloned().unwrap_or(Value::Null);
@@ -155,6 +164,32 @@ pub fn policy_points(policies: &Value, instance: &str, time_ms: i64) -> Vec<Poin
     out
 }
 
+/// A CVSS score's severity, as NVD rates it.
+fn severity(cvss: Option<f64>) -> &'static str {
+    match cvss {
+        Some(s) if s >= 9.0 => "critical",
+        Some(s) if s >= 7.0 => "high",
+        Some(s) if s >= 4.0 => "medium",
+        Some(s) if s > 0.0 => "low",
+        _ => "unknown",
+    }
+}
+
+/// The vulnerabilities of `GET /vulnerabilities`: the total and the hosts of each listed CVE.
+pub fn vulnerability_points(answer: &Value, instance: &str, time_ms: i64) -> Vec<Point> {
+    let base = ("fleet_instance".to_string(), instance.to_string());
+    let mut out: Vec<Point> = num(answer, "count").map(|n| point("fleetdm.vulnerabilities.total", std::slice::from_ref(&base), time_ms, n)).into_iter().collect();
+    for v in answer["vulnerabilities"].as_array().into_iter().flatten() {
+        let Some(cve) = text(v, "cve") else { continue };
+        let mut tags = vec![base.clone(), ("cve".into(), cve.into()), ("severity".into(), severity(num(v, "cvss_score")).into())];
+        if let Some(known) = v.get("cisa_known_exploit").and_then(Value::as_bool) {
+            tags.push(("known_exploited".into(), known.to_string()));
+        }
+        out.push(point("fleetdm.vulnerability.hosts", &sorted(tags), time_ms, num(v, "hosts_count").unwrap_or(0.0)));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,6 +229,7 @@ mod tests {
             ("fleet_host_id", "1"),
             ("fleet_instance", "fleet.example.com"),
             ("hardware_model", "MacBookPro18,3"),
+            ("mdm_status", "On (automatic)"),
             ("os_version", "macOS 15.1"),
             ("osquery_version", "5.14.1"),
             ("platform", "darwin"),
@@ -235,5 +271,19 @@ mod tests {
         assert_eq!(failing.value, 1.0);
         assert!(failing.tags.contains(&("critical".into(), "true".into())) && failing.tags.contains(&("policy".into(), "Disk encryption enabled".into())));
         assert!(!policies.iter().any(|p| p.tags.iter().any(|(k, v)| k == "platform" && v.is_empty())), "an empty platform is no tag");
+    }
+
+    #[test]
+    fn vulnerabilities_by_hosts_with_their_severity() {
+        let points = vulnerability_points(&fixtures::vulnerabilities(), "fleet.example.com", now());
+        assert_eq!((points[0].name.as_str(), points[0].value), ("fleetdm.vulnerabilities.total", 123.0));
+        let cve = |id: &str| points.iter().find(|p| p.tags.contains(&("cve".into(), id.into()))).unwrap();
+        let xz = cve("CVE-2024-3094");
+        assert_eq!((xz.name.as_str(), xz.value), ("fleetdm.vulnerability.hosts", 7.0));
+        assert!(xz.tags.contains(&("severity".into(), "critical".into())) && xz.tags.contains(&("known_exploited".into(), "true".into())));
+        assert!(cve("CVE-2023-4863").tags.contains(&("severity".into(), "high".into())));
+        let free = cve("CVE-2022-30190");
+        assert!(free.tags.contains(&("severity".into(), "unknown".into())) && !free.tags.iter().any(|(k, _)| k == "known_exploited"), "Fleet Free has no scores");
+        assert_eq!(vulnerability_points(&serde_json::json!({ "vulnerabilities": null, "count": 0 }), "fleet.example.com", now()).len(), 1);
     }
 }

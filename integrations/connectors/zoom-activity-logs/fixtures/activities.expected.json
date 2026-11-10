@@ -1,0 +1,110 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c53a-1b10-7b9c-ab4d-fae9cc149421"
+      },
+      "client_type": "Browser",
+      "date": "2026-11-10T11:31:22Z",
+      "ddsource": "zoom-activity-logs",
+      "email": "jordan.patel@example.com",
+      "evt": {
+        "category": "activity",
+        "name": "Sign in"
+      },
+      "host": "aBcDeFgHiJkLmNoPqRsT01",
+      "ip_address": "198.51.100.40",
+      "login_type": "SSO",
+      "message": "Sign in: jordan.patel@example.com",
+      "network": {
+        "client": {
+          "ip": "198.51.100.40"
+        }
+      },
+      "service": "zoom-activity-logs",
+      "status": "info",
+      "time": "2026-11-10T11:31:22Z",
+      "type": "Sign in",
+      "usr": {
+        "email": "jordan.patel@example.com"
+      },
+      "version": "-"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b1-8250-73d9-8f82-ff85d993c8b4"
+      },
+      "client_type": "Mac",
+      "date": "2026-11-10T09:02:10Z",
+      "ddsource": "zoom-activity-logs",
+      "email": "sam.lee@example.com",
+      "evt": {
+        "category": "activity",
+        "name": "Sign out"
+      },
+      "host": "aBcDeFgHiJkLmNoPqRsT01",
+      "ip_address": "203.0.113.15",
+      "login_type": "Work Email",
+      "message": "Sign out: sam.lee@example.com",
+      "network": {
+        "client": {
+          "ip": "203.0.113.15"
+        }
+      },
+      "service": "zoom-activity-logs",
+      "status": "info",
+      "time": "2026-11-10T09:02:10Z",
+      "type": "Sign out",
+      "usr": {
+        "email": "sam.lee@example.com"
+      },
+      "version": "6.2.5"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c486-ff80-730b-92c3-ef0987613e5e"
+      },
+      "client_type": "Mac",
+      "date": "2026-11-10T08:15:44Z",
+      "ddsource": "zoom-activity-logs",
+      "email": "sam.lee@example.com",
+      "evt": {
+        "category": "activity",
+        "name": "Sign in"
+      },
+      "host": "aBcDeFgHiJkLmNoPqRsT01",
+      "ip_address": "203.0.113.15",
+      "login_type": "Work Email",
+      "message": "Sign in: sam.lee@example.com",
+      "network": {
+        "client": {
+          "ip": "203.0.113.15"
+        }
+      },
+      "service": "zoom-activity-logs",
+      "status": "info",
+      "time": "2026-11-10T08:15:44Z",
+      "type": "Sign in",
+      "usr": {
+        "email": "sam.lee@example.com"
+      },
+      "version": "6.2.5"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000,
+        "seen": [
+          {
+            "id": "5f9f98428e7733ff",
+            "t": 1794310282000
+          }
+        ]
+      }
+    }
+  }
+}

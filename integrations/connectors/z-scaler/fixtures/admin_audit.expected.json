@@ -1,0 +1,104 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4d5-2b38-7306-9a92-f4a35d963fb3"
+      },
+      "date": "2026-11-10T09:41:07.000Z",
+      "ddsource": "zscaler",
+      "event": {
+        "action": "UPDATE",
+        "adminid": "alex.morgan@example.com",
+        "auditlogtype": "ZIA",
+        "category": "URL Filtering Policy",
+        "clientip": "198.51.100.80",
+        "datetime": "2026-11-10 09:41:07",
+        "interface": "UI",
+        "recordid": "3",
+        "resource": "Block social media",
+        "result": "SUCCESS",
+        "subcategory": "URL_FILTERING_RULE"
+      },
+      "host": "example",
+      "message": "Update URL Filtering Policy: Block social media by alex.morgan@example.com (Success)",
+      "service": "zscaler",
+      "sourcetype": "zscalernss-audit",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bd-4220-7e5b-89d8-bdc6d4b5bd26"
+      },
+      "date": "2026-11-10T09:15:00.000Z",
+      "ddsource": "zscaler",
+      "event": {
+        "action": "SIGN IN",
+        "adminid": "alex.morgan@example.com",
+        "auditlogtype": "ZIA",
+        "category": "Login",
+        "clientip": "198.51.100.80",
+        "datetime": "2026-11-10 09:15:00",
+        "interface": "UI",
+        "recordid": "2",
+        "resource": "alex.morgan@example.com",
+        "result": "SUCCESS",
+        "subcategory": "ADMIN_LOGIN"
+      },
+      "host": "example",
+      "message": "Sign In Login: alex.morgan@example.com by alex.morgan@example.com (Success)",
+      "service": "zscaler",
+      "sourcetype": "zscalernss-audit",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c256-dcf8-75dc-a0b1-318b1b36bbb1"
+      },
+      "date": "2026-11-09T22:03:55.000Z",
+      "ddsource": "zscaler",
+      "event": {
+        "action": "SIGN IN",
+        "adminid": "sam.lee@example.com",
+        "auditlogtype": "ZIA",
+        "category": "Login",
+        "clientip": "203.0.113.77",
+        "datetime": "2026-11-09 22:03:55",
+        "errorcode": "AUTHENTICATION_FAILED",
+        "interface": "UI",
+        "recordid": "1",
+        "resource": "sam.lee@example.com",
+        "result": "FAILURE",
+        "subcategory": "ADMIN_LOGIN"
+      },
+      "host": "example",
+      "message": "Sign In Login: sam.lee@example.com by sam.lee@example.com (Failure)",
+      "service": "zscaler",
+      "sourcetype": "zscalernss-audit",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000,
+        "seen": [
+          {
+            "id": "24dcb0f072c2b8c2",
+            "t": 1794303667000
+          },
+          {
+            "id": "7960728803946dff",
+            "t": 1794302100000
+          },
+          {
+            "id": "e43d0243a79dbda0",
+            "t": 1794261835000
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{ "object": "page", "data": [
+  { "object": "bucket", "start_time": 1794304800, "end_time": 1794308400, "results": [
+    { "object": "organization.usage.vector_stores.result", "usage_bytes": 734003200, "project_id": "proj_storefront01" }
+  ] }
+], "has_more": false, "next_page": null }

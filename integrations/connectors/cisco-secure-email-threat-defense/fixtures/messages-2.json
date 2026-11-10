@@ -1,0 +1,17 @@
+{
+  "data": {
+    "messages": [
+      {
+        "id": "6c1a0000-0000-4000-8000-000000000003", "timestamp": "2026-11-10T11:05:10Z", "direction": "incoming", "domain": "example.com",
+        "fromAddress": "ceo@examp1e.com", "senderName": "Alex Kim",
+        "toAddresses": ["finance@example.com"], "subject": "Urgent wire transfer", "clientIP": "192.0.2.77", "urls": [],
+        "verdict": {
+          "latestVerdict": "bec", "originalVerdict": "neutral", "isRetroVerdict": true, "isManualVerdict": false, "timestamp": "2026-11-10T11:15:00Z",
+          "techniques": [{ "type": "Display name impersonation", "severity": "high", "description": "Display name Alex Kim matches an executive" }]
+        },
+        "action": { "type": "move", "folder": "trash", "isAutoRemediated": true, "timestamp": "2026-11-10T11:15:05Z" }
+      }
+    ]
+  },
+  "nextPageToken": null
+}

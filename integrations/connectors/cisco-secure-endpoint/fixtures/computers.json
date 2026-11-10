@@ -1,0 +1,21 @@
+{
+  "version": "v1.2.0",
+  "metadata": { "links": { "self": "https://api.amp.cisco.com/v1/computers?limit=500" }, "results": { "total": 2, "current_item_count": 2, "index": 0, "items_per_page": 500 } },
+  "data": [
+    {
+      "connector_guid": "4c1e0000-0000-4000-8000-000000000001", "hostname": "laptop-jdoe.example.com", "windows_processor_id": "BFEBFBFF000806C1",
+      "active": true, "connector_version": "8.4.3.30777", "operating_system": "Windows 11, SP 0.0 (Build 22631.4460)", "os_version": "10.0.22631.4460",
+      "internal_ips": ["10.20.1.15"], "external_ip": "203.0.113.50", "group_guid": "7a2b0000-0000-4000-8000-000000000010",
+      "install_date": "2026-03-02T10:11:12Z", "is_compromised": true, "demo": false, "network_addresses": [{ "mac": "00:00:5e:00:53:01", "ip": "10.20.1.15" }],
+      "policy": { "guid": "8d3c0000-0000-4000-8000-000000000020", "name": "Workstations - Protect" }, "groups": [], "last_seen": "2026-11-10T11:58:00Z",
+      "faults": [], "isolation": { "available": true, "status": "not_isolated" }, "orbital": { "status": "enabled" }
+    },
+    {
+      "connector_guid": "4c1e0000-0000-4000-8000-000000000002", "hostname": "build-01.example.com",
+      "active": true, "connector_version": "1.24.2.1060", "operating_system": "Ubuntu 24.04", "internal_ips": ["10.20.5.9"], "external_ip": "203.0.113.51",
+      "group_guid": "7a2b0000-0000-4000-8000-000000000011", "is_compromised": false,
+      "policy": { "guid": "8d3c0000-0000-4000-8000-000000000021", "name": "Linux servers" }, "last_seen": "2026-11-10T11:59:30Z",
+      "faults": [], "isolation": { "available": false, "status": "not_isolated" }
+    }
+  ]
+}

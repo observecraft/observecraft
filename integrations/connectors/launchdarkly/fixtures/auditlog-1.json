@@ -1,0 +1,15 @@
+{
+  "items": [
+    { "_id": "6730aa00bb11cc22dd33ee44", "_accountId": "5f0e1d2c3b4a596877665544", "date": 1794310200000, "kind": "flag", "name": "new-checkout-flow",
+      "description": "* Turned on targeting\n", "shortDescription": "turned on", "titleVerb": "turned on the flag", "title": "Jordan Patel turned on the flag new-checkout-flow in Production",
+      "comment": "Rolling out to all storefront users", "member": { "_id": "5f0e1d2c3b4a596877660001", "email": "jordan.patel@example.com", "firstName": "Jordan", "lastName": "Patel" },
+      "target": { "name": "new-checkout-flow", "resources": ["proj/storefront:env/production:flag/new-checkout-flow"] },
+      "accesses": [ { "action": "updateOn", "resource": "proj/storefront:env/production:flag/new-checkout-flow" } ] },
+    { "_id": "6730aa00bb11cc22dd33ee45", "_accountId": "5f0e1d2c3b4a596877665544", "date": 1794306600000, "kind": "flag", "name": "fast-inventory-sync",
+      "description": "* Turned off targeting\n", "shortDescription": "turned off", "titleVerb": "turned off the flag",
+      "member": { "_id": "5f0e1d2c3b4a596877660002", "email": "sam.lee@example.com", "firstName": "Sam", "lastName": "Lee" },
+      "target": { "name": "fast-inventory-sync", "resources": ["proj/inventory-service:env/production:flag/fast-inventory-sync"] },
+      "accesses": [ { "action": "updateOn", "resource": "proj/inventory-service:env/production:flag/fast-inventory-sync" } ] }
+  ],
+  "_links": { "next": { "href": "/api/v2/auditlog?after=1794225600000&before=1794304800000&limit=20", "type": "application/json" } }
+}

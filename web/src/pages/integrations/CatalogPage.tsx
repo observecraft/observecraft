@@ -9,6 +9,8 @@ import { CategoryChips, SearchBox } from './CatalogFilters';
 import { IntegrationCard } from './IntegrationCard';
 import { IntegrationModal } from './IntegrationModal';
 import { useCatalog } from './queries';
+import { showsUnavailable } from '../../api/integrations/catalogFilter';
+import { tileConnector } from '../../api/integrations/collection';
 
 /** Integrations with their own page instead of the detail modal. */
 const OWN_PAGES: Record<string, string> = {
@@ -18,9 +20,16 @@ const OWN_PAGES: Record<string, string> = {
   kubernetes: '/integrations/kubernetes',
   slack: '/integrations/slack',
   authentik: '/integrations/authentik',
-  netbird: '/integrations/netbird',
   fleetdm: '/integrations/fleetdm',
+  'gitlab-audit-events': '/integrations/gitlab-audit-events',
+  'google-workspace': '/integrations/google-workspace',
 };
+
+/** Integrations with their own page, and those a connector package collects (its page; push-only ones keep the modal). */
+function pageOf(id: string): string | undefined {
+  const c = tileConnector(id);
+  return OWN_PAGES[id] ?? (c?.kind === 'package' ? c.page : undefined);
+}
 
 const STATUSES: Option<IntegrationStatus | 'all'>[] = [
   { value: 'all', label: 'All Statuses' },
@@ -28,6 +37,7 @@ const STATUSES: Option<IntegrationStatus | 'all'>[] = [
   { value: 'installed', label: 'Installed' },
   { value: 'warning', label: 'Needs Attention' },
   { value: 'available', label: 'Available' },
+  { value: 'unavailable', label: 'Not available' },
 ];
 
 const SECTIONS: { title: string; hint?: string; match: (s: IntegrationStatus) => boolean }[] = [
@@ -41,6 +51,11 @@ const SECTIONS: { title: string; hint?: string; match: (s: IntegrationStatus) =>
   },
   { title: 'Installed', match: (s) => s === 'installed' || s === 'warning' },
   { title: 'Available', match: (s) => s === 'available' },
+  {
+    title: 'Not available in ObserveCraft',
+    hint: 'Datadog collects these with its own service (calling the vendor’s API, an OAuth connection) or only documents them, so ObserveCraft receives nothing from them.',
+    match: (s) => s === 'unavailable',
+  },
 ];
 
 export function CatalogPage() {
@@ -67,11 +82,18 @@ export function CatalogPage() {
   // Typing stays responsive; filtering and re-rendering the cards follow the deferred value.
   const deferredQuery = useDeferredValue(query);
   const catalog = useCatalog({ query: deferredQuery, status, category });
-  const items = catalog.data?.integrations ?? [];
+  // Integrations ObserveCraft can't collect are listed only when searched for or filtered on.
+  const items = (catalog.data?.integrations ?? []).filter((i) => i.status !== 'unavailable' || showsUnavailable({ query: deferredQuery, status }));
 
   const navigate = useNavigate();
   // Integrations with their own page open it; the others open the detail modal.
-  const open = useCallback((id: string) => (OWN_PAGES[id] ? navigate(OWN_PAGES[id]) : setParam('integration', id)), [navigate, setParam]);
+  const open = useCallback(
+    (id: string) => {
+      const page = pageOf(id);
+      return page ? navigate(page) : setParam('integration', id);
+    },
+    [navigate, setParam],
+  );
 
   return (
     <div className="int-page">

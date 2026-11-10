@@ -1,0 +1,9 @@
+{
+  "meta": { "status": 200, "pagination": { "pageSize": 500 } },
+  "data": [ { "attachmentLogs": [
+    { "date": "2026-11-10T09:04:25+0000", "senderAddress": "invoices@lookalike-pay.example", "recipientAddress": "finance@example.com", "fileName": "invoice-44812.pdf", "fileType": "application/pdf",
+      "fileHash": "22a60000289353d96c707cf55e26be723e3157f0aa00734843a9bdc8f98bab00", "result": "malicious", "actionTriggered": "block", "route": "inbound",
+      "details": "[MALICIOUS_ACTIVITY: Exploit: Attempting to exploit a PDF reader]", "definition": "Default Attachment Protection Definition", "subject": "Overdue invoice #44812", "messageId": "<20261110090425.0001@lookalike-pay.example>" }
+  ] } ],
+  "fail": []
+}

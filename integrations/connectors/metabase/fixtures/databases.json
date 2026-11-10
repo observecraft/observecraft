@@ -1,0 +1,53 @@
+{
+ "data": [
+  {
+   "id": 1,
+   "name": "Shop Warehouse",
+   "engine": "postgres",
+   "is_audit": false,
+   "tables": [
+    {
+     "id": 11,
+     "name": "orders"
+    }
+   ]
+  },
+  {
+   "id": 13371337,
+   "name": "Internal Metabase Database",
+   "engine": "postgres",
+   "is_audit": true,
+   "tables": [
+    {
+     "id": 901,
+     "name": "v_audit_log"
+    },
+    {
+     "id": 902,
+     "name": "v_view_log"
+    },
+    {
+     "id": 903,
+     "name": "v_query_log"
+    },
+    {
+     "id": 904,
+     "name": "v_users"
+    },
+    {
+     "id": 905,
+     "name": "v_content"
+    },
+    {
+     "id": 906,
+     "name": "v_tables"
+    },
+    {
+     "id": 907,
+     "name": "v_databases"
+    }
+   ]
+  }
+ ],
+ "total": 2
+}

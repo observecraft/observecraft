@@ -1,0 +1,72 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4d4-9d8e-7c4a-b8fe-3e3f72870961"
+      },
+      "date": 1794303630734,
+      "ddsource": "cato-networks",
+      "fieldsMap": {
+        "account_id": "4011",
+        "admin": "Jane Doe",
+        "admin_id": "400000101",
+        "change": {
+          "After": {
+            "blockNewDomains": "true"
+          },
+          "Before": {
+            "blockNewDomains": "false"
+          }
+        },
+        "change_type": "MODIFIED",
+        "creation_date": "1794303623000",
+        "insertion_date": "1794303630734",
+        "model_name": "IpsConfiguration",
+        "model_type": "IPS Configuration",
+        "module": "IPS Configuration"
+      },
+      "host": "cato-4011",
+      "message": "{\"account_id\":\"4011\",\"admin\":\"Jane Doe\",\"admin_id\":\"400000101\",\"change\":{\"After\":{\"blockNewDomains\":\"true\"},\"Before\":{\"blockNewDomains\":\"false\"}},\"change_type\":\"MODIFIED\",\"creation_date\":\"1794303623000\",\"insertion_date\":\"1794303630734\",\"model_name\":\"IpsConfiguration\",\"model_type\":\"IPS Configuration\",\"module\":\"IPS Configuration\"}",
+      "service": "audit-logs",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4ec-0b28-7ccb-a0d5-b87b23ecfcd6"
+      },
+      "date": 1794305166120,
+      "ddsource": "cato-networks",
+      "fieldsMap": {
+        "account_id": "4011",
+        "admin": "John Roe",
+        "admin_id": "400000102",
+        "change": {
+          "After": {
+            "action": "BLOCK",
+            "enabled": "true"
+          }
+        },
+        "change_type": "CREATED",
+        "creation_date": "1794305160000",
+        "insertion_date": "1794305166120",
+        "model_name": "Block risky categories",
+        "model_type": "Internet Firewall Rule",
+        "module": "Internet Firewall"
+      },
+      "host": "cato-4011",
+      "message": "{\"account_id\":\"4011\",\"admin\":\"John Roe\",\"admin_id\":\"400000102\",\"change\":{\"After\":{\"action\":\"BLOCK\",\"enabled\":\"true\"}},\"change_type\":\"CREATED\",\"creation_date\":\"1794305160000\",\"insertion_date\":\"1794305166120\",\"model_name\":\"Block risky categories\",\"model_type\":\"Internet Firewall Rule\",\"module\":\"Internet Firewall\"}",
+      "service": "audit-logs",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "au-0001"
+      }
+    }
+  }
+}

@@ -1,0 +1,269 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Shopify (https://shopify.dev/docs/api/admin-rest, https://shopify.dev/docs/api/admin-graphql): a store's admin
+# events and orders (REST Admin API) and its customers and products (GraphQL Admin API), as the logs Datadog's
+# integration sends (source:shopify, service:event / order / customer / product, the record at the top: REST
+# snake_case for events and orders, GraphQL camelCase for customers and products). integrations-core's Shopify
+# pipeline, four dashboards and monitors read them as they are, so this package ships none.
+#
+# A connection authenticates with Shopify's client credentials grant (an app created in the Dev Dashboard by the
+# store's own organization: its 24-hour token) or with a custom app's Admin API access token (`shpat_…`), sent as
+# X-Shopify-Access-Token. Apps outside the store's organization need Shopify's authorization-code install.
+schema_version: 1
+id: shopify
+name: Shopify
+publisher: ObserveCraft
+vendor: Shopify
+description: >-
+  A Shopify store's admin events, orders (created and updated), customers and products (inventory, variants,
+  prices), read from Shopify's Admin APIs as logs.
+tiles: [shopify]
+categories: [Log Collection, Marketing]
+docs_url: https://shopify.dev/docs/api/admin-graphql
+setup: |
+  1. The store name is the `xxxx` of `admin.shopify.com/store/xxxx` (the shop `xxxx.myshopify.com`). The app needs
+     the Admin API scopes `read_orders`, `read_products`, `read_customers`, `read_content` and `read_price_rules`
+     (`read_all_orders` for orders older than 60 days). Choose how ObserveCraft signs in:
+     - **App client credentials**: in the [Shopify Dev Dashboard](https://dev.shopify.com/dashboard), under the
+       organization that owns the store, create an app (e.g. `observecraft`) and a version with those scopes,
+       install it on the store, then copy its **Client ID** and **Client secret** from the app's **Settings**.
+     - **Admin API access token**: in the store admin, **Settings → Apps and sales channels → Develop apps**, create
+       a custom app with those scopes, install it and reveal its **Admin API access token** (`shpat_…`, shown once).
+links:
+  - { label: Shopify Dev Dashboard, url: "https://dev.shopify.com/dashboard" }
+  - { label: "Store admin", url: "https://admin.shopify.com/store/{{ config.store_name }}" }
+instance: "{{ config.store_name }}.myshopify.com"
+
+config:
+  - key: store_name
+    label: Store name
+    type: string
+    required: true
+    pattern: "[a-z0-9][a-z0-9-]*"
+    placeholder: example-shop
+    help: The xxxx of admin.shopify.com/store/xxxx.
+  - key: auth_method
+    label: Sign in with
+    type: select
+    required: true
+    default: app
+    options:
+      - { value: app, label: App client credentials }
+      - { value: token, label: Admin API access token }
+  - { key: client_id, label: Client ID, type: string, help: "App client credentials: the app's client id." }
+  - { key: client_secret, label: Client secret, type: string, secret: true, help: "App client credentials: the app's client secret." }
+  - { key: access_token, label: Admin API access token, type: string, secret: true, placeholder: shpat_…, help: "Admin API access token: a custom app's." }
+
+auth:
+  kind: choice
+  field: auth_method
+  options:
+    app:
+      kind: token_exchange
+      request:
+        method: POST
+        url: "https://{{ config.store_name }}.myshopify.com/admin/oauth/access_token"
+        form:
+          grant_type: client_credentials
+          client_id: "{{ config.client_id }}"
+          client_secret: "{{ secrets.client_secret }}"
+      capture: { token: "{{ response.access_token }}" }
+      expires_in: "{{ response.expires_in }}"
+      headers: { X-Shopify-Access-Token: "{{ auth.token }}" }
+    token: { kind: api_key, name: X-Shopify-Access-Token, value: "{{ secrets.access_token }}" }
+
+# REST: a bucket of 40 requests refilled at 2 a second; GraphQL: cost-based (100 points refilled at 50 a second).
+rate_limit: { requests_per_minute: 100 }
+
+errors:
+  - status: [400]
+    when: "{{ response.error == 'invalid_client' || response.error == 'unauthorized_client' }}"
+    kind: auth
+    message: >-
+      Shopify refused the client credentials: the app must be installed on {{ config.store_name }} and owned by the
+      store's organization
+  - status: [401]
+    kind: auth
+    message: Shopify refused the access token (revoked, or the app was uninstalled)
+  - status: [403]
+    kind: access_denied
+    message: >-
+      The app lacks a scope{{ ': ' + response.errors ?? '' }} (read_orders, read_products, read_customers,
+      read_content, read_price_rules)
+  - status: [404]
+    kind: access_denied
+    message: "No Shopify store {{ config.store_name }}.myshopify.com"
+  - status: [200]
+    when: "{{ response.errors[0].extensions.code == 'THROTTLED' }}"
+    kind: throttled
+    message: Shopify's GraphQL cost limit was reached
+  - status: [200]
+    when: "{{ response.errors | len > 0 }}"
+    kind: other
+    message: "Shopify's GraphQL API answered: {{ response.errors[0].message }}"
+
+streams:
+  - id: events
+    name: Events
+    description: >-
+      Every admin event of the store as a log (service:event): verb, subject_type, subject_id, author (usr.name after
+      the tile's pipeline), description, path; the message is Shopify's.
+    interval: 5m
+    request:
+      url: "https://{{ config.store_name }}.myshopify.com/admin/api/2025-10/events.json"
+      query:
+        created_at_min: "{{ window.start | rfc3339_s }}"
+        created_at_max: "{{ window.end | rfc3339_s }}"
+        limit: 250
+        order: created_at asc
+    records: "{{ response.events }}"
+    pagination: { kind: link_header }
+    record_id: "{{ record.id | str }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.created_at }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        service: event
+        message: "{{ record.message ?? record.description }}"
+        date: "{{ record.created_at }}"
+        attributes: "{{ record }}"
+
+  - id: orders
+    name: Orders
+    description: >-
+      Every order created or updated as a log (service:order), sent again on each update: order_number,
+      financial_status, fulfillment_status, totals, line_items, customer (usr.*), client_details, refunds.
+    interval: 5m
+    request:
+      url: "https://{{ config.store_name }}.myshopify.com/admin/api/2025-10/orders.json"
+      query:
+        updated_at_min: "{{ window.start | rfc3339_s }}"
+        updated_at_max: "{{ window.end | rfc3339_s }}"
+        status: any
+        limit: 250
+        order: updated_at asc
+    records: "{{ response.orders }}"
+    pagination: { kind: link_header }
+    # An order updated again is a new log.
+    record_id: "{{ (record.id | str) + ':' + record.updated_at }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.updated_at }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        service: order
+        message: >-
+          Order {{ record.name ?? ('#' + (record.order_number | str)) }}: {{ record.total_price }} {{ record.currency }},
+          {{ record.financial_status ?? 'pending' }}, {{ record.fulfillment_status ?? 'unfulfilled' }}{{ record.cancelled_at ? ', cancelled' : '' }}
+        status: "{{ record.cancelled_at ? 'warn' : 'info' }}"
+        date: "{{ record.updated_at }}"
+        attributes: "{{ record }}"
+
+  - id: customers
+    name: Customers
+    description: >-
+      Every customer created or updated as a log (service:customer, GraphQL fields): displayName, legacyResourceId
+      (usr.* after the tile's pipeline), state, numberOfOrders, amountSpent, lastOrder, defaultAddress, consents.
+    interval: 15m
+    request:
+      method: POST
+      url: "https://{{ config.store_name }}.myshopify.com/admin/api/2025-10/graphql.json"
+      body:
+        query: >-
+          query($after: String, $q: String) { customers(first: 100, after: $after, query: $q, sortKey: UPDATED_AT) {
+          pageInfo { hasNextPage endCursor } nodes { id legacyResourceId displayName note state taxExempt
+          verifiedEmail validEmailAddress canDelete dataSaleOptOut productSubscriberStatus lifetimeDuration
+          numberOfOrders createdAt updatedAt amountSpent { amount currencyCode }
+          lastOrder { totalPriceSet { shopMoney { amount currencyCode } } }
+          defaultAddress { city country countryCodeV2 }
+          emailMarketingConsent { marketingState marketingOptInLevel consentUpdatedAt }
+          smsMarketingConsent { marketingState marketingOptInLevel consentCollectedFrom } } } }
+        variables:
+          after: "{{ page.cursor }}"
+          q: "updated_at:>='{{ window.start | rfc3339_s }}' AND updated_at:<='{{ window.end | rfc3339_s }}'"
+    records: "{{ response.data.customers.nodes }}"
+    pagination: { kind: cursor, next: "{{ response.data.customers.pageInfo.hasNextPage ? response.data.customers.pageInfo.endCursor : null }}" }
+    record_id: "{{ record.id + ':' + record.updatedAt }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.updatedAt }}"
+      order: oldest_first
+      lookback: 7d
+      overlap: 5m
+    output:
+      logs:
+        service: customer
+        message: "Customer {{ record.displayName }}: {{ record.numberOfOrders }} orders, {{ record.amountSpent.amount }} {{ record.amountSpent.currencyCode }} spent"
+        date: "{{ record.updatedAt }}"
+        attributes: "{{ record }}"
+
+  - id: products
+    name: Products
+    description: >-
+      Every product created or updated as a log (service:product, GraphQL fields): title, handle, vendor,
+      productType, status (product_status after the tile's pipeline), totalInventory, tracksInventory,
+      hasOutOfStockVariants, priceRangeV2, category, counts.
+    interval: 15m
+    request:
+      method: POST
+      url: "https://{{ config.store_name }}.myshopify.com/admin/api/2025-10/graphql.json"
+      body:
+        query: >-
+          query($after: String, $q: String) { products(first: 100, after: $after, query: $q, sortKey: UPDATED_AT) {
+          pageInfo { hasNextPage endCursor } nodes { id legacyResourceId title handle description vendor productType
+          status totalInventory tracksInventory hasOutOfStockVariants hasOnlyDefaultVariant
+          hasVariantsThatRequiresComponents isGiftCard requiresSellingPlan onlineStoreUrl createdAt updatedAt
+          publishedAt category { id name fullName isArchived } variantsCount { count } mediaCount { count }
+          sellingPlanGroupsCount { count }
+          priceRangeV2 { minVariantPrice { amount currencyCode } maxVariantPrice { amount currencyCode } } } } }
+        variables:
+          after: "{{ page.cursor }}"
+          q: "updated_at:>='{{ window.start | rfc3339_s }}' AND updated_at:<='{{ window.end | rfc3339_s }}'"
+    records: "{{ response.data.products.nodes }}"
+    pagination: { kind: cursor, next: "{{ response.data.products.pageInfo.hasNextPage ? response.data.products.pageInfo.endCursor : null }}" }
+    record_id: "{{ record.id + ':' + record.updatedAt }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.updatedAt }}"
+      order: oldest_first
+      lookback: 7d
+      overlap: 5m
+    output:
+      logs:
+        service: product
+        message: "Product {{ record.title }} ({{ record.status | lower }}): {{ record.totalInventory }} in stock"
+        # The product's own status (ACTIVE, DRAFT, ARCHIVED) stays @status; the tile's pipeline moves it to
+        # product_status and looks up the log's status from it (info for all three).
+        status: info
+        date: "{{ record.updatedAt }}"
+        attributes: "{{ record }}"
+
+test:
+  request: { url: "https://{{ config.store_name }}.myshopify.com/admin/api/2025-10/shop.json" }
+  success: "{{ response.shop.id }}"
+  message: "Connected to {{ response.shop.name }} ({{ response.shop.myshopify_domain }})"
+
+mock:
+  config: { store_name: example-shop, auth_method: app, client_id: 0a1b2c3d4e5f60718293a4b5c6d7e8f9 }
+  secrets: { client_secret: shpss_test_secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://example-shop.myshopify.com/admin/oauth/access_token", body_contains: "client_credentials", body: { access_token: shpat_test_token, scope: "read_orders,read_products,read_customers,read_content,read_price_rules", expires_in: 86399 } }
+    - { url: "https://example-shop.myshopify.com/admin/api/2025-10/events.json", query: { page_info: "eyJsYXN0X2lkIjo" }, file: fixtures/events-2.json }
+    - { url: "https://example-shop.myshopify.com/admin/api/2025-10/events.json", file: fixtures/events.json, headers: { Link: "<https://example-shop.myshopify.com/admin/api/2025-10/events.json?limit=250&page_info=eyJsYXN0X2lkIjo>; rel=\"next\"" } }
+    - { url: "https://example-shop.myshopify.com/admin/api/2025-10/orders.json", file: fixtures/orders.json }
+    - { method: POST, url: "https://example-shop.myshopify.com/admin/api/2025-10/graphql.json", body_contains: "customers(", file: fixtures/customers.json }
+    - { method: POST, url: "https://example-shop.myshopify.com/admin/api/2025-10/graphql.json", body_contains: "products(", file: fixtures/products.json }
+    - { url: "https://example-shop.myshopify.com/admin/api/2025-10/shop.json", file: fixtures/shop.json }
+  expect:
+    events: { records: 3, logs: 3, rerun: 0, golden: fixtures/events.expected.json }
+    orders: { records: 2, logs: 2, rerun: 0, golden: fixtures/orders.expected.json }
+    customers: { records: 2, logs: 2, rerun: 0, golden: fixtures/customers.expected.json }
+    products: { records: 2, logs: 2, rerun: 0, golden: fixtures/products.expected.json }
+    test: { ok: true, message: "Example Shop" }

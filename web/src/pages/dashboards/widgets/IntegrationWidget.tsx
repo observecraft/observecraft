@@ -10,6 +10,8 @@ import { palette, seriesPalette, token } from '../../../theme/chartTheme';
 import { overlaySeries, overlayStatusToken } from '../../../lib/overlays';
 import { changeRows, type ChangeRow } from '../../../api/integrations/change';
 import { useDashboardContext } from './context';
+import { seriesDisplay } from '../../../api/integrations/widgetData';
+import { checkStatusTiles, type CheckStatusTile } from '../../../api/integrations/checkStatus';
 import { WidgetState } from './MetricWidgets';
 import { groupTags, IntegrationTable } from './IntegrationTable';
 import { fills, formatStyle, matchFormat } from './conditionalFormats';
@@ -19,7 +21,17 @@ import { SourceIcon, STATUS_TOKENS } from '../../events/eventVisuals';
 import { searchKubernetes } from '../../../api/kubernetes/client';
 import { infrastructureList, type InfrastructureRequest } from '../../../api/integrations/infrastructure';
 import { COLUMNS } from '../../kubernetes/columns';
-import { IntegrationBarChart, IntegrationDistribution, IntegrationFreeText, IntegrationGeomap, IntegrationHostmap, IntegrationLogPatterns, IntegrationSunburst } from './IntegrationExtraWidgets';
+import {
+  IntegrationBarChart,
+  IntegrationDistribution,
+  IntegrationFreeText,
+  IntegrationGeomap,
+  IntegrationHostmap,
+  IntegrationLogPatterns,
+  IntegrationSunburst,
+  IntegrationTopology,
+} from './IntegrationExtraWidgets';
+import { isEventPanel, panelSupport } from '../../../api/integrations/panelSupport';
 import { byteAxisInterval, formatMetricValue, formatUnitValue, presentationUnit, valueUnit } from '../../../api/integrations/units';
 
 /** Renders the actual upstream requests; never substitutes a different metric or formula. */
@@ -28,18 +40,15 @@ export function IntegrationWidget({ def }: { def: IntegrationWidgetDefinition })
   if (def.type === 'list_stream' && def.requests?.[0]?.query?.data_source === 'logs_pattern_stream') return <IntegrationLogPatterns def={def} />;
   if (def.type === 'free_text') return <IntegrationFreeText def={def} />;
   if (def.type === 'hostmap') return <IntegrationHostmap def={def} />;
-  const stream = def.requests?.[0]?.query?.data_source;
-  if (def.type === 'list_stream' && stream && stream !== 'event_stream')
+  if (def.type === 'topology_map') return <IntegrationTopology def={def} />;
+  const unsupported = panelSupport(def);
+  if (unsupported)
     return (
-      <WidgetState loading={false} error={new Error(`The ${stream.replace(/_/g, ' ')} list is not supported yet`)}>
+      <WidgetState loading={false} error={new Error(unsupported)}>
         {null}
       </WidgetState>
     );
-  return def.type === 'list_stream' || def.type === 'event_stream' || def.type === 'event_timeline' || def.requests?.some((r) => r.queries?.some((q) => q.data_source === 'events')) ? (
-    <IntegrationEvents def={def} />
-  ) : (
-    <IntegrationMetric def={def} />
-  );
+  return isEventPanel(def) ? <IntegrationEvents def={def} /> : <IntegrationMetric def={def} />;
 }
 
 /** Kubernetes resources, as the Kubernetes Explorer lists them; a row opens it in the Explorer. */
@@ -104,7 +113,7 @@ function IntegrationEvents({ def }: { def: IntegrationWidgetDefinition }) {
   const eventQuery = def.requests?.flatMap((r) => r.queries ?? []).find((q) => q.data_source === 'events');
   const search = (eventQuery as unknown as { search?: { query?: string } })?.search?.query;
   const legacy = typeof def.query === 'string' ? def.query : undefined;
-  const query = resolveSearch((search ?? def.requests?.[0]?.query?.query_string ?? legacy ?? '').replace(/\$[a-zA-Z_]\w*/g, ''));
+  const query = resolveSearch(search ?? def.requests?.[0]?.query?.query_string ?? legacy ?? '');
   const result = useQuery({ queryKey: ['events', 'integration-panel', query, range], queryFn: () => searchEvents({ range, query, limit: 25, offset: 0 }) });
   return (
     <WidgetState loading={result.isPending} error={result.error} empty={!result.data?.items.length}>
@@ -241,28 +250,8 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
       ) ?? 0,
   }));
   let content;
-  if (def.type === 'check_status' && def.grouping === 'cluster') {
-    // One tile: how many checks are in the worst status there is, in that status' color.
-    const counts = [0, 1, 2, 3].map((status) => values.filter((v) => v.value === status).length);
-    const worst = [2, 1, 3, 0].find((status) => counts[status] > 0);
-    const palette = worst === undefined ? undefined : ['white_on_green', 'white_on_yellow', 'white_on_red', 'white_on_gray'][worst];
-    content = (
-      <div className={`qv${palette ? ' qv-fill' : ''}`} style={palette ? formatStyle(palette) : undefined}>
-        <span className="qv-value">{worst === undefined ? '—' : counts[worst].toLocaleString()}</span>
-      </div>
-    );
-  } else if (def.type === 'check_status') {
-    const labels = ['OK', 'Warning', 'Critical', 'Unknown'];
-    content = (
-      <div className="ms-counts">
-        {[0, 1, 2, 3].map((status) => (
-          <div key={status} className={`ms-count ms-${['ok', 'warn', 'alert', 'nodata'][status]}`}>
-            <span>{labels[status]}</span>
-            <strong>{values.filter((v) => v.value === status).length}</strong>
-          </div>
-        ))}
-      </div>
-    );
+  if (def.type === 'check_status') {
+    content = <CheckStatusTiles tiles={checkStatusTiles(def, series)} />;
   } else if (def.type === 'query_value') {
     const v = aggregate(
       values.map((v) => v.value),
@@ -357,7 +346,7 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
         for (const [t, value] of s.points) {
           const v = value * presentationUnit(s.unit).scale;
           max = Math.max(max, v);
-          if (s.display === 'area') totals.set(t, (totals.get(t) ?? 0) + v);
+          if (s.display === 'area' || s.display === 'bars') totals.set(t, (totals.get(t) ?? 0) + v);
         }
       }
       return Math.max(max, ...totals.values());
@@ -391,25 +380,47 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
           data: s.points.map(([t, value]) => [t, value * presentationUnit(s.unit).scale]),
           yAxisIndex: axisUnits.indexOf(presentationUnit(s.unit).unit),
           tooltip: { valueFormatter: (value: unknown) => formatUnitValue(Number(value), presentationUnit(s.unit).unit) },
-          type: s.display === 'bars' ? 'bar' : 'line',
           showSymbol: false,
           lineStyle: { type: s.dashed ? 'dashed' : 'solid' },
-          ...(s.display === 'area' ? { areaStyle: { opacity: 0.4 }, stack: 'total' } : {}),
+          ...seriesDisplay(s.display),
         })) as SeriesOption[]),
         ...(overlays?.length ? [overlaySeries(overlays, (status) => token(overlayStatusToken(status)))] : []),
       ],
     };
     content = <Chart option={option} height="100%" />;
   }
-  const supported = ['timeseries', 'query_value', 'query_table', 'toplist', 'sunburst', 'treemap', 'check_status', 'change', 'heatmap', 'geomap', 'bar_chart', 'distribution'].includes(def.type);
   return (
-    <WidgetState
-      loading={data.isPending}
-      error={!supported ? new Error(`The ${def.type} panel requires a data source that is not supported yet.`) : data.error}
-      empty={!series.length && def.type !== 'geomap'}
-    >
+    <WidgetState loading={data.isPending} error={data.error} empty={!series.length && def.type !== 'geomap'}>
       {content}
     </WidgetState>
+  );
+}
+
+/** A check's status as Datadog's check status widget shows it, in the status' color. */
+const CHECK_STATUS = [
+  { label: 'OK', palette: 'white_on_green' },
+  { label: 'WARN', palette: 'white_on_yellow' },
+  { label: 'CRITICAL', palette: 'white_on_red' },
+  { label: 'UNKNOWN', palette: 'white_on_gray' },
+];
+
+/** A tile per group (one for the whole cluster): its worst status, and how many runs are in each status. */
+function CheckStatusTiles({ tiles }: { tiles: CheckStatusTile[] }) {
+  return (
+    <div className="csw-tiles">
+      {tiles.map((t) => (
+        <div key={t.label} className="csw-tile" style={formatStyle(CHECK_STATUS[t.status].palette)} title={t.label || undefined}>
+          {t.label && <span className="csw-label">{t.label}</span>}
+          <span className="csw-status">{CHECK_STATUS[t.status].label}</span>
+          <span className="csw-counts">
+            {t.counts
+              .map((n, status) => (n ? `${n} ${CHECK_STATUS[status].label}` : ''))
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 

@@ -1,0 +1,22 @@
+{
+  "version": "v1.2.0",
+  "metadata": { "links": { "self": "https://api.amp.cisco.com/v1/events?limit=500", "next": "https://api.amp.cisco.com/v1/events?limit=500&offset=2" }, "results": { "total": 3, "current_item_count": 2, "index": 0, "items_per_page": 2 } },
+  "data": [
+    {
+      "id": 6400000000000000003, "timestamp": 1794308400, "timestamp_nanoseconds": 120000000, "date": "2026-11-10T11:00:00+00:00",
+      "event_type": "Quarantine Success", "event_type_id": 553648143, "severity": "Medium",
+      "connector_guid": "4c1e0000-0000-4000-8000-000000000001", "group_guids": ["7a2b0000-0000-4000-8000-000000000010"],
+      "computer": { "connector_guid": "4c1e0000-0000-4000-8000-000000000001", "hostname": "laptop-jdoe.example.com", "external_ip": "203.0.113.50", "user": "jdoe@LAPTOP-JDOE", "active": true, "network_addresses": [{ "ip": "10.20.1.15", "mac": "00:00:5e:00:53:01" }] },
+      "file": { "disposition": "Malicious", "file_name": "invoice-2026-11.pdf.exe", "file_path": "\\\\?\\C:\\Users\\jdoe\\Downloads\\invoice-2026-11.pdf.exe", "identity": { "sha256": "9f2c0e5d1a2f3e4d5c6b7a8998877665544332211aabbccddeeff00112233445" } }
+    },
+    {
+      "id": 6400000000000000002, "timestamp": 1794308340, "timestamp_nanoseconds": 659000000, "date": "2026-11-10T10:59:00+00:00",
+      "event_type": "Threat Detected", "event_type_id": 1090519054, "detection": "W32.Example.Trojan", "detection_id": "6400000000000000102", "severity": "High",
+      "connector_guid": "4c1e0000-0000-4000-8000-000000000001", "group_guids": ["7a2b0000-0000-4000-8000-000000000010"],
+      "computer": { "connector_guid": "4c1e0000-0000-4000-8000-000000000001", "hostname": "laptop-jdoe.example.com", "external_ip": "203.0.113.50", "user": "jdoe@LAPTOP-JDOE", "active": true, "network_addresses": [{ "ip": "10.20.1.15", "mac": "00:00:5e:00:53:01" }] },
+      "file": { "disposition": "Malicious", "file_name": "invoice-2026-11.pdf.exe", "file_path": "\\\\?\\C:\\Users\\jdoe\\Downloads\\invoice-2026-11.pdf.exe", "identity": { "sha256": "9f2c0e5d1a2f3e4d5c6b7a8998877665544332211aabbccddeeff00112233445" },
+               "parent": { "process_id": 9584, "disposition": "Clean", "file_name": "chrome.exe", "identity": { "sha256": "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809" } } },
+      "techniques": ["T1204", "T1204.002"], "tactics": ["TA0002"]
+    }
+  ]
+}

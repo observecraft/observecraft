@@ -1,0 +1,14 @@
+{
+  "messages": [
+    { "sid": "SM1a2b3c4d5e6f708192a3b4c5d6e7f809", "account_sid": "ACexample_account_sid", "messaging_service_sid": "MG0123456789abcdef0123456789abcdef",
+      "body": "Your order 1042 has shipped", "status": "undelivered", "direction": "outbound-api", "from": "+15005550006", "to": "+15005550001",
+      "num_segments": "1", "num_media": "0", "price": "-0.00790", "price_unit": "USD", "error_code": 30003, "error_message": "Unreachable destination handset",
+      "api_version": "2010-04-01", "date_created": "Tue, 10 Nov 2026 11:39:50 +0000", "date_sent": "Tue, 10 Nov 2026 11:39:51 +0000", "date_updated": "Tue, 10 Nov 2026 11:40:00 +0000" },
+    { "sid": "SM2b3c4d5e6f708192a3b4c5d6e7f8091a", "account_sid": "ACexample_account_sid", "messaging_service_sid": "MG0123456789abcdef0123456789abcdef",
+      "body": "Your verification code is 123456", "status": "delivered", "direction": "outbound-api", "from": "+15005550006", "to": "+15005550002",
+      "num_segments": "1", "num_media": "0", "price": "-0.00790", "price_unit": "USD", "error_code": null, "error_message": null,
+      "api_version": "2010-04-01", "date_created": "Tue, 10 Nov 2026 10:15:00 +0000", "date_sent": "Tue, 10 Nov 2026 10:15:01 +0000", "date_updated": "Tue, 10 Nov 2026 10:15:04 +0000" }
+  ],
+  "next_page_uri": "/2010-04-01/Accounts/ACexample_account_sid/Messages.json?PageSize=1000&Page=1&PageToken=PASM2b3c4d5e6f708192a3b4c5d6e7f8091a",
+  "page": 0, "page_size": 1000
+}

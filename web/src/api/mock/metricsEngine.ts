@@ -16,6 +16,7 @@ import { NETBIRD_METRICS, NETBIRD_SETS } from './netbirdMetrics';
 import { FLEETDM_METRICS, FLEETDM_SETS } from './fleetdmMetrics';
 import { OBSERVECRAFT_METRICS, OBSERVECRAFT_PODS, OBSERVECRAFT_SETS } from './observecraftMetrics';
 import { CORE_METRICS, CORE_SETS } from './coreMetrics';
+import { INFRA_POD_VALUES, INFRA_PODS } from './kubernetesIntegrationMetrics';
 
 type Tags = Record<string, string>;
 
@@ -159,6 +160,8 @@ interface MetricDef {
   tags?: string[];
   /** Seeds the series instead of the metric's name (a distribution's statistics share one shape). */
   seed?: string;
+  /** A running total (rejected connections so far): grows by `base` an hour. */
+  cumulative?: boolean;
 }
 
 // Per deployment (not per metric), so desired, available and running replicas describe the same deployment.
@@ -256,6 +259,11 @@ const METRICS: Record<string, MetricDef> = {
     integer: false,
   },
 };
+// The Kubernetes integrations' pods (control plane, Istio) next to the deployments, for their dashboards' container charts.
+for (const [metric, value] of Object.entries(INFRA_POD_VALUES)) {
+  const d = METRICS[metric];
+  METRICS[metric] = { ...d, entities: [...(d.entities ?? SETS[d.set]), ...INFRA_PODS], base: (e, r) => (INFRA_PODS.includes(e) ? (value(e, r) ?? 0) : d.base(e, r)) };
+}
 
 // ---------------------------------------------------------------- generated metrics (mock/logMetrics.ts)
 
@@ -372,10 +380,14 @@ function smooth(seed: number, t: number): number {
   return knot(seed, i) * (1 - u) + knot(seed, i + 1) * u + 0.35 * knot(seed + 7, Math.floor(t / 60e3));
 }
 
+/** Running totals count from here (the process's last restart, a year before the mock's epoch). */
+const CUMULATIVE_FROM = 1_730_000_000_000;
+
 function entityValue(metric: string, def: MetricDef, e: Tags, t: number): number {
   const key = `${def.seed ?? metric}|${Object.values(e).join('|')}`;
   const seed = hash(key);
   const base = def.base(e, rng(seed));
+  if (def.cumulative) return Math.round((base * (t - CUMULATIVE_FROM)) / 3_600_000);
   if (base === 0 && def.noise < 0.5) return 0;
   let v = base * (1 + def.noise * 2 * smooth(seed, t));
   if (base === 0) v = Math.max(0, smooth(seed, t) - 0.3) * 4; // mostly-silent entities spike occasionally
@@ -393,17 +405,21 @@ function stepFor(range: TimeRange, points: number): number {
 function matches(e: Tags, q: ParsedMetricQuery): boolean {
   return q.filters.every((f) => {
     const v = e[f.key];
-    const hit = f.value.includes('*')
-      ? v !== undefined &&
-        new RegExp(
-          `^${f.value
-            .split('*')
-            .map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-            .join('.*')}$`,
-        ).test(v)
-      : v === f.value;
+    // `tag:(a OR b*)`: any of the values.
+    const values = /^\(.*\)$/.test(f.value) ? f.value.slice(1, -1).split(' OR ') : [f.value];
+    const hit = values.some((value) => one(v, value));
     return hit !== f.negate;
   });
+}
+
+/** One value, with `*` wildcards (`kube_deployment:*` is any entity that has the tag), regardless of case as on the server. */
+function one(v: string | undefined, value: string): boolean {
+  if (!value.includes('*')) return v?.toLowerCase() === value.toLowerCase();
+  const pattern = value
+    .split('*')
+    .map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+    .join('.*');
+  return v !== undefined && new RegExp(`^${pattern}$`, 'i').test(v);
 }
 
 function combine(values: number[], agg: ParsedMetricQuery['aggregator']): number {
@@ -533,8 +549,9 @@ function evaluateAny(query: string, range: TimeRange, points: number): GroupSeri
 export function queryTimeseries(req: TimeseriesRequest): Promise<MetricSeries[]> {
   return attempt(() =>
     req.queries.flatMap((raw) => {
-      // The mock averages every interval: a `.rollup(method)` suffix is accepted and ignored.
-      const query = raw.replace(/\.rollup\([^()]*\)$/, '');
+      // The mock averages every interval: a `.rollup(method)` suffix is accepted and ignored, and so is `.weighted()`
+      // (the server's time-weighted sum of gauges): the mock's series report at every point.
+      const query = raw.replace(/\.weighted\(\)$/, '').replace(/\.rollup\([^()]*\)$/, '');
       const resolved = expandDerived(query, derivedFormulas());
       const q = resolved === query ? parseMetricQuery(query) : null;
       if (!q) return evaluateFormula(resolved, req.range, req.points ?? 120).map((g) => ({ name: Object.keys(g.tags).length ? groupLabel(g.tags) : query, points: g.points }));

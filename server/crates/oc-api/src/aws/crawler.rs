@@ -4,14 +4,25 @@
 //! `FOR UPDATE SKIP LOCKED`, so adding servers adds crawl capacity.
 //!
 //! - **A run** ([`crawl`]) lists the region's metrics with data in the last 3 hours, keeps those the
-//!   account selects (namespaces, metric names, resource tags), and reads Average, Sum and Maximum
-//!   per minute over the window since the watermark (at most 3 hours, ending 5 minutes ago: CloudWatch
-//!   publishes late), 500 metrics per GetMetricData call.
-//! - **Publishing.** Points become OTLP JSON gauges named as Datadog names them (`aws.ec2.cpuutilization`,
-//!   `.sum`, `.maximum`), tagged with the account, the region, the account's tags, the dimensions and
-//!   the resource's AWS tags, written to `oc.otlp-json.metrics` keyed by org with the org's headers.
+//!   account selects (namespaces, metric names, resource tags), and reads their statistics per minute over
+//!   the window since the watermark (at most 3 hours, ending 5 minutes ago: CloudWatch publishes late),
+//!   500 queries (a metric's statistic) per GetMetricData call. Points published after the window has moved
+//!   on aren't read again: the metric tables keep every point they get (`otel.metrics_samples` is a plain
+//!   MergeTree), so re-reading an overlap would count its points twice.
+//! - **Daily metrics** (S3's storage metrics and Storage Lens, `period` 86400 in `aws-metrics.json`) have one
+//!   point a day, published for the previous day and not "recently active": the first run of each hour lists
+//!   their namespaces whole and reads their last 3 days a day apart; each series' latest published day is kept
+//!   (Postgres `aws_daily_metric_marks`), so each day is published once.
+//! - **Publishing.** Points become OTLP JSON gauges named as Datadog names them: the bare name carries the
+//!   metric's Datadog statistic (counts' Sum: `aws.sqs.number_of_messages_sent`, gauges' Average:
+//!   `aws.ec2.cpuutilization`), with `.sum`, `.maximum`, `.minimum` and the latencies' percentiles (`.p95`),
+//!   tagged with the account, the region, the account's tags, the dimensions and the resource's AWS tags
+//!   (`naming::resource_arn`), written to `oc.otlp-json.metrics` keyed by org with the org's headers.
 //!   The watermark advances only after Kafka acknowledged every record of the window, so a crash or a
 //!   Kafka outage re-reads the window instead of losing it.
+//! - **Lookups.** Some resources' ARNs aren't in their metrics' dimensions (REST APIs and RDS proxies by name, DMS
+//!   replication instances by identifier, WAF Classic web ACLs by metric name): a run that has such series asks
+//!   AWS once for each kind (`naming::LOOKUPS`). RDS Proxy's series, in CloudWatch's `AWS/RDS`, are `aws.rds.proxy.*`.
 //! - **Global services** (CloudFront, the web ACLs of CloudFront distributions, Route 53 health checks,
 //!   billing) have their metrics in us-east-1 only: an account whose regions leave us-east-1 out still
 //!   gets a us-east-1 job, which collects only those (`naming::global_series`).
@@ -25,7 +36,7 @@ use std::sync::Arc;
 use serde_json::Value;
 
 use super::api::{AwsApi, AwsError, MetricId, Target, TargetAuth};
-use super::naming::{self, Point, STATS};
+use super::naming::{self, Point};
 use crate::cloud::jobs::{self, Backoff, Crawler, Issue, JobKey, MetricSink, Outcome};
 use crate::routes::datadog_api::aws_integration as accounts;
 use crate::state::AppState;
@@ -35,8 +46,12 @@ pub const PROVIDER: &str = "aws";
 const LAG_MS: i64 = 5 * 60_000;
 /// The longest window one run reads (a longer gap starts 3 hours back).
 const MAX_WINDOW_MS: i64 = 3 * 3_600_000;
-/// GetMetricData: metrics per call.
+/// GetMetricData: queries (a metric's statistic) per call.
 const BATCH: usize = 500;
+const HOUR_MS: i64 = 3_600_000;
+const DAY_MS: i64 = 86_400_000;
+/// The days of daily metrics each daily pass reads.
+const DAILY_DAYS: i64 = 3;
 /// Points per Kafka record.
 pub const POINTS_PER_RECORD: usize = 10_000;
 /// Regions an account with `include_all` is crawled in: the regions every account has enabled (opt-in
@@ -97,6 +112,8 @@ pub struct Job {
     pub collected_until: Option<i64>,
     /// A region the account doesn't collect, crawled for the global services only.
     pub global_only: bool,
+    /// The latest day published per daily series ([`daily_key`] → epoch ms; Postgres `aws_daily_metric_marks`).
+    pub daily_marks: HashMap<String, i64>,
 }
 
 /// How to reach an account: its role, or its access keys with the secret unsealed.
@@ -120,9 +137,35 @@ pub async fn load_job(st: &AppState, key: &JobKey) -> Result<Option<Job>, sqlx::
         account_tags: account.account_tags.as_array().map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default(),
         metrics_config: account.metrics_config.clone(),
         global_only: !regions(&account.aws_partition, &account.aws_regions).contains(&key.scope),
+        daily_marks: daily_marks(st, key).await?,
         org_id: key.org_id.clone(),
         collected_until: key.collected_until,
     }))
+}
+
+async fn daily_marks(st: &AppState, key: &JobKey) -> Result<HashMap<String, i64>, sqlx::Error> {
+    let marks: Option<Value> = sqlx::query_scalar("SELECT marks FROM aws_daily_metric_marks WHERE org_id = $1 AND account_id = $2::uuid AND region = $3")
+        .bind(&key.org_id)
+        .bind(&key.account_id)
+        .bind(&key.scope)
+        .fetch_optional(&st.postgres)
+        .await?;
+    Ok(marks.and_then(|m| serde_json::from_value(m).ok()).unwrap_or_default())
+}
+
+/// Keeps a job's daily marks (once their points are published).
+pub async fn save_daily_marks(st: &AppState, key: &JobKey, marks: &HashMap<String, i64>) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO aws_daily_metric_marks (org_id, account_id, region, marks) VALUES ($1, $2::uuid, $3, $4) \
+         ON CONFLICT (org_id, account_id, region) DO UPDATE SET marks = EXCLUDED.marks, updated_at = now()",
+    )
+    .bind(&key.org_id)
+    .bind(&key.account_id)
+    .bind(&key.scope)
+    .bind(serde_json::to_value(marks).unwrap_or_default())
+    .execute(&st.postgres)
+    .await?;
+    Ok(())
 }
 
 pub fn split_tag(t: &str) -> (String, String) {
@@ -142,76 +185,170 @@ pub fn issue(e: &AwsError) -> Issue {
     Issue { kind, message: e.message(), missing_action, backoff }
 }
 
-/// Reads and publishes one job's window.
-pub async fn crawl(api: &dyn AwsApi, sink: &dyn MetricSink, headers: &[(String, String)], job: &Job, now_ms: i64, interval_ms: i64, known: &HashSet<&str>) -> Outcome {
+/// A run's outcome and, when it read the daily metrics, the marks to keep (see [`Job::daily_marks`]).
+#[derive(Debug, PartialEq)]
+pub struct Crawl {
+    pub outcome: Outcome,
+    pub daily_marks: Option<HashMap<String, i64>>,
+}
+
+impl From<Outcome> for Crawl {
+    fn from(outcome: Outcome) -> Self {
+        Crawl { outcome, daily_marks: None }
+    }
+}
+
+/// A daily series' key in [`Job::daily_marks`]: namespace, metric and dimensions.
+pub fn daily_key(m: &MetricId) -> String {
+    let dims: Vec<String> = m.dimensions.iter().map(|(k, v)| format!("{k}={v}")).collect();
+    format!("{}|{}|{}", m.namespace, m.name, dims.join(","))
+}
+
+/// Each query's points as published: its names, the resource's host (EC2 instances) and tags.
+fn to_points(metrics: &[(MetricId, Vec<String>)], queries: &[(usize, String)], series: Vec<super::api::Series>, base: &[(String, String)], out: &mut Vec<(usize, Point)>) {
+    for s in series {
+        let Some((i, stat)) = queries.get(s.metric) else { continue };
+        let (m, resource) = &metrics[*i];
+        let names = naming::series_names(&m.namespace, &m.name, &m.dimensions, stat);
+        if names.is_empty() {
+            continue;
+        }
+        let host = m.dimensions.iter().find(|(k, _)| m.namespace == "AWS/EC2" && k == "InstanceId").map(|(_, v)| v.clone());
+        let mut tags: BTreeMap<String, String> = base.iter().cloned().collect();
+        tags.extend(resource.iter().map(|t| split_tag(t)));
+        tags.extend(m.dimensions.iter().map(|(k, v)| (naming::tag_key(k), v.clone())));
+        let tags: Vec<(String, String)> = tags.into_iter().collect();
+        for name in &names {
+            out.extend(s.points.iter().map(|&(time_ms, value)| (*i, Point { name: name.clone(), host: host.clone(), tags: tags.clone(), time_ms, value })));
+        }
+    }
+}
+
+/// Every statistic of `metrics` over `[start, end)`, `period` seconds apart, [`BATCH`] queries per call: points
+/// with the index of their metric.
+async fn read(api: &dyn AwsApi, t: &Target, metrics: &[(MetricId, Vec<String>)], start: i64, end: i64, period: i32, base: &[(String, String)]) -> Result<Vec<(usize, Point)>, AwsError> {
+    let queries: Vec<(usize, String)> = metrics.iter().enumerate().flat_map(|(i, (m, _))| naming::statistics(&m.namespace, &m.name).into_iter().map(move |s| (i, s))).collect();
+    let mut out = vec![];
+    for chunk in queries.chunks(BATCH) {
+        let asked: Vec<(MetricId, String)> = chunk.iter().map(|(i, s)| (metrics[*i].0.clone(), s.clone())).collect();
+        let series = api.get_metric_data(t, &asked, start, end, period).await?;
+        to_points(metrics, chunk, series, base, &mut out);
+    }
+    Ok(out)
+}
+
+/// Reads and publishes one job's window, and on its first run of each hour the daily metrics' last 3 days.
+pub async fn crawl(api: &dyn AwsApi, sink: &dyn MetricSink, headers: &[(String, String)], job: &Job, now_ms: i64, interval_ms: i64, known: &HashSet<&str>) -> Crawl {
     let end = (now_ms - LAG_MS) / 60_000 * 60_000;
     let start = job.collected_until.unwrap_or(end - interval_ms).max(end - MAX_WINDOW_MS);
     if end <= start {
-        return Outcome::Idle;
+        return Outcome::Idle.into();
     }
     let config = &job.metrics_config;
     let custom = config["collect_custom_metrics"].as_bool().unwrap_or(false);
-    let listed = match api.list_metrics(&job.target).await {
-        Ok(m) => m,
-        Err(e) => return Outcome::Failed(issue(&e)),
-    };
-    let candidates: Vec<MetricId> = listed
-        .into_iter()
-        .filter(|m| naming::series_collected(&m.namespace, &m.dimensions) && (!job.global_only || naming::global_series(&m.namespace, &m.dimensions)))
-        .filter(|m| naming::namespace_selected(&config["namespace_filters"], &m.namespace, known.contains(m.namespace.as_str()), custom))
-        .filter(|m| naming::metric_selected(&config["metric_name_filters"], &m.namespace, &naming::metric_name(&m.namespace, &m.name)))
-        .collect();
-    if candidates.is_empty() {
-        return Outcome::Collected { end_ms: end, metrics: 0, points: 0, warning: None };
-    }
     let t = &job.target;
-    let (tags_by_arn, warning) = match api.resource_tags(t).await {
-        Ok(tags) => (tags, None),
-        Err(e @ AwsError::AccessDenied { .. }) => (HashMap::new(), Some(issue(&e))),
-        Err(e) => return Outcome::Failed(issue(&e)),
+    let selected = |m: &MetricId| {
+        naming::series_collected(&m.namespace, &m.dimensions)
+            && (!job.global_only || naming::global_series(&m.namespace, &m.dimensions))
+            && naming::namespace_selected(&config["namespace_filters"], &m.namespace, known.contains(m.namespace.as_str()), custom)
+            && naming::metric_selected(&config["metric_name_filters"], &m.namespace, &naming::metric_name(&m.namespace, &m.name))
     };
-    let resource_tags = |m: &MetricId| naming::resource_arn(&t.partition, &t.region, &t.account_id, &m.namespace, &m.dimensions).and_then(|arn| tags_by_arn.get(&arn).cloned()).unwrap_or_default();
-    let metrics: Vec<(MetricId, Vec<String>)> = candidates
-        .into_iter()
-        .map(|m| {
-            let tags = resource_tags(&m);
-            (m, tags)
-        })
-        .filter(|(m, tags)| naming::tags_match(&config["tag_filters"], &m.namespace, tags))
-        .collect();
-
-    let base: Vec<(String, String)> = [("aws_account".to_string(), t.account_id.clone()), ("region".to_string(), t.region.clone())].into_iter().chain(job.account_tags.iter().map(|t| split_tag(t))).collect();
-    let mut points = vec![];
-    for chunk in metrics.chunks(BATCH) {
-        let ids: Vec<MetricId> = chunk.iter().map(|(m, _)| m.clone()).collect();
-        for (stat, _) in STATS {
-            let series = match api.get_metric_data(t, &ids, stat, start, end, 60).await {
-                Ok(s) => s,
-                Err(e) => return Outcome::Failed(issue(&e)),
-            };
-            for s in series {
-                let Some((m, resource)) = chunk.get(s.metric) else { continue };
-                let names = naming::series_names(&m.namespace, &m.name, &m.dimensions, stat);
-                if names.is_empty() {
-                    continue;
-                }
-                let host = m.dimensions.iter().find(|(k, _)| m.namespace == "AWS/EC2" && k == "InstanceId").map(|(_, v)| v.clone());
-                let mut tags: BTreeMap<String, String> = base.iter().cloned().collect();
-                tags.extend(resource.iter().map(|t| split_tag(t)));
-                tags.extend(m.dimensions.iter().map(|(k, v)| (naming::tag_key(k), v.clone())));
-                let tags: Vec<(String, String)> = tags.into_iter().collect();
-                for name in &names {
-                    points.extend(s.points.iter().map(|&(time_ms, value)| Point { name: name.clone(), host: host.clone(), tags: tags.clone(), time_ms, value }));
-                }
+    // RDS Proxy's series (AWS/RDS by ProxyName) are named as their own namespace's.
+    let renamed = |ms: Vec<MetricId>| -> Vec<MetricId> {
+        ms.into_iter()
+            .map(|mut m| {
+                m.namespace = naming::series_namespace(&m.namespace, &m.dimensions).to_string();
+                m
+            })
+            .collect()
+    };
+    let listed = match api.list_metrics(t).await {
+        Ok(m) => renamed(m),
+        Err(e) => return Outcome::Failed(issue(&e)).into(),
+    };
+    let regular: Vec<MetricId> = listed.into_iter().filter(|m| naming::period(&m.namespace, &m.name) == naming::MINUTE && selected(m)).collect();
+    // The daily metrics, once an hour (the run whose window starts a new hour, and the first run).
+    let daily_due = !job.global_only && (job.collected_until.is_none() || start / HOUR_MS != end / HOUR_MS);
+    let mut daily = vec![];
+    if daily_due {
+        for ns in naming::daily_namespaces().into_iter().filter(|ns| naming::namespace_selected(&config["namespace_filters"], ns, known.contains(ns), custom)) {
+            match api.list_namespace_metrics(t, ns).await {
+                Ok(ms) => daily.extend(renamed(ms).into_iter().filter(|m| naming::period(&m.namespace, &m.name) == naming::DAY && selected(m))),
+                Err(e) => return Outcome::Failed(issue(&e)).into(),
             }
         }
     }
-    for record in points.chunks(POINTS_PER_RECORD) {
-        if let Err(e) = sink.publish(&job.org_id, headers, crate::cloud::naming::otlp_json(PROVIDER, record)).await {
-            return Outcome::Failed(Issue { kind: "other", message: format!("publishing to Kafka failed: {e}"), missing_action: None, backoff: Backoff::Exponential });
+    if regular.is_empty() && daily.is_empty() {
+        return Outcome::Collected { end_ms: end, metrics: 0, points: 0, warning: None }.into();
+    }
+    let (tags_by_arn, warning) = match api.resource_tags(t).await {
+        Ok(tags) => (tags, None),
+        Err(e @ AwsError::AccessDenied { .. }) => (HashMap::new(), Some(issue(&e))),
+        Err(e) => return Outcome::Failed(issue(&e)).into(),
+    };
+    // The ids of the resources whose ARNs the metrics don't carry, each lookup once a run; a failed one leaves its
+    // resources untagged and is the run's warning.
+    let (mut ids, mut warning) = (naming::Lookups::new(), warning);
+    let needed: std::collections::BTreeSet<&str> = regular.iter().chain(&daily).filter_map(|m| naming::lookup(&m.namespace, &m.dimensions)).collect();
+    for lookup in needed {
+        match api.resource_ids(t, lookup).await {
+            Ok(found) => {
+                ids.insert(lookup.to_string(), found);
+            }
+            Err(e) => {
+                warning.get_or_insert_with(|| issue(&e));
+            }
         }
     }
-    Outcome::Collected { end_ms: end, metrics: metrics.len(), points: points.len(), warning }
+    let index = naming::TagIndex::new(&tags_by_arn);
+    let mut found: HashMap<String, Vec<String>> = HashMap::new();
+    let mut tagged = |ms: Vec<MetricId>| -> Vec<(MetricId, Vec<String>)> {
+        ms.into_iter()
+            .map(|m| {
+                let tags = naming::resource_arn(&t.partition, &t.region, &t.account_id, &m.namespace, &m.dimensions, &ids)
+                    .map(|arn| found.entry(arn.clone()).or_insert_with(|| index.get(&arn)).clone())
+                    .unwrap_or_default();
+                (m, tags)
+            })
+            .filter(|(m, tags)| naming::tags_match(&config["tag_filters"], &m.namespace, tags))
+            .collect()
+    };
+    let (regular, daily) = (tagged(regular), tagged(daily));
+
+    let base: Vec<(String, String)> = [("aws_account".to_string(), t.account_id.clone()), ("region".to_string(), t.region.clone())].into_iter().chain(job.account_tags.iter().map(|t| split_tag(t))).collect();
+    let mut points: Vec<Point> = match read(api, t, &regular, start, end, naming::MINUTE, &base).await {
+        Ok(p) => p.into_iter().map(|(_, p)| p).collect(),
+        Err(e) => return Outcome::Failed(issue(&e)).into(),
+    };
+    // Daily points are re-read for 3 days (CloudWatch publishes a day's late) and published once: the marks keep
+    // each series' latest published day.
+    let mut daily_marks = None;
+    if daily_due {
+        let day_start = end / DAY_MS * DAY_MS - DAILY_DAYS * DAY_MS;
+        let read = match read(api, t, &daily, day_start, end, naming::DAY, &base).await {
+            Ok(p) => p,
+            Err(e) => return Outcome::Failed(issue(&e)).into(),
+        };
+        let mut marks: HashMap<String, i64> = job.daily_marks.iter().filter(|(_, &at)| at >= day_start).map(|(k, v)| (k.clone(), *v)).collect();
+        let keys: Vec<String> = daily.iter().map(|(m, _)| daily_key(m)).collect();
+        let mut newest: HashMap<usize, i64> = HashMap::new();
+        for (i, p) in read {
+            if job.daily_marks.get(&keys[i]).is_some_and(|&at| p.time_ms <= at) {
+                continue;
+            }
+            let n = newest.entry(i).or_insert(p.time_ms);
+            *n = (*n).max(p.time_ms);
+            points.push(p);
+        }
+        marks.extend(newest.into_iter().map(|(i, at)| (keys[i].clone(), at)));
+        daily_marks = Some(marks);
+    }
+    for record in points.chunks(POINTS_PER_RECORD) {
+        if let Err(e) = sink.publish(&job.org_id, headers, crate::cloud::naming::otlp_json(PROVIDER, record)).await {
+            return Outcome::Failed(Issue { kind: "other", message: format!("publishing to Kafka failed: {e}"), missing_action: None, backoff: Backoff::Exponential }).into();
+        }
+    }
+    Crawl { outcome: Outcome::Collected { end_ms: end, metrics: regular.len() + daily.len(), points: points.len(), warning }, daily_marks }
 }
 
 /// The namespaces of our AWS catalog (outside them, metrics are custom).
@@ -239,7 +376,11 @@ impl Crawler for AwsCrawler {
     async fn run(&self, st: &AppState, key: &JobKey, now_ms: i64) -> Result<Outcome, sqlx::Error> {
         let Some(job) = load_job(st, key).await? else { return Ok(Outcome::Idle) };
         let headers = jobs::org_headers(st, &job.org_id).await?;
-        Ok(crawl(self.api.as_ref(), self.sink.as_ref(), &headers, &job, now_ms, self.interval_secs * 1000, &known_namespaces()).await)
+        let run = crawl(self.api.as_ref(), self.sink.as_ref(), &headers, &job, now_ms, self.interval_secs * 1000, &known_namespaces()).await;
+        if let (Outcome::Collected { .. }, Some(marks)) = (&run.outcome, &run.daily_marks) {
+            save_daily_marks(st, key, marks).await?;
+        }
+        Ok(run.outcome)
     }
 }
 
@@ -252,15 +393,26 @@ mod tests {
     use super::super::api::Series;
     use crate::cloud::testing::{published, FakeSink};
 
-    /// AWS as a test sets it up: metrics, their values, tags, and errors to return.
+    /// A GetMetricData call: its statistics, start, end and period.
+    type Call = (Vec<String>, i64, i64, i32);
+
+    /// AWS as a test sets it up: metrics (recently active, and every metric of a namespace), their values, tags, and
+    /// errors to return.
     #[derive(Default)]
     struct FakeAws {
         metrics: Vec<MetricId>,
+        /// Metrics ListMetrics lists only without its "recently active" filter (daily ones).
+        inactive: Vec<MetricId>,
         tags: HashMap<String, Vec<String>>,
         fail_list: Option<AwsError>,
         fail_data: Option<AwsError>,
         fail_tags: Option<AwsError>,
-        calls: StdMutex<Vec<(String, usize, i64, i64)>>,
+        /// The lookups' answers (`naming::LOOKUPS`), the lookups asked for, and an error they return.
+        ids: HashMap<String, HashMap<String, String>>,
+        looked_up: StdMutex<Vec<String>>,
+        fail_ids: Option<AwsError>,
+        /// Each GetMetricData call: its statistics, start, end and period.
+        calls: StdMutex<Vec<Call>>,
     }
 
     #[async_trait::async_trait]
@@ -268,15 +420,23 @@ mod tests {
         async fn list_metrics(&self, _t: &Target) -> Result<Vec<MetricId>, AwsError> {
             self.fail_list.clone().map_or(Ok(self.metrics.clone()), Err)
         }
-        async fn get_metric_data(&self, _t: &Target, metrics: &[MetricId], stat: &str, start: i64, end: i64, _period: i32) -> Result<Vec<Series>, AwsError> {
+        async fn list_namespace_metrics(&self, _t: &Target, namespace: &str) -> Result<Vec<MetricId>, AwsError> {
+            Ok(self.metrics.iter().chain(&self.inactive).filter(|m| m.namespace == namespace).cloned().collect())
+        }
+        async fn get_metric_data(&self, _t: &Target, queries: &[(MetricId, String)], start: i64, end: i64, period: i32) -> Result<Vec<Series>, AwsError> {
             if let Some(e) = &self.fail_data {
                 return Err(e.clone());
             }
-            self.calls.lock().unwrap().push((stat.to_string(), metrics.len(), start, end));
-            Ok((0..metrics.len()).map(|i| Series { metric: i, points: vec![(start, i as f64 + 1.0), (start + 60_000, i as f64 + 2.0)] }).collect())
+            self.calls.lock().unwrap().push((queries.iter().map(|q| q.1.clone()).collect(), start, end, period));
+            let step = period as i64 * 1000;
+            Ok((0..queries.len()).map(|i| Series { metric: i, points: vec![(start, i as f64 + 1.0), (start + step, i as f64 + 2.0)] }).collect())
         }
         async fn resource_tags(&self, _t: &Target) -> Result<HashMap<String, Vec<String>>, AwsError> {
             self.fail_tags.clone().map_or(Ok(self.tags.clone()), Err)
+        }
+        async fn resource_ids(&self, _t: &Target, lookup: &str) -> Result<HashMap<String, String>, AwsError> {
+            self.looked_up.lock().unwrap().push(lookup.to_string());
+            self.fail_ids.clone().map_or_else(|| Ok(self.ids.get(lookup).cloned().unwrap_or_default()), Err)
         }
     }
 
@@ -292,6 +452,7 @@ mod tests {
             metrics_config,
             collected_until,
             global_only: false,
+            daily_marks: HashMap::new(),
         }
     }
 
@@ -310,17 +471,16 @@ mod tests {
         };
         let sink = FakeSink::default();
         let headers = vec![("x-oc-org".to_string(), "acme".to_string())];
-        let outcome = crawl(&aws, &sink, &headers, &job(None, config()), NOW, 600_000, &known_namespaces()).await;
+        let outcome = crawl(&aws, &sink, &headers, &job(None, config()), NOW, 600_000, &known_namespaces()).await.outcome;
         let end = (NOW - LAG_MS) / 60_000 * 60_000;
-        assert_eq!(outcome, Outcome::Collected { end_ms: end, metrics: 1, points: 6, warning: None });
-        // The first window is one interval; every statistic is read.
+        assert_eq!(outcome, Outcome::Collected { end_ms: end, metrics: 1, points: 8, warning: None });
+        // The first window is one interval; every statistic is read, in one call.
         let calls = aws.calls.lock().unwrap().clone();
-        assert_eq!(calls.iter().map(|c| c.0.as_str()).collect::<Vec<_>>(), ["Average", "Sum", "Maximum"]);
-        assert!(calls.iter().all(|c| c.2 == end - 600_000 && c.3 == end));
+        assert_eq!(calls, [(vec!["Average".to_string(), "Sum".into(), "Maximum".into(), "Minimum".into()], end - 600_000, end, 60)]);
 
         let points = published(&sink);
         let names: HashSet<&str> = points.iter().map(|p| p.0.as_str()).collect();
-        assert_eq!(names, HashSet::from(["aws.ec2.cpuutilization", "aws.ec2.cpuutilization.sum", "aws.ec2.cpuutilization.maximum"]));
+        assert_eq!(names, HashSet::from(["aws.ec2.cpuutilization", "aws.ec2.cpuutilization.sum", "aws.ec2.cpuutilization.maximum", "aws.ec2.cpuutilization.minimum"]));
         let (_, host, attrs) = &points[0];
         assert_eq!(host.as_deref(), Some("i-0a1b2c3d4e5f60001"));
         let attrs: HashMap<_, _> = attrs.iter().cloned().collect();
@@ -336,16 +496,16 @@ mod tests {
 
     #[tokio::test]
     async fn the_window_starts_at_the_watermark_and_is_at_most_three_hours() {
-        let aws = FakeAws { metrics: vec![metric("AWS/EC2", "CPUUtilization", &[])], ..Default::default() };
+        let aws = FakeAws { metrics: vec![metric("AWS/EC2", "CPUUtilization", &[("InstanceId", "i-1")])], ..Default::default() };
         let sink = FakeSink::default();
         let end = (NOW - LAG_MS) / 60_000 * 60_000;
         crawl(&aws, &sink, &[], &job(Some(end - 120_000), config()), NOW, 600_000, &known_namespaces()).await;
-        assert_eq!(aws.calls.lock().unwrap()[0].2, end - 120_000);
-        let aws = FakeAws { metrics: vec![metric("AWS/EC2", "CPUUtilization", &[])], ..Default::default() };
+        assert_eq!(aws.calls.lock().unwrap()[0].1, end - 120_000);
+        let aws = FakeAws { metrics: vec![metric("AWS/EC2", "CPUUtilization", &[("InstanceId", "i-1")])], ..Default::default() };
         crawl(&aws, &sink, &[], &job(Some(end - 86_400_000), config()), NOW, 600_000, &known_namespaces()).await;
-        assert_eq!(aws.calls.lock().unwrap()[0].2, end - MAX_WINDOW_MS);
+        assert_eq!(aws.calls.lock().unwrap()[0].1, end - MAX_WINDOW_MS);
         let aws = FakeAws::default();
-        assert_eq!(crawl(&aws, &sink, &[], &job(Some(end), config()), NOW, 600_000, &known_namespaces()).await, Outcome::Idle);
+        assert_eq!(crawl(&aws, &sink, &[], &job(Some(end), config()), NOW, 600_000, &known_namespaces()).await.outcome, Outcome::Idle);
     }
 
     #[tokio::test]
@@ -366,27 +526,28 @@ mod tests {
             "tag_filters": [{ "namespace": "AWS/EC2", "tags": ["env:prod"] }],
             "metric_name_filters": [{ "namespace": "AWS/EC2", "include_only": ["aws.ec2.network_*"] }],
         });
-        let outcome = crawl(&aws, &sink, &[], &job(None, cfg), NOW, 600_000, &known_namespaces()).await;
+        let outcome = crawl(&aws, &sink, &[], &job(None, cfg), NOW, 600_000, &known_namespaces()).await.outcome;
         assert!(matches!(outcome, Outcome::Collected { metrics: 2, .. }), "{outcome:?}");
-        let names: HashSet<String> = published(&sink).into_iter().map(|p| p.0).filter(|n| !n.contains(".sum") && !n.contains(".maximum")).collect();
+        let names: HashSet<String> = published(&sink).into_iter().map(|p| p.0).filter(|n| ![".sum", ".maximum", ".minimum"].iter().any(|s| n.ends_with(s))).collect();
         assert_eq!(names, HashSet::from(["aws.ec2.network_out".to_string(), "aws.acme_checkout.orders_placed".to_string()]));
     }
 
     #[tokio::test]
     async fn failures_publish_nothing_and_denied_tags_are_a_warning() {
         let denied = AwsError::AccessDenied { action: Some("cloudwatch:GetMetricData".into()), message: "not authorized to perform: cloudwatch:GetMetricData".into() };
-        let aws = FakeAws { metrics: vec![metric("AWS/EC2", "CPUUtilization", &[])], fail_data: Some(denied.clone()), ..Default::default() };
+        let cpu = || vec![metric("AWS/EC2", "CPUUtilization", &[("InstanceId", "i-1")])];
+        let aws = FakeAws { metrics: cpu(), fail_data: Some(denied.clone()), ..Default::default() };
         let sink = FakeSink::default();
-        assert_eq!(crawl(&aws, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await, Outcome::Failed(issue(&denied)));
+        assert_eq!(crawl(&aws, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await, Crawl { outcome: Outcome::Failed(issue(&denied)), daily_marks: None });
         assert!(sink.records.lock().unwrap().is_empty());
 
-        let aws = FakeAws { metrics: vec![metric("AWS/EC2", "CPUUtilization", &[])], ..Default::default() };
+        let aws = FakeAws { metrics: cpu(), ..Default::default() };
         let broken = FakeSink { fail: true, ..Default::default() };
-        assert!(matches!(crawl(&aws, &broken, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await, Outcome::Failed(Issue { message, .. }) if message.contains("Kafka")));
+        assert!(matches!(crawl(&aws, &broken, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await.outcome, Outcome::Failed(Issue { message, .. }) if message.contains("Kafka")));
 
         let tags_denied = AwsError::AccessDenied { action: Some("tag:GetResources".into()), message: "denied".into() };
-        let aws = FakeAws { metrics: vec![metric("AWS/EC2", "CPUUtilization", &[])], fail_tags: Some(tags_denied.clone()), ..Default::default() };
-        let outcome = crawl(&aws, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await;
+        let aws = FakeAws { metrics: cpu(), fail_tags: Some(tags_denied.clone()), ..Default::default() };
+        let outcome = crawl(&aws, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await.outcome;
         assert!(matches!(outcome, Outcome::Collected { warning: Some(w), .. } if w == issue(&tags_denied)));
     }
 
@@ -457,7 +618,7 @@ mod tests {
         let id = account(st, &org, json!({ "include_only": ["us-east-1"] }), true).await;
         planned(st).await;
         let key = JobKey { provider: PROVIDER.into(), org_id: org.clone(), account_id: id.clone(), scope: "us-east-1".into(), collected_until: None };
-        let metrics = vec![metric("AWS/EC2", "CPUUtilization", &[("InstanceId", "i-1")])];
+        let metrics = vec![metric("AWS/EC2", "CPUUtilization", &[("InstanceId", "i-1")]), metric("AWS/S3", "BucketSizeBytes", &[("BucketName", "example-assets"), ("StorageType", "StandardStorage")])];
         let crawler = |api: FakeAws, sink: Arc<FakeSink>| AwsCrawler { api: Arc::new(api), sink, interval_secs: 600 };
         let status = || async { jobs::status(st, PROVIDER, &org, &id).await.unwrap().remove(0) };
 
@@ -475,6 +636,9 @@ mod tests {
         let s = status().await;
         assert_eq!((s.collected_until, s.error.is_none()), (Some((NOW - LAG_MS) / 60_000 * 60_000), true));
         assert_eq!(sink.records.lock().unwrap()[0].1[0], ("x-oc-org".to_string(), org.clone()));
+        // The daily metrics' marks are kept for the next run.
+        let marks = load_job(st, &key).await.unwrap().unwrap().daily_marks;
+        assert_eq!(marks.keys().collect::<Vec<_>>(), ["AWS/S3|BucketSizeBytes|BucketName=example-assets,StorageType=StandardStorage"]);
 
         // A missing permission: the issue names the action, the watermark stays.
         let denied = FakeAws { metrics, fail_list: Some(AwsError::AccessDenied { action: Some("cloudwatch:ListMetrics".into()), message: "denied".into() }), ..Default::default() };
@@ -503,7 +667,7 @@ mod tests {
             ..Default::default()
         };
         let sink = FakeSink::default();
-        let outcome = crawl(&aws, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await;
+        let outcome = crawl(&aws, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await.outcome;
         assert!(matches!(outcome, Outcome::Collected { metrics: 6, .. }), "the RDS engine aggregate is left out: {outcome:?}");
         let points = published(&sink);
         let names: std::collections::BTreeSet<&str> = points.iter().map(|p| p.0.as_str()).collect();
@@ -546,9 +710,164 @@ mod tests {
         };
         let sink = FakeSink::default();
         let global = Job { global_only: true, ..job(None, config()) };
-        let outcome = crawl(&aws, &sink, &[], &global, NOW, 600_000, &known_namespaces()).await;
+        let outcome = crawl(&aws, &sink, &[], &global, NOW, 600_000, &known_namespaces()).await.outcome;
         assert!(matches!(outcome, Outcome::Collected { metrics: 2, .. }), "{outcome:?}");
         let webacls: HashSet<String> = published(&sink).into_iter().filter_map(|p| p.2.into_iter().find(|(k, _)| k == "webacl").map(|(_, v)| v)).collect();
         assert_eq!(webacls, HashSet::from(["storefront-cdn".to_string()]));
+    }
+
+    #[tokio::test]
+    async fn ec2_aggregates_are_left_out_and_latencies_get_their_percentiles() {
+        let aws = FakeAws {
+            metrics: vec![
+                metric("AWS/EC2", "CPUUtilization", &[("InstanceId", "i-0a1b2c3d4e5f60001")]),
+                metric("AWS/EC2", "CPUUtilization", &[("AutoScalingGroupName", "storefront-web")]),
+                metric("AWS/EC2", "CPUUtilization", &[]),
+                metric("AWS/ApplicationELB", "TargetResponseTime", &[("LoadBalancer", "app/storefront/50dc6c495c0c9188")]),
+                metric("AWS/ApplicationELB", "RequestCount", &[("LoadBalancer", "app/storefront/50dc6c495c0c9188")]),
+            ],
+            ..Default::default()
+        };
+        let sink = FakeSink::default();
+        let outcome = crawl(&aws, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await.outcome;
+        assert!(matches!(outcome, Outcome::Collected { metrics: 3, .. }), "{outcome:?}");
+        let points = published(&sink);
+        assert!(points.iter().filter(|p| p.0.starts_with("aws.ec2.")).all(|p| p.1.is_some()), "every EC2 point has its host");
+        let names: HashSet<&str> = points.iter().map(|p| p.0.as_str()).collect();
+        for name in [
+            "aws.applicationelb.target_response_time",
+            "aws.applicationelb.target_response_time.p50",
+            "aws.applicationelb.target_response_time.p99",
+            "aws.applicationelb.request_count",
+            "aws.applicationelb.request_count.sum",
+        ] {
+            assert!(names.contains(name), "{name} in {names:?}");
+        }
+        assert!(!names.contains("aws.applicationelb.request_count.p95"));
+    }
+
+    #[tokio::test]
+    async fn resource_tags_reach_every_namespace_mapped_and_negated_filters_keep_untagged_resources() {
+        let aws = FakeAws {
+            metrics: vec![
+                metric("AWS/EBS", "VolumeReadOps", &[("VolumeId", "vol-0a1b2c3d4e5f60001")]),
+                metric("AWS/EBS", "VolumeReadOps", &[("VolumeId", "vol-0a1b2c3d4e5f60002")]),
+                metric("AWS/EBS", "VolumeReadOps", &[("VolumeId", "vol-0a1b2c3d4e5f60003")]),
+                metric("AWS/Kafka", "BytesInPerSec", &[("Broker ID", "1"), ("Cluster Name", "orders")]),
+            ],
+            tags: HashMap::from([
+                ("arn:aws:ec2:us-east-1:123456789012:volume/vol-0a1b2c3d4e5f60001".to_string(), vec!["team:orders".to_string()]),
+                ("arn:aws:ec2:us-east-1:123456789012:volume/vol-0a1b2c3d4e5f60002".to_string(), vec!["datadog:no".to_string()]),
+                ("arn:aws:kafka:us-east-1:123456789012:cluster/orders/0a1b2c3d-0000-4000-8000-000000000001-2".to_string(), vec!["service:order-service".to_string()]),
+            ]),
+            ..Default::default()
+        };
+        let sink = FakeSink::default();
+        let cfg = json!({ "namespace_filters": { "exclude_only": [] }, "tag_filters": [{ "namespace": "AWS/EBS", "tags": ["!datadog:no"] }] });
+        let outcome = crawl(&aws, &sink, &[], &job(None, cfg), NOW, 600_000, &known_namespaces()).await.outcome;
+        assert!(matches!(outcome, Outcome::Collected { metrics: 3, .. }), "the volume tagged datadog:no is left out: {outcome:?}");
+        let points = published(&sink);
+        let attrs = |volume: &str| points.iter().find(|p| p.2.iter().any(|(k, v)| k == "volumeid" && v == volume)).map(|p| p.2.iter().cloned().collect::<HashMap<_, _>>());
+        assert_eq!(attrs("vol-0a1b2c3d4e5f60001").unwrap()["team"], "orders");
+        assert!(attrs("vol-0a1b2c3d4e5f60003").is_some(), "an untagged volume passes a negated-only filter");
+        assert!(attrs("vol-0a1b2c3d4e5f60002").is_none());
+        let kafka = points.iter().find(|p| p.0.starts_with("aws.kafka.")).unwrap();
+        assert!(kafka.2.contains(&("service".to_string(), "order-service".to_string())));
+    }
+
+    #[tokio::test]
+    async fn resources_their_metrics_name_by_name_get_their_tags_through_one_lookup_a_run() {
+        let ids = |pairs: &[(&str, &str, &str)]| -> HashMap<String, HashMap<String, String>> {
+            let mut out: HashMap<String, HashMap<String, String>> = HashMap::new();
+            for (lookup, name, id) in pairs {
+                out.entry(lookup.to_string()).or_default().insert(name.to_string(), id.to_string());
+            }
+            out
+        };
+        let proxy = "arn:aws:rds:us-east-1:123456789012:db-proxy:prx-0a1b2c3d4e5f60001";
+        let replication = "arn:aws:dms:us-east-1:123456789012:rep:EXAMPLEORDERSREPLICATION0001";
+        let webacl = "arn:aws:waf::123456789012:webacl/0a1b2c3d-0000-4000-8000-000000000001";
+        let aws = || FakeAws {
+            metrics: vec![
+                metric("AWS/ApiGateway", "Count", &[("ApiName", "storefront-api")]),
+                metric("AWS/ApiGateway", "Count", &[("ApiName", "storefront-api"), ("Stage", "prod")]),
+                metric("AWS/RDS", "ClientConnections", &[("ProxyName", "orders-proxy")]),
+                metric("AWS/DMS", "CDCLatencySource", &[("ReplicationInstanceIdentifier", "orders-replication"), ("ReplicationTaskIdentifier", "ABCDEFGHIJ")]),
+                metric("WAF", "BlockedRequests", &[("Rule", "ALL"), ("WebACL", "StorefrontCdn")]),
+            ],
+            ids: ids(&[("restapis", "storefront-api", "a1b2c3d4e5"), ("dbproxies", "orders-proxy", proxy), ("replicationinstances", "orders-replication", replication), ("webacls", "StorefrontCdn", webacl)]),
+            tags: HashMap::from([
+                ("arn:aws:apigateway:us-east-1::/restapis/a1b2c3d4e5".to_string(), vec!["team:storefront".to_string()]),
+                (proxy.to_string(), vec!["service:order-service".to_string()]),
+                (replication.to_string(), vec!["team:orders".to_string()]),
+                (webacl.to_string(), vec!["team:security".to_string()]),
+            ]),
+            ..Default::default()
+        };
+        let (fake, sink) = (aws(), FakeSink::default());
+        let outcome = crawl(&fake, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await.outcome;
+        assert!(matches!(outcome, Outcome::Collected { metrics: 5, warning: None, .. }), "{outcome:?}");
+        // Each lookup once a run, only those the metrics need.
+        let mut looked_up = fake.looked_up.lock().unwrap().clone();
+        looked_up.sort();
+        assert_eq!(looked_up, ["dbproxies", "replicationinstances", "restapis", "webacls"]);
+        let points = published(&sink);
+        let tagged = |name: &str, tag: (&str, &str)| points.iter().filter(|p| p.0 == name).all(|p| p.2.contains(&(tag.0.to_string(), tag.1.to_string()))) && points.iter().any(|p| p.0 == name);
+        assert!(tagged("aws.apigateway.count", ("team", "storefront")), "{points:?}");
+        // RDS Proxy's series (AWS/RDS by ProxyName) are aws.rds.proxy.*, read from AWS/RDS.
+        assert!(tagged("aws.rds.proxy.client_connections", ("service", "order-service")));
+        assert!(tagged("aws.dms.cdclatency_source", ("team", "orders")));
+        assert!(tagged("aws.waf.blocked_requests", ("team", "security")));
+
+        // A lookup that's denied leaves those resources untagged and is the run's warning.
+        let denied = AwsError::AccessDenied { action: Some("apigateway:GET".into()), message: "denied".into() };
+        let (fake, sink) = (FakeAws { fail_ids: Some(denied.clone()), ..aws() }, FakeSink::default());
+        let outcome = crawl(&fake, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await.outcome;
+        let Outcome::Collected { warning: Some(w), .. } = outcome else { panic!("{outcome:?}") };
+        assert_eq!((w.kind, w.missing_action.as_deref()), ("access_denied", Some("apigateway:GET")));
+        assert!(published(&sink).iter().any(|p| p.0 == "aws.apigateway.count" && !p.2.iter().any(|t| t.0 == "team")));
+    }
+
+    #[tokio::test]
+    async fn daily_metrics_are_read_once_an_hour_for_three_days_and_each_day_is_published_once() {
+        let bucket = metric("AWS/S3", "BucketSizeBytes", &[("BucketName", "example-assets"), ("StorageType", "StandardStorage")]);
+        // S3's storage metrics aren't "recently active": only a namespace's whole listing has them.
+        let aws = || FakeAws { metrics: vec![metric("AWS/EC2", "CPUUtilization", &[("InstanceId", "i-1")])], inactive: vec![bucket.clone()], ..Default::default() };
+        let end = (NOW - LAG_MS) / 60_000 * 60_000;
+        let day_start = end / DAY_MS * DAY_MS - 3 * DAY_MS;
+
+        // The first run reads them, a day apart over the last 3 days, and keeps each series' latest day.
+        let (first, sink) = (aws(), FakeSink::default());
+        let run = crawl(&first, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await;
+        let calls = first.calls.lock().unwrap().clone();
+        assert_eq!(calls.len(), 2);
+        assert_eq!((calls[1].1, calls[1].2, calls[1].3), (day_start, end, 86_400));
+        assert!(!calls[0].0.is_empty() && calls[1].0 == ["Average", "Sum", "Maximum", "Minimum"]);
+        let sizes: Vec<_> = published(&sink).into_iter().filter(|p| p.0 == "aws.s3.bucket_size_bytes").collect();
+        assert_eq!(sizes.len(), 2);
+        assert_eq!(sizes[0].2.iter().find(|(k, _)| k == "bucketname").unwrap().1, "example-assets");
+        let marks = run.daily_marks.unwrap();
+        assert_eq!(marks, HashMap::from([(daily_key(&bucket), day_start + DAY_MS)]));
+
+        // A run within the hour doesn't read them…
+        let (within, sink) = (aws(), FakeSink::default());
+        let mid_hour = end / HOUR_MS * HOUR_MS + 20 * 60_000;
+        let later = NOW - end + mid_hour + 10 * 60_000;
+        let run = crawl(&within, &sink, &[], &Job { daily_marks: marks.clone(), ..job(Some(mid_hour), config()) }, later, 600_000, &known_namespaces()).await;
+        assert_eq!((within.calls.lock().unwrap().len(), run.daily_marks), (1, None));
+
+        // …the next hour's first run does, and publishes only the days it hasn't yet.
+        let (next, sink) = (aws(), FakeSink::default());
+        let crossing = Job { daily_marks: HashMap::from([(daily_key(&bucket), day_start)]), ..job(Some(end / HOUR_MS * HOUR_MS + HOUR_MS - 300_000), config()) };
+        let at = NOW - end + end / HOUR_MS * HOUR_MS + HOUR_MS + 300_000;
+        let run = crawl(&next, &sink, &[], &crossing, at, 600_000, &known_namespaces()).await;
+        let sizes: Vec<_> = published(&sink).into_iter().filter(|p| p.0 == "aws.s3.bucket_size_bytes").collect();
+        assert_eq!(sizes.len(), 1, "the day already published isn't again");
+        assert!(run.daily_marks.unwrap()[&daily_key(&bucket)] > day_start);
+
+        // The daily metrics aren't read with the minute's window.
+        let (regular, sink) = (FakeAws { metrics: vec![bucket.clone()], ..Default::default() }, FakeSink::default());
+        crawl(&regular, &sink, &[], &job(Some(mid_hour), config()), later, 600_000, &known_namespaces()).await;
+        assert!(regular.calls.lock().unwrap().is_empty());
     }
 }

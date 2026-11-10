@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/oc-query", "crates/oc-store", "crates/oc-api", "crates/oc-intake", "crates/oc-tracegen", "crates/oc-flags"]
+members = ["crates/oc-connectors", "crates/oc-query", "crates/oc-store", "crates/oc-api", "crates/oc-intake", "crates/oc-tracegen", "crates/oc-flags"]
 
 [workspace.package]
 edition = "2021"
@@ -28,6 +28,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 utoipa = { version = "6", features = ["axum_extras"] }
 
+oc-connectors = { path = "crates/oc-connectors" }
 oc-flags = { path = "crates/oc-flags" }
 oc-query = { path = "crates/oc-query" }
 oc-store = { path = "crates/oc-store" }

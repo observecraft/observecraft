@@ -1,0 +1,34 @@
+[
+  {
+    "vuid": "VALENCE:_::_:ALERT_TYPE:_::_::_:AzureActiveDirectory.PrivilegedRoleAssigned",
+    "name": "Privileged Administrator Role Assigned",
+    "severity": "High",
+    "defaultSeverity": "High",
+    "platform": "Microsoft 365",
+    "sourceKind": "valenceDefined",
+    "disabled": false,
+    "mitreAttackTactics": [
+      "TA0003",
+      "TA0004"
+    ],
+    "mitreAttackTechniques": [
+      "T1098.003",
+      "T1078.004"
+    ]
+  },
+  {
+    "vuid": "VALENCE:_::_:ALERT_TYPE:_::_::_:Github.PublicRepositoryCreated",
+    "name": "Repository Made Public",
+    "severity": "Medium",
+    "defaultSeverity": "Medium",
+    "platform": "GitHub",
+    "sourceKind": "valenceDefined",
+    "disabled": false,
+    "mitreAttackTactics": [
+      "TA0010"
+    ],
+    "mitreAttackTechniques": [
+      "T1567"
+    ]
+  }
+]

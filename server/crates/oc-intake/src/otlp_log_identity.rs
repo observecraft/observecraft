@@ -193,6 +193,63 @@ fn rewrite_budgeted(mut input: &[u8], level: u8, at: DateTime<Utc>, budget: &mut
     Ok(output)
 }
 
+/// Adds `defaults` (`ddsource`, `service`: a push package's `/v1/logs?ddsource=…`) as attributes of every log record
+/// that has none of that name, protobuf or JSON. Other bytes are kept as they are.
+pub fn with_defaults(body: &[u8], json: bool, defaults: &[(&str, String)]) -> Result<Vec<u8>, &'static str> {
+    if defaults.is_empty() {
+        return Ok(body.to_vec());
+    }
+    if json {
+        let mut value: Value = serde_json::from_slice(body).map_err(|_| INVALID)?;
+        for resource in array(&mut value, "resourceLogs")? {
+            for scope in array(resource, "scopeLogs")? {
+                for record in array(scope, "logRecords")? {
+                    let attrs = array(record, "attributes")?;
+                    for (key, text) in defaults {
+                        if !attrs.iter().any(|a| a.get("key").and_then(Value::as_str) == Some(key)) {
+                            attrs.push(serde_json::json!({"key": key, "value": {"stringValue": text}}));
+                        }
+                    }
+                }
+            }
+        }
+        return serde_json::to_vec(&value).map_err(|_| INVALID);
+    }
+    fn walk(mut input: &[u8], level: u8, defaults: &[(&str, String)]) -> Result<Vec<u8>, Error> {
+        let mut output = Vec::with_capacity(input.len());
+        let mut present: Vec<String> = Vec::new();
+        while !input.is_empty() {
+            let raw = input;
+            let (tag, wire) = encoding::decode_key(&mut input)?;
+            let data = input;
+            encoding::skip_field(wire, tag, &mut input, DecodeContext::default())?;
+            let raw = &raw[..raw.len() - input.len()];
+            let child = (level == 0 && tag == 1) || ((level == 1 || level == 2) && tag == 2);
+            if child || (level == 3 && tag == 6) {
+                if wire != WireType::LengthDelimited {
+                    return Err(Error::Invalid);
+                }
+                let mut payload = data;
+                let len = encoding::decode_varint(&mut payload)? as usize;
+                let payload = payload.get(..len).ok_or(Error::Invalid)?;
+                if child {
+                    put_message(tag, &walk(payload, level + 1, defaults)?, &mut output);
+                    continue;
+                }
+                present.push(AttributeKey::decode(payload)?.key);
+            }
+            output.extend_from_slice(raw);
+        }
+        if level == 3 {
+            for (key, text) in defaults.iter().filter(|(k, _)| !present.iter().any(|p| p == k)) {
+                put_message(6, &crate::otlp::kv(*key, text.clone()).encode_to_vec(), &mut output);
+            }
+        }
+        Ok(output)
+    }
+    walk(body, 0, defaults).map_err(|_| INVALID)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -231,6 +288,21 @@ mod tests {
         // The serialized request is Kafka's replay unit, never stamped again by a consumer.
         assert_eq!(records(&prepared), events);
         assert_ne!(id(&records(&prepare(&body, false).unwrap())[0]), id(&events[0]));
+    }
+
+    #[test]
+    fn push_defaults_are_added_to_records_without_them() {
+        let own = LogRecord { attributes: vec![kv("ddsource", "own")], ..Default::default() };
+        let body = request(vec![LogRecord::default(), own]);
+        let defaults = [("ddsource", "modal".to_string()), ("service", "modal".to_string())];
+        let events = records(&with_defaults(&body, false, &defaults).unwrap());
+        let attr = |r: &LogRecord, k: &str| r.attributes.iter().find(|a| a.key == k).map(|a| text(a).to_string());
+        assert_eq!((attr(&events[0], "ddsource"), attr(&events[0], "service")), (Some("modal".into()), Some("modal".into())));
+        assert_eq!((attr(&events[1], "ddsource"), events[1].attributes.iter().filter(|a| a.key == "ddsource").count()), (Some("own".into()), 1), "a record's own wins");
+        let json = br#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[{"body":{"stringValue":"x"}}]}]}]}"#;
+        let v: Value = serde_json::from_slice(&with_defaults(json, true, &defaults).unwrap()).unwrap();
+        assert_eq!(v["resourceLogs"][0]["scopeLogs"][0]["logRecords"][0]["attributes"][0], serde_json::json!({"key": "ddsource", "value": {"stringValue": "modal"}}));
+        assert_eq!(with_defaults(&body, false, &[]).unwrap(), body);
     }
 
     #[test]

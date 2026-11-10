@@ -1,0 +1,9 @@
+{
+  "status": "OK",
+  "next": null,
+  "data": {
+    "Event1": { "Time": "2026-11-10 06:48:02", "Username": "jane.doe@example.com", "IP_Address": "203.0.113.12", "Action": "Remove from group", "Data": "'Storefront admins' 'alex.kim@example.com'" },
+    "Event2": { "Time": "2026-11-10 05:31:47", "Username": "sam.lee@example.com", "IP_Address": "198.51.100.23", "Action": "Failed Login Attempt", "Data": "" },
+    "Event3": { "Time": "2026-11-10 04:16:17", "Username": "jane.doe@example.com", "IP_Address": "203.0.113.12", "Action": "Edit policy", "Data": "Require multifactor authentication" }
+  }
+}

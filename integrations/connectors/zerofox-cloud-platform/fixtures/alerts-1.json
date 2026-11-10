@@ -1,0 +1,58 @@
+{
+  "count": 3,
+  "num_pages": 2,
+  "page_size": 2,
+  "next": "https://api.zerofox.com/1.0/alerts/?limit=2&offset=2&sort_direction=asc&sort_field=last_modified",
+  "previous": null,
+  "alerts": [
+    {
+      "id": 2210000101,
+      "alert_type": "search query",
+      "rule_id": 34521,
+      "rule_group_id": 132,
+      "rule_name": "Advanced Domain Analysis - Typosquat Match",
+      "severity": 4,
+      "status": "Open",
+      "network": "domains",
+      "offending_content_url": "hxxp://examp1e-shop.com",
+      "content_created_at": "2026-11-09T22:10:00+00:00",
+      "timestamp": "2026-11-10T08:00:12+00:00",
+      "last_modified": "2026-11-10T08:00:12Z",
+      "escalated": false,
+      "reviewed": false,
+      "assignee": "",
+      "notes": "",
+      "tags": [],
+      "perpetrator": { "id": 3100000001, "name": "examp1e-shop.com", "display_name": "examp1e-shop.com", "type": "page", "url": "hxxp://examp1e-shop.com", "network": "domains", "timestamp": "2026-11-09T22:10:00+00:00" },
+      "asset": { "id": 10419120, "name": "Web Domains", "entity_group": { "id": 4321, "name": "Default" } },
+      "entity": { "id": 10419120, "name": "Web Domains", "entity_group": { "id": 4321, "name": "Default" } },
+      "logs": [ { "id": 5500000001, "actor": "", "action": "open", "subject": "", "detail": "", "timestamp": "2026-11-10T08:00:12+00:00" } ]
+    },
+    {
+      "id": 2210000102,
+      "alert_type": "account information",
+      "rule_id": 40112,
+      "rule_group_id": 140,
+      "rule_name": "Executive Impersonation",
+      "severity": 3,
+      "status": "Open",
+      "network": "linkedin",
+      "offending_content_url": "hxxps://social.example.net/in/jane-doe-ceo",
+      "content_created_at": "2026-11-10T06:30:00+00:00",
+      "timestamp": "2026-11-10T09:12:40+00:00",
+      "last_modified": "2026-11-10T09:30:05Z",
+      "escalated": true,
+      "reviewed": true,
+      "assignee": "analyst@example.com",
+      "notes": "Reported to the network",
+      "tags": ["takedown"],
+      "perpetrator": { "id": 3100000002, "name": "Jane Doe", "display_name": "Jane Doe (CEO)", "type": "account", "url": "hxxps://social.example.net/in/jane-doe-ceo", "network": "linkedin", "timestamp": "2026-11-10T06:30:00+00:00" },
+      "asset": { "id": 10419200, "name": "Jane Doe", "entity_group": { "id": 4322, "name": "Executives" } },
+      "entity": { "id": 10419200, "name": "Jane Doe", "entity_group": { "id": 4322, "name": "Executives" } },
+      "logs": [
+        { "id": 5500000010, "actor": "", "action": "open", "subject": "", "detail": "", "timestamp": "2026-11-10T09:12:40+00:00" },
+        { "id": 5500000011, "actor": "ZeroFox Platform Specialist", "action": "escalate", "subject": "", "detail": "", "timestamp": "2026-11-10T09:30:05+00:00" }
+      ]
+    }
+  ]
+}

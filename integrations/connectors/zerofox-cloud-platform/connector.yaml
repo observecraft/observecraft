@@ -1,0 +1,102 @@
+# yaml-language-server: $schema=../connector.schema.json
+# ZeroFox Cloud Platform (https://api.zerofox.com/1.0/docs/): the platform's alerts, as the logs Datadog's integration
+# sends (source:zerofox-cloud-platform, the alert at the top, dated by last_modified). integrations-core's pipeline
+# (risk rating and status from severity, the alert link, actors) and the tile's dashboard read them as they are, so
+# this package ships neither.
+#
+# Datadog signs in with a username and password; how it turns them into a token isn't documented publicly. This
+# package uses the API token every documented ZeroFox client sends (`Authorization: Token <key>`).
+schema_version: 1
+id: zerofox-cloud-platform
+name: ZeroFox Cloud Platform
+publisher: ObserveCraft
+vendor: ZeroFox
+description: >-
+  The alerts of a ZeroFox Cloud Platform account (brand, executive, domain and dark web threats) as logs, once when
+  raised and again each time they change (status, escalation, assignee, tags), read every 5 minutes.
+tiles: [zerofox-cloud-platform]
+categories: [Log Collection, Security, SIEM]
+source: zerofox-cloud-platform
+docs_url: https://api.zerofox.com/1.0/docs/
+setup: |
+  1. Sign in to the ZeroFox platform as a user of the enterprise account who can see its alerts.
+  2. Open **Settings → Data Connectors → API Data Feeds** and create (or copy) your **API token**.
+instance: api.zerofox.com
+
+config:
+  - key: escalated_only
+    label: Escalated alerts only
+    type: boolean
+    default: false
+    help: Collect only the alerts ZeroFox's analysts escalated.
+  - key: api_token
+    label: API token
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: api_key
+  name: Authorization
+  value: "Token {{ secrets.api_token }}"
+
+headers:
+  Accept: application/json
+
+errors:
+  - status: [401, 403]
+    kind: auth
+    message: ZeroFox refused the API token
+
+streams:
+  - id: alerts
+    name: Alerts
+    description: >-
+      Every alert raised or changed (one log per change): id, alert_type, rule_name, severity (1–5), status,
+      network, offending_content_url, perpetrator, asset and entity, assignee, tags, escalated, logs (the alert's
+      history).
+    interval: 5m
+    request:
+      url: https://api.zerofox.com/1.0/alerts/
+      query:
+        last_modified_min_date: "{{ window.start | rfc3339_s }}"
+        sort_field: last_modified
+        sort_direction: asc
+        limit: 100
+        escalated: "{{ config.escalated_only ? 'true' : null }}"
+    records: "{{ response.alerts }}"
+    pagination: { kind: next_url, next: "{{ response.next }}" }
+    # An alert changed again is a new log, as Datadog sends it.
+    record_id: "{{ (record.id | str) + ':' + record.last_modified }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.last_modified }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        status: "{{ tables.severity[record.severity | str] ?? 'info' }}"
+        message: "{{ record | json }}"
+        date: "{{ record.last_modified }}"
+        attributes: "{{ record }}"
+
+# Statuses as the tile's pipeline sets them from severity.
+tables:
+  severity: { "5": alert, "4": critical, "3": warning, "2": notice, "1": info }
+
+test:
+  request: { url: https://api.zerofox.com/1.0/alerts/, query: { limit: 1 } }
+  success: "{{ response.alerts != null }}"
+  message: "Connected: {{ response.count ?? 0 }} alerts in the account"
+
+mock:
+  secrets: { api_token: zf-test-token-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.zerofox.com/1.0/alerts/", query: { limit: "1" }, body: { count: 214, next: null, alerts: [] } }
+    - { url: "https://api.zerofox.com/1.0/alerts/", query: { offset: "2" }, file: fixtures/alerts-2.json }
+    - { url: "https://api.zerofox.com/1.0/alerts/", file: fixtures/alerts-1.json }
+  expect:
+    alerts: { records: 3, logs: 3, rerun: 0, golden: fixtures/alerts.expected.json }
+    test: { ok: true, message: "214 alerts" }

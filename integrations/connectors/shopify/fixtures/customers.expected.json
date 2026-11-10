@@ -1,0 +1,112 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c1b0-8308-77d3-8337-e9295728254f"
+      },
+      "amountSpent": {
+        "amount": "312.40",
+        "currencyCode": "USD"
+      },
+      "canDelete": false,
+      "createdAt": "2025-10-02T08:00:00Z",
+      "dataSaleOptOut": false,
+      "date": "2026-11-09T19:02:13Z",
+      "ddsource": "shopify",
+      "defaultAddress": {
+        "city": "Berlin",
+        "country": "Germany",
+        "countryCodeV2": "DE"
+      },
+      "displayName": "Sam Example",
+      "emailMarketingConsent": {
+        "marketingOptInLevel": "SINGLE_OPT_IN",
+        "marketingState": "NOT_SUBSCRIBED"
+      },
+      "host": "example-shop.myshopify.com",
+      "id": "gid://shopify/Customer/7000000002",
+      "lastOrder": {
+        "totalPriceSet": {
+          "shopMoney": {
+            "amount": "43.6",
+            "currencyCode": "USD"
+          }
+        }
+      },
+      "legacyResourceId": "7000000002",
+      "lifetimeDuration": "about 1 year",
+      "message": "Customer Sam Example: 4 orders, 312.40 USD spent",
+      "numberOfOrders": "4",
+      "productSubscriberStatus": "NEVER_SUBSCRIBED",
+      "service": "customer",
+      "state": "ENABLED",
+      "status": "info",
+      "taxExempt": false,
+      "updatedAt": "2026-11-09T19:02:13Z",
+      "validEmailAddress": true,
+      "verifiedEmail": true
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4fa-c050-75da-b63f-f4a411054a98"
+      },
+      "amountSpent": {
+        "amount": "127.44",
+        "currencyCode": "USD"
+      },
+      "canDelete": false,
+      "createdAt": "2026-08-10T12:00:00Z",
+      "dataSaleOptOut": false,
+      "date": "2026-11-10T10:22:10Z",
+      "ddsource": "shopify",
+      "defaultAddress": {
+        "city": "Portland",
+        "country": "United States",
+        "countryCodeV2": "US"
+      },
+      "displayName": "Jane Example",
+      "emailMarketingConsent": {
+        "consentUpdatedAt": "2026-08-10T12:00:00Z",
+        "marketingOptInLevel": "SINGLE_OPT_IN",
+        "marketingState": "SUBSCRIBED"
+      },
+      "host": "example-shop.myshopify.com",
+      "id": "gid://shopify/Customer/7000000001",
+      "lastOrder": {
+        "totalPriceSet": {
+          "shopMoney": {
+            "amount": "127.44",
+            "currencyCode": "USD"
+          }
+        }
+      },
+      "legacyResourceId": "7000000001",
+      "lifetimeDuration": "3 months",
+      "message": "Customer Jane Example: 1 orders, 127.44 USD spent",
+      "numberOfOrders": "1",
+      "productSubscriberStatus": "NEVER_SUBSCRIBED",
+      "service": "customer",
+      "smsMarketingConsent": {
+        "consentCollectedFrom": "SHOPIFY",
+        "marketingOptInLevel": "SINGLE_OPT_IN",
+        "marketingState": "NOT_SUBSCRIBED"
+      },
+      "state": "ENABLED",
+      "status": "info",
+      "taxExempt": false,
+      "updatedAt": "2026-11-10T10:22:10Z",
+      "validEmailAddress": true,
+      "verifiedEmail": true
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

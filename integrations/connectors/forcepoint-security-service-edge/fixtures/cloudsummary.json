@@ -1,0 +1,34 @@
+{
+  "status": "Success",
+  "nextpagetoken": "cloudsummary-t1",
+  "response": {
+    "dataformat": "json",
+    "dataencoding": "utf-8",
+    "data": [
+      {
+        "time": "10 Nov 2026 06:18:35",
+        "syslogheader": "<110>1 2026-11-10T06:18:35.000000Z api.bitglass.com NILVALUE NILVALUE cloudsummary",
+        "application": "Google Drive",
+        "enterprisename": "Example Shop",
+        "organization": "example.com",
+        "owner": "jane.doe@example.com",
+        "filename": "q4-pricing.xlsx",
+        "fileid": "1AbCdEfGh0000000000000000001",
+        "filelink": "https://drive.example.com/file/1AbCdEfGh0000000000000000001",
+        "folder": "/My Drive/Pricing",
+        "originalfolder": "/My Drive/Pricing",
+        "patterns": "Credit Card Numbers",
+        "originalpatterns": "Credit Card Numbers",
+        "dlpmatchlocations": "Sheet1!B2:B40",
+        "classifylabels": "Confidential",
+        "sharedwith": "partner@example.net",
+        "status": "Internal, Shared, DLP",
+        "size": "48211",
+        "createdtime": "02 Nov 2026 10:00:00",
+        "modifiedtime": "10 Nov 2026 06:10:00",
+        "policyid": "200101",
+        "attachments": ""
+      }
+    ]
+  }
+}

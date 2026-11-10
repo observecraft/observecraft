@@ -1,0 +1,93 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c49e-85f9-7a14-bfc5-8074237937c5"
+      },
+      "accessTargetType": "Internet",
+      "agentEventCount": 1,
+      "agentId": "9dbcb1f8-0000-4000-8000-000000000001",
+      "arrivalTime": "2026-11-10T08:41:25.753Z",
+      "computerName": "STORE-LT-0042",
+      "date": "2026-11-10T08:41:25.753Z",
+      "ddsource": "idira-endpoint-privilege-manager",
+      "displayName": "setup.exe",
+      "eventCount": 1,
+      "eventId": "7c7c7c7c-0000-4000-8000-00000000e001",
+      "eventType": "ElevationRequest",
+      "fileName": "setup.exe",
+      "filePath": "C:\\Users\\jdoe\\Downloads\\setup.exe",
+      "firstEventDate": "2026-11-10T08:41:25.753Z",
+      "host": "observecraft@example.com",
+      "justificationType": 0,
+      "lastEventDate": "2026-11-10T08:41:25.753Z",
+      "logonAttemptTypeId": 0,
+      "message": "ElevationRequest: setup.exe by EXAMPLE\\jdoe on STORE-LT-0042",
+      "modificationTime": "2026-11-10T08:41:25.753Z",
+      "operatingSystemType": "Windows",
+      "owner": "BUILTIN\\Administrators",
+      "policyName": "Elevate signed installers",
+      "service": "idira-endpoint-privilege-manager",
+      "skippedCount": 0,
+      "status": "info",
+      "threatProtectionActionId": 0,
+      "userIsAdmin": false,
+      "userName": "EXAMPLE\\jdoe",
+      "vendor": {
+        "endpoint": "raw-events"
+      },
+      "winEventRecordId": 0
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f4-38d4-7f2d-b348-c17473e85c80"
+      },
+      "accessTargetType": "Internet",
+      "agentEventCount": 1,
+      "agentId": "9dbcb1f8-0000-4000-8000-000000000001",
+      "arrivalTime": "2026-11-10T10:15:02.100Z",
+      "computerName": "STORE-LT-0017",
+      "date": "2026-11-10T10:15:02.100Z",
+      "ddsource": "idira-endpoint-privilege-manager",
+      "displayName": "powershell.exe",
+      "eventCount": 1,
+      "eventId": "7c7c7c7c-0000-4000-8000-00000000e002",
+      "eventType": "Launch",
+      "fileName": "powershell.exe",
+      "filePath": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "firstEventDate": "2026-11-10T10:15:02.100Z",
+      "host": "observecraft@example.com",
+      "justificationType": 0,
+      "lastEventDate": "2026-11-10T10:15:02.100Z",
+      "logonAttemptTypeId": 0,
+      "message": "Launch: powershell.exe by EXAMPLE\\sam on STORE-LT-0017",
+      "modificationTime": "2026-11-10T10:15:02.100Z",
+      "operatingSystemType": "Windows",
+      "owner": "BUILTIN\\Administrators",
+      "policyName": "Restrict scripting tools",
+      "service": "idira-endpoint-privilege-manager",
+      "skippedCount": 0,
+      "status": "info",
+      "threatProtectionActionId": 0,
+      "userIsAdmin": false,
+      "userName": "EXAMPLE\\sam",
+      "vendor": {
+        "endpoint": "raw-events"
+      },
+      "winEventRecordId": 0
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "8f1d0000-0000-4000-8000-000000000001": {
+        "cursor": 1794311940000
+      },
+      "8f1d0000-0000-4000-8000-000000000002": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}

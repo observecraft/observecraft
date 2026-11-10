@@ -1,0 +1,213 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "GUID": "b27d0000-0000-4000-8000-000000000001",
+      "_oc_ingest": {
+        "id": "01a1c530-5ee0-7a42-98f4-9167dff3360a"
+      },
+      "campaignId": "4a6e0000-0000-4000-8000-0000000000a1",
+      "classification": "phish",
+      "clickIP": "203.0.113.24",
+      "clickTime": "2026-11-10T11:20:44.000Z",
+      "date": "2026-11-10T11:20:44.000Z",
+      "ddsource": "proofpoint-tap",
+      "eventTime": "2026-11-10T11:20:44.000Z",
+      "host": "0a1b2c3d-0000-4000-8000-00000000c0de",
+      "id": "1f2e0000-0000-4000-8000-00000000c001",
+      "message": "Click blocked: jane.doe@example.com → http://login-update.example.net/account",
+      "messageID": "<20261110.1001@mail.example.net>",
+      "recipient": "jane.doe@example.com",
+      "sender": "it-support@example.net",
+      "senderIP": "198.51.100.66",
+      "service": "click-blocked",
+      "status": "critical",
+      "threatID": "5d1f00000000000000000000000000000000000000000000000000000000c001",
+      "threatStatus": "active",
+      "threatTime": "2026-11-10T11:18:02.000Z",
+      "threatURL": "https://threatinsight.proofpoint.com/#/0a1b2c3d-0000-4000-8000-00000000c0de/threat/u/5d1f00000000000000000000000000000000000000000000000000000000c001",
+      "url": "http://login-update.example.net/account",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+    },
+    {
+      "GUID": "b27d0000-0000-4000-8000-000000000002",
+      "_oc_ingest": {
+        "id": "01a1c539-ec30-735f-8462-26dd5b4a888f"
+      },
+      "classification": "spam",
+      "clickIP": "203.0.113.57",
+      "clickTime": "2026-11-10T11:31:10.000Z",
+      "date": "2026-11-10T11:31:10.000Z",
+      "ddsource": "proofpoint-tap",
+      "eventTime": "2026-11-10T11:31:10.000Z",
+      "host": "0a1b2c3d-0000-4000-8000-00000000c0de",
+      "id": "1f2e0000-0000-4000-8000-00000000c002",
+      "message": "Click permitted: sam.lee@example.com → http://deals.example.org/black-friday",
+      "messageID": "<20261110.1002@mail.example.org>",
+      "recipient": "sam.lee@example.com",
+      "sender": "offers@example.org",
+      "senderIP": "198.51.100.12",
+      "service": "click-permitted",
+      "status": "info",
+      "threatID": "5d1f00000000000000000000000000000000000000000000000000000000c002",
+      "threatStatus": "cleared",
+      "threatTime": "2026-11-10T11:40:00.000Z",
+      "threatURL": "https://threatinsight.proofpoint.com/#/0a1b2c3d-0000-4000-8000-00000000c0de/threat/u/5d1f00000000000000000000000000000000000000000000000000000000c002",
+      "url": "http://deals.example.org/black-friday",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    },
+    {
+      "GUID": "c26d0000-0000-4000-8000-000000000001",
+      "QID": "r2FNwRHF004109",
+      "_oc_ingest": {
+        "id": "01a1c522-8bd0-7e71-abe7-1efa4ddfa279"
+      },
+      "ccAddresses": [],
+      "clusterId": "example_hosted",
+      "completelyRewritten": "true",
+      "date": "2026-11-10T11:05:38.000Z",
+      "ddsource": "proofpoint-tap",
+      "eventTime": "2026-11-10T11:05:38.000Z",
+      "fromAddress": [
+        "billing@example.net"
+      ],
+      "headerFrom": "\"Billing\" <billing@example.net>",
+      "headerTo": "\"Jane Doe\" <jane.doe@example.com>",
+      "host": "0a1b2c3d-0000-4000-8000-00000000c0de",
+      "id": "1f2e0000-0000-4000-8000-00000000m001",
+      "impostorScore": 0,
+      "malwareScore": 100,
+      "message": "Message blocked: Invoice for your last order (billing@example.net → jane.doe@example.com)",
+      "messageID": "<20261110.2001@mail.example.net>",
+      "messageParts": [
+        {
+          "contentType": "text/plain",
+          "disposition": "inline",
+          "filename": "text.txt",
+          "md5": "008c5926ca861023c1d2a36653fd88e2",
+          "oContentType": "text/plain",
+          "sandboxStatus": "unsupported",
+          "sha256": "85738f8f9a7f1b04b5329c590ebcb9e425925c6d0984089c43a022de4f19c281"
+        },
+        {
+          "contentType": "application/pdf",
+          "disposition": "attached",
+          "filename": "invoice-2026-11.pdf",
+          "md5": "5873c7d37608e0d49bcaa6f32b6c731f",
+          "oContentType": "application/pdf",
+          "sandboxStatus": "threat",
+          "sha256": "2fab740f143fc1aa4c1cd0146d334c5593b1428f6d062b2c406e5efe8abe95ca"
+        }
+      ],
+      "messageSize": 48211,
+      "messageTime": "2026-11-10T11:05:38.000Z",
+      "modulesRun": [
+        "sandbox",
+        "urldefense",
+        "spam",
+        "av"
+      ],
+      "phishScore": 46,
+      "policyRoutes": [
+        "default_inbound"
+      ],
+      "quarantineFolder": "Attachment Defense",
+      "quarantineRule": "module.sandbox.threat",
+      "recipient": [
+        "jane.doe@example.com"
+      ],
+      "replyToAddress": [],
+      "sender": "billing@example.net",
+      "senderIP": "198.51.100.66",
+      "service": "message-blocked",
+      "spamScore": 4,
+      "status": "warning",
+      "subject": "Invoice for your last order",
+      "threatsInfoMap": [
+        {
+          "campaignId": "4a6e0000-0000-4000-8000-0000000000a1",
+          "classification": "malware",
+          "threat": "2fab740f143fc1aa4c1cd0146d334c5593b1428f6d062b2c406e5efe8abe95ca",
+          "threatID": "2fab740f143fc1aa4c1cd0146d334c5593b1428f6d062b2c406e5efe8abe95ca",
+          "threatStatus": "active",
+          "threatTime": "2026-11-10T11:05:40.000Z",
+          "threatType": "attachment",
+          "threatUrl": "https://threatinsight.proofpoint.com/#/0a1b2c3d-0000-4000-8000-00000000c0de/threat/email/2fab740f143fc1aa4c1cd0146d334c5593b1428f6d062b2c406e5efe8abe95ca"
+        }
+      ],
+      "toAddresses": [
+        "jane.doe@example.com"
+      ]
+    },
+    {
+      "GUID": "c26d0000-0000-4000-8000-000000000002",
+      "QID": "r2FNwRHF004188",
+      "_oc_ingest": {
+        "id": "01a1c528-67d0-7934-9874-b860cf99419c"
+      },
+      "ccAddresses": [],
+      "clusterId": "example_hosted",
+      "completelyRewritten": "true",
+      "date": "2026-11-10T11:12:02.000Z",
+      "ddsource": "proofpoint-tap",
+      "eventTime": "2026-11-10T11:12:02.000Z",
+      "fromAddress": [
+        "news@example.org"
+      ],
+      "headerFrom": "\"Catalog News\" <news@example.org>",
+      "headerTo": "\"Sam Lee\" <sam.lee@example.com>",
+      "host": "0a1b2c3d-0000-4000-8000-00000000c0de",
+      "id": "1f2e0000-0000-4000-8000-00000000m002",
+      "impostorScore": 0,
+      "malwareScore": 0,
+      "message": "Message delivered: Your weekly catalog update (news@example.org → sam.lee@example.com)",
+      "messageID": "<20261110.2002@mail.example.org>",
+      "messageParts": [],
+      "messageSize": 18342,
+      "messageTime": "2026-11-10T11:12:02.000Z",
+      "modulesRun": [
+        "urldefense",
+        "spam",
+        "av"
+      ],
+      "phishScore": 0,
+      "policyRoutes": [
+        "default_inbound"
+      ],
+      "recipient": [
+        "sam.lee@example.com"
+      ],
+      "replyToAddress": [],
+      "sender": "news@example.org",
+      "senderIP": "198.51.100.12",
+      "service": "message-delivered",
+      "spamScore": 62,
+      "status": "info",
+      "subject": "Your weekly catalog update",
+      "threatsInfoMap": [
+        {
+          "campaignId": null,
+          "classification": "spam",
+          "threat": "http://deals.example.org/black-friday",
+          "threatID": "9a0b00000000000000000000000000000000000000000000000000000000m002",
+          "threatStatus": "cleared",
+          "threatTime": "2026-11-10T11:40:00.000Z",
+          "threatType": "url",
+          "threatUrl": "https://threatinsight.proofpoint.com/#/0a1b2c3d-0000-4000-8000-00000000c0de/threat/email/9a0b00000000000000000000000000000000000000000000000000000000m002"
+        }
+      ],
+      "toAddresses": [
+        "sam.lee@example.com"
+      ]
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}

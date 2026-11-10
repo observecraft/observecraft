@@ -1,0 +1,156 @@
+{
+ "resultSetMetaData": {
+  "numRows": 2,
+  "format": "jsonv2",
+  "partitionInfo": [
+   {
+    "rowCount": 2
+   }
+  ],
+  "rowType": [
+   {
+    "name": "QUERY_ID",
+    "type": "text"
+   },
+   {
+    "name": "QUERY_TEXT",
+    "type": "text"
+   },
+   {
+    "name": "DATABASE_NAME",
+    "type": "text"
+   },
+   {
+    "name": "SCHEMA_NAME",
+    "type": "text"
+   },
+   {
+    "name": "QUERY_TYPE",
+    "type": "text"
+   },
+   {
+    "name": "SESSION_ID",
+    "type": "text"
+   },
+   {
+    "name": "USER_NAME",
+    "type": "text"
+   },
+   {
+    "name": "ROLE_NAME",
+    "type": "text"
+   },
+   {
+    "name": "WAREHOUSE_NAME",
+    "type": "text"
+   },
+   {
+    "name": "WAREHOUSE_SIZE",
+    "type": "text"
+   },
+   {
+    "name": "EXECUTION_STATUS",
+    "type": "text"
+   },
+   {
+    "name": "ERROR_CODE",
+    "type": "text"
+   },
+   {
+    "name": "ERROR_MESSAGE",
+    "type": "text"
+   },
+   {
+    "name": "START_TIME",
+    "type": "text"
+   },
+   {
+    "name": "END_TIME",
+    "type": "text"
+   },
+   {
+    "name": "TOTAL_ELAPSED_TIME",
+    "type": "text"
+   },
+   {
+    "name": "EXECUTION_TIME",
+    "type": "text"
+   },
+   {
+    "name": "COMPILATION_TIME",
+    "type": "text"
+   },
+   {
+    "name": "QUEUED_OVERLOAD_TIME",
+    "type": "text"
+   },
+   {
+    "name": "BYTES_SCANNED",
+    "type": "text"
+   },
+   {
+    "name": "ROWS_PRODUCED",
+    "type": "text"
+   },
+   {
+    "name": "CREDITS_USED_CLOUD_SERVICES",
+    "type": "text"
+   }
+  ]
+ },
+ "data": [
+  [
+   "01b8a2c4-0000-1a2b-0000-00000000abcd",
+   "select order_id, total from orders where created_at > dateadd(day, -1, current_date())",
+   "SHOP",
+   "PUBLIC",
+   "SELECT",
+   "25044301234567",
+   "ETL_SVC",
+   "TRANSFORMER",
+   "ANALYTICS_WH",
+   "X-Small",
+   "SUCCESS",
+   null,
+   null,
+   "2026-11-10T08:59:52.802+00:00",
+   "2026-11-10T08:59:58.123+00:00",
+   "5321",
+   "5012",
+   "210",
+   "0",
+   "734003200",
+   "1842",
+   "0.000123"
+  ],
+  [
+   "01b8a2c4-0000-1a2b-0000-00000000abce",
+   "insert into inventory_snapshots select * from inventory_stage",
+   "SHOP",
+   "PUBLIC",
+   "INSERT",
+   "25044301234568",
+   "JORDAN_PATEL",
+   "ANALYST",
+   "ANALYTICS_WH",
+   "X-Small",
+   "FAIL",
+   "002003",
+   "SQL compilation error: Object 'INVENTORY_STAGE' does not exist or not authorized.",
+   "2026-11-10T09:30:00.000+00:00",
+   "2026-11-10T09:30:00.412+00:00",
+   "412",
+   "0",
+   "402",
+   "0",
+   "0",
+   "0",
+   "0.000021"
+  ]
+ ],
+ "code": "090001",
+ "statementStatusUrl": "/api/v2/statements/01b8a2c4-0000-1a2b-0000-00000000abcd",
+ "statementHandle": "01b8a2c4-0000-1a2b-0000-00000000abcd",
+ "message": "Statement executed successfully.",
+ "createdOn": 1794312000000
+}

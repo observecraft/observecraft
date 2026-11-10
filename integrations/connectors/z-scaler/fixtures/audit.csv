@@ -1,0 +1,4 @@
+"No.","Time","Action","Category","Sub-Category","Resource","Admin ID","Client IP","Result","Interface","Error Code"
+"3","Mon Nov 10 09:41:07 2026","Update","URL Filtering Policy","URL_FILTERING_RULE","Block social media","alex.morgan@example.com","198.51.100.80","Success","UI",""
+"2","Mon Nov 10 09:15:00 2026","Sign In","Login","ADMIN_LOGIN","alex.morgan@example.com","alex.morgan@example.com","198.51.100.80","Success","UI",""
+"1","Mon Nov  9 22:03:55 2026","Sign In","Login","ADMIN_LOGIN","sam.lee@example.com","sam.lee@example.com","203.0.113.77","Failure","UI","AUTHENTICATION_FAILED"

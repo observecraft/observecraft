@@ -1,0 +1,8 @@
+{
+  "links": [], "totalCount": 2,
+  "results": [
+    { "id": "6730aa11bb22cc33dd44ee56", "eventTypeName": "CLUSTER_UPDATE_COMPLETED", "created": "2026-11-10T11:40:12Z", "groupId": "5f1a2b3c4d5e6f7a8b9c0d1e", "clusterName": "orders-prod", "isGlobalAdmin": false },
+    { "id": "6730aa11bb22cc33dd44ee55", "eventTypeName": "CLUSTER_UPDATE_SUBMITTED", "created": "2026-11-10T11:31:02Z", "groupId": "5f1a2b3c4d5e6f7a8b9c0d1e", "clusterName": "orders-prod",
+      "username": "jordan.patel@example.com", "remoteAddress": "198.51.100.7", "isGlobalAdmin": false }
+  ]
+}

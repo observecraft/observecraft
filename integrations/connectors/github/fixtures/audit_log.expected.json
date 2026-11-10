@@ -1,0 +1,142 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "@timestamp": 1794294000123,
+      "_document_id": "Zx1aB2cD3eF4gH5iJ6kL7m",
+      "_oc_ingest": {
+        "id": "01a1c441-a9fb-7351-810d-8b84c87a4646"
+      },
+      "action": "repo.create",
+      "actor": "jordan-patel",
+      "actor_id": 1001,
+      "actor_ip": "198.51.100.7",
+      "actor_location": {
+        "country_code": "RO"
+      },
+      "created_at": 1794294000123,
+      "date": "2026-11-10T07:00:00.123Z",
+      "ddsource": "github",
+      "evt": {
+        "category": "repo",
+        "name": "repo.create"
+      },
+      "host": "example-org",
+      "message": "repo.create by jordan-patel on example-org/catalog-service",
+      "network": {
+        "client": {
+          "geoip": {
+            "country_code": "RO"
+          },
+          "ip": "198.51.100.7"
+        }
+      },
+      "operation_type": "create",
+      "org": "example-org",
+      "org_id": 9001,
+      "repo": "example-org/catalog-service",
+      "repo_id": 70001,
+      "service": "github",
+      "status": "info",
+      "user_agent": "Mozilla/5.0 (Macintosh) Firefox/144.0",
+      "usr": {
+        "id": "1001",
+        "name": "jordan-patel"
+      },
+      "visibility": "private"
+    },
+    {
+      "@timestamp": 1794301200456,
+      "_document_id": "Ay2bC3dE4fG5hI6jK7lM8n",
+      "_oc_ingest": {
+        "id": "01a1c4af-8848-7167-bc96-b6a422a05654"
+      },
+      "action": "protected_branch.destroy",
+      "actor": "sam-lee",
+      "actor_id": 1002,
+      "actor_ip": "203.0.113.77",
+      "actor_location": {
+        "country_code": "NG"
+      },
+      "branch": "main",
+      "created_at": 1794301200456,
+      "date": "2026-11-10T09:00:00.456Z",
+      "ddsource": "github",
+      "evt": {
+        "category": "protected_branch",
+        "name": "protected_branch.destroy"
+      },
+      "host": "example-org",
+      "message": "protected_branch.destroy by sam-lee on example-org/billing",
+      "name": "main",
+      "network": {
+        "client": {
+          "geoip": {
+            "country_code": "NG"
+          },
+          "ip": "203.0.113.77"
+        }
+      },
+      "operation_type": "remove",
+      "org": "example-org",
+      "repo": "example-org/billing",
+      "service": "github",
+      "status": "warn",
+      "usr": {
+        "id": "1002",
+        "name": "sam-lee"
+      }
+    },
+    {
+      "@timestamp": 1794308400789,
+      "_document_id": "Bz3cD4eF5gH6iJ7kL8mN9o",
+      "_oc_ingest": {
+        "id": "01a1c51d-6695-739b-9e57-1f97fe630230"
+      },
+      "action": "repo.access",
+      "actor": "sam-lee",
+      "actor_id": 1002,
+      "actor_ip": "203.0.113.77",
+      "actor_location": {
+        "country_code": "NG"
+      },
+      "created_at": 1794308400789,
+      "date": "2026-11-10T11:00:00.789Z",
+      "ddsource": "github",
+      "evt": {
+        "category": "repo",
+        "name": "repo.access"
+      },
+      "host": "example-org",
+      "message": "repo.access by sam-lee on example-org/billing",
+      "network": {
+        "client": {
+          "geoip": {
+            "country_code": "NG"
+          },
+          "ip": "203.0.113.77"
+        }
+      },
+      "operation_type": "modify",
+      "org": "example-org",
+      "previous_visibility": "private",
+      "repo": "example-org/billing",
+      "service": "github",
+      "status": "warn",
+      "usr": {
+        "id": "1002",
+        "name": "sam-lee"
+      },
+      "visibility": "public"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

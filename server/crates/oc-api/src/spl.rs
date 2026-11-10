@@ -467,9 +467,10 @@ fn map_value(attr: &str, v: &str) -> String {
     v.to_string()
 }
 
+/// A value of our syntax: quoted, with its `\` and `"` escaped, when it holds spaces, parentheses or quotes.
 fn quote_value(v: &str) -> String {
-    if v.is_empty() || v.chars().any(|c| c.is_whitespace() || c == '(' || c == ')') {
-        format!("\"{}\"", v.replace('"', ""))
+    if v.is_empty() || v.chars().any(|c| c.is_whitespace() || matches!(c, '(' | ')' | '"')) {
+        format!("\"{}\"", v.replace('\\', "\\\\").replace('"', "\\\""))
     } else {
         v.to_string()
     }
@@ -1050,6 +1051,13 @@ mod tests {
         let t = tr("index=web status=500");
         assert_eq!(t.query, "index:web @http.status_code:500");
         assert!(t.complete);
+    }
+
+    #[test]
+    fn quoted_values_escape_quotes_and_backslashes() {
+        assert_eq!(quote_value("plain"), "plain");
+        assert_eq!(quote_value(r#"say "hi" C:\a"#), r#""say \"hi\" C:\\a""#);
+        assert_eq!(quote_value(r#"a"b"#), r#""a\"b""#);
     }
 
     #[test]

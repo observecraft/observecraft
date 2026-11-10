@@ -1,0 +1,134 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4a8-b080-7b59-8145-960a15e16256"
+      },
+      "created_at": "2026-11-10T14:22:32+05:30",
+      "created_by": {
+        "id": "11446401",
+        "login": "jane.doe@example.com",
+        "name": "Jane Doe",
+        "type": "user"
+      },
+      "date": "2026-11-10T14:22:32+05:30",
+      "ddsource": "box",
+      "event_id": "97f1b31f-0000-4000-8000-000000000001",
+      "event_type": "LOGIN",
+      "host": "900000001",
+      "ip_address": "203.0.113.30",
+      "message": "LOGIN by jane.doe@example.com",
+      "service": "enterprise-events",
+      "source": {
+        "id": "11446401",
+        "login": "jane.doe@example.com",
+        "name": "Jane Doe",
+        "type": "user"
+      },
+      "status": "info",
+      "type": "event"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4da-3448-7640-a133-95f113234d09"
+      },
+      "additional_details": {
+        "file_hash": "4b1c0e5d1a2f3e4d5c6b7a8998877665544332211",
+        "hash_type": "sha1",
+        "service_name": "Box Web",
+        "size": 482113,
+        "version_id": "2044500000001"
+      },
+      "created_at": "2026-11-10T09:46:37Z",
+      "created_by": {
+        "id": "11446402",
+        "login": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "type": "user"
+      },
+      "date": "2026-11-10T09:46:37Z",
+      "ddsource": "box",
+      "event_id": "97f1b31f-0000-4000-8000-000000000002",
+      "event_type": "UPLOAD",
+      "host": "900000001",
+      "ip_address": "198.51.100.23",
+      "message": "UPLOAD by sam.lee@example.com",
+      "service": "enterprise-events",
+      "source": {
+        "item_id": "8903200001",
+        "item_name": "q4-catalog-prices.xlsx",
+        "item_type": "file",
+        "owned_by": {
+          "id": "11446402",
+          "login": "sam.lee@example.com",
+          "name": "Sam Lee",
+          "type": "user"
+        },
+        "parent": {
+          "id": "201000001",
+          "name": "Catalog",
+          "type": "folder"
+        }
+      },
+      "status": "info",
+      "type": "event"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c516-8d80-77f3-b364-09f81b112e94"
+      },
+      "additional_details": {
+        "shield_alert": {
+          "alert_id": 2398,
+          "alert_summary": {
+            "description": "Sam Lee downloaded 41 files from an unusual location"
+          },
+          "created_at": "2026-11-10T10:52:32Z",
+          "link": "https://app.box.com/master/shield/alerts/2398",
+          "priority": "high",
+          "risk_score": 82,
+          "rule_category": "Suspicious Locations",
+          "rule_id": 4101,
+          "rule_name": "Large download from a new location",
+          "user": {
+            "email": "sam.lee@example.com",
+            "id": 11446402,
+            "name": "Sam Lee"
+          }
+        }
+      },
+      "created_at": "2026-11-10T10:52:32Z",
+      "created_by": {
+        "id": "2",
+        "name": "Anonymous User",
+        "type": "user"
+      },
+      "date": "2026-11-10T10:52:32Z",
+      "ddsource": "box",
+      "event_id": "97f1b31f-0000-4000-8000-000000000003",
+      "event_type": "SHIELD_ALERT",
+      "host": "900000001",
+      "ip_address": "Unknown IP",
+      "message": "SHIELD_ALERT by Anonymous User",
+      "service": "enterprise-events",
+      "source": {
+        "id": "11446402",
+        "login": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "type": "user"
+      },
+      "status": "info",
+      "type": "event"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311880000
+      }
+    }
+  }
+}

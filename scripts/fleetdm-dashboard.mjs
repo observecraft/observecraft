@@ -1,145 +1,39 @@
 // The FleetDM dashboard. Datadog has no Fleet integration, so this is ObserveCraft's own, over what the FleetDM
 // integration collects (server/crates/oc-api/src/fleetdm): the hosts' `fleetdm.host.*` gauges, the host counts
-// `fleetdm.hosts.*`, the global policies' `fleetdm.policy.*` and the activities, logs with `source:fleetdm`
-// (`@evt.name` the activity type, `@usr.*` the actor, `@fleetdm.host_display_name` the host acted on). Written in the
+// `fleetdm.hosts.*`, the global policies' `fleetdm.policy.*`, the vulnerabilities' `fleetdm.vulnerability.*` and the
+// activities, logs with `source:fleetdm` (`@evt.name` the activity type, `@usr.*` the actor,
+// `@fleetdm.host_display_name` the host acted on, `@fleetdm.category` from the FleetDM log pipeline, which saving the
+// connection installs). Written in the
 // Datadog widget format the integration dashboards use and converted like them (import-integration-dashboards.mjs).
 // node scripts/fleetdm-dashboard.mjs   (writes server/seeds/integrations/fleetdm/{dashboards.json,units.csv})
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { convertDashboard } from './import-integration-dashboards.mjs';
-
-// ---------------------------------------------------------------- queries (Datadog format)
-
-const metric = (query, aggregator = 'last', name = 'query1') => ({ data_source: 'metrics', name, query, aggregator });
-
-/** A log query: a count, grouped by facets. */
-const logs = (search, { name = 'query1', groupBy = [], limit = 10 } = {}) => ({
-  data_source: 'logs',
-  name,
-  search: { query: search },
-  indexes: ['*'],
-  compute: { aggregation: 'count' },
-  group_by: groupBy.map((f) => ({ facet: f, limit, sort: { aggregation: 'count', order: 'desc' } })),
-  storage: 'hot',
-});
-
-// ---------------------------------------------------------------- widgets (Datadog format)
-
-const head = (title) => ({ title, title_size: '16', title_align: 'left' });
-
-function queryValue(title, queries, { formula = 'query1', formats = [], timeseries = false, unit } = {}) {
-  return {
-    type: 'query_value',
-    ...head(title),
-    requests: [{ response_format: 'scalar', queries, formulas: [{ formula }], conditional_formats: formats }],
-    autoscale: true,
-    precision: 0,
-    ...(unit ? { custom_unit: unit } : {}),
-    ...(timeseries ? { timeseries_background: { type: 'bars' } } : {}),
-  };
-}
-
-function timeseries(title, queries, { formulas, display = 'line', palette = 'dog_classic' } = {}) {
-  return {
-    type: 'timeseries',
-    ...head(title),
-    show_legend: true,
-    legend_layout: 'auto',
-    requests: [{ response_format: 'timeseries', queries, formulas: formulas ?? queries.map((q) => ({ formula: q.name })), style: { palette, order_by: 'values' }, display_type: display }],
-    yaxis: { include_zero: true },
-  };
-}
-
-function toplist(title, query, { count = 10, palette, order = 'desc' } = {}) {
-  return {
-    type: 'toplist',
-    ...head(title),
-    requests: [
-      { response_format: 'scalar', queries: [query], formulas: [{ formula: 'query1' }], sort: { count, order_by: [{ type: 'formula', index: 0, order }] }, ...(palette ? { style: { palette } } : {}) },
-    ],
-  };
-}
-
-/** Columns: [alias, query, aggregator]; rows: the first query's groups. */
-function table(title, columns, count = 100) {
-  const queries = columns.map(([, query, aggregator], i) => metric(query, aggregator ?? 'last', `query${i + 1}`));
-  return {
-    type: 'query_table',
-    ...head(title),
-    requests: [
-      { response_format: 'scalar', queries, formulas: columns.map(([alias], i) => ({ alias, formula: `query${i + 1}` })), sort: { count, order_by: [{ type: 'formula', index: 0, order: 'desc' }] } },
-    ],
-  };
-}
-
-/** A world map of the query's groups by country (ISO code), in Datadog's `hostmap_blues` scale. */
-const geomap = (title, query) => ({
-  type: 'geomap',
-  ...head(title),
-  requests: [{ response_format: 'scalar', queries: [query], formulas: [{ formula: 'query1' }], sort: { count: 250, order_by: [{ type: 'formula', index: 0, order: 'desc' }] } }],
-  style: { palette: 'hostmap_blues', palette_flip: false },
-  view: { focus: 'WORLD' },
-});
-
-/** A donut of the query's groups, one color each, with their share in the legend. */
-const pie = (title, queries, formulas = [{ formula: 'query1' }]) => ({
-  type: 'sunburst',
-  ...head(title),
-  requests: [{ response_format: 'scalar', queries, formulas, sort: { count: 12, order_by: [{ type: 'formula', index: 0, order: 'desc' }] }, style: { palette: 'dog_classic' } }],
-  legend: { type: 'inline' },
-  hide_total: false,
-});
-
-/** Rectangles sized by value, one color per group. */
-const treemap = (title, query) => ({ type: 'treemap', ...head(title), requests: [{ response_format: 'scalar', queries: [query], formulas: [{ formula: 'query1' }] }] });
-
-/** Vertical bars, one color per group. */
-const bars = (title, query, count = 10) => ({
-  type: 'bar_chart',
-  ...head(title),
-  requests: [
-    { response_format: 'scalar', queries: [query], formulas: [{ formula: 'query1' }], sort: { count, order_by: [{ type: 'formula', index: 0, order: 'desc' }] }, style: { palette: 'dog_classic' } },
-  ],
-});
-
-const logStream = (title, query) => ({
-  type: 'log_stream',
-  title,
-  query,
-  columns: ['host', 'service'],
-  indexes: [],
-  message_display: 'inline',
-  show_date_column: true,
-  show_message_column: true,
-  sort: { column: 'time', order: 'desc' },
-});
-
-const note = (content, background_color = 'white', { align = 'left', size = '14' } = {}) => ({
-  type: 'note',
-  content,
-  background_color,
-  font_size: size,
-  text_align: align,
-  show_tick: false,
-  tick_pos: '50%',
-  tick_edge: 'left',
-  has_padding: true,
-});
-
-const GOOD = [{ comparator: '>', value: 0, palette: 'green_on_white' }];
-const BAD = [{ comparator: '>', value: 0, palette: 'red_on_white' }];
-const WARN = [{ comparator: '>', value: 0, palette: 'yellow_on_white' }];
-const NONE = [{ comparator: '>=', value: 0, palette: 'white_on_gray' }];
-
-// ---------------------------------------------------------------- layout
-
-let seq = 0;
-const at = (definition, x, y, width, height) => ({ id: ++seq, definition, layout: { x, y, width, height } });
-const group = (title, color, widgets, y, height, extra = {}) => at({ type: 'group', title, background_color: color, layout_type: 'ordered', widgets, ...extra }, 0, y, 12, height);
+import {
+  BAD,
+  GOOD,
+  NONE,
+  WARN,
+  anyOf,
+  bars,
+  buildOwnDashboard,
+  geomap,
+  layout,
+  logStream,
+  logs,
+  metric,
+  note,
+  pie,
+  queryValue,
+  table,
+  timeseries,
+  toplist,
+  treemap,
+} from './own-dashboard-widgets.mjs';
 
 const HOST = 'fleetdm.host';
 const COUNTS = 'fleetdm.hosts';
 const POLICY = 'fleetdm.policy';
+const VULN = 'fleetdm.vulnerability';
 const ACTIVITIES = 'source:fleetdm';
 const BY_HOST = '{fleet_host,platform,os_version}';
 
@@ -173,9 +67,9 @@ const CHANGES = [
   'added_software',
   'deleted_software',
 ];
-const anyOf = (types) => `@evt.name:(${types.join(' OR ')})`;
 
 function dashboard() {
+  const { at, group } = layout();
   const intro = group(
     '',
     'vivid_blue',
@@ -203,11 +97,29 @@ function dashboard() {
       at(queryValue('Online', [metric(`sum:${COUNTS}.online{*}`)], { formats: GOOD }), 2, 0, 2, 2),
       at(queryValue('Offline', [metric(`sum:${COUNTS}.offline{*}`)], { formats: WARN }), 4, 0, 2, 2),
       at(queryValue('Missing', [metric(`sum:${COUNTS}.mia{*}`)], { formats: BAD }), 6, 0, 2, 2),
-      at(queryValue('Failing policy checks', [metric(`sum:${HOST}.failing_policies{*}`)], { formats: BAD }), 8, 0, 2, 2),
-      at(queryValue('Activities', [logs(ACTIVITIES)], { formats: NONE, timeseries: true }), 10, 0, 2, 2),
+      at(queryValue('New today', [metric(`sum:${COUNTS}.new{*}`)], { formats: NONE }), 8, 0, 2, 2),
+      at(queryValue('Low disk space', [metric(`sum:${COUNTS}.low_disk_space{*}`)], { formats: WARN }), 10, 0, 2, 2),
+      at(queryValue('Failing checks', [metric(`sum:${HOST}.failing_policies{*}`)], { formats: BAD }), 0, 2, 2, 2),
+      at(queryValue('Vulnerabilities', [metric('sum:fleetdm.vulnerabilities.total{*}')], { formats: WARN }), 2, 2, 2, 2),
+      at(queryValue('Exploited CVEs', [metric(`sum:${VULN}.hosts{known_exploited:true} by {cve}`)], { formula: 'count_nonzero(query1)', formats: BAD }), 4, 2, 2, 2),
+      at(
+        queryValue('MDM enrolled', [metric(`sum:${HOST}.mdm_enrolled{*}`), metric(`sum:${HOST}.count{*}`, 'last', 'query2')], { formula: '100 * query1 / query2', formats: NONE, unit: '%' }),
+        6,
+        2,
+        2,
+        2,
+      ),
+      at(
+        queryValue('Encrypted', [metric(`sum:${HOST}.disk_encrypted{*}`), metric(`sum:${HOST}.count{*}`, 'last', 'query2')], { formula: '100 * query1 / query2', formats: NONE, unit: '%' }),
+        8,
+        2,
+        2,
+        2,
+      ),
+      at(queryValue('Activities', [logs(ACTIVITIES)], { formats: NONE, timeseries: true }), 10, 2, 2, 2),
     ],
     5,
-    3,
+    5,
   );
   const hosts = group(
     'Hosts',
@@ -265,7 +177,7 @@ function dashboard() {
         4,
       ),
     ],
-    8,
+    10,
     19,
   );
   const compliance = group(
@@ -304,8 +216,52 @@ function dashboard() {
       at(toplist('Hosts with the most failing policies', metric(`max:${HOST}.failing_policies{*} by {fleet_host}`)), 4, 6, 4, 3),
       at(toplist('Most critical vulnerabilities', metric(`max:${HOST}.critical_vulnerabilities{*} by {fleet_host}`)), 8, 6, 4, 3),
     ],
-    27,
+    29,
     10,
+  );
+  const vulnerabilities = group(
+    'Vulnerabilities',
+    'red',
+    [
+      at(toplist('Vulnerabilities on the most hosts', metric(`max:${VULN}.hosts{*} by {cve}`), { palette: 'warm' }), 0, 0, 4, 4),
+      at(pie('By severity', [metric(`sum:${VULN}.hosts{*} by {severity}`)]), 4, 0, 4, 4),
+      at(pie('Known exploited (CISA)', [metric(`sum:${VULN}.hosts{*} by {known_exploited}`)]), 8, 0, 4, 4),
+      at(table('Vulnerabilities', [['hosts', `max:${VULN}.hosts{*} by {cve,severity,known_exploited}`]]), 0, 4, 6, 4),
+      at(
+        timeseries('Vulnerabilities found', [metric('sum:fleetdm.vulnerabilities.total{*}', 'avg')], { formulas: [{ alias: 'vulnerabilities', formula: 'query1' }], display: 'area', palette: 'warm' }),
+        6,
+        4,
+        6,
+        4,
+      ),
+    ],
+    39,
+    8,
+  );
+  const mdm = group(
+    'MDM and disk encryption',
+    'green',
+    [
+      at(pie('MDM enrollment', [metric(`sum:${HOST}.count{*} by {mdm_status}`)]), 0, 0, 4, 4),
+      at(
+        pie(
+          'Disk encryption',
+          [metric(`sum:${HOST}.disk_encrypted{*}`, 'last', 'query1'), metric(`sum:${HOST}.count{*}`, 'last', 'query2')],
+          [
+            { alias: 'encrypted', formula: 'query1' },
+            { alias: 'not encrypted or unknown', formula: 'query2 - query1' },
+          ],
+        ),
+        4,
+        0,
+        4,
+        4,
+      ),
+      at(bars('MDM enrolled by platform', metric(`sum:${HOST}.mdm_enrolled{*} by {platform}`)), 8, 0, 4, 4),
+      at(logStream('MDM enrollment, profiles and disk encryption', `${ACTIVITIES} @fleetdm.category:mdm`), 0, 4, 12, 4),
+    ],
+    47,
+    8,
   );
   const activity = group(
     'Activity feed',
@@ -313,23 +269,25 @@ function dashboard() {
     [
       at(timeseries('Activities over time', [logs(ACTIVITIES, { groupBy: ['@evt.name'] })], { display: 'bars' }), 0, 0, 8, 3),
       at(queryValue('Failed logins', [logs(`${ACTIVITIES} @evt.name:user_failed_login`)], { formats: BAD, timeseries: true }), 8, 0, 4, 3),
-      at(pie('Activities by type', [logs(ACTIVITIES, { groupBy: ['@evt.name'] })]), 0, 3, 4, 3),
+      at(pie('Activities by category', [logs(ACTIVITIES, { groupBy: ['@fleetdm.category'] })]), 0, 3, 4, 3),
       at(toplist('Most active users', logs(`${ACTIVITIES} @usr.email:*`, { groupBy: ['@usr.email'] }), { palette: 'purple' }), 4, 3, 4, 3),
       at(toplist('Hosts acted on most', logs(`${ACTIVITIES} @fleetdm.host_display_name:*`, { groupBy: ['@fleetdm.host_display_name'] }), { palette: 'cool' }), 8, 3, 4, 3),
       at(logStream('Logins and failed logins', `${ACTIVITIES} ${anyOf(LOGINS)}`), 0, 6, 6, 4),
       at(logStream('Scripts, software and MDM actions on hosts', `${ACTIVITIES} ${anyOf(ACTIONS)}`), 6, 6, 6, 4),
       at(logStream('Policies, queries and configuration changed', `${ACTIVITIES} ${anyOf(CHANGES)}`), 0, 10, 6, 4),
       at(logStream('Warnings and errors', `${ACTIVITIES} status:(warn OR error)`), 6, 10, 6, 4),
+      at(timeseries('Activities by user', [logs(`${ACTIVITIES} @usr.email:*`, { groupBy: ['@usr.email'] })], { display: 'bars', palette: 'purple' }), 0, 14, 6, 3),
+      at(bars('Top activity types', logs(ACTIVITIES, { groupBy: ['@evt.name'] })), 6, 14, 6, 3),
     ],
-    37,
-    14,
+    55,
+    17,
   );
   return {
     title: 'FleetDM Overview',
-    description: 'Hosts of a Fleet server (status, platforms, OS versions, disk, failing policies, vulnerabilities, MDM), its global policies and its activity feed.',
+    description: 'Hosts of a Fleet server (status, platforms, OS versions, disk, failing policies, MDM, disk encryption), its global policies, its vulnerabilities and its activity feed.',
     layout_type: 'ordered',
     template_variables: [],
-    widgets: [intro, overview, hosts, compliance, activity],
+    widgets: [intro, overview, hosts, compliance, vulnerabilities, mdm, activity],
   };
 }
 
@@ -343,30 +301,7 @@ export const FLEETDM_UNITS = {
   'fleetdm.host.disk.available_percent': 'percent',
 };
 
-/** Our logo tile instead of a banner image (there is none for Fleet), as the integrations-core dashboards have. */
-function withLogo(widgets) {
-  return widgets.map((w) => {
-    if (w.definition.type === 'group') return { ...w, definition: { ...w.definition, widgets: withLogo(w.definition.widgets) } };
-    if (w.definition.type === 'image') return { ...w, definition: { type: 'image', title: 'FleetDM', logo: 'fleetdm', background: '#ffffff' } };
-    return w;
-  });
-}
-
-const renamed = (widgets) =>
-  widgets.map((w) => ({ ...w, id: w.id.replace(/^upstream-/, 'fleetdm-'), definition: w.definition.type === 'group' ? { ...w.definition, widgets: renamed(w.definition.widgets) } : w.definition }));
-
-export function buildDashboard() {
-  seq = 0;
-  const doc = dashboard();
-  const converted = convertDashboard(doc, 'fleetdm', 'fleetdm_overview.json', 'observecraft');
-  return {
-    ...converted,
-    id: 'fleetdm-overview',
-    description: doc.description,
-    widgets: renamed(withLogo(converted.widgets)),
-    source: { repository: 'observecraft', path: 'scripts/fleetdm-dashboard.mjs', license: 'MIT' },
-  };
-}
+export const buildDashboard = () => buildOwnDashboard(dashboard(), { integration: 'fleetdm', name: 'FleetDM', script: 'scripts/fleetdm-dashboard.mjs' });
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const dir = new URL('../server/seeds/integrations/fleetdm/', import.meta.url);

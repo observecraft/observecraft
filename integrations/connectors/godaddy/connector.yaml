@@ -1,0 +1,201 @@
+# yaml-language-server: $schema=../connector.schema.json
+# GoDaddy (https://developer.godaddy.com/): the SSL certificates of a GoDaddy customer and their domains, as the
+# godaddy.certificate.* metrics Datadog's integration sends (integrations-core godaddy/metadata.csv), so the tile's
+# "GoDaddy Overview" dashboard (installed from integrations-core when a connection is saved) reads them unchanged.
+#
+# Counts per status are one series per certificate (1 when the certificate is in that status, else 0, tags
+# certificateid / commonname / status / customer_id): summed, they are the counts the dashboard shows. Datadog types
+# these metrics `count`; they are snapshots here, so gauges (a count here is a delta between runs).
+#
+# Unverified: GoDaddy's Certificates v2 reference (October 2026) no longer documents the list
+# GET /v2/customers/{customerId}/certificates that Datadog's integration reads (answer {certificates, pagination});
+# it is used as before, with validEndAt / validEnd both read. Domains come from the documented
+# GET /v2/customers/{customerId}/certificates/{certificateId}/domainVerifications.
+schema_version: 1
+id: godaddy
+name: GoDaddy
+publisher: ObserveCraft
+vendor: GoDaddy
+description: >-
+  The SSL certificates of a GoDaddy customer (counts by status, days until each expires) and the domains of every
+  certificate with their verification status, read hourly from GoDaddy's API as metrics.
+tiles: [godaddy]
+categories: [Security, Network]
+docs_url: https://developer.godaddy.com/en/docs/references/rest/certificates/v2
+setup: |
+  1. Sign in to the [GoDaddy Developer Portal](https://developer.godaddy.com/keys) and create an API key for the
+     **Production** environment; copy the key and its secret (shown once).
+  2. Find your **customer number** (shopper ID) under **Login Info** on [Login & PIN](https://sso.godaddy.com/security).
+  3. GoDaddy only opens its production API to some accounts (for example those with 50 or more domains): a 403
+     `ACCESS_DENIED` answer means the account has no API access.
+links:
+  - { label: Create an API key, url: "https://developer.godaddy.com/keys" }
+instance: "{{ config.shopper_id }}"
+
+config:
+  - key: shopper_id
+    label: Customer number (shopper ID)
+    type: string
+    required: true
+    pattern: "[0-9]{1,10}"
+    placeholder: "123456789"
+  - key: api_key
+    label: API key
+    type: string
+    required: true
+  - key: api_secret
+    label: API secret
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: api_key
+  name: Authorization
+  value: "sso-key {{ config.api_key }}:{{ secrets.api_secret }}"
+
+# GoDaddy allows 60 requests a minute per endpoint.
+rate_limit: { requests_per_minute: 50 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: GoDaddy refused the API key and secret (a key for the OTE test environment doesn't work in production)
+  - status: [403]
+    kind: access_denied
+    message: >-
+      GoDaddy denied access{{ ': ' + response.message ?? '' }}. Its production API is only open to some accounts (for
+      example with 50 or more domains), and the key must belong to customer {{ config.shopper_id }}
+  - status: [404]
+    kind: access_denied
+    message: "GoDaddy has no customer {{ config.shopper_id }}"
+
+tables:
+  # Certificate statuses → the status part of godaddy.certificate.<status>_certificates.
+  statuses:
+    CANCELED: canceled
+    DENIED: denied
+    EXPIRED: expired
+    ISSUED: issued
+    PENDING_ISSUANCE: pending_issuance
+    PENDING_REKEY: pending_rekey
+    PENDING_REVOCATION: pending_revocation
+    REVOKED: revoked
+    UNUSED: unused
+
+discover:
+  - name: customer_id
+    request:
+      url: "https://api.godaddy.com/v1/shoppers/{{ config.shopper_id }}"
+      query: { includes: customerId }
+    value: "{{ response.customerId }}"
+    ttl: 24h
+
+streams:
+  - id: certificates
+    name: Certificates
+    description: >-
+      Every certificate of the customer as godaddy.certificate.* gauges: total_certificates and one
+      <status>_certificates per status (1 or 0 per certificate, so sums are counts), certificate_status, and
+      certificate_expiration_days (issued certificates).
+    interval: 1h
+    request:
+      url: "https://api.godaddy.com/v2/customers/{{ discovery.customer_id }}/certificates"
+      query: { offset: "{{ page.offset }}", limit: 100 }
+    records: "{{ response.certificates }}"
+    pagination: { kind: offset, size: 100, total: "{{ response.pagination.total }}" }
+    record_id: "{{ record.certificateId }}"
+    vars:
+      status: "{{ tables.statuses[record.status] ?? (record.status | lower) }}"
+    output:
+      metrics:
+        - name: godaddy.certificate.total_certificates
+          examples: [godaddy.certificate.canceled_certificates, godaddy.certificate.denied_certificates,
+            godaddy.certificate.expired_certificates, godaddy.certificate.issued_certificates,
+            godaddy.certificate.pending_issuance_certificates, godaddy.certificate.pending_rekey_certificates,
+            godaddy.certificate.pending_revocation_certificates, godaddy.certificate.revoked_certificates,
+            godaddy.certificate.unused_certificates]
+          value: "1"
+          description: 1 per certificate; summed, the certificates.
+          tags: &cert
+            customer_id: "{{ discovery.customer_id }}"
+            certificateid: "{{ record.certificateId }}"
+            commonname: "{{ record.commonName }}"
+            status: "{{ vars.status }}"
+        - name: "{{ 'godaddy.certificate.' + entry.value + '_certificates' }}"
+          each: "{{ tables.statuses }}"
+          value: "{{ record.status == entry.key ? 1 : 0 }}"
+          description: 1 when the certificate is in the status, else 0; summed, the certificates in that status.
+          tags:
+            customer_id: "{{ discovery.customer_id }}"
+            certificateid: "{{ record.certificateId }}"
+            commonname: "{{ record.commonName }}"
+            status: "{{ entry.value }}"
+        - name: godaddy.certificate.certificate_status
+          value: "1"
+          description: 1 per certificate, tagged with its status.
+          tags: *cert
+        - name: godaddy.certificate.certificate_expiration_days
+          filter: "{{ record.validEndAt ?? record.validEnd }}"
+          value: "{{ ((((record.validEndAt ?? record.validEnd) | epoch_ms) - minute) / 86400000) | floor }}"
+          unit: day
+          description: Days until the certificate expires (negative once it has).
+          tags: *cert
+
+  - id: domains
+    name: Certificate domains
+    description: >-
+      The domains of every certificate: godaddy.certificate.domains_count (1 per domain; summed by certificateid, the
+      certificate's domains) and godaddy.certificate.domain_status (tagged with the domain's verification status).
+    interval: 1h
+    lookups:
+      - name: certificates
+        request:
+          url: "https://api.godaddy.com/v2/customers/{{ discovery.customer_id }}/certificates"
+          query: { offset: "{{ page.offset }}", limit: 100 }
+        records: "{{ response.certificates }}"
+        pagination: { kind: offset, size: 100, total: "{{ response.pagination.total }}" }
+        key: "{{ record.certificateId }}"
+        value: "{{ record.commonName }}"
+        ttl: 1h
+    for_each: "{{ lookups.certificates | keys }}"
+    request:
+      url: "https://api.godaddy.com/v2/customers/{{ discovery.customer_id }}/certificates/{{ item }}/domainVerifications"
+    record_id: "{{ item + ':' + (record.domainEntityId | str) }}"
+    output:
+      metrics:
+        - name: godaddy.certificate.domains_count
+          value: "1"
+          description: 1 per domain of a certificate; summed by certificateid, its domains.
+          tags: &domain
+            customer_id: "{{ discovery.customer_id }}"
+            certificateid: "{{ item }}"
+            commonname: "{{ lookups.certificates[item] }}"
+            domain: "{{ record.domain }}"
+            status: "{{ record.status | lower }}"
+        - name: godaddy.certificate.domain_status
+          value: "1"
+          description: 1 per domain of a certificate, tagged with its verification status.
+          tags: *domain
+
+test:
+  request:
+    url: "https://api.godaddy.com/v1/shoppers/{{ config.shopper_id }}"
+    query: { includes: customerId }
+  success: "{{ response.customerId }}"
+  message: "Connected: customer {{ response.shopperId ?? config.shopper_id }} ({{ response.customerId }})"
+
+mock:
+  config: { shopper_id: "123456789", api_key: gd-test-key }
+  secrets: { api_secret: gd-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.godaddy.com/v1/shoppers/123456789", file: fixtures/shopper.json }
+    - { url: "https://api.godaddy.com/v2/customers/0f6e5d4c-0000-4000-8000-000000000001/certificates", file: fixtures/certificates.json }
+    - { url: "https://api.godaddy.com/v2/customers/0f6e5d4c-0000-4000-8000-000000000001/certificates/c0a1b2c3d4e5f601/domainVerifications", file: fixtures/domains-c0a1b2c3d4e5f601.json }
+    - { url: "https://api.godaddy.com/v2/customers/0f6e5d4c-0000-4000-8000-000000000001/certificates/c0a1b2c3d4e5f602/domainVerifications", file: fixtures/domains-c0a1b2c3d4e5f602.json }
+    - { url: "https://api.godaddy.com/v2/customers/0f6e5d4c-0000-4000-8000-000000000001/certificates/c0a1b2c3d4e5f603/domainVerifications", body: [] }
+  expect:
+    certificates: { records: 3, metrics: 35, golden: fixtures/certificates.expected.json }
+    domains: { records: 3, metrics: 6, golden: fixtures/domains.expected.json }
+    test: { ok: true, message: "0f6e5d4c-0000-4000-8000-000000000001" }

@@ -1,0 +1,102 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c479-b140-79b2-bb85-f6b061c96caa"
+      },
+      "audit_name": "New User Session Created",
+      "audit_row_id": 400112,
+      "creation_time": "2026-11-10T08:01:12Z",
+      "date": "2026-11-10T08:01:12Z",
+      "ddsource": "tanium",
+      "ddtags": "api_host:example-api.cloud.tanium.com",
+      "details": "User: sam.lee@example.com; Session ID: 551203; Authentication Type: JsonWebToken; IP Address: 203.0.113.24",
+      "host": "example-api.cloud.tanium.com",
+      "last_modified_by": "sam.lee@example.com",
+      "message": "User: sam.lee@example.com; Session ID: 551203; Authentication Type: JsonWebToken; IP Address: 203.0.113.24",
+      "mod_user": {
+        "display_name": "Sam Lee",
+        "id": 48,
+        "name": "sam.lee@example.com"
+      },
+      "modification_time": "2026-11-10T08:01:12Z",
+      "modifier_user_id": 48,
+      "object_id": 48,
+      "object_type_name": "authentication",
+      "service": "platform-audit-logs",
+      "status": "info",
+      "type": 0,
+      "type_name": "CreateObject"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c50f-80d0-7b11-b10b-4a1d097d14b9"
+      },
+      "audit_name": "User Logged Out",
+      "audit_row_id": 400131,
+      "creation_time": "2026-11-10T10:44:50Z",
+      "date": "2026-11-10T10:44:50Z",
+      "ddsource": "tanium",
+      "ddtags": "api_host:example-api.cloud.tanium.com",
+      "details": "User: sam.lee@example.com; Session ID: 551203; 203.0.113.24",
+      "host": "example-api.cloud.tanium.com",
+      "last_modified_by": "sam.lee@example.com",
+      "message": "User: sam.lee@example.com; Session ID: 551203; 203.0.113.24",
+      "mod_user": {
+        "display_name": "Sam Lee",
+        "id": 48,
+        "name": "sam.lee@example.com"
+      },
+      "modification_time": "2026-11-10T10:44:50Z",
+      "modifier_user_id": 48,
+      "object_id": 48,
+      "object_type_name": "authentication",
+      "service": "platform-audit-logs",
+      "status": "info",
+      "type": 2,
+      "type_name": "DeleteObject"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bd-4220-72d4-93b4-a1f743a684c0"
+      },
+      "audit_name": "System Setting Updated",
+      "audit_row_id": 9051,
+      "creation_time": "2026-11-10T09:15:00Z",
+      "date": "2026-11-10T09:15:00Z",
+      "ddsource": "tanium",
+      "ddtags": "api_host:example-api.cloud.tanium.com",
+      "details": "Updated 'ias_auth_jwks_download_timeout_seconds' from 20 to 10",
+      "host": "example-api.cloud.tanium.com",
+      "last_modified_by": "sam.lee@example.com",
+      "message": "Updated 'ias_auth_jwks_download_timeout_seconds' from 20 to 10",
+      "mod_user": {
+        "display_name": "Sam Lee",
+        "id": 48,
+        "name": "sam.lee@example.com"
+      },
+      "modification_time": "2026-11-10T09:15:00Z",
+      "modifier_user_id": 48,
+      "object_id": 312,
+      "object_name": "ias_auth_jwks_download_timeout_seconds",
+      "object_type_name": "system_setting",
+      "service": "platform-audit-logs",
+      "status": "info",
+      "type": 1,
+      "type_name": "UpdateObject"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "authentication": {
+        "cursor": 1794312000000
+      },
+      "system_settings": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

@@ -27,7 +27,8 @@ export function useSlackConversations(accountId: string) {
 /** Writes; the overview and the notification channels (Monitors → Settings) are refetched afterwards. */
 export function useSlackMutations() {
   const qc = useQueryClient();
-  const onSuccess = () => Promise.all([qc.invalidateQueries({ queryKey: slackKeys.overview() }), qc.invalidateQueries({ queryKey: ['notification-channels'] })]);
+  const onSuccess = () =>
+    Promise.all([qc.invalidateQueries({ queryKey: slackKeys.overview() }), qc.invalidateQueries({ queryKey: ['notification-channels'] }), qc.invalidateQueries({ queryKey: ['integrations'] })]);
   return {
     connect: useMutation({ mutationFn: connectSlackAccount, onSuccess }),
     oauth: useMutation({ mutationFn: startSlackOAuth }),

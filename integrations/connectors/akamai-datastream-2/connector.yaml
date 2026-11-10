@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Akamai DataStream 2 (https://techdocs.akamai.com/datastream2/docs/stream-custom-https): CDN request logs pushed by
+# a stream's Custom HTTPS destination to the intake's Datadog logs endpoint, with source akamai.datastream, so the
+# integrations-extras akamai_datastream_2 tile's pipeline and dashboard read them unchanged (installed from the
+# tile). Push only: nothing is polled.
+schema_version: 1
+id: akamai-datastream-2
+name: Akamai DataStream 2
+publisher: ObserveCraft
+vendor: Akamai
+source: akamai.datastream
+description: >-
+  Akamai CDN request logs (status, cache, bytes, timings, client and geography per request) pushed in near real time
+  by a DataStream 2 stream to ObserveCraft's logs endpoint.
+tiles: [akamai-datastream-2]
+categories: [Caching, Network, Log Collection]
+docs_url: https://techdocs.akamai.com/datastream2/docs/stream-custom-https
+
+push:
+  kind: logs
+  instructions: |
+    In Akamai Control Center, open **DataStream → Create stream** (or edit one) for your properties:
+
+    1. **Data sets**: the fields you want (request, cache, timings, geography); **Log format**: **JSON**.
+    2. **Delivery → Destination**: **Custom HTTPS**, named e.g. `ObserveCraft`, with
+       - **Endpoint URL**: `{{ intake }}/api/v2/logs?ddsource={{ source }}&service=akamai`
+       - **Authentication**: none, and under **Custom header** the name `DD-API-KEY` with the value below
+       - **Content type**: `application/json`; **Send compressed data** may stay on.
+    3. Save and activate the stream; logs arrive within a few minutes, with source `akamai.datastream`.
+  url: "{{ intake }}/api/v2/logs?ddsource={{ source }}&service=akamai"
+  headers: { DD-API-KEY: "{{ api_key }}" }

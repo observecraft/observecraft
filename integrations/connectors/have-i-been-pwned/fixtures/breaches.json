@@ -1,0 +1,14 @@
+[
+  {
+    "Name": "ExampleShop", "Title": "Example Shop", "Domain": "exampleshop.example", "BreachDate": "2026-09-01", "AddedDate": "2026-10-15T10:00:00Z",
+    "ModifiedDate": "2026-10-15T10:00:00Z", "PwnCount": 120000, "Description": "In September 2026, the online store Example Shop suffered a data breach that exposed customer email addresses and passwords.",
+    "LogoPath": "https://logos.haveibeenpwned.com/ExampleShop.png", "DataClasses": ["Email addresses", "Passwords"], "IsVerified": true, "IsFabricated": false,
+    "IsSensitive": false, "IsRetired": false, "IsSpamList": false, "IsMalware": false, "IsStealerLog": false, "IsSubscriptionFree": false
+  },
+  {
+    "Name": "ExampleForum", "Title": "Example Forum", "Domain": "forum.example", "BreachDate": "2026-11-01", "AddedDate": "2026-11-09T08:00:00Z",
+    "ModifiedDate": "2026-11-09T08:00:00Z", "PwnCount": 5000, "Description": "In November 2026, the Example Forum community leaked usernames, email addresses and IP addresses.",
+    "LogoPath": "https://logos.haveibeenpwned.com/ExampleForum.png", "DataClasses": ["Email addresses", "IP addresses", "Usernames"], "IsVerified": true, "IsFabricated": false,
+    "IsSensitive": false, "IsRetired": false, "IsSpamList": false, "IsMalware": false, "IsStealerLog": false, "IsSubscriptionFree": false
+  }
+]

@@ -1,0 +1,36 @@
+{
+  "logs": [
+    {
+      "timestamp": "2026-11-10T10:20:11Z",
+      "genTime": "2026-11-10T10:20:10Z",
+      "type": "blocked_traffic",
+      "direction": "in",
+      "sender": "promo@bulk.example.net",
+      "recipient": "jane.doe@example.com",
+      "subject": "You won",
+      "senderIP": "192.0.2.77",
+      "mailID": "73173f80-2e0e-46df-b2dc-a62e80160003",
+      "messageID": "<x9y8z7@bulk.example.net>",
+      "size": 4210,
+      "action": "Blocked",
+      "reason": "Sender IP address is on the Email Reputation Services list",
+      "details": "550 5.7.1 Service unavailable"
+    },
+    {
+      "timestamp": "2026-11-10T10:45:59Z",
+      "genTime": "2026-11-10T10:45:58Z",
+      "type": "blocked_traffic",
+      "direction": "in",
+      "sender": "it-support@examp1e.example.net",
+      "recipient": "john.smith@example.com",
+      "subject": "Password expiry",
+      "senderIP": "192.0.2.91",
+      "mailID": "73173f80-2e0e-46df-b2dc-a62e80160004",
+      "messageID": "<p4ss@examp1e.example.net>",
+      "size": 9022,
+      "action": "Quarantined",
+      "reason": "Phishing",
+      "details": "Quarantined by policy Inbound Phishing"
+    }
+  ]
+}

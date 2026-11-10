@@ -46,3 +46,13 @@ test('no facet is one bucket; unique counts and timeseries', () => {
     total.data.buckets[0].computes.c0,
   );
 });
+
+test('a numeric comparison keeps the logs whose attribute is past the number, as the server compares them', () => {
+  const day = { from: to - 86_400_000, to };
+  const count = (query) => mockAggregateLogs({ compute: [{ aggregation: 'count', type: 'total' }], filter: { query, from: day.from, to: day.to }, group_by: [] }).data.buckets[0]?.computes.c0 ?? 0;
+  const all = count('source:vault');
+  const long = count('source:vault @auth.token_ttl:>46080');
+  const short = count('source:vault @auth.token_ttl:<=46080');
+  assert.ok(long > 0 && short > 0, `${long} long-lived and ${short} short-lived tokens`);
+  assert.equal(long + short, all);
+});

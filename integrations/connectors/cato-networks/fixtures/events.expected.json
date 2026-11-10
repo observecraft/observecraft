@@ -1,0 +1,101 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c552-8510-7ce5-9572-8af152bae3bc"
+      },
+      "account_id": "4011",
+      "account_name": "example-shop",
+      "action": "Block",
+      "categories": "Malware",
+      "date": 1794311882000,
+      "ddsource": "cato-networks",
+      "dest_ip": "203.0.113.80",
+      "dest_port": "443",
+      "domain_name": "malware.example.net",
+      "event_count": "1",
+      "event_id": "c8d2456ef8b40001",
+      "event_sub_type": "Internet Firewall",
+      "event_type": "Security",
+      "host": "cato-4011",
+      "internalId": "c8d2456ef8b40001",
+      "ip_protocol": "TCP",
+      "message": "Security / Internet Firewall",
+      "pop_name": "Bucharest",
+      "rule_name": "Block risky categories",
+      "service": "events",
+      "src_ip": "10.10.20.15",
+      "src_is_site_or_vpn": "Site",
+      "src_site_name": "Bucharest Office",
+      "status": "info",
+      "time": 1794311882000,
+      "time_str": "2026-11-10T11:58:02Z",
+      "user_name": "jane.doe"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c553-1980-77cc-b818-c58b780485df"
+      },
+      "account_id": "4011",
+      "account_name": "example-shop",
+      "action": "Succeeded",
+      "api_name": "eventsFeed",
+      "api_type": "query",
+      "authentication_type": "APIKEY",
+      "date": 1794311920000,
+      "ddsource": "cato-networks",
+      "event_count": "1",
+      "event_id": "c8d2456ef8b40002",
+      "event_message": "ApiKey login successfully",
+      "event_sub_type": "ApiKey",
+      "event_type": "Connectivity",
+      "host": "cato-4011",
+      "internalId": "c8d2456ef8b40002",
+      "key_name": "observecraft-reader",
+      "login_type": "API",
+      "message": "ApiKey login successfully",
+      "service": "events",
+      "src_country": "Romania",
+      "src_country_code": "RO",
+      "src_ip": "198.51.100.23",
+      "src_is_site_or_vpn": "API",
+      "status": "info",
+      "time": 1794311920000,
+      "time_str": "2026-11-10T11:58:40Z"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c553-8eb0-797f-bc92-01e8293d94c2"
+      },
+      "account_id": "4011",
+      "account_name": "example-shop",
+      "criticality": 6,
+      "date": 1794311950000,
+      "ddsource": "cato-networks",
+      "event_id": "c8d2456ef8b40003",
+      "event_sub_type": "Threat Hunting",
+      "event_type": "Detection and Response",
+      "host": "cato-4011",
+      "internalId": "c8d2456ef8b40003",
+      "level": "info",
+      "message": "{\"message\":\"Detection and Response / Threat Hunting\",\"status\":\"Open\"}",
+      "service": "events",
+      "src_site_name": "Bucharest Office",
+      "story_id": "st-1182",
+      "time": 1794311950000,
+      "time_str": "2026-11-10T11:59:10Z",
+      "title": "Suspicious traffic to newly registered domain",
+      "trigger": "Story Created"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "ev-0002"
+      }
+    }
+  }
+}

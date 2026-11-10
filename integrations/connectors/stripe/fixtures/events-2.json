@@ -1,0 +1,8 @@
+{
+  "object": "list", "url": "/v1/events", "has_more": false,
+  "data": [
+    { "id": "evt_1QBcDeFgHiJkLmN3", "object": "event", "api_version": "2026-10-29.acacia", "created": 1794301200, "livemode": false, "pending_webhooks": 0, "type": "charge.dispute.created",
+      "data": { "object": { "id": "dp_1QBcDeFgHiJkLmN3", "object": "dispute", "amount": 12900, "currency": "eur", "charge": "ch_3QAaBbCcDdEeFf03", "reason": "fraudulent", "status": "needs_response" } },
+      "request": { "id": null, "idempotency_key": null } }
+  ]
+}

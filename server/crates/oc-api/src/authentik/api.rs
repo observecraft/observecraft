@@ -65,9 +65,10 @@ pub fn me_path() -> String {
     "/core/users/me/".into()
 }
 
-/// A page of events, newest first.
+/// A page of events (1-based), oldest first: new events only add to the last pages, so a page read later still
+/// starts where it did.
 pub fn events_path(page: usize) -> String {
-    format!("/events/events/?ordering=-created&page_size={PAGE_SIZE}&page={page}")
+    format!("/events/events/?ordering=created&page_size={PAGE_SIZE}&page={page}")
 }
 
 #[cfg(test)]
@@ -76,7 +77,7 @@ mod tests {
 
     #[test]
     fn paths_and_errors() {
-        assert_eq!(events_path(2), "/events/events/?ordering=-created&page_size=100&page=2");
+        assert_eq!(events_path(2), "/events/events/?ordering=created&page_size=100&page=2");
         assert_eq!(me_path(), "/core/users/me/");
         assert_eq!(classify(Some(403), "token ak-secret refused", "ak-secret"), AuthentikError::Auth("token [token] refused".into()));
         assert!(matches!(classify(Some(429), "", "t"), AuthentikError::Throttled(_)));

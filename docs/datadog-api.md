@@ -165,12 +165,16 @@ collection on). An update keeps the fields it doesn't send; `aws_regions` and ea
   the two (`400`, as Datadog).
 - **Namespaces and log sources** come from ObserveCraft's own catalog (`server/seeds/aws_integration.json`).
 - **IAM permissions** are the ones ObserveCraft's crawler calls (`cloudwatch:ListMetrics`, `cloudwatch:GetMetricData`,
-  `tag:GetResources`); `/resource_collection` lists the read-only actions Cloud Security's account scans need on top of
+  `tag:GetResources`, and to tag the resources whose ARNs their metrics don't carry `apigateway:GET` for REST APIs,
+  `rds:DescribeDBProxies`, `dms:DescribeReplicationInstances` and WAF Classic's `waf:` / `waf-regional:ListWebACLs` and
+  `GetWebACL`); `/resource_collection` lists the read-only actions Cloud Security's account scans need on top of
   the AWS managed `SecurityAudit` policy ([security findings](#security-findings)).
 - One AWS account per organization (`409` for a second one with the same `aws_account_id`); writes need an admin.
-- Metrics are collected by ObserveCraft's crawler (`server/crates/oc-api/src/aws/`) every 10 minutes: Average as
-  `aws.<namespace>.<metric>`, Sum and Maximum as `.sum` / `.maximum`, tagged with the dimensions (lowercased), the
-  region, `aws_account`, the account's tags and the resource's AWS tags.
+- Metrics are collected by ObserveCraft's crawler (`server/crates/oc-api/src/aws/`) every 10 minutes: the metric's
+  Datadog statistic as `aws.<namespace>.<metric>` (counts' Sum, gauges' Average), Sum, Maximum and Minimum as `.sum` /
+  `.maximum` / `.minimum`, latencies' percentiles as `.p95` etc., tagged with the dimensions (lowercased), the region,
+  `aws_account`, the account's tags and the resource's AWS tags. EC2 is per instance only (as Datadog); daily metrics
+  (S3's storage metrics, Storage Lens) are read once an hour for their last 3 days, each day published once.
 - Not yet: Cloud Cost Management's data exports (CCM config),
   EventBridge sources and the metric name filter preview.
 - The provider reads an account back with its id in quotes; they are dropped.
@@ -182,7 +186,14 @@ identity), PUT replaces one and renames it with `new_tenant_name` / `new_client_
 succeeds, as in Datadog's recordings). Fields get the Terraform provider's defaults; the client secret is sealed and
 never answered, and the provider's `SECRETLESS_AUTH` placeholder keeps the stored one. Secretless (federated)
 authentication isn't supported: such a registration is reported as an issue until it has a secret. Metrics are
-crawled from Azure Monitor every 10 minutes (`azure.<type>.<metric>`, `.total`, `.maximum`; VMs are `azure.vm.*`).
+crawled from Azure Monitor every 10 minutes, named as Datadog names them: `azure.<type>.<metric>` carries the metric's
+primary aggregation (counts summed, gauges averaged), `.max` its maximum (VMs are `azure.vm.*`); each metric at its
+finest time grain (hourly storage capacity is published once per hour), global resources (DNS zones, Front Door,
+Traffic Manager) through Resource Manager's per-resource API, the most used dimensions split into lowercase tags
+(`instance`, `apiname`, `responsetype`, `shardid`, `entityname`, …), and `azure.<type>.count` for every collected
+resource with its Resource Health `status`. Reads Azure throttles are retried on the next runs. `automute`,
+`custom_metrics_enabled`, `usage_metrics_enabled`, `resource_collection_enabled` and `cspm_enabled` are stored and
+answered but not applied yet.
 
 ## GCP integration
 
@@ -190,7 +201,14 @@ Service accounts are impersonated by this install's own service account (`OC_GCP
 `sts_delegate` answers; 404 until it is set): no key is stored. Every attribute the provider reads back is answered,
 with defaults when it wasn't sent; an update keeps the others; CSPM needs resource collection (400). A list's
 `meta.accessible_projects` are the projects the crawler found. Metrics are crawled from Cloud Monitoring every 10
-minutes (`gcp.<service>.<metric path>`, e.g. `gcp.gce.instance.cpu.utilization`).
+minutes (`gcp.<service>.<metric path>`, e.g. `gcp.gce.instance.cpu.utilization`; the service is the metric's domain,
+`storage`, `cloudsql`, `file`…, but Compute Engine is `gce`, App Engine `gae` and Kubernetes `gke`): cumulative counters
+as their running total and `.delta`, distributions as `.avg`, `.samplecount`, `.sumsqdev` and, where Datadog has them,
+`.p95` / `.p99`. Tags are the project, the resource's and the metric's labels, the resource's user labels (from Cloud
+Monitoring's metadata, not Cloud Asset Inventory), `instance-type` and a zone's `region`. `region_filter_configs`
+(regions keep their zones) and `is_global_location_enabled` filter the series; `metric_namespace_configs` turns
+services off, and turns on the user-defined domains (`custom`, `workload`, `prometheus`), which are off by default.
+Reads Cloud Monitoring throttles or fails are retried on the next runs, for up to a day. `automute`, `is_per_project_quota_enabled` and resource collection are stored but not applied yet.
 
 ## Slack integration
 

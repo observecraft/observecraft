@@ -1,0 +1,660 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c552-7d40-71f9-af64-7ee80f175a8b"
+      },
+      "createdAt": "2026-11-10T11:58:00.000Z",
+      "date": "2026-11-10T11:58:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0000ExampleId0000",
+      "message": "Modified dev config in storefront-api",
+      "metadata": {
+        "config": "dev",
+        "environment": "dev",
+        "projectId": "storefront-api",
+        "projectName": "storefront-api"
+      },
+      "service": "doppler",
+      "slug": "wpLog0000ExampleId0000",
+      "status": "info",
+      "text": "Modified dev config in storefront-api",
+      "title": "Activity Log: wpLog0000ExampleId0000",
+      "user": {
+        "email": "dana.ortiz@example.com",
+        "name": "Dana Ortiz",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c54d-e960-7a5c-a68c-34d12627a830"
+      },
+      "createdAt": "2026-11-10T11:53:00.000Z",
+      "date": "2026-11-10T11:53:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0001ExampleId0000",
+      "message": "Created secret STRIPE_WEBHOOK_SECRET in stg of order-service",
+      "metadata": {
+        "environment": "stg",
+        "projectId": "order-service",
+        "projectName": "order-service"
+      },
+      "service": "doppler",
+      "slug": "wpLog0001ExampleId0000",
+      "status": "info",
+      "text": "Created secret STRIPE_WEBHOOK_SECRET in stg of order-service",
+      "title": "Activity Log: wpLog0001ExampleId0000",
+      "user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000002?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c549-5580-7487-8214-cf3ffbcca78d"
+      },
+      "createdAt": "2026-11-10T11:48:00.000Z",
+      "date": "2026-11-10T11:48:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0002ExampleId0000",
+      "message": "Deleted prd_preview config in billing",
+      "metadata": {
+        "environment": "prd",
+        "projectId": "billing",
+        "projectName": "billing"
+      },
+      "service": "doppler",
+      "slug": "wpLog0002ExampleId0000",
+      "status": "info",
+      "text": "Deleted prd_preview config in billing",
+      "title": "Activity Log: wpLog0002ExampleId0000",
+      "user": {
+        "email": "dana.ortiz@example.com",
+        "name": "Dana Ortiz",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c544-c1a0-7ed2-aa1f-f9f3c7cc6532"
+      },
+      "createdAt": "2026-11-10T11:43:00.000Z",
+      "date": "2026-11-10T11:43:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0003ExampleId0000",
+      "message": "Added Sam Lee to catalog-service",
+      "metadata": {
+        "environment": "dev",
+        "projectId": "catalog-service",
+        "projectName": "catalog-service"
+      },
+      "service": "doppler",
+      "slug": "wpLog0003ExampleId0000",
+      "status": "info",
+      "text": "Added Sam Lee to catalog-service",
+      "title": "Activity Log: wpLog0003ExampleId0000",
+      "user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000002?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c540-2dc0-718d-b4b0-c5e70cf65717"
+      },
+      "createdAt": "2026-11-10T11:38:00.000Z",
+      "date": "2026-11-10T11:38:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0004ExampleId0000",
+      "message": "Modified stg config in storefront-api",
+      "metadata": {
+        "config": "stg",
+        "environment": "stg",
+        "projectId": "storefront-api",
+        "projectName": "storefront-api"
+      },
+      "service": "doppler",
+      "slug": "wpLog0004ExampleId0000",
+      "status": "info",
+      "text": "Modified stg config in storefront-api",
+      "title": "Activity Log: wpLog0004ExampleId0000",
+      "user": {
+        "email": "dana.ortiz@example.com",
+        "name": "Dana Ortiz",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c53b-99e0-78c0-aead-4b4bb8e2d2cc"
+      },
+      "createdAt": "2026-11-10T11:33:00.000Z",
+      "date": "2026-11-10T11:33:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0005ExampleId0000",
+      "message": "Created secret STRIPE_WEBHOOK_SECRET in prd of order-service",
+      "metadata": {
+        "environment": "prd",
+        "projectId": "order-service",
+        "projectName": "order-service"
+      },
+      "service": "doppler",
+      "slug": "wpLog0005ExampleId0000",
+      "status": "info",
+      "text": "Created secret STRIPE_WEBHOOK_SECRET in prd of order-service",
+      "title": "Activity Log: wpLog0005ExampleId0000",
+      "user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000002?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c537-0600-7edb-b3f9-4e94c50dfcd9"
+      },
+      "createdAt": "2026-11-10T11:28:00.000Z",
+      "date": "2026-11-10T11:28:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0006ExampleId0000",
+      "message": "Deleted dev_preview config in billing",
+      "metadata": {
+        "environment": "dev",
+        "projectId": "billing",
+        "projectName": "billing"
+      },
+      "service": "doppler",
+      "slug": "wpLog0006ExampleId0000",
+      "status": "info",
+      "text": "Deleted dev_preview config in billing",
+      "title": "Activity Log: wpLog0006ExampleId0000",
+      "user": {
+        "email": "dana.ortiz@example.com",
+        "name": "Dana Ortiz",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c532-7220-7406-a775-29a159b7688e"
+      },
+      "createdAt": "2026-11-10T11:23:00.000Z",
+      "date": "2026-11-10T11:23:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0007ExampleId0000",
+      "message": "Added Sam Lee to catalog-service",
+      "metadata": {
+        "environment": "stg",
+        "projectId": "catalog-service",
+        "projectName": "catalog-service"
+      },
+      "service": "doppler",
+      "slug": "wpLog0007ExampleId0000",
+      "status": "info",
+      "text": "Added Sam Lee to catalog-service",
+      "title": "Activity Log: wpLog0007ExampleId0000",
+      "user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000002?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c52d-de40-7d91-af99-8c6de9e280d3"
+      },
+      "createdAt": "2026-11-10T11:18:00.000Z",
+      "date": "2026-11-10T11:18:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0008ExampleId0000",
+      "message": "Modified prd config in storefront-api",
+      "metadata": {
+        "config": "prd",
+        "environment": "prd",
+        "projectId": "storefront-api",
+        "projectName": "storefront-api"
+      },
+      "service": "doppler",
+      "slug": "wpLog0008ExampleId0000",
+      "status": "info",
+      "text": "Modified prd config in storefront-api",
+      "title": "Activity Log: wpLog0008ExampleId0000",
+      "user": {
+        "email": "dana.ortiz@example.com",
+        "name": "Dana Ortiz",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c529-4a60-7994-a2ab-e80142a85cb8"
+      },
+      "createdAt": "2026-11-10T11:13:00.000Z",
+      "date": "2026-11-10T11:13:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0009ExampleId0000",
+      "message": "Created secret STRIPE_WEBHOOK_SECRET in dev of order-service",
+      "metadata": {
+        "environment": "dev",
+        "projectId": "order-service",
+        "projectName": "order-service"
+      },
+      "service": "doppler",
+      "slug": "wpLog0009ExampleId0000",
+      "status": "info",
+      "text": "Created secret STRIPE_WEBHOOK_SECRET in dev of order-service",
+      "title": "Activity Log: wpLog0009ExampleId0000",
+      "user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000002?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c524-b680-7d7e-8936-76e6c7c7d936"
+      },
+      "createdAt": "2026-11-10T11:08:00.000Z",
+      "date": "2026-11-10T11:08:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0010ExampleId0000",
+      "message": "Deleted stg_preview config in billing",
+      "metadata": {
+        "environment": "stg",
+        "projectId": "billing",
+        "projectName": "billing"
+      },
+      "service": "doppler",
+      "slug": "wpLog0010ExampleId0000",
+      "status": "info",
+      "text": "Deleted stg_preview config in billing",
+      "title": "Activity Log: wpLog0010ExampleId0000",
+      "user": {
+        "email": "dana.ortiz@example.com",
+        "name": "Dana Ortiz",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c520-22a0-7653-807f-e7c58abed021"
+      },
+      "createdAt": "2026-11-10T11:03:00.000Z",
+      "date": "2026-11-10T11:03:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0011ExampleId0000",
+      "message": "Added Sam Lee to catalog-service",
+      "metadata": {
+        "environment": "prd",
+        "projectId": "catalog-service",
+        "projectName": "catalog-service"
+      },
+      "service": "doppler",
+      "slug": "wpLog0011ExampleId0000",
+      "status": "info",
+      "text": "Added Sam Lee to catalog-service",
+      "title": "Activity Log: wpLog0011ExampleId0000",
+      "user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000002?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c51b-8ec0-7d98-89d1-bc2edb1fe574"
+      },
+      "createdAt": "2026-11-10T10:58:00.000Z",
+      "date": "2026-11-10T10:58:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0012ExampleId0000",
+      "message": "Modified dev config in storefront-api",
+      "metadata": {
+        "config": "dev",
+        "environment": "dev",
+        "projectId": "storefront-api",
+        "projectName": "storefront-api"
+      },
+      "service": "doppler",
+      "slug": "wpLog0012ExampleId0000",
+      "status": "info",
+      "text": "Modified dev config in storefront-api",
+      "title": "Activity Log: wpLog0012ExampleId0000",
+      "user": {
+        "email": "dana.ortiz@example.com",
+        "name": "Dana Ortiz",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c516-fae0-73c5-b5a2-edf1003356bf"
+      },
+      "createdAt": "2026-11-10T10:53:00.000Z",
+      "date": "2026-11-10T10:53:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0013ExampleId0000",
+      "message": "Created secret STRIPE_WEBHOOK_SECRET in stg of order-service",
+      "metadata": {
+        "environment": "stg",
+        "projectId": "order-service",
+        "projectName": "order-service"
+      },
+      "service": "doppler",
+      "slug": "wpLog0013ExampleId0000",
+      "status": "info",
+      "text": "Created secret STRIPE_WEBHOOK_SECRET in stg of order-service",
+      "title": "Activity Log: wpLog0013ExampleId0000",
+      "user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000002?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c512-6700-74aa-9c1d-43a16f6fbb1a"
+      },
+      "createdAt": "2026-11-10T10:48:00.000Z",
+      "date": "2026-11-10T10:48:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0014ExampleId0000",
+      "message": "Deleted prd_preview config in billing",
+      "metadata": {
+        "environment": "prd",
+        "projectId": "billing",
+        "projectName": "billing"
+      },
+      "service": "doppler",
+      "slug": "wpLog0014ExampleId0000",
+      "status": "info",
+      "text": "Deleted prd_preview config in billing",
+      "title": "Activity Log: wpLog0014ExampleId0000",
+      "user": {
+        "email": "dana.ortiz@example.com",
+        "name": "Dana Ortiz",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c50d-d320-743f-95a9-1664ef6d6cf5"
+      },
+      "createdAt": "2026-11-10T10:43:00.000Z",
+      "date": "2026-11-10T10:43:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0015ExampleId0000",
+      "message": "Added Sam Lee to catalog-service",
+      "metadata": {
+        "environment": "dev",
+        "projectId": "catalog-service",
+        "projectName": "catalog-service"
+      },
+      "service": "doppler",
+      "slug": "wpLog0015ExampleId0000",
+      "status": "info",
+      "text": "Added Sam Lee to catalog-service",
+      "title": "Activity Log: wpLog0015ExampleId0000",
+      "user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000002?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c509-3f40-75d4-bbf6-c452e5ae19f8"
+      },
+      "createdAt": "2026-11-10T10:38:00.000Z",
+      "date": "2026-11-10T10:38:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0016ExampleId0000",
+      "message": "Modified stg config in storefront-api",
+      "metadata": {
+        "config": "stg",
+        "environment": "stg",
+        "projectId": "storefront-api",
+        "projectName": "storefront-api"
+      },
+      "service": "doppler",
+      "slug": "wpLog0016ExampleId0000",
+      "status": "info",
+      "text": "Modified stg config in storefront-api",
+      "title": "Activity Log: wpLog0016ExampleId0000",
+      "user": {
+        "email": "dana.ortiz@example.com",
+        "name": "Dana Ortiz",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c504-ab60-7ed1-99ad-a39c63841b13"
+      },
+      "createdAt": "2026-11-10T10:33:00.000Z",
+      "date": "2026-11-10T10:33:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0017ExampleId0000",
+      "message": "Created secret STRIPE_WEBHOOK_SECRET in prd of order-service",
+      "metadata": {
+        "environment": "prd",
+        "projectId": "order-service",
+        "projectName": "order-service"
+      },
+      "service": "doppler",
+      "slug": "wpLog0017ExampleId0000",
+      "status": "info",
+      "text": "Created secret STRIPE_WEBHOOK_SECRET in prd of order-service",
+      "title": "Activity Log: wpLog0017ExampleId0000",
+      "user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000002?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c500-1780-7946-9fc2-13075eb009ce"
+      },
+      "createdAt": "2026-11-10T10:28:00.000Z",
+      "date": "2026-11-10T10:28:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0018ExampleId0000",
+      "message": "Deleted dev_preview config in billing",
+      "metadata": {
+        "environment": "dev",
+        "projectId": "billing",
+        "projectName": "billing"
+      },
+      "service": "doppler",
+      "slug": "wpLog0018ExampleId0000",
+      "status": "info",
+      "text": "Deleted dev_preview config in billing",
+      "title": "Activity Log: wpLog0018ExampleId0000",
+      "user": {
+        "email": "dana.ortiz@example.com",
+        "name": "Dana Ortiz",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4fb-83a0-791b-9af2-fd074f85fe19"
+      },
+      "createdAt": "2026-11-10T10:23:00.000Z",
+      "date": "2026-11-10T10:23:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0019ExampleId0000",
+      "message": "Added Sam Lee to catalog-service",
+      "metadata": {
+        "environment": "stg",
+        "projectId": "catalog-service",
+        "projectName": "catalog-service"
+      },
+      "service": "doppler",
+      "slug": "wpLog0019ExampleId0000",
+      "status": "info",
+      "text": "Added Sam Lee to catalog-service",
+      "title": "Activity Log: wpLog0019ExampleId0000",
+      "user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000002?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f6-efc0-707b-a07f-89a613e435f9"
+      },
+      "createdAt": "2026-11-10T10:18:00.000Z",
+      "date": "2026-11-10T10:18:00.000Z",
+      "ddsource": "doppler",
+      "host": "doppler",
+      "link": "https://dashboard.doppler.com/workplace/0a1b2c3d4e5f60718293/logs?id=wpLog0020ExampleId0000",
+      "message": "Modified prd config in storefront-api",
+      "metadata": {
+        "config": "prd",
+        "environment": "prd",
+        "projectId": "storefront-api",
+        "projectName": "storefront-api"
+      },
+      "service": "doppler",
+      "slug": "wpLog0020ExampleId0000",
+      "status": "info",
+      "text": "Modified prd config in storefront-api",
+      "title": "Activity Log: wpLog0020ExampleId0000",
+      "user": {
+        "email": "dana.ortiz@example.com",
+        "name": "Dana Ortiz",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      },
+      "workplace": {
+        "id": "0a1b2c3d4e5f60718293",
+        "name": "Shop Example"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000,
+        "seen": [
+          {
+            "id": "312c0ccd18ff9adb",
+            "t": 1794311880000
+          },
+          {
+            "id": "9181f23ff3a28006",
+            "t": 1794311580000
+          }
+        ]
+      }
+    }
+  }
+}

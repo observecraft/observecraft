@@ -1,0 +1,49 @@
+{
+  "result": [
+    {
+      "id": "0b1c0000-0000-4000-8000-000000000001",
+      "timestamp": 1794308400000000,
+      "event_message": "connection authorized: user=authenticator database=postgres application_name=postgrest",
+      "source": "postgres_logs",
+      "severity_text": "LOG",
+      "log_attributes": {
+        "identifier": "abcdefghijklmnopqrst",
+        "host": "db-abcdefghijklmnopqrst",
+        "parsed.error_severity": "LOG",
+        "parsed.session_id": "6731a0f0.1a2b",
+        "parsed.user_name": "authenticator",
+        "parsed.database_name": "postgres"
+      }
+    },
+    {
+      "id": "0b1c0000-0000-4000-8000-000000000002",
+      "timestamp": 1794308700000000,
+      "event_message": "POST | 401 | 203.0.113.24 | 8f1d2e3a4b5c6d7e | https://abcdefghijklmnopqrst.supabase.co/auth/v1/token?grant_type=password | storefront-web/2.3.1",
+      "source": "edge_logs",
+      "severity_text": "INFO",
+      "log_attributes": {
+        "request.method": "POST",
+        "request.path": "/auth/v1/token",
+        "request.headers.cf_connecting_ip": "203.0.113.24",
+        "response.status_code": "401"
+      }
+    },
+    {
+      "id": "0b1c0000-0000-4000-8000-000000000003",
+      "timestamp": 1794309000000000,
+      "event_message": "Invalid login credentials",
+      "source": "auth_logs",
+      "severity_text": "ERROR",
+      "log_attributes": {
+        "level": "error",
+        "msg": "Invalid login credentials",
+        "grant_type": "password",
+        "error": "invalid_grant",
+        "status": "400",
+        "auth_event.action": "login",
+        "auth_event.actor_username": "jane.doe@example.com"
+      }
+    }
+  ],
+  "error": null
+}

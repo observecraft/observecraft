@@ -13,6 +13,8 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use super::dashboards::EnabledChange;
+use super::integration_installs::install_pipelines;
 use super::portal_sources::check_site_url;
 use crate::auth::Admin;
 use crate::authentik::api::{self as ak, AuthentikApi, AuthentikError, Rest};
@@ -154,6 +156,8 @@ pub async fn put_authentik(State(st): State<AppState>, Admin(ctx): Admin, Json(i
     let conn = validate(&input, st.config.portal_allow_private).map_err(ApiError::BadRequest)?;
     let token = token_for(&st, &ctx.org_id, &input, &conn.base_url).await?;
     let previous = saved(&st, &ctx.org_id).await?;
+    // The authentik dashboard is listed once a connection exists.
+    let _changed = EnabledChange(&ctx.org_id);
     let mut tx = st.postgres.begin().await?;
     sqlx::query(
         "INSERT INTO authentik_connections (org_id, base_url, token_enc, updated_by) VALUES ($1, $2, $3, $4::uuid) \
@@ -177,6 +181,8 @@ pub async fn put_authentik(State(st): State<AppState>, Admin(ctx): Admin, Json(i
         .execute(&mut *tx)
         .await?;
     tx.commit().await?;
+    // Its library log pipeline (categories, failed logins as errors), as installing it from its tile would.
+    install_pipelines(&st, &ctx.org_id, PROVIDER).await?;
     poll_now(&st, &ctx.org_id).await?;
     let detail = format!("{}{}", conn.base_url, if input.token.as_deref().is_some_and(|t| !t.trim().is_empty()) { ", token replaced" } else { "" });
     ctx.audit(&st, "integrations.authentik_saved", "authentik", &detail).await;
@@ -186,6 +192,7 @@ pub async fn put_authentik(State(st): State<AppState>, Admin(ctx): Admin, Json(i
 /// Removes the authentik connection, its token and its polling (admins). Stored logs stay.
 #[utoipa::path(delete, path = "/api/v1/integrations/authentik", operation_id = "authentik_delete", responses((status = 204), (status = 404, body = crate::error::ErrorBody)), tag = "integrations")]
 pub async fn delete_authentik(State(st): State<AppState>, Admin(ctx): Admin) -> Result<StatusCode, ApiError> {
+    let _changed = EnabledChange(&ctx.org_id);
     let mut tx = st.postgres.begin().await?;
     let done = sqlx::query("DELETE FROM authentik_connections WHERE org_id = $1").bind(&ctx.org_id).execute(&mut *tx).await?;
     if done.rows_affected() == 0 {
@@ -279,6 +286,10 @@ mod tests {
         // Saving creates the events job right away.
         let scopes: Vec<String> = sqlx::query_scalar("SELECT scope FROM cloud_crawl_jobs WHERE provider = $1 AND org_id = $2 AND next_run_at <= now()").bind(PROVIDER).bind(&a.org_id).fetch_all(&st.postgres).await.unwrap();
         assert_eq!(scopes, [SCOPE]);
+        // Its dashboard is listed and its log pipeline installed.
+        assert!(super::super::dashboards::enabled_integrations(st, &a.org_id).await.unwrap().contains("authentik"));
+        let pipelines: Vec<String> = sqlx::query_scalar("SELECT source FROM log_pipelines WHERE org_id = $1").bind(&a.org_id).fetch_all(&st.postgres).await.unwrap();
+        assert_eq!(pipelines, ["integration:authentik"]);
 
         // Org B sees nothing of A's, can't delete or sync it, and its first save needs a token.
         assert!(get_authentik(State(st.clone()), OrgId(b.org_id.clone())).await.unwrap().0.connection.is_none());
@@ -286,6 +297,7 @@ mod tests {
         assert!(matches!(sync_authentik(State(st.clone()), Admin(b.clone())).await, Err(ApiError::NotFound(_))));
         let err = put_authentik(State(st.clone()), Admin(b.clone()), Json(input(json!({"baseUrl": "https://portal.example.com"})))).await.unwrap_err();
         assert!(matches!(err, ApiError::BadRequest(_)));
+        assert!(!super::super::dashboards::enabled_integrations(st, &b.org_id).await.unwrap().contains("authentik"));
 
         // A keeps its token while the URL stays; a new URL needs it again.
         let _ = put_authentik(State(st.clone()), Admin(a.clone()), Json(input(json!({"baseUrl": "https://portal.example.com/"})))).await.unwrap();
@@ -305,5 +317,6 @@ mod tests {
         assert!(get_authentik(State(st.clone()), OrgId(a.org_id.clone())).await.unwrap().0.connection.is_none());
         let left: i64 = sqlx::query_scalar("SELECT count(*) FROM cloud_crawl_jobs WHERE provider = $1 AND org_id = $2").bind(PROVIDER).bind(&a.org_id).fetch_one(&st.postgres).await.unwrap();
         assert_eq!(left, 0);
+        assert!(!super::super::dashboards::enabled_integrations(st, &a.org_id).await.unwrap().contains("authentik"));
     }
 }

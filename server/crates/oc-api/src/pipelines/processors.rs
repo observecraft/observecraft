@@ -9,7 +9,7 @@ use serde_json::{Map, Value};
 
 use super::dates::parse_any;
 use super::filter::Filter;
-use super::grok::{as_f64, num, query_string, Grok};
+use super::grok::{as_f64, num, Grok};
 use super::log::{text, Log};
 use super::{Pipeline, MAX_NESTING};
 
@@ -27,7 +27,41 @@ pub enum Step {
     Lookup { source: String, target: String, table: HashMap<String, String>, default: Option<String> },
     Arithmetic { expr: Expr, target: String, replace_missing: bool },
     Url { sources: Vec<String>, target: String },
+    GeoIp { sources: Vec<String>, target: String },
+    UserAgent { sources: Vec<String>, target: String, encoded: bool },
+    Array(ArrayOp),
+    Schema(Box<Schema>),
     Pipeline(Box<Pipeline>),
+}
+
+/// A schema processor: the log mapped onto an OCSF event class (Datadog's OCSF sub-pipelines).
+pub struct Schema {
+    class_uid: i64,
+    class_name: String,
+    version: String,
+    profiles: Vec<String>,
+    mappers: Vec<Mapper>,
+}
+
+pub enum Mapper {
+    /// The first matching category's name and id into two attributes; else the fallback's values, the names read
+    /// from their sources when they have one.
+    Category { categories: Vec<(Filter, String, Value)>, name: String, id: String, fallback: Vec<(String, Value)>, fallback_sources: Vec<(String, Vec<String>)> },
+    Remap(Remap),
+}
+
+/// OCSF's event categories (an event class's uid divided by 1000).
+const OCSF_CATEGORIES: [&str; 8] = ["System Activity", "Findings", "Identity & Access Management", "Network Activity", "Discovery", "Application Activity", "Remediation", "Unmanned Systems"];
+
+/// An array processor's operation.
+pub enum ArrayOp {
+    /// The `value` of the first element matching `filter`, into `target`.
+    Select { source: String, target: String, filter: Filter, value: String },
+    /// The value of `source` appended to the array `target`.
+    Append { source: String, target: String, preserve_source: bool },
+    Length { source: String, target: String },
+    /// Each element's `key` and `value` as an attribute, at the root or under `target`.
+    KeyValue { source: String, target: Option<String>, key: String, value: String, override_on_conflict: bool },
 }
 
 pub struct Remap {
@@ -140,6 +174,8 @@ struct CategoryRule {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TemplateDef {
+    /// Text, or a number (`template: 99` in upstream YAML).
+    #[serde(deserialize_with = "text_or_number")]
     template: String,
     target: String,
     #[serde(default, alias = "isReplaceMissing", alias = "is_replace_missing")]
@@ -175,6 +211,100 @@ struct UrlDef {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SchemaDef {
+    schema: SchemaInfo,
+    #[serde(default)]
+    mappers: Vec<Value>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SchemaInfo {
+    #[serde(default, alias = "class_name")]
+    class_name: String,
+    #[serde(default, alias = "class_uid")]
+    class_uid: i64,
+    #[serde(default)]
+    version: String,
+    #[serde(default)]
+    profiles: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct CategoryMapperDef {
+    #[serde(default)]
+    categories: Vec<SchemaCategory>,
+    targets: CategoryTargets,
+    #[serde(default)]
+    fallback: Option<CategoryFallback>,
+}
+
+#[derive(Deserialize)]
+struct SchemaCategory {
+    #[serde(default)]
+    filter: Value,
+    name: String,
+    id: Value,
+}
+
+#[derive(Deserialize)]
+struct CategoryTargets {
+    name: String,
+    id: String,
+}
+
+#[derive(Deserialize, Default)]
+struct CategoryFallback {
+    #[serde(default)]
+    values: serde_json::Map<String, Value>,
+    #[serde(default)]
+    sources: HashMap<String, Vec<String>>,
+}
+
+#[derive(Deserialize)]
+struct ArrayDef {
+    operation: ArrayOpDef,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ArrayOpDef {
+    #[serde(rename = "type")]
+    kind: String,
+    source: String,
+    #[serde(default)]
+    target: Option<String>,
+    #[serde(default)]
+    filter: Option<String>,
+    #[serde(default, alias = "value_to_extract")]
+    value_to_extract: Option<String>,
+    #[serde(default, alias = "key_to_extract")]
+    key_to_extract: Option<String>,
+    #[serde(default, alias = "preserve_source")]
+    preserve_source: Option<bool>,
+    #[serde(default, alias = "override_on_conflict")]
+    override_on_conflict: Option<bool>,
+}
+
+impl ArrayOpDef {
+    /// The target the select, append and length operations need.
+    fn target(&mut self) -> Result<String, String> {
+        self.target.take().filter(|t| !t.is_empty()).ok_or_else(|| format!("A {} operation needs a target", self.kind))
+    }
+}
+
+#[derive(Deserialize)]
+struct UserAgentDef {
+    #[serde(default)]
+    sources: Vec<String>,
+    #[serde(default)]
+    target: Option<String>,
+    #[serde(default, alias = "is_encoded")]
+    encoded: bool,
+}
+
+#[derive(Deserialize)]
 struct NestedDef {
     #[serde(default)]
     name: Option<String>,
@@ -190,6 +320,14 @@ pub fn filter_query(v: &Value) -> &str {
         Value::String(s) => s,
         Value::Object(o) => o.get("query").and_then(Value::as_str).unwrap_or(""),
         _ => "",
+    }
+}
+
+fn text_or_number<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    match Value::deserialize(d)? {
+        Value::String(s) => Ok(s),
+        v @ (Value::Number(_) | Value::Bool(_)) => Ok(v.to_string()),
+        _ => Err(serde::de::Error::custom("expected a string")),
     }
 }
 
@@ -216,6 +354,10 @@ pub const SUPPORTED: &[&str] = &[
     "lookup-processor",
     "arithmetic-processor",
     "url-parser",
+    "geo-ip-parser",
+    "user-agent-parser",
+    "array-processor",
+    "schema-processor",
     "pipeline",
 ];
 
@@ -238,28 +380,7 @@ pub fn compile(def: &Value, depth: usize) -> Result<Option<Step>, String> {
         "service-remapper" => Step::Service(sources()?),
         "message-remapper" => Step::Message(sources()?),
         "trace-id-remapper" => Step::TraceId(sources()?),
-        "attribute-remapper" => {
-            let d: RemapDef = de(def)?;
-            let format = match d.target_format.as_deref().unwrap_or("auto") {
-                "auto" | "" => Format::Auto,
-                "string" => Format::Text,
-                "integer" => Format::Integer,
-                "double" => Format::Double,
-                f => return Err(format!("Unknown target format '{f}' (auto, string, integer or double)")),
-            };
-            if d.target.trim().is_empty() {
-                return Err("The remapper needs a target".into());
-            }
-            Step::Remap(Remap {
-                sources: d.sources,
-                from_tag: d.source_type.as_deref() == Some("tag"),
-                target: d.target,
-                to_tag: d.target_type.as_deref() == Some("tag"),
-                format,
-                preserve_source: d.preserve_source.unwrap_or(false),
-                override_on_conflict: d.override_on_conflict.unwrap_or(false),
-            })
-        }
+        "attribute-remapper" => Step::Remap(Remap::compile(def)?),
         "category-processor" => {
             let d: CategoryDef = de(def)?;
             Step::Category { target: d.target, categories: d.categories.into_iter().map(|c| (Filter::parse(filter_query(&c.filter)), c.name)).collect() }
@@ -281,6 +402,35 @@ pub fn compile(def: &Value, depth: usize) -> Result<Option<Step>, String> {
             let d: UrlDef = de(def)?;
             let sources = if d.sources.is_empty() { vec!["http.url".to_string()] } else { d.sources };
             Step::Url { sources, target: d.target.filter(|t| !t.is_empty()).unwrap_or_else(|| "http.url_details".into()) }
+        }
+        "geo-ip-parser" => {
+            let d: UrlDef = de(def)?;
+            Step::GeoIp { sources: d.sources, target: d.target.filter(|t| !t.is_empty()).unwrap_or_else(|| "network.client.geoip".into()) }
+        }
+        "schema-processor" => {
+            let d: SchemaDef = de(def)?;
+            let mappers = d.mappers.iter().map(Mapper::compile).collect::<Result<Vec<_>, _>>()?;
+            let SchemaInfo { class_name, class_uid, version, profiles } = d.schema;
+            Step::Schema(Box::new(Schema { class_uid, class_name, version, profiles, mappers }))
+        }
+        "user-agent-parser" => {
+            let d: UserAgentDef = de(def)?;
+            let sources = if d.sources.is_empty() { vec!["http.useragent".to_string()] } else { d.sources };
+            Step::UserAgent { sources, target: d.target.filter(|t| !t.is_empty()).unwrap_or_else(|| "http.useragent_details".into()), encoded: d.encoded }
+        }
+        "array-processor" => {
+            let ArrayDef { operation: mut o } = de(def)?;
+            Step::Array(match o.kind.as_str() {
+                "select" => Step::select(o)?,
+                "append" => ArrayOp::Append { target: o.target()?, source: o.source, preserve_source: o.preserve_source.unwrap_or(true) },
+                "length" => ArrayOp::Length { target: o.target()?, source: o.source },
+                "key-value" => {
+                    let key = o.key_to_extract.filter(|k| !k.is_empty()).ok_or("A key-value operation needs a key to extract")?;
+                    let value = o.value_to_extract.filter(|v| !v.is_empty()).ok_or("A key-value operation needs a value to extract")?;
+                    ArrayOp::KeyValue { source: o.source, target: o.target.filter(|t| !t.is_empty()), key, value, override_on_conflict: o.override_on_conflict.unwrap_or(false) }
+                }
+                k => return Err(format!("Unknown array operation '{k}' (select, append, length or key-value)")),
+            })
         }
         "pipeline" => {
             if depth >= MAX_NESTING {
@@ -326,9 +476,11 @@ pub fn apply(step: &Step, log: &mut Log, now_ms: i64) {
                 log.service = s;
             }
         }
+        // Datadog's message remapper moves the attribute (integrations-core's samples no longer have `msg`).
         Step::Message(sources) => {
-            if let Some(v) = first(log, sources) {
+            if let Some((source, v)) = sources.iter().find_map(|s| log.get(s).filter(|v| !v.is_null()).map(|v| (s, v))) {
                 log.message = text(&v);
+                log.remove(source);
             }
         }
         Step::TraceId(sources) => {
@@ -372,15 +524,179 @@ pub fn apply(step: &Step, log: &mut Log, now_ms: i64) {
                 log.set(target, details);
             }
         }
+        Step::GeoIp { sources, target } => {
+            let Some(v) = sources.iter().find_map(|s| log.get(s)) else { return };
+            // No location database ships with ObserveCraft: a valid address gets Datadog's "no location known".
+            let ip = text(&v);
+            if ip.trim().is_empty() || v.is_null() {
+                return;
+            }
+            let geo = if ip.trim().parse::<std::net::IpAddr>().is_ok() { serde_json::json!({}) } else { serde_json::json!({ "invalidAddress": ip }) };
+            log.set(target, geo);
+        }
+        Step::UserAgent { sources, target, encoded } => {
+            let Some(Value::String(ua)) = sources.iter().find_map(|s| log.get(s)).filter(|v| v.as_str().is_some_and(|s| !s.trim().is_empty())) else { return };
+            let ua = if *encoded { super::grok::decode_uri(&ua) } else { ua };
+            log.set(target, super::useragent::parse(&ua));
+        }
+        Step::Array(op) => op.apply(log),
+        Step::Schema(schema) => schema.apply(log),
         Step::Pipeline(p) => {
             p.apply(log, now_ms);
         }
     }
 }
 
-impl Remap {
+impl Step {
+    fn select(mut o: ArrayOpDef) -> Result<ArrayOp, String> {
+        let target = o.target()?;
+        let value = o.value_to_extract.filter(|v| !v.is_empty()).ok_or("A select operation needs a value to extract")?;
+        Ok(ArrayOp::Select { source: o.source, target, filter: Filter::parse(o.filter.as_deref().unwrap_or("").trim()), value })
+    }
+}
+
+impl Mapper {
+    fn compile(def: &Value) -> Result<Mapper, String> {
+        match def.get("type").and_then(Value::as_str).unwrap_or("") {
+            "schema-category-mapper" => {
+                let d: CategoryMapperDef = de(def)?;
+                let fallback = d.fallback.unwrap_or_default();
+                // Ids are numbers (`"99"` in fallbacks too).
+                let id = |v: Value| match &v {
+                    Value::String(s) => s.parse::<i64>().map(Value::from).unwrap_or(v),
+                    _ => v,
+                };
+                let values = fallback.values.into_iter().map(|(k, v)| if k == d.targets.id { (k, id(v)) } else { (k, v) }).collect();
+                Ok(Mapper::Category {
+                    categories: d.categories.into_iter().map(|c| (Filter::parse(filter_query(&c.filter)), c.name, id(c.id))).collect(),
+                    name: d.targets.name,
+                    id: d.targets.id,
+                    fallback: values,
+                    fallback_sources: fallback.sources.into_iter().collect(),
+                })
+            }
+            "schema-remapper" => Ok(Mapper::Remap(Remap::compile(def)?)),
+            t => Err(format!("Unknown schema mapper '{t}'")),
+        }
+    }
+}
+
+impl Schema {
     fn apply(&self, log: &mut Log) {
-        let read = |log: &Log, s: &str| if self.from_tag { log.tags.get(s).map(|v| Value::from(v.as_str())) } else { log.get(s) };
+        log.set("ocsf.class_uid", Value::from(self.class_uid));
+        log.set("ocsf.class_name", Value::from(self.class_name.as_str()));
+        let category = self.class_uid / 1000;
+        log.set("ocsf.category_uid", Value::from(category));
+        if let Some(name) = usize::try_from(category).ok().and_then(|c| c.checked_sub(1)).and_then(|c| OCSF_CATEGORIES.get(c)) {
+            log.set("ocsf.category_name", Value::from(*name));
+        }
+        log.set("ocsf.metadata.version", Value::from(self.version.as_str()));
+        if !self.profiles.is_empty() {
+            log.set("ocsf.metadata.profiles", Value::from(self.profiles.clone()));
+        }
+        for mapper in &self.mappers {
+            match mapper {
+                Mapper::Remap(r) => r.apply(log),
+                Mapper::Category { categories, name, id, fallback, fallback_sources } => {
+                    if let Some((_, n, i)) = categories.iter().find(|(f, _, _)| log.matches(f)) {
+                        let (n, i) = (Value::from(n.as_str()), i.clone());
+                        log.set(name, n);
+                        log.set(id, i);
+                        continue;
+                    }
+                    for (target, v) in fallback {
+                        let read = fallback_sources.iter().find(|(t, _)| t == target).and_then(|(_, sources)| sources.iter().find_map(|s| log.get(s)));
+                        log.set(target, read.unwrap_or_else(|| v.clone()));
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl ArrayOp {
+    fn apply(&self, log: &mut Log) {
+        match self {
+            ArrayOp::Select { source, target, filter, value } => {
+                let Some(Value::Array(items)) = log.get(source) else { return };
+                let mut found = items.into_iter().filter_map(|item| match item {
+                    Value::Object(attrs) => {
+                        // Its fields, as attributes or bare names (`info.ipAddress:*`).
+                        let mut item = Log::default();
+                        item.tags = super::log::flatten(&attrs);
+                        item.attrs = attrs;
+                        Some(item)
+                    }
+                    _ => None,
+                });
+                if let Some(v) = found.find_map(|mut item| if item.matches(filter) { item.get(value) } else { None }) {
+                    log.set(target, v);
+                }
+            }
+            ArrayOp::Append { source, target, preserve_source } => {
+                let Some(v) = log.get(source) else { return };
+                let mut list = match log.get(target) {
+                    Some(Value::Array(a)) => a,
+                    Some(other) => vec![other],
+                    None => vec![],
+                };
+                list.push(v);
+                if !preserve_source && source != target {
+                    log.remove(source);
+                }
+                log.set(target, Value::Array(list));
+            }
+            ArrayOp::Length { source, target } => {
+                if let Some(Value::Array(a)) = log.get(source) {
+                    log.set(target, Value::from(a.len()));
+                }
+            }
+            ArrayOp::KeyValue { source, target, key, value, override_on_conflict } => {
+                let Some(Value::Array(items)) = log.get(source) else { return };
+                for item in items {
+                    let (Some(k), Some(v)) = (item.get(key).filter(|k| !k.is_null()).map(text), item.get(value)) else { continue };
+                    let path = target.as_ref().map_or_else(|| k.clone(), |t| format!("{t}.{k}"));
+                    if *override_on_conflict || log.peek(&path).is_none() {
+                        log.set(&path, v.clone());
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl Remap {
+    /// An attribute remapper (or a schema processor's schema-remapper) from its definition.
+    fn compile(def: &Value) -> Result<Remap, String> {
+        let d: RemapDef = de(def)?;
+        let format = match d.target_format.as_deref().unwrap_or("auto") {
+            "auto" | "" => Format::Auto,
+            "string" => Format::Text,
+            "integer" => Format::Integer,
+            "double" => Format::Double,
+            f => return Err(format!("Unknown target format '{f}' (auto, string, integer or double)")),
+        };
+        if d.target.trim().is_empty() {
+            return Err("The remapper needs a target".into());
+        }
+        Ok(Remap {
+            sources: d.sources,
+            from_tag: d.source_type.as_deref() == Some("tag"),
+            target: d.target,
+            to_tag: d.target_type.as_deref() == Some("tag"),
+            format,
+            preserve_source: d.preserve_source.unwrap_or(false),
+            override_on_conflict: d.override_on_conflict.unwrap_or(false),
+        })
+    }
+
+    fn apply(&self, log: &mut Log) {
+        // Attributes only (and the message): not the log's own status, service, host or source.
+        let read = |log: &Log, s: &str| match (self.from_tag, s) {
+            (true, _) => log.tags.get(s).map(|v| Value::from(v.as_str())),
+            (false, "status" | "service" | "host" | "source") => log.attribute(s).cloned(),
+            (false, _) => log.get(s),
+        };
         let Some((source, v)) = self.sources.iter().find_map(|s| read(log, s).map(|v| (s, v))) else { return };
         let Some(v) = cast(v, &self.format) else { return };
         let exists = if self.to_tag { log.tags.contains_key(&self.target) } else { log.get(&self.target).is_some() };
@@ -428,7 +744,7 @@ pub fn status_of(v: &Value) -> &'static str {
 }
 
 /// A trace id as the 32 hex digits `trace_id` holds: decimal (Datadog's 64-bit ids) or hex.
-fn trace_id(s: &str) -> Option<String> {
+pub(crate) fn trace_id(s: &str) -> Option<String> {
     let s = s.trim().to_ascii_lowercase();
     if s.is_empty() {
         return None;
@@ -476,22 +792,41 @@ fn lookup_row(line: &str) -> Option<(String, String)> {
 
 /// `scheme`, `host`, `port`, `path` and `queryString` of a URL (only the last two for a relative one).
 pub fn url_details(s: &str) -> Option<Value> {
+    // As Datadog's URL parser reads it: the parts as written, no defaults (port, `/` path) and no decoding.
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
     let mut out = Map::new();
-    let parsed = match url::Url::parse(s) {
-        Ok(u) if u.has_host() => {
-            out.insert("scheme".into(), Value::from(u.scheme()));
-            out.insert("host".into(), Value::from(u.host_str().unwrap_or("")));
-            if let Some(port) = u.port_or_known_default() {
+    let (rest, hash) = s.split_once('#').map_or((s, None), |(r, h)| (r, Some(h)));
+    let (rest, query) = rest.split_once('?').map_or((rest, None), |(r, q)| (r, Some(q)));
+    let scheme = rest.find("://").filter(|&i| i > 0 && rest[..i].chars().all(|c| c.is_ascii_alphanumeric() || "+.-".contains(c)));
+    let path = match scheme {
+        Some(i) => {
+            out.insert("scheme".into(), Value::from(&rest[..i]));
+            let after = &rest[i + 3..];
+            let (authority, path) = after.find('/').map_or((after, ""), |j| (&after[..j], &after[j..]));
+            let host_port = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
+            // `[v6]:port`, `host:port` or a host.
+            let (host, port) = match host_port.rfind(':') {
+                Some(j) if !host_port[j..].contains(']') && host_port[j + 1..].parse::<u16>().is_ok() => (&host_port[..j], host_port[j + 1..].parse::<u16>().ok()),
+                _ => (host_port, None),
+            };
+            out.insert("host".into(), Value::from(host.to_lowercase()));
+            if let Some(port) = port {
                 out.insert("port".into(), Value::from(port));
             }
-            u
+            path
         }
-        _ if s.starts_with('/') => url::Url::parse(&format!("http://relative.invalid{s}")).ok()?,
-        _ => return None,
+        None => rest,
     };
-    out.insert("path".into(), Value::from(parsed.path()));
-    if let Some(q) = parsed.query().filter(|q| !q.is_empty()) {
-        out.insert("queryString".into(), query_string(q));
+    out.insert("path".into(), Value::from(path));
+    if let Some(q) = query.filter(|q| !q.is_empty()) {
+        let pairs = q.split('&').filter(|p| !p.is_empty()).map(|p| p.split_once('=').unwrap_or((p, "")));
+        out.insert("queryString".into(), Value::Object(pairs.map(|(k, v)| (k.to_string(), Value::from(v))).collect()));
+    }
+    if let Some(h) = hash.filter(|h| !h.is_empty()) {
+        out.insert("hash".into(), Value::from(h));
     }
     Some(Value::Object(out))
 }
@@ -653,7 +988,7 @@ mod tests {
         let p = json!([{"type": "grok-parser", "source": "request", "grok": {"matchRules": "kv %{data::keyvalue}"}}]);
         let out = run(p, log("m", json!({"request": "user=jane cart=7"})));
         assert_eq!(out.get("user"), Some(json!("jane")));
-        assert_eq!(out.get("cart"), Some(json!("7")));
+        assert_eq!(out.get("cart"), Some(json!(7)));
         // Snake_case (Datadog API) definitions and disabled processors.
         let p = json!([
             {"type": "grok-parser", "is_enabled": false, "grok": {"match_rules": "r %{data:skipped}"}},
@@ -708,8 +1043,8 @@ mod tests {
         assert_eq!((out.status.as_str(), out.service.as_str(), out.message.as_str()), ("warn", "billing", "card declined"));
         assert_eq!(out.timestamp_ms, Some(1_792_933_200_123));
         assert_eq!(out.trace_id, "000000000000000000000000000000ff");
-        // Sources stay; a date that doesn't parse leaves the date alone.
-        assert_eq!(out.get("level"), Some(json!("WARN")));
+        // Sources stay, but the message's (as Datadog's message remapper does); a date that doesn't parse leaves the date alone.
+        assert_eq!((out.get("level"), out.get("ts").is_some(), out.get("app"), out.get("msg")), (Some(json!("WARN")), true, Some(json!("billing")), None));
         let out = run(json!([{"type": "date-remapper", "sources": ["ts"]}]), log("m", json!({"ts": "soon"})));
         assert_eq!(out.timestamp_ms, None);
     }
@@ -742,6 +1077,11 @@ mod tests {
         assert_eq!(out.get("deployment.env"), Some(json!("prod")));
         assert_eq!(out.tags.get("client_ip").map(String::as_str), Some("10.0.0.9"));
         assert_eq!(out.tags.get("env").map(String::as_str), Some("prod"));
+        // A source is an attribute: not the log's own status (or service, host, source), as in Datadog.
+        let out = run(json!([{"type": "attribute-remapper", "sources": ["status"], "target": "http.status_code"}]), base());
+        assert_eq!(out.get("http.status_code"), None);
+        let out = run(json!([{"type": "attribute-remapper", "sources": ["status"], "target": "http.status_code"}]), log("m", json!({"status": 503})));
+        assert_eq!((out.get("http.status_code"), out.status.as_str()), (Some(json!(503)), "info"));
     }
 
     #[test]
@@ -796,10 +1136,88 @@ mod tests {
     #[test]
     fn url_parser() {
         let p = json!([{"type": "url-parser", "sources": ["http.url"], "target": "http.url_details"}]);
-        let out = run(p.clone(), log("m", json!({"http": {"url": "https://shop.example.com:8443/cart?id=7&q=red%20shoes"}})));
-        assert_eq!(out.get("http.url_details"), Some(json!({"scheme": "https", "host": "shop.example.com", "port": 8443, "path": "/cart", "queryString": {"id": "7", "q": "red shoes"}})));
-        let out = run(p, log("m", json!({"http": {"url": "/cart"}})));
-        assert_eq!(out.get("http.url_details"), Some(json!({"path": "/cart"})));
+        // As Datadog's: the URL's parts as written (query values aren't decoded), its port only when it has one.
+        let out = run(p.clone(), log("m", json!({"http": {"url": "https://Shop.Example.com:8443/cart?id=7&q=red%20shoes#reviews"}})));
+        assert_eq!(out.get("http.url_details"), Some(json!({"scheme": "https", "host": "shop.example.com", "port": 8443, "path": "/cart", "queryString": {"id": "7", "q": "red%20shoes"}, "hash": "reviews"})));
+        let details = |url: &str| run(p.clone(), log("m", json!({"http": {"url": url}}))).get("http.url_details");
+        assert_eq!(details("/cart"), Some(json!({"path": "/cart"})));
+        assert_eq!(details("https://shop.example.com"), Some(json!({"scheme": "https", "host": "shop.example.com", "path": ""})));
+        assert_eq!(details("SSL://login.example.com:443/"), Some(json!({"scheme": "SSL", "host": "login.example.com", "port": 443, "path": "/"})));
+        assert_eq!(details("www.example.com"), Some(json!({"path": "www.example.com"})));
+        assert_eq!(details("http://[2001:db8::1]:8080/x?flag"), Some(json!({"scheme": "http", "host": "[2001:db8::1]", "port": 8080, "path": "/x", "queryString": {"flag": ""}})));
+        assert_eq!(details(""), None);
+    }
+
+    #[test]
+    fn geo_ip_parser_without_a_location_database() {
+        let p = json!([{"type": "geo-ip-parser", "sources": ["client_ip", "network.client.ip"], "target": "network.client.geoip"}]);
+        // A valid address no location is known for is `{}`, as Datadog writes for private and unknown ones.
+        let out = run(p.clone(), log("m", json!({"network": {"client": {"ip": "10.0.0.12"}}})));
+        assert_eq!(out.get("network.client.geoip"), Some(json!({})));
+        assert_eq!(run(p.clone(), log("m", json!({"client_ip": " 2001:db8::1 "}))).get("network.client.geoip"), Some(json!({})));
+        assert_eq!(run(p.clone(), log("m", json!({"client_ip": "Unknown IP"}))).get("network.client.geoip"), Some(json!({"invalidAddress": "Unknown IP"})));
+        assert_eq!(run(p.clone(), log("m", json!({"client_ip": ""}))).get("network.client.geoip"), None);
+        assert_eq!(run(p, log("m", json!({}))).get("network.client.geoip"), None);
+    }
+
+    #[test]
+    fn user_agent_parser() {
+        let p = json!([{"type": "user-agent-parser", "sources": ["ua", "http.useragent"], "target": "http.useragent_details", "encoded": true}]);
+        let out = run(p, log("m", json!({"ua": "Mozilla/5.0%20(Windows%20NT%2010.0;%20Win64;%20x64)%20Chrome/120.0.0.0%20Safari/537.36"})));
+        assert_eq!(out.get("http.useragent_details.browser.family"), Some(json!("Chrome")));
+        assert_eq!(out.get("http.useragent_details.os.family"), Some(json!("Windows")));
+        assert_eq!(out.get("http.useragent_details.device.category"), Some(json!("Desktop")));
+        let p = json!([{"type": "user-agent-parser", "sources": ["http.useragent"], "target": "ua"}]);
+        assert_eq!(run(p, log("m", json!({"http": {"useragent": ""}}))).get("ua"), None, "an empty user agent isn't parsed");
+    }
+
+    #[test]
+    fn array_processor_selects_appends_and_counts() {
+        let p = json!([
+            {"type": "array-processor", "operation": {"type": "select", "source": "entries", "target": "outcome", "filter": "name:login ", "valueToExtract": "outcome"}},
+            {"type": "array-processor", "operation": {"type": "length", "source": "entries", "target": "count"}},
+            {"type": "array-processor", "operation": {"type": "append", "source": "extra", "target": "tags_list", "preserveSource": false}},
+            {"type": "array-processor", "operation": {"type": "append", "source": "single", "target": "fresh"}}
+        ]);
+        let out = run(p, log("m", json!({"entries": [{"name": "check", "outcome": "skip"}, {"name": "login", "outcome": "ok"}], "extra": "b", "tags_list": ["a"], "single": "x"})));
+        assert_eq!((out.get("outcome"), out.get("count")), (Some(json!("ok")), Some(json!(2))));
+        assert_eq!((out.get("tags_list"), out.get("extra")), (Some(json!(["a", "b"])), None));
+        assert_eq!((out.get("fresh"), out.get("single")), (Some(json!(["x"])), Some(json!("x"))));
+    }
+
+    /// Datadog's key-value operation (its API's `key_to_extract` / `value_to_extract`): each element's key and value
+    /// become an attribute, at the root or under `target`; an attribute already there stays unless overridden.
+    #[test]
+    fn array_processor_turns_key_value_elements_into_attributes() {
+        let tags = json!({"tags": [{"name": "team", "value": "payments"}, {"name": "env", "value": "prod"}, {"value": "no key"}], "env": "staging"});
+        let p = json!([{"type": "array-processor", "operation": {"type": "key-value", "source": "tags", "key_to_extract": "name", "value_to_extract": "value"}}]);
+        let out = run(p, log("m", tags.clone()));
+        assert_eq!((out.get("team"), out.get("env")), (Some(json!("payments")), Some(json!("staging"))), "kept without override_on_conflict");
+        let p = json!([{"type": "array-processor", "operation": {"type": "key-value", "source": "tags", "target": "extracted", "key_to_extract": "name", "value_to_extract": "value", "override_on_conflict": true}}]);
+        assert_eq!(run(p.clone(), log("m", tags.clone())).get("extracted"), Some(json!({"team": "payments", "env": "prod"})));
+        let p = json!([{"type": "array-processor", "operation": {"type": "key-value", "source": "tags", "key_to_extract": "name", "value_to_extract": "value", "override_on_conflict": true}}]);
+        assert_eq!(run(p, log("m", tags)).get("env"), Some(json!("prod")));
+    }
+
+    #[test]
+    fn schema_processor_maps_onto_ocsf() {
+        let p = json!([{"type": "schema-processor", "schema": {"schemaType": "ocsf", "version": "1.5.0", "className": "DNS Activity", "classUid": 4003, "profiles": ["host"]}, "mappers": [
+            {"type": "schema-category-mapper", "name": "severity", "categories": [{"filter": {"query": "@level:(WARN OR WARNING)"}, "name": "Medium", "id": 3}, {"filter": {"query": "@level:ERROR"}, "name": "High", "id": 4}],
+             "targets": {"name": "ocsf.severity", "id": "ocsf.severity_id"}, "fallback": {"values": {"ocsf.severity": "Other", "ocsf.severity_id": "99"}, "sources": {"ocsf.severity": ["level"]}}},
+            {"type": "schema-category-mapper", "name": "activity", "categories": [{"filter": {"query": "*"}, "name": "Traffic", "id": 6}], "targets": {"name": "ocsf.activity_name", "id": "ocsf.activity_id"}},
+            {"type": "schema-remapper", "sources": ["network.client.port"], "target": "ocsf.src_endpoint.port", "targetFormat": "integer", "preserveSource": true, "overrideOnConflict": true}
+        ]}]);
+        let out = run(p.clone(), log("m", json!({"level": "ERROR", "network": {"client": {"port": "53"}}})));
+        let ocsf = out.get("ocsf").unwrap();
+        assert_eq!((ocsf["severity"].clone(), ocsf["severity_id"].clone(), ocsf["activity_name"].clone(), ocsf["activity_id"].clone()), (json!("High"), json!(4), json!("Traffic"), json!(6)));
+        assert_eq!((ocsf["src_endpoint"]["port"].clone(), out.get("network.client.port")), (json!(53), Some(json!("53"))));
+        assert_eq!((ocsf["class_uid"].clone(), ocsf["class_name"].clone(), ocsf["category_uid"].clone(), ocsf["category_name"].clone()), (json!(4003), json!("DNS Activity"), json!(4), json!("Network Activity")));
+        assert_eq!(ocsf["metadata"], json!({"version": "1.5.0", "profiles": ["host"]}));
+        // No category: the fallback's values, the name read from its source when there is one.
+        let out = run(p.clone(), log("m", json!({"level": "TRACE"})));
+        assert_eq!((out.get("ocsf.severity"), out.get("ocsf.severity_id")), (Some(json!("TRACE")), Some(json!(99))));
+        let out = run(p, log("m", json!({})));
+        assert_eq!((out.get("ocsf.severity"), out.get("ocsf.severity_id")), (Some(json!("Other")), Some(json!(99))));
     }
 
     #[test]
@@ -816,7 +1234,7 @@ mod tests {
         let defs = json!([
             {"type": "grok-parser", "name": "broken", "grok": {"matchRules": "r %{nope:x}"}},
             {"type": "arithmetic-processor", "name": "math", "expression": "a +", "target": "b"},
-            {"type": "user-agent-parser", "sources": ["http.useragent"]},
+            {"type": "decoder-processor", "source": "payload"},
             {"type": "string-builder-processor", "template": "kept", "target": "t"}
         ]);
         let (p, errors) = Pipeline::compile("p", "", defs.as_array().unwrap());

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "ale-3exampleA0000000000000003",
+    "version": "v2021-02-01",
+    "action": "project.datasets.delete",
+    "timestamp": "2026-11-10T11:20:41.512Z",
+    "actorId": "pAlex0001",
+    "actorName": "Alex Example",
+    "actorEmail": "alex@example.com",
+    "projectId": "abcd1234",
+    "projectDisplayName": "Storefront content",
+    "datasetName": "staging",
+    "description": "\"Alex Example\" deleted the dataset \"staging\"",
+    "correlationId": "4f1e0c2a9b8d7e6f5a4b3c2d1e0f0003",
+    "metadata": {}
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "account_type": "standard",
+  "address": "",
+  "api_id": "0b1c2d3e-0000-4000-8000-000000000001",
+  "auth_id": "MAEXAMPLE0000000000A",
+  "auto_recharge": false,
+  "billing_mode": "prepaid",
+  "cash_credits": "48.25000",
+  "city": "",
+  "name": "Example Shop",
+  "resource_uri": "/v1/Account/MAEXAMPLE0000000000A/",
+  "state": "",
+  "timezone": "UTC"
+}

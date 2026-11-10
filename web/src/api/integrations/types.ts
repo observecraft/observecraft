@@ -2,8 +2,10 @@
 // (OpenTelemetry receiver and/or Vector source) plus the metadata, dashboards and
 // monitors that come with it. Live collection is configured on externally managed collectors.
 import type { Repository } from './catalog';
+import type { Collection } from './collection';
 
-export type IntegrationStatus = 'detected' | 'installed' | 'warning' | 'available';
+/** `unavailable`: Datadog collects it with its own service (or only documents it), so ObserveCraft can't. */
+export type IntegrationStatus = 'detected' | 'installed' | 'warning' | 'available' | 'unavailable';
 
 export interface IntegrationSummary {
   id: string; // "redis", "aws-athena"
@@ -20,6 +22,10 @@ export interface IntegrationSummary {
   repository?: Repository;
   /** Installed, but none of its metrics arrived: its Agent check isn't configured yet, or fails (see Hosts). */
   waitingForData?: boolean;
+  /** How Datadog collects it (integrations-core tiles); absent for ObserveCraft's own entries. */
+  collection?: Collection;
+  /** A push-site sender that also takes any URL (see collection.ts). */
+  customEndpoint?: boolean;
 }
 
 export interface CatalogRequest {
@@ -81,4 +87,10 @@ export interface IntegrationDetail extends IntegrationSummary {
   coreId?: string;
   /** The page that configures it (cloud integrations: the AWS page). */
   configureUrl?: string;
+  /** Install adds its pipelines and dashboards; false for what Datadog's own service collects (the server refuses it). */
+  installable: boolean;
+  /** The log source its pipelines match (webhooks post with it). */
+  logSource?: string | null;
+  /** Where ObserveCraft covers it instead (its own integration page, or another product's setup). */
+  related?: { to: string; label: string };
 }

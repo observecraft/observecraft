@@ -1,0 +1,77 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c51f-6f06-76d8-9633-2e3d899c6e05"
+      },
+      "countryCode": "pt",
+      "date": "2026-11-10T11:02:14.022Z",
+      "ddsource": "hubspot-content-hub",
+      "email": "sam@example.com",
+      "host": "hubspot",
+      "id": "3959685977",
+      "ipAddress": "198.51.100.23",
+      "location": "lisbon, portugal",
+      "loginAt": "2026-11-10T11:02:14.022Z",
+      "loginSucceeded": false,
+      "message": "Failed login of sam@example.com from lisbon, portugal",
+      "regionCode": "11",
+      "service": "login",
+      "status": "warn",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+      "userId": 70700058
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c45d-f852-788b-9675-502faa0198fc"
+      },
+      "countryCode": "de",
+      "date": "2026-11-10T07:30:55.186Z",
+      "ddsource": "hubspot-content-hub",
+      "email": "jane@example.com",
+      "host": "hubspot",
+      "id": "3959685976",
+      "ipAddress": "203.0.113.24",
+      "location": "berlin, germany",
+      "loginAt": "2026-11-10T07:30:55.186Z",
+      "loginSucceeded": true,
+      "message": "Login of jane@example.com from berlin, germany",
+      "regionCode": "be",
+      "service": "login",
+      "status": "info",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+      "userId": 70700061
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c189-dc80-7a3e-a3e1-e576ee280d07"
+      },
+      "countryCode": "de",
+      "date": "2026-11-09T18:20:00.000Z",
+      "ddsource": "hubspot-content-hub",
+      "email": "jane@example.com",
+      "host": "hubspot",
+      "id": "3959685975",
+      "ipAddress": "203.0.113.24",
+      "location": "berlin, germany",
+      "loginAt": "2026-11-09T18:20:00.000Z",
+      "loginSucceeded": true,
+      "message": "Login of jane@example.com from berlin, germany",
+      "regionCode": "be",
+      "service": "login",
+      "status": "info",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+      "userId": 70700061
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

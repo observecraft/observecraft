@@ -1,0 +1,33 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4ae-daa0-7d62-86ab-0d9aafdefb61"
+      },
+      "action": "hold",
+      "date": 1794301156000,
+      "ddsource": "mimecast",
+      "eventTime": "2026-11-10T08:59:16+0000",
+      "host": "0a1b2c3d-0000-4000-8000-000000000001",
+      "message": "DLP hold (Card Numbers): sam.lee@example.com to partner@example.net",
+      "messageId": "<20261110085916.0001@example.com>",
+      "policy": "Card Numbers",
+      "recipientAddress": "partner@example.net",
+      "route": "outbound",
+      "senderAddress": "sam.lee@example.com",
+      "service": "dlp",
+      "status": "info",
+      "subject": "Q4 card settlement export"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311880000
+      }
+    }
+  }
+}

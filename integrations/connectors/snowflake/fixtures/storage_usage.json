@@ -1,0 +1,48 @@
+{
+ "resultSetMetaData": {
+  "numRows": 2,
+  "format": "jsonv2",
+  "partitionInfo": [
+   {
+    "rowCount": 2
+   }
+  ],
+  "rowType": [
+   {
+    "name": "USAGE_DATE",
+    "type": "text"
+   },
+   {
+    "name": "STORAGE_BYTES",
+    "type": "text"
+   },
+   {
+    "name": "STAGE_BYTES",
+    "type": "text"
+   },
+   {
+    "name": "FAILSAFE_BYTES",
+    "type": "text"
+   }
+  ]
+ },
+ "data": [
+  [
+   "2026-11-08",
+   "1200000000000",
+   "3400000000",
+   "200000000000"
+  ],
+  [
+   "2026-11-09",
+   "1210000000000",
+   "3300000000",
+   "201000000000"
+  ]
+ ],
+ "code": "090001",
+ "statementStatusUrl": "/api/v2/statements/01b8a2c4-0000-1a2b-0000-00000000abcd",
+ "statementHandle": "01b8a2c4-0000-1a2b-0000-00000000abcd",
+ "message": "Statement executed successfully.",
+ "createdOn": 1794312000000
+}

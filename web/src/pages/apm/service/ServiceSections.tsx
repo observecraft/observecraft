@@ -15,6 +15,7 @@ import { STATUS_COLORS, statusColor, token } from '../../../theme/chartTheme';
 import { useDatabases, useDependencies, useDeployments, useExploreSpans, useResources, useServiceLogs, useSpanAnalytics, useSpanErrors } from '../queries';
 import { errorTone, fmtLatency, fmtPct, fmtRate, KIND_LABEL, LineSpark, ServiceIcon, useStars } from '../visuals';
 import { DependencyMap } from './DependencyMap';
+import { escapeQuoted } from '../../../lib/searchQuery';
 
 function Pending({ q }: { q: { isPending: boolean; isError: boolean; error: unknown; refetch: () => unknown } }) {
   if (q.isPending) return <Loading />;
@@ -516,7 +517,7 @@ export function TracesSection({ scope, onOpen }: { scope: ServiceScope; onOpen: 
   const navigate = useNavigate();
   const [text, setText] = useState('');
   const [log, setLog] = useState(true);
-  const q = entryQuery(scope, [scope.resource && `resource:"${scope.resource.replace(/"/g, '')}"`, text.trim()].filter(Boolean).join(' '));
+  const q = entryQuery(scope, [scope.resource && `resource:"${escapeQuoted(scope.resource)}"`, text.trim()].filter(Boolean).join(' '));
   q.scope = 'all';
   const sample = useExploreSpans(q, 'date', 0, 500);
   const spans = sample.data?.spans ?? [];

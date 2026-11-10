@@ -1,0 +1,23 @@
+{
+  "status": "Success",
+  "nextpagetoken": "swgweb-t2",
+  "response": {
+    "dataformat": "json",
+    "dataencoding": "utf-8",
+    "data": [
+      {
+        "time": "10 Nov 2026 11:40:19", "indexedtime": "2026-11-10 11:41:00", "setransactionid": "6B1E0A2C-0000-4A00-8000-000000000003",
+        "syslogheader": "<110>1 2026-11-10T11:40:19.000000Z api.bitglass.com NILVALUE NILVALUE swgweb",
+        "email": "jane.doe@example.com", "firstname": "Jane", "lastname": "Doe", "usergroup": "['All Users', 'Storefront']",
+        "devicehostname": "laptop-0042", "deviceguid": "0A1B2C3D-0000-4000-8000-000000000042",
+        "ipaddress": "203.0.113.24", "destinationip": "198.51.100.31", "requestport": "443", "protocol": "https", "requestmethod": "GET",
+        "url": "docs.example.org/api/orders", "uri": "/api/orders", "arguments": "", "requestdomain": "docs.example.org", "referrer": "",
+        "useragent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+        "application": "Example Docs", "action": "allow", "policyid": "100201", "webcategories": "[\"WR:Information Technology\"]", "webcategoryclass": "[\"General Information\"]",
+        "bgcategories": "[\"BG:Internet Services\"]", "customcategories": "[]", "webreputation": "88.00", "bgcloudscore": "7.00",
+        "uploadedbytes": "0", "size": "5210", "country": "Germany", "countrycode": "DE", "region": "Berlin", "regioncode": "BE", "city": "Berlin",
+        "lat": "52.52000000", "long": "13.40500000", "customlocation": "[\"Office\"]"
+      }
+    ]
+  }
+}

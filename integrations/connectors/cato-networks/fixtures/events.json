@@ -1,0 +1,43 @@
+{
+  "data": {
+    "eventsFeed": {
+      "marker": "ev-0002",
+      "fetchedCount": 3,
+      "accounts": [
+        {
+          "id": "4011",
+          "records": [
+            {
+              "time": "2026-11-10T11:58:02Z",
+              "fieldsMap": {
+                "internalId": "c8d2456ef8b40001", "event_id": "c8d2456ef8b40001", "event_type": "Security", "event_sub_type": "Internet Firewall",
+                "action": "Block", "rule_name": "Block risky categories", "categories": "Malware", "src_ip": "10.10.20.15", "src_site_name": "Bucharest Office",
+                "src_is_site_or_vpn": "Site", "dest_ip": "203.0.113.80", "dest_port": "443", "domain_name": "malware.example.net", "user_name": "jane.doe",
+                "ip_protocol": "TCP", "pop_name": "Bucharest", "account_id": "4011", "account_name": "example-shop", "event_count": "1",
+                "time": "1794311882000", "time_str": "2026-11-10T11:58:02Z"
+              }
+            },
+            {
+              "time": "2026-11-10T11:58:40Z",
+              "fieldsMap": {
+                "internalId": "c8d2456ef8b40002", "event_id": "c8d2456ef8b40002", "event_type": "Connectivity", "event_sub_type": "ApiKey",
+                "action": "Succeeded", "login_type": "API", "authentication_type": "APIKEY", "key_name": "observecraft-reader", "api_name": "eventsFeed",
+                "api_type": "query", "src_ip": "198.51.100.23", "src_country": "Romania", "src_country_code": "RO", "src_is_site_or_vpn": "API",
+                "event_message": "ApiKey login successfully", "account_id": "4011", "account_name": "example-shop", "event_count": "1",
+                "time": "1794311920000", "time_str": "2026-11-10T11:58:40Z"
+              }
+            },
+            {
+              "time": "2026-11-10T11:59:10Z",
+              "fieldsMap": {
+                "internalId": "c8d2456ef8b40003", "event_id": "c8d2456ef8b40003", "event_type": "Detection and Response", "event_sub_type": "Threat Hunting",
+                "title": "Suspicious traffic to newly registered domain", "criticality": "6", "status": "Open", "story_id": "st-1182", "trigger": "Story Created",
+                "src_site_name": "Bucharest Office", "account_id": "4011", "account_name": "example-shop", "time": "1794311950000", "time_str": "2026-11-10T11:59:10Z"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

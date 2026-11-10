@@ -1,0 +1,87 @@
+{
+  "id": "apr2x7k2m9q4w8e1r5t3y6u0p",
+  "organization": "8z2xfqppx4xfa0fnm40ee063d",
+  "created": "2026-11-10T11:40:03.118201Z",
+  "status": "FAILED",
+  "passed": [
+    "required.nodes",
+    "function.pointers",
+    "task.gates",
+    "task.tree",
+    "data.nodes",
+    "nops.table"
+  ],
+  "failed": [
+    "jump.tables"
+  ],
+  "measurement": {
+    "nodes": 2863052,
+    "edges": 9681868,
+    "modules": 53
+  },
+  "kernel": {
+    "name": "Linux",
+    "release": "6.8.0-1012-aws",
+    "version": "#13-Ubuntu SMP Mon Jul 15 13:40:27 UTC 2024"
+  },
+  "node": {
+    "processor": "x86_64",
+    "name": "i-0a1b2c3d4e5f60002",
+    "uptime": 86211,
+    "tags": [
+      "linux",
+      "prod"
+    ]
+  },
+  "distribution": {
+    "vendor": "Ubuntu",
+    "release": "24.04",
+    "codename": "noble"
+  },
+  "endpoint": "ep2cam653hsdrd2g31qnsqy6ak",
+  "checks": [
+    {
+      "name": "required.nodes",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    },
+    {
+      "name": "jump.tables",
+      "result": "FAILED",
+      "failureDetails": [
+        {
+          "atNode": "sys_call_table",
+          "reason": "Matching sys_call_table entry could not be found in baseline",
+          "value": [
+            "Missing kernel__x64_sys_getdents64, found rogue:9a0 instead."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "function.pointers",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    },
+    {
+      "name": "task.gates",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    },
+    {
+      "name": "task.tree",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    },
+    {
+      "name": "data.nodes",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    },
+    {
+      "name": "nops.table",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    }
+  ]
+}

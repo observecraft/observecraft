@@ -16,6 +16,10 @@
 //!   nothing further. Their latency adds up the hops' (time spent inside services between hops
 //!   is not included).
 //! - **Consumer lag** from the Kafka metrics (see `kafka_console`), joined on topic and group.
+//! - **Pathway checkpoints** of the tracers' Data Streams Monitoring (`otel.otel_pathways`, from the intake's
+//!   `/api/v0.1/pipeline_stats`), when they send them: each checkpoint's count replaces the spans' on the same edge,
+//!   a consume checkpoint whose parent is a produce checkpoint is a hop with its edge latency (produce → consume),
+//!   and the pathway latency at a pathway's last consumer (since its origin) replaces the hops' sum.
 //!
 //! Tenancy: every query filters on `OrgId = {oc_org:String}` through `AppState::ch(org)`.
 
@@ -140,6 +144,139 @@ pub(crate) fn service_id(name: &str) -> String {
 
 pub(crate) fn topic_id(system: &str, topic: &str) -> String {
     format!("topic:{system}:{topic}")
+}
+
+// ================================================================ pathway checkpoints
+
+/// A sketch attribute's bins (`value:count,…`, see the intake's `datadog_dsm`): its values (`part` 1) or counts (2).
+fn bins_sql(attr: &str, part: u8) -> String {
+    format!("arrayMap(p -> toFloat64OrZero(splitByChar(':', p)[{part}]), arrayFilter(p -> p != '', splitByChar(',', LogAttributes['{attr}'])))")
+}
+
+/// The tracers' checkpoints per service, edge (system, topic, direction, consumer group) and pathway node (hash,
+/// parent hash), per interval of `step_ms` (whole range when none): their count and merged latency bins (seconds).
+pub(crate) fn pathway_points_sql(env: bool, step_ms: Option<i64>) -> String {
+    let t = match step_ms {
+        Some(step) => format!("intDiv(toUnixTimestamp64Milli(Timestamp), {step}) * {step}", step = step.max(1000)),
+        None => "0".to_string(),
+    };
+    format!(
+        "SELECT service, system, topic, direction, grp, hash, parent_hash, t, sum(n) AS n, sumMap(ev, ec) AS edge, sumMap(pv, pc) AS pathway FROM ( \
+           SELECT ResourceAttributes['service.name'] AS service, LogAttributes['type'] AS system, LogAttributes['topic'] AS topic, \
+                  LogAttributes['direction'] AS direction, LogAttributes['group'] AS grp, LogAttributes['hash'] AS hash, \
+                  LogAttributes['parent_hash'] AS parent_hash, toInt64({t}) AS t, toFloat64OrZero(LogAttributes['count']) AS n, \
+                  {ev} AS ev, {ec} AS ec, {pv} AS pv, {pc} AS pc \
+           FROM otel.otel_pathways WHERE OrgId = {{oc_org:String}} AND {w} AND LogAttributes['kind'] = 'point' \
+         ) WHERE system != '' AND topic != '' AND direction IN ('in', 'out') \
+         GROUP BY service, system, topic, direction, grp, hash, parent_hash, t ORDER BY t LIMIT 50000",
+        ev = bins_sql("edge_latency", 1),
+        ec = bins_sql("edge_latency", 2),
+        pv = bins_sql("pathway_latency", 1),
+        pc = bins_sql("pathway_latency", 2),
+        w = window(env),
+    )
+}
+
+#[derive(Row, Deserialize, Clone, Debug, PartialEq)]
+pub(crate) struct PathwayRow {
+    pub service: String,
+    pub system: String,
+    pub topic: String,
+    /// `out` (produce) or `in` (consume).
+    pub direction: String,
+    pub grp: String,
+    pub hash: String,
+    pub parent_hash: String,
+    pub t: i64,
+    pub n: f64,
+    /// Latency since the previous checkpoint: (values ascending, counts), seconds.
+    pub edge: (Vec<f64>, Vec<f64>),
+    /// Latency since the pathway's origin.
+    pub pathway: (Vec<f64>, Vec<f64>),
+}
+
+/// The value at quantile `q` of a sketch's bins (values ascending), as DDSketch reads it: the first bin whose
+/// cumulative count exceeds `q · (total − 1)`.
+pub(crate) fn bin_quantile(values: &[f64], counts: &[f64], q: f64) -> Option<f64> {
+    let total: f64 = counts.iter().sum();
+    if values.is_empty() || total <= 0.0 {
+        return None;
+    }
+    let rank = q * (total - 1.0);
+    let mut seen = 0.0;
+    for (v, c) in values.iter().zip(counts) {
+        seen += c;
+        if seen > rank {
+            return Some(*v);
+        }
+    }
+    values.last().copied()
+}
+
+/// What the checkpoints say: messages per edge (as endpoint rows), hops with their edge latency, and the end-to-end
+/// latency (p50, p99 ms) at each hop's consumer.
+#[derive(Default, Debug)]
+pub(crate) struct Pathways {
+    pub endpoints: Vec<EndpointRow>,
+    pub hops: Vec<HopRow>,
+    pub end_to_end: BTreeMap<HopKey, (f64, f64)>,
+}
+
+pub(crate) fn from_pathways(rows: &[PathwayRow]) -> Pathways {
+    let ms = |v: Option<f64>| v.map_or(0.0, |s| s * 1000.0);
+    // Per (service, system, topic, role, consumer group).
+    type EdgeKey = (String, String, String, String, String);
+    let mut endpoints: BTreeMap<EdgeKey, u64> = BTreeMap::new();
+    let producers: HashMap<&str, &str> = rows.iter().filter(|r| r.direction == "out").map(|r| (r.hash.as_str(), r.service.as_str())).collect();
+    let mut hops = Vec::new();
+    // The pathway latency bins at each hop's consumer, merged over the range (values as bits: positive, ordered).
+    let mut pathway: BTreeMap<HopKey, BTreeMap<u64, f64>> = BTreeMap::new();
+    for r in rows {
+        let role = if r.direction == "out" { "produce" } else { "consume" };
+        *endpoints.entry((r.service.clone(), r.system.clone(), r.topic.clone(), role.to_string(), r.grp.clone())).or_default() += r.n.round() as u64;
+        let Some(producer) = producers.get(r.parent_hash.as_str()).filter(|_| r.direction == "in") else { continue };
+        let (values, counts) = &r.edge;
+        hops.push(HopRow {
+            producer: producer.to_string(),
+            consumer: r.service.clone(),
+            system: r.system.clone(),
+            topic: r.topic.clone(),
+            t: r.t,
+            n: r.n.round() as u64,
+            p50_ms: ms(bin_quantile(values, counts, 0.5)),
+            p99_ms: ms(bin_quantile(values, counts, 0.99)),
+        });
+        let bins = pathway.entry((producer.to_string(), r.system.clone(), r.topic.clone(), r.service.clone())).or_default();
+        for (v, c) in r.pathway.0.iter().zip(&r.pathway.1) {
+            *bins.entry(v.max(0.0).to_bits()).or_default() += c;
+        }
+    }
+    let end_to_end = pathway
+        .into_iter()
+        .filter_map(|(k, bins)| {
+            let (values, counts): (Vec<f64>, Vec<f64>) = bins.into_iter().map(|(v, c)| (f64::from_bits(v), c)).unzip();
+            Some((k, (ms(Some(bin_quantile(&values, &counts, 0.5)?)), ms(bin_quantile(&values, &counts, 0.99)))))
+        })
+        .collect();
+    let endpoints = endpoints
+        .into_iter()
+        .map(|((service, system, topic, role, grp), spans)| EndpointRow { service, system, topic, role, grp, spans, errors: 0, p50_ms: 0.0, p99_ms: 0.0 })
+        .collect();
+    Pathways { endpoints, hops, end_to_end }
+}
+
+/// The spans' endpoints and hops with the checkpoints': on an edge the checkpoints see, their count replaces the
+/// spans' (the spans keep their errors and durations), and their hops replace the spans' hops.
+pub(crate) fn with_pathways(endpoints: Vec<EndpointRow>, hops: Vec<HopRow>, p: &Pathways) -> (Vec<EndpointRow>, Vec<HopRow>) {
+    let key = |e: &EndpointRow| (e.service.clone(), e.system.clone(), e.topic.clone(), e.role.clone(), e.grp.clone());
+    let counted: HashMap<_, u64> = p.endpoints.iter().map(|e| (key(e), e.spans)).collect();
+    let mut out: Vec<EndpointRow> = endpoints.into_iter().map(|e| EndpointRow { spans: counted.get(&key(&e)).copied().unwrap_or(e.spans), ..e }).collect();
+    let traced: BTreeSet<_> = out.iter().map(key).collect();
+    out.extend(p.endpoints.iter().filter(|e| !traced.contains(&key(e))).cloned());
+    let checkpointed: BTreeSet<HopKey> = p.hops.iter().map(hop_key).collect();
+    let mut hops: Vec<HopRow> = hops.into_iter().filter(|h| !checkpointed.contains(&hop_key(h))).collect();
+    hops.extend(p.hops.iter().cloned());
+    (out, hops)
 }
 
 // ================================================================ response
@@ -315,8 +452,9 @@ fn max_opt(a: Option<f64>, b: Option<f64>) -> Option<f64> {
     }
 }
 
-/// The map: nodes, edges and pathways of a range of `window_s` seconds.
-pub(crate) fn build_map(endpoints: &[EndpointRow], hops: &[HopRow], lags: &[KafkaConsumerGroup], window_s: f64) -> StreamMap {
+/// The map: nodes, edges and pathways of a range of `window_s` seconds, with the end-to-end latency at the hops'
+/// consumers where the tracers' checkpoints give it.
+pub(crate) fn build_map(endpoints: &[EndpointRow], hops: &[HopRow], lags: &[KafkaConsumerGroup], window_s: f64, end_to_end: &BTreeMap<HopKey, (f64, f64)>) -> StreamMap {
     let per_s = |n: u64| n as f64 / window_s.max(1.0);
     struct EdgeAcc {
         kind: StreamEdgeKind,
@@ -425,7 +563,7 @@ pub(crate) fn build_map(endpoints: &[EndpointRow], hops: &[HopRow], lags: &[Kafk
             }
         }
     }
-    let pathways = pathways(hops, &edges, window_s);
+    let pathways = pathways(hops, &edges, window_s, end_to_end);
     StreamMap { enabled: !endpoints.is_empty(), nodes: nodes.into_values().collect(), edges, pathways }
 }
 
@@ -444,7 +582,8 @@ fn merged_hops(hops: &[HopRow]) -> BTreeMap<HopKey, Latency> {
 
 /// End-to-end pathways: chains of hops from services that consume nothing linked (or every
 /// producer, when all of them consume too) to services whose consumed messages lead nowhere.
-pub(crate) fn pathways(hops: &[HopRow], edges: &[StreamEdge], window_s: f64) -> Vec<StreamPathway> {
+/// One whose last hop has an end-to-end latency (`end_to_end`) takes it instead of the hops' sum.
+pub(crate) fn pathways(hops: &[HopRow], edges: &[StreamEdge], window_s: f64, end_to_end: &BTreeMap<HopKey, (f64, f64)>) -> Vec<StreamPathway> {
     let merged = merged_hops(hops);
     let mut out_of: BTreeMap<&str, Vec<(&HopKey, &Latency)>> = BTreeMap::new();
     for (k, l) in &merged {
@@ -488,12 +627,13 @@ pub(crate) fn pathways(hops: &[HopRow], edges: &[StreamEdge], window_s: f64) -> 
             }
             let id = nodes.join(">");
             if seen.insert(id.clone()) {
+                let measured = hops.last().and_then(|(k, _)| end_to_end.get(*k));
                 found.push(StreamPathway {
                     id,
                     nodes,
                     hops: hops.len() as u64,
-                    latency_p50_ms: hops.iter().filter_map(|(_, l)| l.p50()).sum(),
-                    latency_p99_ms: hops.iter().map(|(_, l)| l.p99).sum(),
+                    latency_p50_ms: measured.map_or_else(|| hops.iter().filter_map(|(_, l)| l.p50()).sum(), |m| m.0),
+                    latency_p99_ms: measured.map_or_else(|| hops.iter().map(|(_, l)| l.p99).sum(), |m| m.1),
                     throughput: hops.last().map_or(0.0, |(_, l)| l.n as f64 / window_s.max(1.0)),
                     lag_high,
                 });
@@ -619,6 +759,16 @@ async fn fetch_hops(st: &AppState, org: &str, range: &TimeRange, env: Option<&st
     Ok(bound(st.ch(org).query(&hops_sql(env.is_some(), step)), range, env).fetch_all::<HopRow>().await?)
 }
 
+async fn fetch_pathways(st: &AppState, org: &str, range: &TimeRange, env: Option<&str>, step: Option<i64>) -> Result<Pathways, ApiError> {
+    Ok(from_pathways(&bound(st.ch(org).query(&pathway_points_sql(env.is_some(), step)), range, env).fetch_all::<PathwayRow>().await?))
+}
+
+/// The spans' hops with the checkpoints' (see `with_pathways`).
+async fn fetch_all_hops(st: &AppState, org: &str, range: &TimeRange, env: Option<&str>, step: Option<i64>) -> Result<Vec<HopRow>, ApiError> {
+    let (hops, p) = tokio::try_join!(fetch_hops(st, org, range, env, step), fetch_pathways(st, org, range, env, step))?;
+    Ok(with_pathways(Vec::new(), hops, &p).1)
+}
+
 /// Consumer groups and their current lag on each topic (the range's last interval), from the Kafka metrics.
 async fn consumer_lags(st: &AppState, org: &str, range: &TimeRange) -> Result<Vec<KafkaConsumerGroup>, ApiError> {
     let step = chart_step(range.to - range.from, 60);
@@ -631,8 +781,10 @@ async fn consumer_lags(st: &AppState, org: &str, range: &TimeRange) -> Result<Ve
 pub async fn map(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<StreamMapRequest>) -> ApiResult<StreamMap> {
     req.range.validate()?;
     let env = env_of(&req.env);
-    let (endpoints, hops, lags) = tokio::try_join!(fetch_endpoints(&st, &org, &req.range, env), fetch_hops(&st, &org, &req.range, env, None), consumer_lags(&st, &org, &req.range))?;
-    Ok(Json(build_map(&endpoints, &hops, &lags, (req.range.to - req.range.from) as f64 / 1000.0)))
+    let (endpoints, hops, checkpoints, lags) =
+        tokio::try_join!(fetch_endpoints(&st, &org, &req.range, env), fetch_hops(&st, &org, &req.range, env, None), fetch_pathways(&st, &org, &req.range, env, None), consumer_lags(&st, &org, &req.range))?;
+    let (endpoints, hops) = with_pathways(endpoints, hops, &checkpoints);
+    Ok(Json(build_map(&endpoints, &hops, &lags, (req.range.to - req.range.from) as f64 / 1000.0, &checkpoints.end_to_end)))
 }
 
 fn service_name(id: &str) -> Result<&str, ApiError> {
@@ -649,7 +801,7 @@ pub async fn measure(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
     }
     let env = env_of(&req.env);
     let step = chart_step(req.range.to - req.range.from, 60);
-    let (whole, bucketed) = tokio::try_join!(fetch_hops(&st, &org, &req.range, env, None), fetch_hops(&st, &org, &req.range, env, Some(step)))?;
+    let (whole, bucketed) = tokio::try_join!(fetch_all_hops(&st, &org, &req.range, env, None), fetch_all_hops(&st, &org, &req.range, env, Some(step)))?;
     let Some(path) = path_between(&whole, start, end) else { return Ok(Json(StreamMeasure::default())) };
     let merged = merged_hops(&whole);
     let hop_latency: Vec<&Latency> = path.iter().filter_map(|k| merged.get(k)).collect();
@@ -740,7 +892,7 @@ mod tests {
     #[test]
     fn map_has_services_topics_and_both_edge_kinds() {
         let (endpoints, hops) = shop();
-        let m = build_map(&endpoints, &hops, &[group("billing-consumer", "orders.created", 50_000.0, Some(120.0)), group("inventory-consumer", "orders.created", 10.0, None)], 60.0);
+        let m = build_map(&endpoints, &hops, &[group("billing-consumer", "orders.created", 50_000.0, Some(120.0)), group("inventory-consumer", "orders.created", 10.0, None)], 60.0, &BTreeMap::new());
         assert!(m.enabled);
         let ids: Vec<&str> = m.nodes.iter().map(|n| n.id.as_str()).collect();
         assert_eq!(ids, vec!["service:billing", "service:inventory-service", "service:order-service", "service:storefront-api", "topic:kafka:orders.created", "topic:kafka:payments.authorized"]);
@@ -763,7 +915,7 @@ mod tests {
     #[test]
     fn pathways_follow_hops_from_the_first_producer() {
         let (endpoints, hops) = shop();
-        let m = build_map(&endpoints, &hops, &[group("billing-consumer", "orders.created", 50_000.0, Some(120.0))], 60.0);
+        let m = build_map(&endpoints, &hops, &[group("billing-consumer", "orders.created", 50_000.0, Some(120.0))], 60.0, &BTreeMap::new());
         let ids: Vec<&str> = m.pathways.iter().map(|p| p.id.as_str()).collect();
         assert_eq!(
             ids,
@@ -782,7 +934,7 @@ mod tests {
     #[test]
     fn cycles_end_a_pathway() {
         let hops = vec![hop("order-service", "orders.created", "billing", 0, 10, 1.0, 2.0), hop("billing", "payments.authorized", "order-service", 0, 10, 1.0, 2.0)];
-        let p = pathways(&hops, &[], 10.0);
+        let p = pathways(&hops, &[], 10.0, &BTreeMap::new());
         assert_eq!(p.len(), 2, "every producer consumes: start from each");
         assert!(p.iter().all(|p| p.hops == 1), "a pathway stops before it reaches a service twice");
     }
@@ -835,8 +987,88 @@ mod tests {
         assert_eq!(only.len(), 1);
     }
 
+    /// A pathway checkpoint row as the query returns it: latencies in seconds, bins ascending.
+    #[allow(clippy::too_many_arguments)]
+    fn point(service: &str, direction: &str, topic: &str, grp: &str, hash: &str, parent: &str, n: f64, edge: &[(f64, f64)], pathway: &[(f64, f64)]) -> PathwayRow {
+        let split = |b: &[(f64, f64)]| (b.iter().map(|x| x.0).collect(), b.iter().map(|x| x.1).collect());
+        PathwayRow {
+            service: service.into(),
+            system: "kafka".into(),
+            topic: topic.into(),
+            direction: direction.into(),
+            grp: grp.into(),
+            hash: hash.into(),
+            parent_hash: parent.into(),
+            t: 0,
+            n,
+            edge: split(edge),
+            pathway: split(pathway),
+        }
+    }
+
+    #[test]
+    fn sketch_bins_give_quantiles_as_ddsketch_does() {
+        let (values, counts) = (vec![0.010, 0.020, 0.500], vec![40.0, 55.0, 5.0]);
+        assert_eq!(bin_quantile(&values, &counts, 0.5), Some(0.020));
+        assert_eq!(bin_quantile(&values, &counts, 0.99), Some(0.500));
+        assert_eq!(bin_quantile(&values, &counts, 0.0), Some(0.010));
+        assert_eq!(bin_quantile(&[], &[], 0.5), None);
+    }
+
+    /// The tracers' checkpoints: storefront-api produces to orders.created (hash 1), billing consumes it (parent 1)
+    /// and produces payments.authorized (hash 3, parent 2), order-service consumes that (parent 3).
+    fn checkpoints() -> Vec<PathwayRow> {
+        vec![
+            point("storefront-api", "out", "orders.created", "", "1", "0", 600.0, &[(0.0, 600.0)], &[(0.0, 600.0)]),
+            point("billing", "in", "orders.created", "billing-consumer", "2", "1", 600.0, &[(0.010, 200.0), (0.014, 390.0), (0.090, 10.0)], &[(0.010, 300.0), (0.014, 300.0)]),
+            point("billing", "out", "payments.authorized", "", "3", "2", 300.0, &[(0.030, 300.0)], &[(0.050, 300.0)]),
+            point("order-service", "in", "payments.authorized", "order-consumer", "4", "3", 300.0, &[(0.005, 297.0), (0.020, 3.0)], &[(0.060, 150.0), (0.075, 150.0)]),
+            // A consumer whose producer isn't instrumented: an endpoint, no hop.
+            point("audit-worker", "in", "orders.created", "audit-consumer", "5", "99", 60.0, &[(0.5, 60.0)], &[(0.5, 60.0)]),
+        ]
+    }
+
+    #[test]
+    fn pathway_checkpoints_give_endpoints_hops_and_end_to_end_latency() {
+        let p = from_pathways(&checkpoints());
+        let consume = p.endpoints.iter().find(|e| e.service == "billing" && e.role == "consume").unwrap();
+        assert_eq!((consume.topic.as_str(), consume.grp.as_str(), consume.spans), ("orders.created", "billing-consumer", 600));
+        assert!(p.endpoints.iter().any(|e| e.service == "audit-worker"), "a consumer without a traced producer is still on the map");
+        assert_eq!(p.hops.len(), 2);
+        let first = p.hops.iter().find(|h| h.consumer == "billing").unwrap();
+        assert_eq!((first.producer.as_str(), first.topic.as_str(), first.n), ("storefront-api", "orders.created", 600));
+        assert_eq!((first.p50_ms, first.p99_ms), (14.0, 90.0), "the edge latency: produce → consume, in ms");
+        let key = (String::from("billing"), String::from("kafka"), String::from("payments.authorized"), String::from("order-service"));
+        assert_eq!(p.end_to_end.get(&key), Some(&(60.0, 75.0)), "the pathway latency at the last consumer: since the origin");
+    }
+
+    #[test]
+    fn checkpoints_replace_what_spans_say_about_the_same_edges() {
+        let (endpoints, hops) = shop();
+        let p = from_pathways(&checkpoints());
+        let (endpoints, hops) = with_pathways(endpoints, hops, &p);
+        let consume = endpoints.iter().filter(|e| e.service == "billing" && e.role == "consume" && e.topic == "orders.created").collect::<Vec<_>>();
+        assert_eq!(consume.len(), 1, "one row per edge");
+        assert_eq!((consume[0].spans, consume[0].p50_ms), (600, 2.0), "the checkpoints' count, the spans' durations");
+        assert!(endpoints.iter().any(|e| e.service == "inventory-service"), "edges only spans see stay");
+        let to_billing: Vec<&HopRow> = hops.iter().filter(|h| h.consumer == "billing").collect();
+        assert_eq!(to_billing.len(), 1);
+        assert_eq!(to_billing[0].p50_ms, 14.0, "the checkpoints' latency");
+        let m = build_map(&endpoints, &hops, &[], 60.0, &BTreeMap::new());
+        let pathway = m.pathways.iter().find(|x| x.nodes.last().map(String::as_str) == Some("service:order-service")).unwrap();
+        assert_eq!((pathway.latency_p50_ms, pathway.latency_p99_ms), (19.0, 95.0), "hops added up without end-to-end latencies");
+        let m = build_map(&endpoints, &hops, &[], 60.0, &p.end_to_end);
+        let pathway = m.pathways.iter().find(|x| x.nodes.last().map(String::as_str) == Some("service:order-service")).unwrap();
+        assert_eq!((pathway.latency_p50_ms, pathway.latency_p99_ms), (60.0, 75.0), "the tracers' end-to-end latency when they send it");
+    }
+
     #[test]
     fn queries_filter_by_org_and_bind_input() {
+        for sql in [pathway_points_sql(true, None), pathway_points_sql(false, Some(60_000))] {
+            assert!(sql.contains("FROM otel.otel_pathways WHERE OrgId = {oc_org:String}"));
+            assert!(sql.contains("fromUnixTimestamp64Milli(?)"));
+        }
+        assert_eq!(pathway_points_sql(true, None).matches('?').count(), 3);
         for sql in [endpoints_sql(true), hops_sql(false, Some(60_000)), hops_sql(true, None), node_rate_sql(true, 60_000, true), node_rate_sql(false, 60_000, false)] {
             assert!(sql.contains("OrgId = {oc_org:String}"));
             assert!(sql.contains("fromUnixTimestamp64Milli(?)"));

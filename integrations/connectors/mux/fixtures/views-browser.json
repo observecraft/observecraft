@@ -1,0 +1,8 @@
+{
+  "data": [
+    { "field": "Chrome", "value": 301, "views": 301, "negative_impact": 1 },
+    { "field": "Safari", "value": 150, "views": 150, "negative_impact": 2 },
+    { "field": "Firefox", "value": 32, "views": 32, "negative_impact": 3 }
+  ],
+  "total_row_count": 3, "timeframe": [1794308400, 1794312000], "meta": { "aggregation": "view_end" }
+}

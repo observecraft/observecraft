@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "title": "Temporal Cloud service errors are high",
+  "description": "The share of a namespace's frontend requests that fail.",
+  "definition": {
+    "name": "Temporal Cloud: errors on {{temporal_namespace.name}} are above 5% of requests",
+    "type": "query alert",
+    "query": "avg(last_10m):sum:temporal.cloud.v1_service_error{*} by {temporal_namespace} / sum:temporal.cloud.v1_service_request{*} by {temporal_namespace} * 100 > 5",
+    "message": "{{#is_alert}}More than 5% of the requests to {{temporal_namespace.name}} failed over the last 10 minutes ({{value}}%). Look at the failing operations on the Temporal Cloud Overview dashboard.{{/is_alert}}",
+    "tags": ["integration:temporal-cloud"],
+    "options": { "thresholds": { "critical": 5, "warning": 2 }, "notify_no_data": false, "require_full_window": false }
+  }
+}

@@ -57,7 +57,7 @@ fn has_identity(id: Option<&Value>) -> bool {
 }
 
 /// `oc.signal` values the Collector routes to their own tables (`deploy/otel/collector.yaml`).
-const OTHER_SIGNALS: &[&str] = &["k8s.objects", "dd.events", "dd.connections", "dd.rum", "dd.replay"];
+const OTHER_SIGNALS: &[&str] = &["k8s.objects", "dd.events", "dd.connections", "dd.pathways", "dd.rum", "dd.replay"];
 
 // ---------------------------------------------------------------- OTLP logs protobuf
 // Field numbers from OpenTelemetry's logs/v1/logs.proto and common/v1/common.proto (Apache-2.0).

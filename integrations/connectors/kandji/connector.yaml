@@ -1,0 +1,123 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Iru, formerly Kandji (https://api-docs.iru.com/): the tenant's audit log (EDR threat events included) and its
+# vulnerability detections, as the logs Datadog's integration sends (source:kandji, service:audit or detection, the
+# record as Kandji answers it). integrations-core's log pipeline and its four dashboards for the tile read them as
+# they are. Detections' paging cursor is read from `next` whether it is a URL or a bare cursor (the reference
+# couldn't be checked).
+schema_version: 1
+id: kandji
+name: Iru (Kandji)
+publisher: ObserveCraft
+vendor: Iru
+description: >-
+  The audit log of an Iru (Kandji) tenant (admin, blueprint, library item and device actions, EDR threat events) and
+  the open vulnerability detections of its Macs, iPhones and iPads, one log each, read from the Iru API.
+tiles: [kandji]
+categories: [Cloud, Log Collection, Security, OS & System, Automation, SIEM]
+source: kandji
+docs_url: https://api-docs.iru.com/
+setup: |
+  1. In Iru, open **Settings → Access → API Token** and **Add Token**; name it (e.g. `observecraft`) and copy it.
+  2. **Configure API Permissions**: enable **List Audit Events** (Audit Log) and **Detections List** (Vulnerability
+     Management).
+  3. The API URL is shown above the tokens (`https://<subdomain>.api.kandji.io`, or `.api.eu.kandji.io`).
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: API URL
+    type: url
+    required: true
+    placeholder: https://example.api.kandji.io
+    strip_suffix: [/api/v1, /api]
+  - key: token
+    label: API token
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: bearer
+  token: "{{ secrets.token }}"
+
+# 10,000 requests an hour and 50 a second per tenant.
+rate_limit: { requests_per_minute: 120 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Iru refused the API token
+  - status: [403]
+    kind: access_denied
+    message: The API token lacks the List Audit Events or Detections List permission
+
+streams:
+  - id: audit
+    name: Audit log
+    description: >-
+      Every audit event as a log (service:audit): action, actor_type, actor_id, target_type, target_component,
+      target_id, new_state / old_state; EDR threats arrive as audit events too (target_type file_detection).
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/api/v1/audit/events"
+      query: { limit: 500, sort_by: occurred_at, start_date: "{{ window.start | rfc3339 }}" }
+    records: "{{ response.results }}"
+    pagination: { kind: next_url, next: "{{ response.next }}" }
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.occurred_at }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+      settle: 1m
+    output:
+      logs:
+        service: audit
+        message: "{{ record.action + ' ' + (record.target_component ?? record.target_type) + (' by ' + record.actor_type ?? '') }}"
+        date: "{{ record.occurred_at }}"
+        attributes: "{{ record }}"
+
+  - id: detection
+    name: Vulnerability detections
+    description: >-
+      Every open vulnerability detection as a log (service:detection) the first time it is listed for a device and
+      software version: cve_id, severity, cvss_score, name, version, path, device_name, blueprint_name.
+    interval: 6h
+    max_pages: 100
+    request:
+      url: "{{ config.base_url }}/api/v1/vulnerability-management/detections"
+      query: { size: 300, after: "{{ page.cursor }}" }
+    records: "{{ response.results }}"
+    pagination:
+      kind: cursor
+      next: "{{ (response.next | contains('after=')) ? (response.next | split('after=') | last | split('&') | first) : response.next }}"
+    record_id: "{{ record.device_id + ':' + record.cve_id + ':' + (record.bundle_id ?? record.name) + ':' + record.version }}"
+    incremental: { kind: new_records }
+    output:
+      logs:
+        service: detection
+        message: "{{ record.cve_id + ' (' + record.severity + ') in ' + record.name + ' ' + record.version + ' on ' + record.device_name }}"
+        status: "{{ record.severity in ['Critical', 'High'] ? 'warn' : 'info' }}"
+        date: "{{ record.detection_datetime }}"
+        attributes: "{{ record }}"
+
+test:
+  request:
+    url: "{{ config.base_url }}/api/v1/audit/events"
+    query: { limit: 1 }
+  message: "Connected to {{ config.base_url | host }}"
+
+mock:
+  config: { base_url: "https://example.api.kandji.io" }
+  secrets: { token: test-kandji-token }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://example.api.kandji.io/api/v1/audit/events", query: { cursor: "eyJvIjoyfQ" }, file: fixtures/audit-2.json }
+    - { url: "https://example.api.kandji.io/api/v1/audit/events", file: fixtures/audit-1.json }
+    - { url: "https://example.api.kandji.io/api/v1/vulnerability-management/detections", query: { after: "c2Vjb25k" }, file: fixtures/detections-2.json }
+    - { url: "https://example.api.kandji.io/api/v1/vulnerability-management/detections", file: fixtures/detections-1.json }
+  expect:
+    audit: { records: 3, logs: 3, rerun: 0, golden: fixtures/audit.expected.json }
+    detection: { records: 3, logs: 3, rerun: 0, golden: fixtures/detection.expected.json }
+    test: { ok: true, message: "Connected to example.api.kandji.io" }

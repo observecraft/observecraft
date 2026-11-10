@@ -1,0 +1,140 @@
+{
+ "data": {
+  "rows": [
+   [
+    306,
+    "2026-11-10T11:01:11.965619Z",
+    0.169,
+    31,
+    false,
+    "dashboard",
+    null,
+    2,
+    120,
+    "card_120",
+    11,
+    "dashboard_11",
+    null,
+    null,
+    null,
+    1,
+    "database_1",
+    false
+   ],
+   [
+    307,
+    "2026-11-10T11:20:02.100000Z",
+    2.84,
+    0,
+    true,
+    "ad-hoc",
+    "ERROR: relation \"order_items_old\" does not exist",
+    1,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    1,
+    "database_1",
+    false
+   ]
+  ],
+  "cols": [
+   {
+    "name": "entity_id",
+    "display_name": "Entity Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "started_at",
+    "display_name": "Started At",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "running_time_seconds",
+    "display_name": "Running Time Seconds",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "result_rows",
+    "display_name": "Result Rows",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "is_native",
+    "display_name": "Is Native",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "query_source",
+    "display_name": "Query Source",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "error",
+    "display_name": "Error",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "user_id",
+    "display_name": "User Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "card_id",
+    "display_name": "Card Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "card_qualified_id",
+    "display_name": "Card Qualified Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "dashboard_id",
+    "display_name": "Dashboard Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "dashboard_qualified_id",
+    "display_name": "Dashboard Qualified Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "pulse_id",
+    "display_name": "Pulse Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "action_id",
+    "display_name": "Action Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "action_qualified_id",
+    "display_name": "Action Qualified Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "database_id",
+    "display_name": "Database Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "database_qualified_id",
+    "display_name": "Database Qualified Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "cache_hit",
+    "display_name": "Cache Hit",
+    "base_type": "type/Text"
+   }
+  ]
+ },
+ "row_count": 2,
+ "status": "completed"
+}

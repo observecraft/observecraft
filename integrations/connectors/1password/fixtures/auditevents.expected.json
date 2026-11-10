@@ -1,0 +1,120 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c485-6940-744d-99a9-92b399f1ae35"
+      },
+      "action": "grant",
+      "actor_details": {
+        "email": "alex.morgan@example.com",
+        "name": "Alex Morgan",
+        "uuid": "GLF6WUEKS5CSNDJ2OG6TCZD3M4"
+      },
+      "actor_uuid": "GLF6WUEKS5CSNDJ2OG6TCZD3M4",
+      "aux_id": 17,
+      "aux_info": "r",
+      "aux_uuid": "IR7VJHJ36JHINBFAD7V2T5MP3E",
+      "date": "2026-11-10T08:14:00Z",
+      "ddsource": "1password",
+      "evt": {
+        "name": "vault.grant"
+      },
+      "host": "events.1password.com",
+      "location": {
+        "city": "Bucharest",
+        "country": "RO"
+      },
+      "message": "alex.morgan@example.com: grant vault Storefront production",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": "Bucharest",
+            "country": "RO"
+          },
+          "ip": "198.51.100.30"
+        }
+      },
+      "object_details": {
+        "name": "Storefront production"
+      },
+      "object_type": "vault",
+      "object_uuid": "jaqxqf5qylslqiitnduawrndc5",
+      "service": "auditevents",
+      "session": {
+        "device_uuid": "rqtd557fn2husnstp5nc66w2xa",
+        "ip": "198.51.100.30",
+        "login_time": "2026-11-10T08:00:00Z",
+        "uuid": "ODOHXUYQCJBUJKRGZNNPBJURPE"
+      },
+      "status": "info",
+      "timestamp": "2026-11-10T08:14:00Z",
+      "usr": {
+        "email": "alex.morgan@example.com",
+        "id": "GLF6WUEKS5CSNDJ2OG6TCZD3M4",
+        "name": "Alex Morgan"
+      },
+      "uuid": "56YE2TYN2VFYRLNSHKPW5NVT5F"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4eb-08e0-7075-b7bd-eb5eabd7149d"
+      },
+      "action": "suspend",
+      "actor_details": {
+        "email": "alex.morgan@example.com",
+        "name": "Alex Morgan",
+        "uuid": "GLF6WUEKS5CSNDJ2OG6TCZD3M4"
+      },
+      "actor_uuid": "GLF6WUEKS5CSNDJ2OG6TCZD3M4",
+      "date": "2026-11-10T10:05:00Z",
+      "ddsource": "1password",
+      "evt": {
+        "name": "user.suspend"
+      },
+      "host": "events.1password.com",
+      "location": {
+        "city": "Bucharest",
+        "country": "RO"
+      },
+      "message": "alex.morgan@example.com: suspend user Casey Kim",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": "Bucharest",
+            "country": "RO"
+          },
+          "ip": "198.51.100.30"
+        }
+      },
+      "object_details": {
+        "email": "casey.kim@example.com",
+        "name": "Casey Kim"
+      },
+      "object_type": "user",
+      "object_uuid": "KT9XLJL58LJKPDHCF9X4V7ORGG",
+      "service": "auditevents",
+      "session": {
+        "ip": "198.51.100.30",
+        "uuid": "ODOHXUYQCJBUJKRGZNNPBJURPE"
+      },
+      "status": "warn",
+      "timestamp": "2026-11-10T10:05:00Z",
+      "usr": {
+        "email": "alex.morgan@example.com",
+        "id": "GLF6WUEKS5CSNDJ2OG6TCZD3M4",
+        "name": "Alex Morgan"
+      },
+      "uuid": "67ZF3UZO3WGZSMOTIQLX6OWU6G"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

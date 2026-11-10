@@ -1,0 +1,113 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c49d-6658-772c-8602-f7d8b2c7a730"
+      },
+      "carrier_fees": "0.00000",
+      "carrier_fees_rate": "0.00000",
+      "date": "2026-11-10 08:40:12.120334+00:00",
+      "ddsource": "plivo",
+      "destination_country_iso2": "US",
+      "destination_network": "Example Mobile",
+      "error_code": "30",
+      "error_message": "Destination number unreachable",
+      "from_number": "15550100001",
+      "host": "MAEXAMPLE0000000000A",
+      "is_domestic": true,
+      "log_preference": "true",
+      "mcc": "310",
+      "message": "SMS outbound 15550100001 → 15550100099: undelivered",
+      "message_direction": "outbound",
+      "message_sent_time": "2026-11-10 08:40:12.120334+00:00",
+      "message_state": "undelivered",
+      "message_time": "2026-11-10 08:40:12.120334+00:00",
+      "message_type": "sms",
+      "message_updated_time": "2026-11-10 08:40:19.004211+00:00",
+      "message_uuid": "6c1f0a00-0000-4000-8000-000000000003",
+      "mnc": "260",
+      "requester_ip": "203.0.113.24",
+      "resource_uri": "/v1/Account/MAEXAMPLE0000000000A/Message/6c1f0a00-0000-4000-8000-000000000003/",
+      "service": "messages",
+      "status": "error",
+      "to_number": "15550100099",
+      "total_amount": "0.00790",
+      "total_rate": "0.00790",
+      "units": 1
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c44f-72ff-78df-b0fd-c3964ae7ca95"
+      },
+      "carrier_fees": "0.00300",
+      "carrier_fees_rate": "0.00300",
+      "date": "2026-11-10 07:15:03.551002+00:00",
+      "ddsource": "plivo",
+      "destination_country_iso2": "US",
+      "destination_network": "Example Mobile",
+      "error_code": "000",
+      "from_number": "15550100001",
+      "host": "MAEXAMPLE0000000000A",
+      "is_domestic": true,
+      "log_preference": "true",
+      "mcc": "310",
+      "message": "SMS outbound 15550100001 → 15550100042: delivered",
+      "message_direction": "outbound",
+      "message_sent_time": "2026-11-10 07:15:03.551002+00:00",
+      "message_state": "delivered",
+      "message_time": "2026-11-10 07:15:03.551002+00:00",
+      "message_type": "sms",
+      "message_updated_time": "2026-11-10 07:15:06.100877+00:00",
+      "message_uuid": "6c1f0a00-0000-4000-8000-000000000002",
+      "mnc": "260",
+      "requester_ip": "203.0.113.24",
+      "resource_uri": "/v1/Account/MAEXAMPLE0000000000A/Message/6c1f0a00-0000-4000-8000-000000000002/",
+      "service": "messages",
+      "status": "info",
+      "to_number": "15550100042",
+      "total_amount": "0.00790",
+      "total_rate": "0.00490",
+      "units": 1
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c255-c7a0-7a92-be66-9dba8edcfc42"
+      },
+      "carrier_fees": "0.00000",
+      "carrier_fees_rate": "0.00000",
+      "date": "2026-11-09 22:02:44.000000+00:00",
+      "ddsource": "plivo",
+      "destination_country_iso2": "DE",
+      "error_code": "000",
+      "from_number": "4915550100007",
+      "host": "MAEXAMPLE0000000000A",
+      "is_domestic": false,
+      "log_preference": "true",
+      "message": "SMS inbound 4915550100007 → 15550100001: received",
+      "message_direction": "inbound",
+      "message_sent_time": "2026-11-09 22:02:44.000000+00:00",
+      "message_state": "received",
+      "message_time": "2026-11-09 22:02:44.000000+00:00",
+      "message_type": "sms",
+      "message_updated_time": "2026-11-09 22:02:44.000000+00:00",
+      "message_uuid": "6c1f0a00-0000-4000-8000-000000000001",
+      "resource_uri": "/v1/Account/MAEXAMPLE0000000000A/Message/6c1f0a00-0000-4000-8000-000000000001/",
+      "service": "messages",
+      "status": "info",
+      "to_number": "15550100001",
+      "total_amount": "0.00000",
+      "total_rate": "0.00000",
+      "units": 1
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794301200000
+      }
+    }
+  }
+}

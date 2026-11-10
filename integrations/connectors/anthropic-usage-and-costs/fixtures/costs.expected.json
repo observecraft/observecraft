@@ -1,0 +1,98 @@
+{
+  "costs": [
+    {
+      "account": "storefront",
+      "cost": 123.4567,
+      "currency": "USD",
+      "date": "2026-11-08",
+      "line": 2369478914,
+      "provider": "anthropic",
+      "service": "claude-sonnet-4-5-20250929",
+      "tags": {
+        "context_window": "0-200k",
+        "cost_type": "tokens",
+        "inference_geo": "not_available",
+        "model": "claude-sonnet-4-5-20250929",
+        "model_name": "claude-sonnet-4-5-20250929",
+        "org_name": "Example Org",
+        "service_tier": "standard",
+        "token_type": "uncached_input_tokens",
+        "workspace_id": "wrkspc_01ExampleStorefront",
+        "workspace_name": "storefront"
+      },
+      "usage_amount": 0.0,
+      "usage_type": "Claude Sonnet 4.5 Usage - Input Tokens"
+    },
+    {
+      "account": "storefront",
+      "cost": 80.20100000000001,
+      "currency": "USD",
+      "date": "2026-11-08",
+      "line": 2615230945,
+      "provider": "anthropic",
+      "service": "claude-sonnet-4-5-20250929",
+      "tags": {
+        "context_window": "0-200k",
+        "cost_type": "tokens",
+        "inference_geo": "not_available",
+        "model": "claude-sonnet-4-5-20250929",
+        "model_name": "claude-sonnet-4-5-20250929",
+        "org_name": "Example Org",
+        "service_tier": "standard",
+        "token_type": "output_tokens",
+        "workspace_id": "wrkspc_01ExampleStorefront",
+        "workspace_name": "storefront"
+      },
+      "usage_amount": 0.0,
+      "usage_type": "Claude Sonnet 4.5 Usage - Output Tokens"
+    },
+    {
+      "account": "support-bot",
+      "cost": 9.9,
+      "currency": "USD",
+      "date": "2026-11-09",
+      "line": 1207309884,
+      "provider": "anthropic",
+      "service": "claude-haiku-4-5-20251001",
+      "tags": {
+        "context_window": "0-200k",
+        "cost_type": "tokens",
+        "inference_geo": "not_available",
+        "model": "claude-haiku-4-5-20251001",
+        "model_name": "claude-haiku-4-5-20251001",
+        "org_name": "Example Org",
+        "service_tier": "standard",
+        "token_type": "uncached_input_tokens",
+        "workspace_id": "wrkspc_01ExampleSupportBot",
+        "workspace_name": "support-bot"
+      },
+      "usage_amount": 0.0,
+      "usage_type": "Claude Haiku 4.5 Usage - Input Tokens"
+    },
+    {
+      "account": "Default",
+      "cost": 0.3,
+      "currency": "USD",
+      "date": "2026-11-09",
+      "line": 1766055445,
+      "provider": "anthropic",
+      "service": "web_search",
+      "tags": {
+        "cost_type": "web_search",
+        "org_name": "Example Org",
+        "workspace_id": "default",
+        "workspace_name": "Default"
+      },
+      "usage_amount": 0.0,
+      "usage_type": "Web Search Usage"
+    }
+  ],
+  "events": [],
+  "logs": [],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

@@ -52,12 +52,16 @@ test('inputs are validated like the server does', async () => {
     { ...ok, query: 'index:main' },
     { ...ok, query: 'service:(billing' },
     { ...ok, query: '"unterminated' },
+    { ...ok, query: '@a:"x\\"' },
     { ...ok, roleIds: [`${org}-admin`] },
     { ...ok, roleIds: ['no-such-role'] },
     { ...ok, teamHandles: ['no-such-team'] },
   ];
   for (const input of bad) await assert.rejects(mock.createRestrictionQuery(input), undefined, JSON.stringify(input));
   const seeded = (await mock.listRestrictionQueries())[0];
+  const escaped = await mock.createRestrictionQuery({ ...ok, name: 'Escaped quotes', query: '@msg:"a \\"(quoted\\" \\\\" service:billing' });
+  assert.equal(escaped.query, '@msg:"a \\"(quoted\\" \\\\" service:billing');
+  await mock.deleteRestrictionQuery(escaped.id);
   await assert.rejects(mock.createRestrictionQuery({ ...ok, name: seeded.name }), /already exists/);
 });
 

@@ -1,0 +1,15 @@
+{
+  "cursor": "c2lnbmluLTI", "has_more": true,
+  "items": [
+    { "uuid": "56YE2TYN2VFYRLNSHKPW5NVT5E", "session_uuid": "A5K6COGVRVEJXJW3XQZGS7VAMM", "timestamp": "2026-11-10T08:12:44Z",
+      "category": "credentials_failed", "type": "password_secret_bad", "country": "RO", "details": null,
+      "target_user": { "uuid": "IR7VJHJ36JHINBFAD7V2T5MP3E", "name": "Jordan Patel", "email": "jordan.patel@example.com" },
+      "client": { "app_name": "1Password Browser Extension", "app_version": "81090003", "platform_name": "Chrome", "platform_version": "141.0", "os_name": "MacOSX", "os_version": "15.1", "ip_address": "198.51.100.12" },
+      "location": { "country": "RO", "region": "Bucuresti", "city": "Bucharest", "latitude": 44.43, "longitude": 26.1 } },
+    { "uuid": "7HXF3UZP3WGZSMOTIQLX6OWU6F", "session_uuid": "B6L7DPHWSWFKYKY4YRUAT8WBNN", "timestamp": "2026-11-10T08:13:02Z",
+      "category": "success", "type": "credentials_ok", "country": "RO",
+      "target_user": { "uuid": "IR7VJHJ36JHINBFAD7V2T5MP3E", "name": "Jordan Patel", "email": "jordan.patel@example.com" },
+      "client": { "app_name": "1Password Browser Extension", "platform_name": "Chrome", "ip_address": "198.51.100.12" },
+      "location": { "country": "RO", "city": "Bucharest" } }
+  ]
+}

@@ -759,10 +759,16 @@ const INTEGRATION_BUNDLES: &[&str] = &[
     include_str!("../../../../seeds/integrations/aws/dashboards.json"),
     include_str!("../../../../seeds/integrations/azure/dashboards.json"),
     include_str!("../../../../seeds/integrations/gcp/dashboards.json"),
-    // NetBird: ObserveCraft's own (scripts/netbird-dashboard.mjs), over the integration's logs and metrics.
-    include_str!("../../../../seeds/integrations/netbird/dashboards.json"),
     // FleetDM: ObserveCraft's own (scripts/fleetdm-dashboard.mjs), over the integration's logs and metrics.
     include_str!("../../../../seeds/integrations/fleetdm/dashboards.json"),
+    // authentik: ObserveCraft's own (scripts/authentik-dashboard.mjs), over the integration's logs.
+    include_str!("../../../../seeds/integrations/authentik/dashboards.json"),
+    // Microsoft Entra ID: ObserveCraft's own (scripts/entra-id-dashboard.mjs), over the tenant's sign-in, audit and risk logs.
+    include_str!("../../../../seeds/integrations/azure-active-directory/dashboards.json"),
+    // GitLab Audit Events: ObserveCraft's own (scripts/gitlab-audit-events-dashboard.mjs), over the integration's logs.
+    include_str!("../../../../seeds/integrations/gitlab-audit-events/dashboards.json"),
+    // Google Workspace: ObserveCraft's own (scripts/google-workspace-dashboard.mjs), over the integration's logs.
+    include_str!("../../../../seeds/integrations/google-workspace/dashboards.json"),
     // ObserveCraft itself (scripts/observecraft-dashboard.mjs), over self_monitoring.rs's gauges.
     include_str!("../../../../seeds/integrations/observecraft/dashboards.json"),
 ];
@@ -781,18 +787,34 @@ fn seed_documents() -> anyhow::Result<Vec<(String, Value)>> {
             documents.push((id, doc));
         }
     }
+    // Connector packages' own dashboards (`dist/dashboards.json`), listed once the org has a connection.
+    for p in &crate::connectors::registry().packages {
+        for doc in p.package.dashboards() {
+            if let Some(id) = doc["id"].as_str() {
+                documents.push((id.to_string(), doc.clone()));
+            }
+        }
+    }
     Ok(documents)
 }
 
 // ================================================================ available integration dashboards
 
 /// Integration dashboards appear once their integration is enabled (by the dashboard's `logo`): a cloud
-/// account or connection, synthetic tests, or its data received in the last day. Others are always available.
-const GATED: [&str; 10] = ["aws", "azure", "gcp", "fleetdm", "kubernetes", "linux", "netbird", "observecraft", "opentelemetry", "tile:synthetics"];
+/// account, synthetic tests, or its data received in the last day; a connector's ([`gated`]) once the org has a
+/// connection. Others are always available.
+const GATED: [&str; 8] = ["aws", "azure", "gcp", "kubernetes", "linux", "observecraft", "opentelemetry", "tile:synthetics"];
+
+/// Every gated logo: [`GATED`] and the connectors'.
+pub fn gated() -> std::collections::BTreeSet<String> {
+    let mut out: std::collections::BTreeSet<String> = GATED.iter().map(|s| s.to_string()).collect();
+    out.extend(crate::connectors::registry().gated_logos());
+    out
+}
 
 /// The gated integrations not enabled: their dashboards are left out of searches and recents.
 pub fn hidden_logos(enabled: &std::collections::BTreeSet<String>) -> Vec<String> {
-    GATED.iter().filter(|l| !enabled.contains(**l)).map(|l| l.to_string()).collect()
+    gated().into_iter().filter(|l| !enabled.contains(l)).collect()
 }
 
 /// How long an org's enabled integrations are reused (an account added shows its dashboards within it).
@@ -822,14 +844,15 @@ impl Drop for EnabledChange<'_> {
 pub async fn enabled_integrations(st: &AppState, org: &str) -> Result<std::sync::Arc<std::collections::BTreeSet<String>>, ApiError> {
     enabled_cache()
         .get_or_load(&format!("{org}\0"), || async {
-            let (aws, azure, gcp, synthetics, netbird, fleetdm): (bool, bool, bool, bool, bool, bool) = sqlx::query_as(
+            let (aws, azure, gcp, synthetics): (bool, bool, bool, bool) = sqlx::query_as(
                 "SELECT EXISTS (SELECT 1 FROM aws_accounts WHERE org_id = $1), EXISTS (SELECT 1 FROM azure_accounts WHERE org_id = $1), \
-                 EXISTS (SELECT 1 FROM gcp_accounts WHERE org_id = $1), EXISTS (SELECT 1 FROM synthetic_tests WHERE org_id = $1), \
-                 EXISTS (SELECT 1 FROM netbird_connections WHERE org_id = $1), EXISTS (SELECT 1 FROM fleetdm_connections WHERE org_id = $1)",
+                 EXISTS (SELECT 1 FROM gcp_accounts WHERE org_id = $1), EXISTS (SELECT 1 FROM synthetic_tests WHERE org_id = $1)",
             )
             .bind(org)
             .fetch_one(&st.postgres)
             .await?;
+            // Connectors (vendor APIs) with a connection: their tiles and logos.
+            let connectors = crate::connectors::connected(st, org).await?;
             #[derive(clickhouse::Row, Deserialize)]
             struct Seen {
                 kubernetes: bool,
@@ -851,10 +874,11 @@ pub async fn enabled_integrations(st: &AppState, org: &str) -> Result<std::sync:
                 )
                 .fetch_one::<Seen>()
                 .await?;
-            let flags = [("aws", aws), ("azure", azure), ("gcp", gcp), ("tile:synthetics", synthetics), ("netbird", netbird), ("fleetdm", fleetdm), ("kubernetes", seen.kubernetes), ("linux", seen.hosts), ("opentelemetry", seen.traces)];
+            let flags = [("aws", aws), ("azure", azure), ("gcp", gcp), ("tile:synthetics", synthetics), ("kubernetes", seen.kubernetes), ("linux", seen.hosts), ("opentelemetry", seen.traces)];
             // ObserveCraft's own health: the operator's organization only (self_monitoring.rs).
             let operator = crate::self_monitoring::operator_org(st).await.is_some_and(|o| o == org);
             let mut enabled: std::collections::BTreeSet<String> = flags.into_iter().filter(|(_, on)| *on).map(|(l, _)| l.to_string()).collect();
+            enabled.extend(connectors);
             if operator {
                 enabled.insert("observecraft".to_string());
             }
@@ -928,7 +952,10 @@ mod tests {
         assert!(hidden.contains(&"azure".to_string()) && hidden.contains(&"gcp".to_string()) && hidden.contains(&"linux".to_string()));
         assert!(hidden.contains(&"observecraft".to_string()), "ObserveCraft's own health: the operator's org only");
         assert!(!hidden.contains(&"aws".to_string()) && !hidden.contains(&"kubernetes".to_string()));
-        assert_eq!(hidden_logos(&GATED.iter().map(|s| s.to_string()).collect()), Vec::<String>::new());
+        assert_eq!(hidden_logos(&gated()), Vec::<String>::new());
+        for logo in ["authentik", "netbird", "have-i-been-pwned", "azure-active-directory"] {
+            assert!(gated().contains(logo), "connectors' dashboards are gated: {logo}");
+        }
     }
 
     /// A new org sees none of the gated integration dashboards; an AWS account brings AWS Overview,

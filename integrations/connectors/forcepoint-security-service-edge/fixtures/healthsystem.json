@@ -1,0 +1,28 @@
+{
+  "status": "Success",
+  "nextpagetoken": "healthsystem-t1",
+  "response": {
+    "dataformat": "json",
+    "dataencoding": "utf-8",
+    "data": [
+      {
+        "time": "10 Nov 2026 07:07:00",
+        "syslogheader": "<110>1 2026-11-10T07:07:00.000000Z api.bitglass.com NILVALUE NILVALUE access",
+        "transactionid": "77ee0000ee01 [10 Nov 2026 07:07:00]",
+        "activity": "Cloudsummary, RestAPI",
+        "responsecode": "400",
+        "requestmethod": "GET",
+        "url": "cloudapps/summary",
+        "application": "CloudApps",
+        "email": "admin@example.com",
+        "user": "Shop Admin",
+        "device": "",
+        "deviceguid": "",
+        "ipaddress": "",
+        "location": "",
+        "useragent": "",
+        "usergroup": "['All Users']"
+      }
+    ]
+  }
+}

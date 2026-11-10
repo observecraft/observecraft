@@ -5,10 +5,18 @@ import kubernetes from '../../../../server/seeds/integrations/kubernetes/dashboa
 import aws from '../../../../server/seeds/integrations/aws/dashboards.json';
 import azure from '../../../../server/seeds/integrations/azure/dashboards.json';
 import gcp from '../../../../server/seeds/integrations/gcp/dashboards.json';
-// ObserveCraft's own NetBird dashboard (scripts/netbird-dashboard.mjs).
-import netbird from '../../../../server/seeds/integrations/netbird/dashboards.json';
+// The connector packages' own dashboards (integrations/connectors/*/dist, `node scripts/connector.mjs build`): NetBird's.
+import connectorPackages from '../connectors/packages.generated.json';
 // ObserveCraft's own FleetDM dashboard (scripts/fleetdm-dashboard.mjs).
 import fleetdm from '../../../../server/seeds/integrations/fleetdm/dashboards.json';
+// ObserveCraft's own authentik dashboard (scripts/authentik-dashboard.mjs).
+import authentik from '../../../../server/seeds/integrations/authentik/dashboards.json';
+// ObserveCraft's own Microsoft Entra ID dashboard (scripts/entra-id-dashboard.mjs).
+import entraId from '../../../../server/seeds/integrations/azure-active-directory/dashboards.json';
+// ObserveCraft's own GitLab Audit Events dashboard (scripts/gitlab-audit-events-dashboard.mjs).
+import gitlabAudit from '../../../../server/seeds/integrations/gitlab-audit-events/dashboards.json';
+// ObserveCraft's own Google Workspace dashboard (scripts/google-workspace-dashboard.mjs).
+import googleWorkspace from '../../../../server/seeds/integrations/google-workspace/dashboards.json';
 // ObserveCraft's own health (scripts/observecraft-dashboard.mjs), over the server's self-monitoring metrics.
 import observecraft from '../../../../server/seeds/integrations/observecraft/dashboards.json';
 // ObserveCraft's own dashboard over the synthetics.* metrics of synthetic API tests.
@@ -20,7 +28,23 @@ import core from './coreDashboards.generated.json';
 import cloudServices from './cloudServiceDashboards.generated.json';
 import type { Widget, TemplateVariable, LayoutType } from '../dashboards/types';
 
-export const integrationDashboards = [...kubernetes, ...aws, ...azure, ...gcp, ...netbird, ...fleetdm, ...observecraft, synthetics, ...core.dashboards, ...cloudServices.dashboards].map((d) => ({
+export const integrationDashboards = [
+  ...kubernetes,
+  ...aws,
+  ...azure,
+  ...gcp,
+  // Typed as one of ours: the union TypeScript infers over every package's widgets is too wide to check.
+  ...(connectorPackages as unknown as { dashboards: typeof fleetdm }[]).flatMap((p) => p.dashboards),
+  ...fleetdm,
+  ...authentik,
+  ...gitlabAudit,
+  ...googleWorkspace,
+  ...entraId,
+  ...observecraft,
+  synthetics,
+  ...core.dashboards,
+  ...cloudServices.dashboards,
+].map((d) => ({
   ...d,
   kind: 'integration' as const,
   layoutType: d.layoutType as LayoutType,

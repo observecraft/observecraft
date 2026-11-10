@@ -1,0 +1,27 @@
+{
+  "nextToken": "p2",
+  "logs": [
+    {
+      "timestamp": "2026-11-10T09:01:02Z",
+      "genTime": "2026-11-10T09:01:01Z",
+      "deliveryTime": "2026-11-10T09:01:05Z",
+      "type": "accepted_traffic",
+      "direction": "in",
+      "sender": "orders@supplier.example.net",
+      "headerFrom": "orders@supplier.example.net",
+      "recipient": "purchasing@example.com",
+      "headerTo": ["purchasing@example.com"],
+      "subject": "Invoice 2026-1142",
+      "senderIP": "203.0.113.10",
+      "deliveredTo": "10.0.30.5",
+      "mailID": "73173f80-2e0e-46df-b2dc-a62e80160001",
+      "messageID": "<a1b2c3d4@mail.supplier.example.net>",
+      "size": 66390,
+      "action": "Delivered",
+      "details": "250 2.0.0 Ok: queued as 3CBEFC0811",
+      "tlsInfo": "upstreamTLS: TLS 1.2; downstreamTLS: TLS 1.2",
+      "attachments": [{ "fileName": "invoice-2026-1142.pdf", "sha256": "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0" }],
+      "embeddedUrls": []
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "next": "https://example.api.kandji.io/api/v1/audit/events?cursor=eyJvIjoyfQ&limit=500&sort_by=occurred_at",
+  "previous": null,
+  "results": [
+    {
+      "id": "01K9EXAMPLE00000000000001", "occurred_at": "2026-11-10T09:01:37.420577Z", "action": "update",
+      "actor_type": "user", "actor_id": "aa2e0000-0000-4000-8000-000000000001",
+      "target_type": "admin", "target_component": "user", "target_id": "4b3b0000-0000-4000-8000-000000000001",
+      "new_state": { "role": "admin", "first_name": "Sam", "last_name": "Lee", "email": "sam.lee@example.com" },
+      "old_state": { "role": "auditor", "first_name": "Sam", "last_name": "Lee", "email": "sam.lee@example.com" }
+    },
+    {
+      "id": "01K9EXAMPLE00000000000002", "occurred_at": "2026-11-10T10:12:03.000000Z", "action": "create",
+      "actor_type": "user", "actor_id": "aa2e0000-0000-4000-8000-000000000002",
+      "target_type": "library_item", "target_component": "custom_app", "target_id": "5c4d0000-0000-4000-8000-000000000001",
+      "new_state": { "name": "Storefront VPN profile", "blueprint_names": ["Engineering Macs"] }
+    }
+  ]
+}

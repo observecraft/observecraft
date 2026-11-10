@@ -1,0 +1,73 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c53b-c0f0-7e04-92d0-90adcab38a48"
+      },
+      "answer_time": "2026-11-10 11:31:05+00:00",
+      "bill_duration": 120,
+      "billed_duration": 120,
+      "call_direction": "outbound",
+      "call_duration": 125,
+      "call_state": "ANSWER",
+      "call_uuid": "aa110000-0000-4000-8000-000000000002",
+      "date": "2026-11-10 11:33:10+00:00",
+      "ddsource": "plivo",
+      "end_time": "2026-11-10 11:33:10+00:00",
+      "from_number": "15550100001",
+      "hangup_cause_code": 4000,
+      "hangup_cause_name": "Normal Hangup",
+      "hangup_source": "Caller",
+      "host": "MAEXAMPLE0000000000A",
+      "initiation_time": "2026-11-10 11:31:00+00:00",
+      "message": "Call outbound 15550100001 → 15550100042: Normal Hangup after 125s",
+      "resource_uri": "/v1/Account/MAEXAMPLE0000000000A/Call/aa110000-0000-4000-8000-000000000002/",
+      "service": "voice",
+      "source_ip": "203.0.113.24",
+      "status": "info",
+      "to_number": "15550100042",
+      "total_amount": "0.01000",
+      "total_rate": "0.00500",
+      "voice_network_group": "USA"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bb-2ee0-731d-acd0-f267f0c43ebf"
+      },
+      "bill_duration": 0,
+      "billed_duration": 0,
+      "call_direction": "outbound",
+      "call_duration": 0,
+      "call_state": "BUSY",
+      "call_uuid": "aa110000-0000-4000-8000-000000000001",
+      "date": "2026-11-10 09:12:44+00:00",
+      "ddsource": "plivo",
+      "end_time": "2026-11-10 09:12:44+00:00",
+      "from_number": "15550100001",
+      "hangup_cause_code": 5010,
+      "hangup_cause_name": "Busy Line",
+      "hangup_source": "Callee",
+      "host": "MAEXAMPLE0000000000A",
+      "initiation_time": "2026-11-10 09:12:30+00:00",
+      "message": "Call outbound 15550100001 → 15550100077: Busy Line after 0s",
+      "resource_uri": "/v1/Account/MAEXAMPLE0000000000A/Call/aa110000-0000-4000-8000-000000000001/",
+      "service": "voice",
+      "source_ip": "203.0.113.24",
+      "status": "error",
+      "to_number": "15550100077",
+      "total_amount": "0.00000",
+      "total_rate": "0.00500",
+      "voice_network_group": "USA"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

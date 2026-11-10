@@ -1,0 +1,127 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Trellix Endpoint Security (ENS) through Trellix ePO SaaS's events API (https://developer.manage.trellix.com/mvision/apis/v2-events):
+# threat events as the logs Datadog's integration sends (source:trellix-endpoint-security, service:threat-events, the
+# JSON:API record as it is: id, type, attributes.*). integrations-core's pipeline turns the event id into the module's
+# service (threat-prevention, web-protection, adaptive-threat-protection, firewall) and threatseverity into the status;
+# the tile's dashboard reads them. Paging follows Trellix's own sample client (github.com/Trellix-plb/Trellix-API):
+# `sort=timestamp`, `page[limit]`, and the cursor `<event id>_:_<timestamp>` of the last event read.
+schema_version: 1
+id: trellix-endpoint-security
+name: Trellix Endpoint Security (ENS)
+publisher: ObserveCraft
+vendor: Trellix
+description: >-
+  The threat events of Trellix Endpoint Security (threat prevention, access protection, web control, adaptive threat
+  protection and firewall detections) reported to Trellix ePO SaaS, as logs read every 5 minutes from its events API.
+tiles: [trellix-endpoint-security]
+categories: [Log Collection, Security, SIEM]
+source: trellix-endpoint-security
+docs_url: https://developer.manage.trellix.com/mvision/apis/v2-events
+setup: |
+  1. In the [Trellix Developer Portal](https://developer.manage.trellix.com/), copy your **API key** (x-api-key).
+  2. Under **Self Service → API Access Management**, create client credentials with the **Events** read scope
+     (`epo.evt.r`), and copy the client ID and secret.
+  The events API keeps 3 days of events: a connection paused longer misses the older ones.
+instance: "{{ config.client_id }}"
+
+config:
+  - key: token_url
+    label: IAM token URL
+    type: url
+    required: true
+    default: https://iam.cloud.trellix.com/iam/v1.1/token
+  - key: base_url
+    label: API URL
+    type: url
+    required: true
+    default: https://api.manage.trellix.com
+    strip_suffix: [/epo/v2]
+  - key: client_id
+    label: Client ID
+    type: string
+    required: true
+  - key: client_secret
+    label: Client secret
+    type: string
+    secret: true
+    required: true
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "{{ config.token_url }}"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  scopes: [epo.evt.r]
+  client_auth: basic
+  params: { audience: mcafee }
+
+headers:
+  x-api-key: "{{ secrets.api_key }}"
+  Accept: application/vnd.api+json
+
+rate_limit: { requests_per_minute: 30 }
+
+# The tile's pipeline maps threatseverity to the log's status the same way.
+tables:
+  severity: { "0": emergency, "1": alert, "2": critical, "3": warning, "4": warning, "5": notice, "6": info, "7": debug }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Trellix refused the client credentials or the API key
+  - status: [403]
+    kind: access_denied
+    message: The client credentials lack the Events read scope (epo.evt.r), or the API key isn't this tenant's
+
+streams:
+  - id: threat_events
+    name: Threat events
+    description: >-
+      One log per ENS threat event (service:threat-events, then the module's service from the pipeline):
+      attributes.threatname, threatseverity, threatactiontaken, analyzerdetectionmethod, the source and target
+      process, file, user and addresses, and the extended attributes.
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/epo/v2/events"
+      query:
+        sort: timestamp
+        "page[limit]": 1000
+        "page[cursor]": "{{ cursor.token }}"
+    records: "{{ response.data }}"
+    pagination: { kind: next_url, next: "{{ response.links.next }}" }
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: token
+      next: "{{ last ? last.id + '_:_' + last.attributes.timestamp : null }}"
+    output:
+      logs:
+        service: threat-events
+        status: "{{ tables.severity[record.attributes.threatseverity | str] ?? 'info' }}"
+        message: "{{ record | json }}"
+        date: "{{ record.attributes.detectedutc | int }}"
+        attributes: "{{ record }}"
+
+test:
+  request:
+    url: "{{ config.base_url }}/epo/v2/events"
+    query: { "page[limit]": 1 }
+  message: "Connected: {{ response.data | len }} recent threat event(s) readable"
+
+mock:
+  config: { token_url: "https://iam.cloud.trellix.com/iam/v1.1/token", base_url: "https://api.manage.trellix.com", client_id: "0oa1b2c3d4e5f6g7h8i9" }
+  secrets: { client_secret: trellix-test-secret, api_key: trellix-test-api-key }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://iam.cloud.trellix.com/iam/v1.1/token", body_contains: "client_credentials", body: { access_token: trellix-token, token_type: Bearer, expires_in: 600 } }
+    - { url: "https://api.manage.trellix.com/epo/v2/events", query: { "page[limit]": "1" }, body: { data: [], links: {} } }
+    - { url: "https://api.manage.trellix.com/epo/v2/events", query: { "page[cursor]": "7d1e0000-0000-4000-8000-000000000002_:_2026-11-10T09:45:10.512Z" }, file: fixtures/events-2.json }
+    - { url: "https://api.manage.trellix.com/epo/v2/events", query: { "page[cursor]": "7d1e0000-0000-4000-8000-000000000003_:_2026-11-10T10:31:02.004Z" }, body: { data: [], links: {} } }
+    - { url: "https://api.manage.trellix.com/epo/v2/events", file: fixtures/events-1.json }
+  expect:
+    threat_events: { records: 3, logs: 3, rerun: 0, golden: fixtures/threat_events.expected.json }
+    test: { ok: true, message: "Connected" }

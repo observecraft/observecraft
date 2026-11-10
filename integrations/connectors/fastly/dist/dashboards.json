@@ -1,0 +1,838 @@
+[
+  {
+    "id": "fastly-overview",
+    "title": "Fastly - Overview",
+    "description": "Fastly services' traffic, cache efficiency, errors and origin load per minute, and their request logs.",
+    "kind": "integration",
+    "logo": "fastly",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "fastly-1",
+        "definition": {
+          "type": "group",
+          "title": "",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "fastly-2",
+              "definition": {
+                "type": "note",
+                "content": "**Fastly** is an edge cloud: CDN, security and compute at its POPs. This dashboard shows each service's requests, hit ratio, bandwidth, status codes, errors and origin fetches per minute (`fastly.*`, from the historical stats API), and the request logs Fastly streams (source `fastly`).\n\nConnect an account in [Integrations → Fastly](/integrations/connectors/fastly) with a global:read API token.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "id": "fastly-11",
+        "definition": {
+          "type": "group",
+          "title": "Traffic",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "fastly-3",
+              "definition": {
+                "type": "integration",
+                "title": "Requests",
+                "original": {
+                  "type": "query_value",
+                  "title": "Requests",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fastly.requests{*}.as_count()",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "fastly-4",
+              "definition": {
+                "type": "integration",
+                "title": "Hit ratio",
+                "original": {
+                  "type": "query_value",
+                  "title": "Hit ratio",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:fastly.hit_ratio{*}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 3
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "fastly-5",
+              "definition": {
+                "type": "integration",
+                "title": "5xx",
+                "original": {
+                  "type": "query_value",
+                  "title": "5xx",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fastly.status_5xx{*}.as_count()",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "fastly-6",
+              "definition": {
+                "type": "integration",
+                "title": "Bandwidth",
+                "original": {
+                  "type": "query_value",
+                  "title": "Bandwidth",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fastly.bandwidth{*}.as_count()",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "fastly-7",
+              "definition": {
+                "type": "integration",
+                "title": "Requests by service",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Requests by service",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fastly.requests{*} by {service}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "fastly-8",
+              "definition": {
+                "type": "integration",
+                "title": "Hit ratio by service",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Hit ratio by service",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:fastly.hit_ratio{*} by {service}"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "fastly-9",
+              "definition": {
+                "type": "integration",
+                "title": "Hits",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Hits",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fastly.hits{*} by {service}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 10,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "fastly-10",
+              "definition": {
+                "type": "integration",
+                "title": "Misses",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Misses",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fastly.miss{*} by {service}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 10,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 19
+        }
+      },
+      {
+        "id": "fastly-17",
+        "definition": {
+          "type": "group",
+          "title": "Errors and origin",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "fastly-12",
+              "definition": {
+                "type": "integration",
+                "title": "5xx by service",
+                "original": {
+                  "type": "timeseries",
+                  "title": "5xx by service",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fastly.status_5xx{*} by {service}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "fastly-13",
+              "definition": {
+                "type": "integration",
+                "title": "4xx by service",
+                "original": {
+                  "type": "timeseries",
+                  "title": "4xx by service",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fastly.status_4xx{*} by {service}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "orange",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "fastly-14",
+              "definition": {
+                "type": "integration",
+                "title": "Origin fetches",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Origin fetches",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fastly.origin_fetches{*} by {service}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "fastly-15",
+              "definition": {
+                "type": "integration",
+                "title": "Time serving misses (s)",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Time serving misses (s)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fastly.miss_time{*} by {service}"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "fastly-16",
+              "definition": {
+                "type": "integration",
+                "title": "Bandwidth by service",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Bandwidth by service",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:fastly.bandwidth{*} by {service}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "area"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 12,
+                "w": 12,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 25,
+          "w": 12,
+          "h": 21
+        }
+      },
+      {
+        "id": "fastly-20",
+        "definition": {
+          "type": "group",
+          "title": "Request logs",
+          "color": "green",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "fastly-18",
+              "definition": {
+                "type": "integration",
+                "title": "Requests by status code",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Requests by status code",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:fastly"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@http.status_code",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "fastly-19",
+              "definition": {
+                "type": "integration",
+                "title": "Top paths with 5xx",
+                "original": {
+                  "type": "toplist",
+                  "title": "Top paths with 5xx",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:fastly @http.status_code:>=500"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@http.url",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "warm"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 46,
+          "w": 12,
+          "h": 9
+        }
+      }
+    ],
+    "source": {
+      "repository": "connector:fastly",
+      "path": "assets/dashboards/overview.json",
+      "license": "MIT"
+    }
+  }
+]

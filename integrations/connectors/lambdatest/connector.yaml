@@ -1,0 +1,136 @@
+# yaml-language-server: $schema=../connector.schema.json
+# TestMu AI (formerly LambdaTest), https://swagger-api-support.lambdatest.com/openapi.yaml: the account's finished web
+# automation sessions, read from its Selenium Automation API and shaped as the test session logs its Datadog
+# integration sends (source:lambdatest, service:LambdaTest; test_id, product, status, duration_in_secs, test_env_os /
+# _browser / _device / _resolution, test_url, tunnel_used, test_created_at / _started_at / _ended_at), so
+# integrations-extras' pipeline and dashboard read them. As in those logs, `@status` carries the session's outcome
+# (Completed for passed and completed sessions, Failed for failed and errored ones, as the dashboard counts them).
+# Not collected: test_url, test_env_resolution and tunnel_used (the sessions API doesn't list them), app automation and
+# manual sessions (other APIs), and the "Mark as Bug" incidents, which TestMu AI opens in Datadog itself.
+schema_version: 1
+id: lambdatest
+name: TestMu AI (formerly LambdaTest)
+publisher: ObserveCraft
+vendor: TestMu AI
+description: >-
+  The finished web automation test sessions of a TestMu AI (LambdaTest) account (outcome, duration, browser,
+  operating system, device, build, tunnel) as logs, read every five minutes from its Automation API.
+tiles: [lambdatest]
+categories: [Automation, Testing]
+source: lambdatest
+docs_url: https://www.testmuai.com/support/api-doc/
+setup: |
+  1. In TestMu AI, open **Account Settings → Password & Security** (or the profile menu's **Access Key**) and copy
+     your username and access key. Sessions of the whole organization are read when the user is an admin.
+links:
+  - { label: Access key, url: "https://accounts.lambdatest.com/security" }
+instance: "{{ config.username }}"
+
+config:
+  - key: region
+    label: Region
+    type: select
+    default: us
+    options:
+      - { value: us, label: United States (api.lambdatest.com) }
+      - { value: eu, label: Europe (eu-api.lambdatest.com) }
+  - key: username
+    label: Username
+    type: string
+    required: true
+  - key: access_key
+    label: Access key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: basic
+  username: "{{ config.username }}"
+  password: "{{ secrets.access_key }}"
+
+tables:
+  hosts: { us: "https://api.lambdatest.com", eu: "https://eu-api.lambdatest.com" }
+  outcome: { passed: Completed, completed: Completed, failed: Failed, error: Failed, lambda-error: Failed }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: TestMu AI refused the username and access key
+
+streams:
+  - id: sessions
+    name: Test sessions
+    description: >-
+      Every finished web automation session as a log (source:lambdatest, service:LambdaTest), sent once it has
+      ended; sessions still queued or running are read again on later runs.
+    interval: 5m
+    request:
+      url: "{{ tables.hosts[config.region ?? 'us'] + '/automation/api/v1/sessions' }}"
+      query:
+        fromdate: "{{ window.start | strftime('%Y-%m-%d') }}"
+        sort: desc.create_timestamp
+        limit: 100
+        offset: "{{ page.cursor ?? 0 }}"
+    records: "{{ response.data }}"
+    # Newest first: pages stop at the first session created before the window.
+    pagination:
+      kind: cursor
+      next: "{{ (records | len) < 100 ? null : (page.cursor ?? 0) + 100 }}"
+    record_id: "{{ record.test_id }}"
+    filter: "{{ record.end_timestamp && !(record.status_ind in ['running', 'queued', 'initiated']) }}"
+    # Sessions are listed by creation and sent once they end: a window keeps the last 3 hours (longer sessions are missed).
+    incremental:
+      kind: time
+      record_time: "{{ record.create_timestamp }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 3h
+    vars:
+      outcome: "{{ tables.outcome[record.status_ind] ?? ((record.status_ind | slice(0, 1) | upper) + (record.status_ind | slice(1))) }}"
+      when: "{{ '%Y-%m-%d %H:%M:%S' }}"
+      browser: "{{ ((record.browser | nonempty) + ' ' + (record.version ?? '')) | trim }}"
+    output:
+      logs:
+        service: LambdaTest
+        message: >-
+          {{ (record.name ?? record.test_id) + ': ' + record.status_ind + ' on ' + (vars.browser ?? record.device ?? '?') + ' (' + (record.platform ?? '?') + ')' + (', build ' + record.build_name ?? '') }}
+        status: "{{ vars.outcome == 'Failed' ? 'error' : 'info' }}"
+        date: "{{ record.end_timestamp }}"
+        tags: { build: "{{ record.build_name }}" }
+        attributes:
+          id: "{{ record.session_id }}"
+          test_id: "{{ record.test_id }}"
+          test_name: "{{ record.name }}"
+          product: "{{ record.device ? 'Web Automation Real Device' : 'Web Automation' }}"
+          test_type: "{{ record.test_type }}"
+          build_id: "{{ record.build_id }}"
+          build_name: "{{ record.build_name }}"
+          username: "{{ record.username }}"
+          remark: "{{ record.remark }}"
+          duration_in_secs: "{{ record.duration | int }}"
+          test_env_os: "{{ record.platform }}"
+          test_env_browser: "{{ vars.browser }}"
+          test_env_device: "{{ record.device | nonempty }}"
+          tags: "{{ record.tag | nonempty }}"
+          test_created_at: "{{ record.create_timestamp | strftime(vars.when) }}"
+          test_started_at: "{{ record.start_timestamp | strftime(vars.when) }}"
+          test_ended_at: "{{ record.end_timestamp | strftime(vars.when) }}"
+          status: "{{ vars.outcome }}"
+
+test:
+  request:
+    url: "{{ tables.hosts[config.region ?? 'us'] + '/automation/api/v1/sessions' }}"
+    query: { limit: 1 }
+  message: "Connected: {{ response.Meta.result_set.total ?? 0 }} sessions in the account"
+
+mock:
+  config: { region: us, username: qa-team }
+  secrets: { access_key: lt-test-access-key }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.lambdatest.com/automation/api/v1/sessions", query: { limit: "1" }, body: { Meta: { result_set: { count: 1, limit: 1, offset: 0, total: 412 } }, data: [] } }
+    - { url: "https://api.lambdatest.com/automation/api/v1/sessions", file: fixtures/sessions.json }
+  expect:
+    sessions: { records: 3, logs: 3, rerun: 0, golden: fixtures/sessions.expected.json }
+    test: { ok: true, message: "412 sessions" }

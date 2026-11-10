@@ -1,0 +1,154 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Tenable Vulnerability Management, formerly Tenable.io (https://developer.tenable.com): the audit log and the
+# vulnerability findings of a container, as the logs Datadog's integration sends (source:tenable-io; service:activity,
+# the audit event as it is; service:vulnerability, one finding with its asset, plugin, port and scan). The tile's
+# integrations-core pipeline, dashboards and monitors read them as they are, so this package ships none.
+schema_version: 1
+id: tenable-io
+name: Tenable.io
+publisher: ObserveCraft
+vendor: Tenable
+description: >-
+  The audit log (logins, impersonation, asset and user changes) and the vulnerability findings (new, reopened, fixed,
+  seen again) of a Tenable Vulnerability Management container as logs, read from its audit log API and its
+  asynchronous vulnerability export.
+tiles: [tenable-io]
+categories: [Log Collection, SIEM, Security, Compliance]
+source: tenable-io
+docs_url: https://developer.tenable.com/reference/navigate
+setup: |
+  1. In Tenable Vulnerability Management, open **Settings → Access Control → Users** and create a user for
+     ObserveCraft (or use an existing one). The audit log needs the **Administrator** role; the vulnerability export
+     works with **Basic** (it returns the findings the user can see).
+  2. Open the user, **API Keys → Generate**, and copy the access key and the secret key; Tenable shows them once and
+     generating new ones revokes the old pair.
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: API URL
+    type: url
+    required: true
+    default: https://cloud.tenable.com
+    help: https://cloud.tenable.com, or your FedRAMP host (fedcloud.tenable.com).
+  - key: access_key
+    label: Access key
+    type: string
+    secret: true
+    required: true
+  - key: secret_key
+    label: Secret key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: api_key
+  name: X-ApiKeys
+  value: "accessKey={{ secrets.access_key }};secretKey={{ secrets.secret_key }}"
+
+# Tenable limits requests per key and answers 429 with Retry-After; exports have tighter limits.
+rate_limit: { requests_per_minute: 60 }
+
+# The tile's pipeline maps severity to the log's status the same way.
+tables:
+  severity: { info: info, low: notice, medium: warn, high: critical, critical: emergency }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Tenable refused the API keys (they may have been regenerated)
+  - status: [403]
+    kind: access_denied
+    message: The Tenable user lacks the role this needs (Administrator for the audit log)
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Tenable (retry after {{ headers['retry-after'] ?? '?' }}s)"
+
+streams:
+  - id: activity
+    name: Activity
+    description: >-
+      Every audit log event (service:activity) as Tenable gives it: action, crud, actor, target, is_failure, fields
+      (X-Forwarded-For, X-Access-Type, …). Needs the Administrator role.
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/audit-log/v1/events"
+      # One answer of up to 5,000 events and no pages: 6-hour slices keep each answer under it.
+      query:
+        f: ["{{ 'date.gt:' + (window.start | rfc3339) }}", "{{ 'date.lt:' + (window.end | rfc3339) }}"]
+        limit: 5000
+    records: "{{ response.events }}"
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.received }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+      slice: 6h
+    output:
+      logs:
+        service: activity
+        status: "{{ record.is_failure ? 'warn' : 'info' }}"
+        message: "{{ record | json }}"
+        date: "{{ record.received }}"
+        attributes: "{{ record }}"
+
+  - id: vulnerability
+    name: Vulnerabilities
+    description: >-
+      One log per finding (service:vulnerability) opened, reopened, fixed or seen again since the last export, with
+      its asset, plugin (CVEs, CVSS, VPR), port, scan and state. Read through Tenable's asynchronous export: a run
+      starts the export, later runs read its chunks once it is ready.
+    interval: 1h
+    pagination:
+      kind: async_export
+      create:
+        method: POST
+        url: "{{ config.base_url }}/vulns/export"
+        body:
+          num_assets: 500
+          filters:
+            since: "{{ (window.start / 1000) | floor }}"
+            state: [OPEN, REOPENED, FIXED]
+      id: "{{ response.export_uuid }}"
+      status: { url: "{{ config.base_url + '/vulns/export/' + export.id + '/status' }}" }
+      ready: "{{ response.status == 'FINISHED' }}"
+      failed: "{{ response.status in ['CANCELLED', 'ERROR'] }}"
+      chunks: "{{ response.chunks_available }}"
+      chunk: { url: "{{ config.base_url + '/vulns/export/' + export.id + '/chunks/' + (chunk | str) }}" }
+    # A finding seen again by a later scan is a new log, as Datadog sends it.
+    record_id: "{{ record.finding_id + ':' + record.last_found }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.last_found }}"
+      lookback: 7d
+    output:
+      logs:
+        service: vulnerability
+        status: "{{ tables.severity[record.severity] ?? 'info' }}"
+        message: "{{ record | json }}"
+        date: "{{ record.last_found }}"
+        attributes: "{{ record }}"
+
+test:
+  request: { url: "{{ config.base_url }}/session" }
+  success: "{{ response.username }}"
+  message: "Connected as {{ response.username }}"
+
+mock:
+  secrets: { access_key: tenable-test-access-0000, secret_key: tenable-test-secret-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://cloud.tenable.com/audit-log/v1/events", file: fixtures/events.json }
+    - { method: POST, url: "https://cloud.tenable.com/vulns/export", body: { export_uuid: 5d1f0c2e-7a3b-4c9d-8e6f-0a1b2c3d4e5f } }
+    - { url: "https://cloud.tenable.com/vulns/export/5d1f0c2e-7a3b-4c9d-8e6f-0a1b2c3d4e5f/status", body: { status: FINISHED, chunks_available: [1, 2], chunks_failed: [], chunks_cancelled: [] } }
+    - { url: "https://cloud.tenable.com/vulns/export/5d1f0c2e-7a3b-4c9d-8e6f-0a1b2c3d4e5f/chunks/1", file: fixtures/vulns-chunk-1.json }
+    - { url: "https://cloud.tenable.com/vulns/export/5d1f0c2e-7a3b-4c9d-8e6f-0a1b2c3d4e5f/chunks/2", file: fixtures/vulns-chunk-2.json }
+    - { url: "https://cloud.tenable.com/session", body: { id: 7, username: secops-reader@example.com, email: secops-reader@example.com, permissions: 64 } }
+  expect:
+    activity: { records: 3, logs: 3, rerun: 0, golden: fixtures/activity.expected.json }
+    # No rerun: the next export asks Tenable for findings `since` the last one, so the same fixtures answer again.
+    vulnerability: { records: 3, logs: 3, golden: fixtures/vulnerability.expected.json }
+    test: { ok: true, message: "secops-reader@example.com" }

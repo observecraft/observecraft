@@ -1,0 +1,286 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4ba-9377-738e-a610-cae4c851c20f"
+      },
+      "actor": {
+        "alternateId": "jordan.patel@example.com",
+        "displayName": "Jordan Patel",
+        "id": "00u1a2b3c4d5e6f7g8h9",
+        "type": "User"
+      },
+      "authenticationContext": {
+        "authenticationStep": 0,
+        "credentialType": "PASSWORD",
+        "externalSessionId": "102aBcDeFgHiJkLmNoPqRsT"
+      },
+      "client": {
+        "device": "Computer",
+        "geographicalContext": {
+          "city": "Bucharest",
+          "country": "Romania",
+          "geolocation": {
+            "lat": 44.43,
+            "lon": 26.1
+          },
+          "state": "Bucuresti"
+        },
+        "ipAddress": "198.51.100.23",
+        "userAgent": {
+          "browser": "SAFARI",
+          "os": "Mac OS X",
+          "rawUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_1) AppleWebKit/605.1.15 Safari/605.1.15"
+        },
+        "zone": "null"
+      },
+      "date": "2026-11-10T09:12:04.215Z",
+      "ddsource": "okta",
+      "displayMessage": "User login to Okta",
+      "eventType": "user.session.start",
+      "evt": {
+        "name": "user.session.start",
+        "outcome": "SUCCESS"
+      },
+      "host": "example.okta.com",
+      "http": {
+        "useragent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_1) AppleWebKit/605.1.15 Safari/605.1.15"
+      },
+      "legacyEventType": "core.user_auth.login_success",
+      "message": "User login to Okta",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": "Bucharest",
+            "country": "Romania",
+            "geolocation": {
+              "lat": 44.43,
+              "lon": 26.1
+            },
+            "state": "Bucuresti"
+          },
+          "ip": "198.51.100.23"
+        }
+      },
+      "outcome": {
+        "result": "SUCCESS"
+      },
+      "published": "2026-11-10T09:12:04.215Z",
+      "service": "okta",
+      "severity": "INFO",
+      "status": "info",
+      "target": [],
+      "transaction": {
+        "id": "aBcDeF0123456789",
+        "type": "WEB"
+      },
+      "usr": {
+        "email": "jordan.patel@example.com",
+        "id": "00u1a2b3c4d5e6f7g8h9",
+        "name": "Jordan Patel"
+      },
+      "uuid": "a1f0c3d2-be71-11f1-8e6a-0b1c2d3e4f50"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bc-f402-75b1-8d77-77925970385c"
+      },
+      "actor": {
+        "alternateId": "sam.lee@example.com",
+        "displayName": "Sam Lee",
+        "id": "00u1a2b3c4d5e6f7g8i0",
+        "type": "User"
+      },
+      "client": {
+        "geographicalContext": {
+          "city": "Lagos",
+          "country": "Nigeria"
+        },
+        "ipAddress": "203.0.113.77",
+        "userAgent": {
+          "browser": "CHROME",
+          "os": "Linux",
+          "rawUserAgent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/141.0"
+        }
+      },
+      "date": "2026-11-10T09:14:40.002Z",
+      "ddsource": "okta",
+      "displayMessage": "Authentication of user via MFA",
+      "eventType": "user.authentication.auth_via_mfa",
+      "evt": {
+        "name": "user.authentication.auth_via_mfa",
+        "outcome": "FAILURE"
+      },
+      "host": "example.okta.com",
+      "http": {
+        "useragent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/141.0"
+      },
+      "message": "Authentication of user via MFA",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": "Lagos",
+            "country": "Nigeria"
+          },
+          "ip": "203.0.113.77"
+        }
+      },
+      "outcome": {
+        "reason": "INVALID_CREDENTIALS",
+        "result": "FAILURE"
+      },
+      "published": "2026-11-10T09:14:40.002Z",
+      "service": "okta",
+      "severity": "INFO",
+      "status": "warn",
+      "target": [
+        {
+          "alternateId": "unknown",
+          "displayName": "Okta Verify",
+          "id": "mfa0a1b2c3d4e5f6g7h8",
+          "type": "AuthenticatorEnrollment"
+        }
+      ],
+      "usr": {
+        "email": "sam.lee@example.com",
+        "id": "00u1a2b3c4d5e6f7g8i0",
+        "name": "Sam Lee"
+      },
+      "uuid": "b2e1d4c3-be71-11f1-8e6a-0b1c2d3e4f51"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c52b-1f20-73d4-aef6-77e55a29068d"
+      },
+      "actor": {
+        "alternateId": "jordan.patel@example.com",
+        "displayName": "Jordan Patel",
+        "id": "00u1a2b3c4d5e6f7g8h9",
+        "type": "User"
+      },
+      "client": {
+        "geographicalContext": {
+          "country": "Romania"
+        },
+        "ipAddress": "198.51.100.23",
+        "userAgent": {
+          "rawUserAgent": "Mozilla/5.0 (Macintosh) Safari/605.1.15"
+        }
+      },
+      "date": "2026-11-10T11:15:00.000Z",
+      "ddsource": "okta",
+      "debugContext": {
+        "debugData": {
+          "privilegeGranted": "Super administrator"
+        }
+      },
+      "displayMessage": "Grant user privilege",
+      "eventType": "user.account.privilege.grant",
+      "evt": {
+        "name": "user.account.privilege.grant",
+        "outcome": "SUCCESS"
+      },
+      "host": "example.okta.com",
+      "http": {
+        "useragent": "Mozilla/5.0 (Macintosh) Safari/605.1.15"
+      },
+      "message": "Grant user privilege",
+      "network": {
+        "client": {
+          "geoip": {
+            "country": "Romania"
+          },
+          "ip": "198.51.100.23"
+        }
+      },
+      "outcome": {
+        "result": "SUCCESS"
+      },
+      "published": "2026-11-10T11:15:00.000Z",
+      "service": "okta",
+      "severity": "INFO",
+      "status": "info",
+      "target": [
+        {
+          "alternateId": "alex.morgan@example.com",
+          "displayName": "Alex Morgan",
+          "id": "00u1a2b3c4d5e6f7g8j1",
+          "type": "User"
+        }
+      ],
+      "usr": {
+        "email": "jordan.patel@example.com",
+        "id": "00u1a2b3c4d5e6f7g8h9",
+        "name": "Jordan Patel"
+      },
+      "uuid": "c3d2e5f4-be71-11f1-8e6a-0b1c2d3e4f52"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c542-7efe-79d3-a759-e8b25725046e"
+      },
+      "actor": {
+        "alternateId": "sam.lee@example.com",
+        "displayName": "Sam Lee",
+        "id": "00u1a2b3c4d5e6f7g8i0",
+        "type": "User"
+      },
+      "client": {
+        "geographicalContext": {
+          "country": "Nigeria"
+        },
+        "ipAddress": "203.0.113.77"
+      },
+      "date": "2026-11-10T11:40:31.870Z",
+      "ddsource": "okta",
+      "displayMessage": "Evaluation of sign-on policy",
+      "eventType": "policy.evaluate_sign_on",
+      "evt": {
+        "name": "policy.evaluate_sign_on",
+        "outcome": "DENY"
+      },
+      "host": "example.okta.com",
+      "message": "Evaluation of sign-on policy",
+      "network": {
+        "client": {
+          "geoip": {
+            "country": "Nigeria"
+          },
+          "ip": "203.0.113.77"
+        }
+      },
+      "outcome": {
+        "reason": "Sign-on policy evaluation resulted in DENY",
+        "result": "DENY"
+      },
+      "published": "2026-11-10T11:40:31.870Z",
+      "service": "okta",
+      "severity": "WARN",
+      "status": "warn",
+      "target": [
+        {
+          "alternateId": "Storefront Admin",
+          "displayName": "Storefront Admin",
+          "id": "0oa1b2c3d4e5f6g7h8i9",
+          "type": "AppInstance"
+        }
+      ],
+      "usr": {
+        "email": "sam.lee@example.com",
+        "id": "00u1a2b3c4d5e6f7g8i0",
+        "name": "Sam Lee"
+      },
+      "uuid": "d4c3f6a5-be71-11f1-8e6a-0b1c2d3e4f53"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311970000
+      }
+    }
+  }
+}

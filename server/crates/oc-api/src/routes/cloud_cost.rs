@@ -143,9 +143,11 @@ pub fn cost_field(key: &str) -> (String, Vec<Param>) {
 struct CostSchema;
 
 impl Schema for CostSchema {
+    /// Case-insensitive, as the cost metrics' tag filters (`providername:OpenAI` finds `openai`): values are lowered
+    /// by [`cost_where`].
     fn field(&self, key: &str) -> (String, Option<Param>) {
         let (expr, mut params) = cost_field(key);
-        (expr, params.pop())
+        (format!("lowerUTF8({expr})"), params.pop())
     }
     fn text_expr(&self) -> &'static str {
         "lower(concat(ServiceName, ' ', ChargeDescription, ' ', ProviderName, ' ', SubAccountName))"
@@ -466,8 +468,16 @@ fn previous(from: NaiveDate, to: NaiveDate) -> (NaiveDate, NaiveDate) {
 }
 
 /// The search over costs as SQL. `key:*` means the cost has the tag (a missing tag reads as '').
+fn lowered(t: Term) -> Term {
+    match t {
+        Term::Tag { key, values, negate } => Term::Tag { key, values: values.into_iter().map(|v| v.to_lowercase()).collect(), negate },
+        Term::Any { alternatives, negate } => Term::Any { alternatives: alternatives.into_iter().map(|a| a.into_iter().map(lowered).collect()).collect(), negate },
+        other => other,
+    }
+}
+
 fn cost_where(query: &str) -> SqlFilter {
-    let (exists, terms): (Vec<Term>, Vec<Term>) = parse_query(query).into_iter().partition(|t| matches!(t, Term::Tag { values, .. } if !values.is_empty() && values.iter().all(|v| v.chars().all(|c| c == '*'))));
+    let (exists, terms): (Vec<Term>, Vec<Term>) = parse_query(query).into_iter().map(lowered).partition(|t| matches!(t, Term::Tag { values, .. } if !values.is_empty() && values.iter().all(|v| v.chars().all(|c| c == '*'))));
     let mut f = build_where(&CostSchema, &terms, None);
     for t in exists {
         if let Term::Tag { key, negate, .. } = t {
@@ -1426,12 +1436,24 @@ mod tests {
         assert_eq!(step_ms(TimeRange { from: 0, to: 365 * DAY_MS }, 100), 4 * DAY_MS);
     }
 
+    /// Connector packages write providers lower-case (`openai`); Datadog's filters name them `providername:OpenAI`.
+    #[test]
+    fn cost_filters_ignore_case() {
+        let f = cost_where("providername:OpenAI team:(ML OR Data)");
+        assert!(f.clause.contains("lowerUTF8(ProviderName) = ?"), "{}", f.clause);
+        assert!(f.params.contains(&Param::Str("openai".into())) && f.params.contains(&Param::Str("ml".into())), "{:?}", f.params);
+        let q = oc_query::parse_metric_query("sum:all.cost{providername:OpenAI}").unwrap();
+        let (sql, params) = points_sql(&cost_metric(&q.metric).unwrap(), &q, TimeRange { from: 0, to: DAY_MS }, DAY_MS);
+        assert!(sql.contains("lowerUTF8(ProviderName) = ?"), "{sql}");
+        assert!(params.contains(&Param::Str("openai".into())));
+    }
+
     #[test]
     fn a_wildcard_alone_means_the_tag_is_set() {
         let f = cost_where("gpu_type:* -team:* providername:aws");
         assert!(f.clause.contains("notEmpty(Tags[?])"), "{}", f.clause);
         assert!(f.clause.contains("NOT notEmpty(Tags[?])"), "{}", f.clause);
-        assert!(f.clause.contains("ProviderName = ?"), "{}", f.clause);
+        assert!(f.clause.contains("lowerUTF8(ProviderName) = ?"), "{}", f.clause);
         assert_eq!(f.params, vec![Param::Str("aws".into()), Param::Str("gpu_type".into()), Param::Str("team".into())]);
     }
 

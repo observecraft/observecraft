@@ -1,0 +1,124 @@
+# yaml-language-server: $schema=../connector.schema.json
+# PingOne (https://apidocs.pingidentity.com/pingone/platform/v1/api/): the audit activities of a PingOne environment,
+# read from its management API with a worker application's client credentials, as the logs Datadog's integration sends
+# (source:ping-one, service:audit, the activity's fields at the top). integrations-core's PingOne pipeline and
+# dashboard read them as they are, so this package ships neither: saving a connection installs the tile's.
+schema_version: 1
+id: ping-one
+name: PingOne
+publisher: ObserveCraft
+vendor: Ping Identity
+description: >-
+  The audit activities of a PingOne environment (sign-ons, password, OTP and Kerberos checks, access allowed and
+  denied, devices, admin console changes) as logs, read every minute from PingOne's management API.
+tiles: [ping-one]
+categories: [Log Collection, Security, Identity]
+docs_url: https://apidocs.pingidentity.com/pingone/platform/v1/api/#audit-activities
+setup: |
+  1. In the PingOne admin console, open the environment and **Applications → Applications**, add a **Worker**
+     application (e.g. `observecraft-audit`) and enable it.
+  2. On its **Roles** tab, give it a role that can read audit activities (**Environment Admin**, or a custom role
+     with the audit read permission) for the environment.
+  3. On its **Configuration** tab, set the token endpoint authentication method to **Client Secret Post** and copy the
+     **Client ID**, the **Client Secret** and the **Environment ID**.
+instance: "{{ config.env_id }}"
+
+config:
+  - key: domain
+    label: Region
+    type: select
+    required: true
+    default: com
+    options:
+      - { value: com, label: North America (pingone.com) }
+      - { value: eu, label: Europe (pingone.eu) }
+      - { value: ca, label: Canada (pingone.ca) }
+      - { value: asia, label: Asia-Pacific (pingone.asia) }
+      - { value: com.au, label: Australia (pingone.com.au) }
+  - key: env_id
+    label: Environment ID
+    type: string
+    required: true
+    pattern: "[A-Za-z0-9-]+"
+    placeholder: 00000000-0000-4000-8000-000000000000
+  - key: client_id
+    label: Client ID
+    type: string
+    required: true
+    help: The worker application's client ID.
+  - key: client_secret
+    label: Client secret
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "https://auth.pingone.{{ config.domain }}/{{ config.env_id }}/as/token"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: body
+
+rate_limit: { requests_per_minute: 300 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: PingOne refused the worker application's credentials
+  - status: [403]
+    kind: access_denied
+    message: The worker application has no role that can read audit activities (give it Environment Admin)
+  - status: [404]
+    kind: access_denied
+    message: "No PingOne environment {{ config.env_id }} in the {{ config.domain }} region"
+
+streams:
+  - id: activities
+    name: Audit activities
+    description: >-
+      Every audit activity as a log (service:audit): action.type and action.description, result.status, actors.user
+      and actors.client, resources, source.ipAddress and source.userAgent, recordedAt.
+    request:
+      url: "https://api.pingone.{{ config.domain }}/v1/environments/{{ config.env_id }}/activities"
+      query:
+        filter: >-
+          recordedat gt "{{ window.start | rfc3339 }}" and recordedat lt "{{ window.end | rfc3339 }}"
+        limit: 1000
+    records: "{{ response._embedded.activities }}"
+    pagination: { kind: next_url, next: "{{ response._links.next.href }}" }
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.recordedAt }}"
+      order: unordered
+      lookback: 1d
+      overlap: 2m
+      # Activities are searchable shortly after they are recorded.
+      settle: 1m
+    output:
+      logs:
+        service: audit
+        # The tile's pipeline makes result.description the message too.
+        message: "{{ record.result.description ?? record.action.description ?? record.action.type }}"
+        status: "{{ record.result.status == 'FAILED' ? 'warn' : 'info' }}"
+        date: "{{ record.recordedAt }}"
+        attributes: "{{ record }}"
+
+test:
+  request:
+    url: "https://api.pingone.{{ config.domain }}/v1/environments/{{ config.env_id }}/activities"
+    query: { limit: 1 }
+  success: "{{ response._embedded }}"
+  message: "Connected to environment {{ config.env_id }}: audit activities readable"
+
+mock:
+  config: { domain: com, env_id: 0e1f2a3b-0000-4000-8000-00000000e001, client_id: 5a6b7c8d-0000-4000-8000-0000000c1001 }
+  secrets: { client_secret: ping-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://auth.pingone.com/0e1f2a3b-0000-4000-8000-00000000e001/as/token", body_contains: client_credentials, body: { access_token: ping-test-access-token, token_type: Bearer, expires_in: 3600 } }
+    - { url: "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/activities", query: { limit: "1" }, body: { _embedded: { activities: [] }, count: 0, size: 0 } }
+    - { url: "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/activities", file: fixtures/activities.json }
+  expect:
+    activities: { records: 3, logs: 3, rerun: 0, golden: fixtures/activities.expected.json }
+    test: { ok: true, message: "audit activities readable" }

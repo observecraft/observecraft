@@ -1,0 +1,206 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4af-9a08-7875-8963-1192b81d3c52"
+      },
+      "alertProvider": "SAE",
+      "createdDateTime": "2026-11-10T09:00:00Z",
+      "date": "2026-11-10T09:00:05Z",
+      "ddsource": "trend-micro-vision-one-xdr",
+      "description": "A process accessed the memory of the LSASS process, a sign of credential dumping.",
+      "host": "api.xdr.trendmicro.com",
+      "id": "WB-12345-20261110-00001",
+      "impactScope": {
+        "accountCount": 1,
+        "cloudIdentityCount": 0,
+        "containerCount": 0,
+        "desktopCount": 1,
+        "emailAddressCount": 0,
+        "entities": [
+          {
+            "entityId": "b159820e-0000-4000-8000-000000000001",
+            "entityType": "host",
+            "entityValue": {
+              "guid": "b159820e-0000-4000-8000-000000000001",
+              "ips": [
+                "10.0.11.20"
+              ],
+              "name": "i-0a1b2c3d4e5f60001"
+            },
+            "provenance": [
+              "Alert"
+            ],
+            "relatedIndicatorIds": [
+              1
+            ]
+          }
+        ],
+        "serverCount": 0
+      },
+      "incidentId": "IC-12345-20261110-00001",
+      "indicators": [
+        {
+          "field": "processFilePath",
+          "filterIds": [
+            "15d9a461-0000-4000-8000-000000000001"
+          ],
+          "id": 1,
+          "provenance": [
+            "Alert"
+          ],
+          "relatedEntities": [
+            "b159820e-0000-4000-8000-000000000001"
+          ],
+          "type": "fullpath",
+          "value": "C:\\Windows\\Temp\\tool.exe"
+        }
+      ],
+      "investigationResult": "No Findings",
+      "investigationStatus": "New",
+      "level": "warning",
+      "matchedRules": [
+        {
+          "id": "b52ebb2a-0000-4000-8000-000000000001",
+          "matchedFilters": [
+            {
+              "id": "15d9a461-0000-4000-8000-000000000001",
+              "matchedDateTime": "2026-11-10T09:00:00Z",
+              "matchedEvents": [
+                {
+                  "matchedDateTime": "2026-11-10T09:00:00Z",
+                  "type": "TELEMETRY_EVENT",
+                  "uuid": "966495ba-0000-4000-8000-000000000001"
+                }
+              ],
+              "mitreTechniqueIds": [
+                "T1003"
+              ],
+              "name": "Possible Credential Dumping via LSASS"
+            }
+          ],
+          "name": "Possible Credential Dumping via LSASS"
+        }
+      ],
+      "message": "{\"message\":\"A process accessed the memory of the LSASS process, a sign of credential dumping.\",\"status\":\"Open\"}",
+      "model": "Possible Credential Dumping via LSASS",
+      "modelId": "5727ebf9-9e6a-47f3-b27f-4129763f7688",
+      "modelType": "preset",
+      "schemaVersion": "1.15",
+      "score": 71,
+      "service": "trend-micro-vision-one-xdr",
+      "severity": "high",
+      "updatedDateTime": "2026-11-10T09:00:05Z",
+      "vendor": {
+        "endpoint": "alerts"
+      },
+      "workbenchLink": "https://portal.xdr.trendmicro.com/index.html#/workbench/alerts/WB-12345-20261110-00001"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c501-ec40-74f2-8b06-ab001812ef85"
+      },
+      "alertProvider": "SAE",
+      "createdDateTime": "2026-11-09T22:10:00Z",
+      "date": "2026-11-10T10:30:00Z",
+      "ddsource": "trend-micro-vision-one-xdr",
+      "description": "A scheduled task was created to run an unsigned binary at logon.",
+      "host": "api.xdr.trendmicro.com",
+      "id": "WB-12345-20261110-00002",
+      "impactScope": {
+        "accountCount": 1,
+        "cloudIdentityCount": 0,
+        "containerCount": 0,
+        "desktopCount": 1,
+        "emailAddressCount": 0,
+        "entities": [
+          {
+            "entityId": "b159820e-0000-4000-8000-000000000002",
+            "entityType": "host",
+            "entityValue": {
+              "guid": "b159820e-0000-4000-8000-000000000002",
+              "ips": [
+                "10.0.12.34"
+              ],
+              "name": "i-0a1b2c3d4e5f60002"
+            },
+            "provenance": [
+              "Alert"
+            ],
+            "relatedIndicatorIds": [
+              1
+            ]
+          }
+        ],
+        "serverCount": 0
+      },
+      "incidentId": "IC-12345-20261110-00002",
+      "indicators": [
+        {
+          "field": "processFilePath",
+          "filterIds": [
+            "15d9a461-0000-4000-8000-000000000001"
+          ],
+          "id": 1,
+          "provenance": [
+            "Alert"
+          ],
+          "relatedEntities": [
+            "b159820e-0000-4000-8000-000000000002"
+          ],
+          "type": "fullpath",
+          "value": "C:\\Windows\\Temp\\tool.exe"
+        }
+      ],
+      "investigationResult": "True Positive",
+      "investigationStatus": "In Progress",
+      "level": "notice",
+      "matchedRules": [
+        {
+          "id": "b52ebb2a-0000-4000-8000-000000000001",
+          "matchedFilters": [
+            {
+              "id": "15d9a461-0000-4000-8000-000000000001",
+              "matchedDateTime": "2026-11-09T22:10:00Z",
+              "matchedEvents": [
+                {
+                  "matchedDateTime": "2026-11-09T22:10:00Z",
+                  "type": "TELEMETRY_EVENT",
+                  "uuid": "966495ba-0000-4000-8000-000000000002"
+                }
+              ],
+              "mitreTechniqueIds": [
+                "T1003"
+              ],
+              "name": "Suspicious Scheduled Task Creation"
+            }
+          ],
+          "name": "Suspicious Scheduled Task Creation"
+        }
+      ],
+      "message": "{\"message\":\"A scheduled task was created to run an unsigned binary at logon.\",\"status\":\"Open\"}",
+      "model": "Suspicious Scheduled Task Creation",
+      "modelId": "5727ebf9-9e6a-47f3-b27f-4129763f7688",
+      "modelType": "preset",
+      "schemaVersion": "1.15",
+      "score": 45,
+      "service": "trend-micro-vision-one-xdr",
+      "severity": "medium",
+      "updatedDateTime": "2026-11-10T10:30:00Z",
+      "vendor": {
+        "endpoint": "alerts"
+      },
+      "workbenchLink": "https://portal.xdr.trendmicro.com/index.html#/workbench/alerts/WB-12345-20261110-00002"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

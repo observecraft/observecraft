@@ -1,0 +1,145 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Zscaler Internet Access, for the integrations-extras z-scaler tile (source:zscaler, its pipeline and dashboards
+# installed from the tile). Traffic logs (web, firewall, DNS, tunnel, SaaS security, endpoint and email DLP, admin
+# audit) exist only as Nanolog Streaming Service feeds: Cloud NSS HTTP feeds push them (push below), each with the
+# feed output format of the tile's README so the pipeline parses them. The admin audit log alone is also in ZIA's
+# API, as an asynchronous CSV export (https://help.zscaler.com/zia/admin-audit-logs), which the stream below reads
+# with a ZIdentity API client and turns into the Cloud NSS audit feed's shape ({sourcetype: zscalernss-audit,
+# event: {…}}). The export's CSV columns weren't checked against a real export: the mapping reads the console's
+# column names and falls back to the raw row.
+schema_version: 1
+id: z-scaler
+name: Zscaler Internet Access
+publisher: ObserveCraft
+vendor: Zscaler
+source: zscaler
+description: >-
+  Zscaler Internet Access web, firewall, DNS, tunnel, SaaS security, DLP and admin audit logs pushed by Cloud NSS
+  feeds, and the admin audit log read from ZIA's API as an export.
+tiles: [z-scaler]
+categories: [Security, Network, SIEM, Log Collection]
+docs_url: https://help.zscaler.com/zia/api
+setup: |
+  For the admin audit log through the API: in the ZIdentity admin console, open **Integration → API Clients → Add
+  API Client**, e.g. `observecraft`, with the ZIA role allowed to read the admin audit logs; copy its client id and
+  secret, and your ZIdentity vanity domain (`example.zslogin.net`). The traffic logs need Cloud NSS: follow the push
+  instructions below.
+links:
+  - { label: ZIdentity admin console, url: "https://{{ config.vanity_domain }}/" }
+instance: "{{ config.vanity_domain | replace('.zslogin.net', '') }}"
+
+config:
+  - { key: vanity_domain, label: ZIdentity domain, type: string, required: true, placeholder: example.zslogin.net, pattern: "[a-z0-9-]+\\.zslogin(beta)?\\.net" }
+  - { key: client_id, label: Client id, type: string, required: true }
+  - { key: client_secret, label: Client secret, type: string, secret: true, required: true }
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "https://{{ config.vanity_domain }}/oauth2/v1/token"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: body
+  params: { audience: "https://api.zscaler.com" }
+
+rate_limit: { min_interval: 2s }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: "ZIdentity refused the API client ({{ response.error_description ?? response.message ?? 'unauthorized' }})"
+  - status: [403]
+    kind: access_denied
+    message: "The API client's ZIA role can't read the admin audit log ({{ response.message ?? 'forbidden' }})"
+  - status: [409]
+    kind: throttled
+    message: "Another admin audit export is running for the tenant ({{ response.message ?? 'conflict' }}): it is tried again later"
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by ZIA (retry after {{ headers['retry-after'] ?? '?' }}s)"
+
+streams:
+  - id: admin_audit
+    name: Admin audit log
+    description: >-
+      The admin audit log (policy, user, location and settings changes, logins) as logs (source:zscaler) in the Cloud
+      NSS audit feed's shape, so the tile's pipeline reads them: one export per hour of audit log, created, polled
+      until complete, then its CSV read.
+    interval: 15m
+    default_enabled: true
+    pagination:
+      kind: async_export
+      create:
+        method: POST
+        url: https://api.zsapi.net/zia/api/v1/auditlogEntryReport
+        body: { startTime: "{{ window.start }}", endTime: "{{ window.end }}" }
+        format: text
+      # ZIA runs one export per tenant and gives it no id: the window names it.
+      id: "{{ window.start | str }}"
+      status: { url: https://api.zsapi.net/zia/api/v1/auditlogEntryReport }
+      ready: "{{ response.status == 'COMPLETE' }}"
+      failed: "{{ response.status in ['ERROR', 'CANCELLED'] || response.errorCode != null }}"
+      chunks: "{{ ['download'] }}"
+      chunk: { url: https://api.zsapi.net/zia/api/v1/auditlogEntryReport/download, format: csv }
+    records: "{{ response | where('Action') }}"
+    # An export holds its window's entries only; the filter keeps a rerun of the same answer from sending them again.
+    filter: "{{ (((record['Time'] | replace('  ', ' ') | split(' '))[2] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[1] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[4] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[3] + ' +0000') | epoch_ms) >= window.start && (((record['Time'] | replace('  ', ' ') | split(' '))[2] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[1] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[4] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[3] + ' +0000') | epoch_ms) < window.end }}"
+    record_id: "{{ (record['Time'] + '|' + (record['Admin ID'] ?? record['Admin'] ?? '') + '|' + record['Action'] + '|' + (record['Resource'] ?? '')) | sha256 }}"
+    incremental: { kind: time, record_time: "{{ ((record['Time'] | replace('  ', ' ') | split(' '))[2] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[1] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[4] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[3] + ' +0000') | epoch_ms }}", order: unordered, lookback: 1d }
+    vars:
+      # "Mon Nov 10 08:00:00 2026" (the export's time, GMT) → "10 Nov 2026 08:00:00 +0000".
+      time: "{{ ((record['Time'] | replace('  ', ' ') | split(' '))[2] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[1] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[4] + ' ' + (record['Time'] | replace('  ', ' ') | split(' '))[3] + ' +0000') | epoch_ms }}"
+    output:
+      logs:
+        service: zscaler
+        message: "{{ record['Action'] }} {{ record['Category'] }}{{ ': ' + record['Resource'] ?? '' }} by {{ record['Admin ID'] ?? record['Admin'] }} ({{ record['Result'] }})"
+        date: "{{ vars.time | rfc3339 }}"
+        attributes:
+          sourcetype: zscalernss-audit
+          event:
+            datetime: "{{ vars.time | strftime('%Y-%m-%d %H:%M:%S') }}"
+            recordid: "{{ record['No.'] ?? record['Record ID'] }}"
+            action: "{{ record['Action'] | upper }}"
+            category: "{{ record['Category'] }}"
+            subcategory: "{{ record['Sub-Category'] ?? record['Subcategory'] }}"
+            resource: "{{ record['Resource'] }}"
+            interface: "{{ record['Interface'] }}"
+            adminid: "{{ record['Admin ID'] ?? record['Admin'] }}"
+            clientip: "{{ record['Client IP'] }}"
+            result: "{{ record['Result'] | upper }}"
+            errorcode: "{{ record['Error Code'] }}"
+            auditlogtype: ZIA
+
+test:
+  request: { url: https://api.zsapi.net/zia/api/v1/status }
+  message: "Connected to ZIA (configuration {{ response.status }})"
+
+push:
+  kind: logs
+  instructions: |
+    ZIA's traffic logs come from **Cloud NSS** feeds (a Cloud NSS subscription). In the ZIA Admin Portal, open
+    **Administration → Nanolog Streaming Service → Cloud NSS Feeds → Add Cloud NSS Feed** once per log type (web,
+    firewall, DNS, tunnel, SaaS security, SaaS security activity, admin audit, endpoint DLP, email DLP):
+
+    - **SIEM Type**: Other; **API URL**: `{{ intake }}/api/v2/logs?ddsource={{ source }}&service=zscaler`
+    - **HTTP headers**: `Content-Type: application/json` and `DD-API-KEY` with the value below
+    - **Feed Output Type**: JSON, **Feed Escape Character** `,\"`, **Time Zone** GMT
+    - **Feed output format**: the one this tile's **Overview** shows for the log type, which wraps each record as
+      `{"sourcetype": "zscalernss-…", "event": {…}}` for the Zscaler pipeline
+
+    Save, then **Activate** the changes.
+  url: "{{ intake }}/api/v2/logs?ddsource={{ source }}&service=zscaler"
+  headers: { DD-API-KEY: "{{ api_key }}", Content-Type: application/json }
+
+mock:
+  config: { vanity_domain: example.zslogin.net, client_id: oc-zia-client-0000 }
+  secrets: { client_secret: zia-test-client-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://example.zslogin.net/oauth2/v1/token", body: { access_token: zia-test-token, token_type: Bearer, expires_in: 3600 } }
+    - { method: POST, url: "https://api.zsapi.net/zia/api/v1/auditlogEntryReport", status: 204 }
+    - { url: "https://api.zsapi.net/zia/api/v1/auditlogEntryReport", body: { status: COMPLETE, progressItemsComplete: 3, progressEndTime: 1794311990000, errorMessage: null, errorCode: null } }
+    - { url: "https://api.zsapi.net/zia/api/v1/auditlogEntryReport/download", file: fixtures/audit.csv }
+    - { url: "https://api.zsapi.net/zia/api/v1/status", body: { status: ACTIVE } }
+  expect:
+    admin_audit: { records: 3, logs: 3, rerun: 0, golden: fixtures/admin_audit.expected.json }
+    test: { ok: true, message: "Connected to ZIA (configuration ACTIVE)" }

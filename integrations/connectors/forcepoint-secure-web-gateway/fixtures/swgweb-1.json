@@ -1,0 +1,36 @@
+{
+  "status": "Success",
+  "nextpagetoken": "swgweb-t1",
+  "response": {
+    "dataformat": "json",
+    "dataencoding": "utf-8",
+    "data": [
+      {
+        "time": "10 Nov 2026 09:12:44", "indexedtime": "2026-11-10 09:13:02", "setransactionid": "6B1E0A2C-0000-4A00-8000-000000000001",
+        "syslogheader": "<110>1 2026-11-10T09:12:44.000000Z api.bitglass.com NILVALUE NILVALUE swgweb",
+        "email": "jane.doe@example.com", "firstname": "Jane", "lastname": "Doe", "usergroup": "['All Users', 'Storefront']",
+        "devicehostname": "laptop-0042", "deviceguid": "0A1B2C3D-0000-4000-8000-000000000042",
+        "ipaddress": "203.0.113.24", "destinationip": "198.51.100.10", "requestport": "443", "protocol": "https", "requestmethod": "GET",
+        "url": "shop.example.com/cart", "uri": "/cart", "arguments": "", "requestdomain": "shop.example.com", "referrer": "https://shop.example.com/",
+        "useragent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+        "application": "Example Shop", "action": "allow", "policyid": "100201", "webcategories": "[\"WR:Shopping\"]", "webcategoryclass": "[\"Productivity\"]",
+        "bgcategories": "[\"BG:Business Applications\"]", "customcategories": "[]", "webreputation": "92.00", "bgcloudscore": "8.00",
+        "uploadedbytes": "0", "size": "18342", "country": "Germany", "countrycode": "DE", "region": "Berlin", "regioncode": "BE", "city": "Berlin",
+        "lat": "52.52000000", "long": "13.40500000", "customlocation": "[\"Office\"]"
+      },
+      {
+        "time": "10 Nov 2026 09:14:05", "indexedtime": "2026-11-10 09:14:30", "setransactionid": "6B1E0A2C-0000-4A00-8000-000000000002",
+        "syslogheader": "<110>1 2026-11-10T09:14:05.000000Z api.bitglass.com NILVALUE NILVALUE swgweb",
+        "email": "sam.lee@example.com", "firstname": "Sam", "lastname": "Lee", "usergroup": "['All Users', 'Billing']",
+        "devicehostname": "laptop-0107", "deviceguid": "0A1B2C3D-0000-4000-8000-000000000107",
+        "ipaddress": "203.0.113.57", "destinationip": "", "requestport": "443", "protocol": "https", "requestmethod": "POST",
+        "url": "files.example.net/upload", "uri": "/upload", "arguments": "", "requestdomain": "files.example.net", "referrer": "",
+        "useragent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "application": "Example Files", "action": "block", "policyid": "100207", "webcategories": "[\"WR:File Sharing\"]", "webcategoryclass": "[\"Storage\"]",
+        "bgcategories": "[\"BG:File Sharing\"]", "customcategories": "[\"Unsanctioned storage\"]", "webreputation": "41.00", "bgcloudscore": "3.00",
+        "uploadedbytes": "0", "size": "0", "country": "Germany", "countrycode": "DE", "region": "Berlin", "regioncode": "BE", "city": "Berlin",
+        "lat": "52.52000000", "long": "13.40500000", "customlocation": "[\"Office\"]"
+      }
+    ]
+  }
+}

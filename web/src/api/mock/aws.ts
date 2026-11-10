@@ -8,7 +8,18 @@ const fail = (message: string): never => {
   throw new Error(message);
 };
 
-const PERMISSIONS = ['cloudwatch:GetMetricData', 'cloudwatch:ListMetrics', 'tag:GetResources'];
+const PERMISSIONS = [
+  'cloudwatch:GetMetricData',
+  'cloudwatch:ListMetrics',
+  'tag:GetResources',
+  'apigateway:GET',
+  'rds:DescribeDBProxies',
+  'dms:DescribeReplicationInstances',
+  'waf:ListWebACLs',
+  'waf:GetWebACL',
+  'waf-regional:ListWebACLs',
+  'waf-regional:GetWebACL',
+];
 const EXCLUDED = ['AWS/SQS', 'AWS/ElasticMapReduce', 'AWS/Usage'];
 
 const hex = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -74,6 +85,9 @@ export const getAwsSetup = (): Promise<AwsSetup> =>
 export const newExternalId = (): Promise<string> => delay(hex());
 
 export const listAwsAccounts = (): Promise<AwsAccount[]> => delay(db());
+
+/** Whether the mock has an account: the catalog tile is installed, as the server counts one. */
+export const awsConnected = (): boolean => db().length > 0;
 
 function auth(input: AwsAccountInput, current?: AwsAccountAttributes['auth_config']): AwsAccountAttributes['auth_config'] {
   const a = input.auth_config;

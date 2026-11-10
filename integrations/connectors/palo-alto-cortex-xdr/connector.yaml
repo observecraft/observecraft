@@ -1,0 +1,173 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Palo Alto Cortex XDR (https://docs-cortex.paloaltonetworks.com/r/Cortex-XDR-REST-API): the tenant's incidents and
+# alerts, as the logs Datadog's integration sends (source:palo-alto-cortex-xdr; service:incident, one log per incident
+# change with the incident's fields at the top; service:alert, one log per alert event with the alert's and the event's
+# fields at the top). integrations-core's pipeline and the tile's two dashboards read them as they are, so this package
+# ships neither.
+schema_version: 1
+id: palo-alto-cortex-xdr
+name: Palo Alto Cortex XDR
+publisher: ObserveCraft
+vendor: Palo Alto Networks
+description: >-
+  The incidents (each change of status, severity, assignee or alert count) and alerts (with their events) of a
+  Cortex XDR tenant as logs, read every 5 minutes from its public API with a Standard or Advanced API key.
+tiles: [palo-alto-cortex-xdr]
+categories: [Log Collection, Security, SIEM]
+source: palo-alto-cortex-xdr
+docs_url: https://docs-cortex.paloaltonetworks.com/r/Cortex-XDR-REST-API
+setup: |
+  1. In Cortex XDR, open **Settings → Configurations → Integrations → API Keys** and select **+ New Key**.
+  2. Choose a **Standard** or **Advanced** security level and a read-only role (**Viewer** is enough), then copy the key;
+     Cortex XDR shows it once.
+  3. Copy the key's **ID** from the API keys table, and the tenant's API URL from **Copy API URL** (it looks like
+     `https://api-<tenant>.xdr.<region>.paloaltonetworks.com`).
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: API URL
+    type: url
+    required: true
+    placeholder: https://api-shop.xdr.us.paloaltonetworks.com
+    strip_suffix: [/public_api/v1, /public_api]
+    help: The tenant's API URL (Copy API URL on the API Keys page).
+  - key: key_id
+    label: API key ID
+    type: string
+    required: true
+    pattern: "[0-9]+"
+    help: The number in the ID column of the API Keys table.
+  - key: security_level
+    label: Security level
+    type: select
+    default: advanced
+    options:
+      - { value: advanced, label: Advanced }
+      - { value: standard, label: Standard }
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: signer
+  signer: cortex_xdr_advanced
+  params:
+    key_id: "{{ config.key_id }}"
+    key: "{{ secrets.api_key }}"
+    level: "{{ config.security_level }}"
+
+# Cortex XDR allows about 10 requests a second per tenant and fewer on some endpoints.
+rate_limit: { requests_per_minute: 120 }
+
+# The tile's pipeline maps severity to the log's status the same way.
+tables:
+  severity: { informational: info, low: info, medium: warning, high: critical, critical: critical }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Cortex XDR refused the API key (check the key ID, the key and its security level)
+  - status: [402]
+    kind: access_denied
+    message: The Cortex XDR license doesn't include the public API
+  - status: [403]
+    kind: access_denied
+    message: The API key's role can't read incidents and alerts; give it the Viewer role or higher
+
+streams:
+  - id: incidents
+    name: Incidents
+    description: >-
+      One log per incident and modification (service:incident): a new incident, then each change of its status,
+      severity, assignee or alerts, with the incident's fields (incident_id, severity, status, alert_count, hosts,
+      users, assigned_user_mail, xdr_url, …) at the top.
+    interval: 5m
+    request:
+      method: POST
+      url: "{{ config.base_url }}/public_api/v1/incidents/get_incidents/"
+      body:
+        request_data:
+          filters:
+            - { field: modification_time, operator: gte, value: "{{ window.start }}" }
+            - { field: modification_time, operator: lte, value: "{{ window.end }}" }
+          search_from: "{{ page.offset }}"
+          search_to: "{{ page.offset + page.size }}"
+          sort: { field: modification_time, keyword: asc }
+    records: "{{ response.reply.incidents }}"
+    pagination: { kind: offset, size: 100, total: "{{ response.reply.total_count }}" }
+    # An incident modified again is a new log, as Datadog sends it.
+    record_id: "{{ record.incident_id + ':' + (record.modification_time | str) }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.modification_time }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        service: incident
+        status: "{{ tables.severity[record.severity] ?? 'info' }}"
+        message: "{{ record | json }}"
+        date: "{{ record.modification_time }}"
+        attributes: "{{ record }}"
+
+  - id: alerts
+    name: Alerts
+    description: >-
+      One log per alert and event (service:alert): the alert's fields (alert_id, name, category, severity,
+      action_pretty, host_name, host_ip, …) with its event's (actor process, user_name, dns_query_name, …) at the top.
+    interval: 5m
+    request:
+      method: POST
+      url: "{{ config.base_url }}/public_api/v1/alerts/get_alerts_multi_events/"
+      body:
+        request_data:
+          # The time the alert reached the tenant, not when it was detected: agents upload late.
+          filters:
+            - { field: server_creation_time, operator: gte, value: "{{ window.start }}" }
+            - { field: server_creation_time, operator: lte, value: "{{ window.end }}" }
+          search_from: "{{ page.offset }}"
+          search_to: "{{ page.offset + page.size }}"
+          sort: { field: creation_time, keyword: asc }
+    records: "{{ response.reply.alerts | explode('events') }}"
+    pagination: { kind: offset, size: 100, total: "{{ response.reply.total_count }}" }
+    record_id: "{{ record.alert_id + ':' + (record.events | json | sha256) }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.local_insert_ts ?? record.detection_timestamp }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+    vars:
+      flat: "{{ record + (record.events ?? {}) + {events: null} }}"
+    output:
+      logs:
+        service: alert
+        status: "{{ tables.severity[record.severity] ?? 'info' }}"
+        message: "{{ vars.flat | json }}"
+        date: "{{ record.detection_timestamp }}"
+        attributes: "{{ vars.flat }}"
+
+test:
+  request:
+    method: POST
+    url: "{{ config.base_url }}/public_api/v1/incidents/get_incidents/"
+    body: { request_data: { search_from: 0, search_to: 1 } }
+  success: "{{ response.reply.total_count != null }}"
+  message: "Connected: {{ response.reply.total_count }} incidents in the tenant"
+
+mock:
+  config: { base_url: "https://api-shop.xdr.us.paloaltonetworks.com", key_id: "7", security_level: advanced }
+  secrets: { api_key: xdr-test-key-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://api-shop.xdr.us.paloaltonetworks.com/public_api/v1/incidents/get_incidents/", body_contains: '"search_to":1}', body: { reply: { total_count: 42, result_count: 1, incidents: [] } } }
+    - { method: POST, url: "https://api-shop.xdr.us.paloaltonetworks.com/public_api/v1/incidents/get_incidents/", file: fixtures/incidents.json }
+    - { method: POST, url: "https://api-shop.xdr.us.paloaltonetworks.com/public_api/v1/alerts/get_alerts_multi_events/", file: fixtures/alerts.json }
+  expect:
+    incidents: { records: 2, logs: 2, rerun: 0, golden: fixtures/incidents.expected.json }
+    alerts: { records: 3, logs: 3, rerun: 0, golden: fixtures/alerts.expected.json }
+    test: { ok: true, message: "42 incidents" }

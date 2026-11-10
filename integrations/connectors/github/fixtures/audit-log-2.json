@@ -1,0 +1,5 @@
+[
+  { "@timestamp": 1794308400789, "_document_id": "Bz3cD4eF5gH6iJ7kL8mN9o", "action": "repo.access", "actor": "sam-lee", "actor_id": 1002, "actor_ip": "203.0.113.77",
+    "actor_location": { "country_code": "NG" }, "created_at": 1794308400789, "operation_type": "modify", "org": "example-org", "repo": "example-org/billing",
+    "visibility": "public", "previous_visibility": "private" }
+]

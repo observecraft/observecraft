@@ -1,5 +1,5 @@
 {
-  "_comment": "ObserveCraft's Google Cloud catalog: the Cloud Monitoring metric prefixes the GCP integration collects (the Google Cloud tiles) and their Datadog names gcp.<short>.* (crates/oc-api/src/gcp/naming.rs).",
+  "_comment": "ObserveCraft's Google Cloud catalog: the Cloud Monitoring metric prefixes the GCP integration collects (the Google Cloud tiles) and their Datadog names gcp.<short>.* (the service's domain; Compute Engine gce, App Engine gae, Kubernetes gke), the distributions Datadog also gives .p95 / .p99, and the user-defined metric domains collected only when their namespace is turned on (crates/oc-api/src/gcp/naming.rs).",
   "services": [
     {
       "prefix": "compute.googleapis.com/",
@@ -13,7 +13,7 @@
     },
     {
       "prefix": "storage.googleapis.com/",
-      "short": "gcs",
+      "short": "storage",
       "name": "Google Cloud Storage",
       "id": "gcp-gcs",
       "categories": [
@@ -317,7 +317,7 @@
     },
     {
       "prefix": "file.googleapis.com/",
-      "short": "filestore",
+      "short": "file",
       "name": "Google Cloud Filestore",
       "id": "gcp-filestore",
       "categories": [
@@ -384,6 +384,355 @@
         "Google Cloud",
         "AI/ML"
       ]
+    },
+    {
+      "prefix": "memorystore.googleapis.com/",
+      "short": "memorystore",
+      "name": "Google Cloud Memorystore for Valkey",
+      "id": "gcp-memorystore",
+      "categories": [
+        "Google Cloud",
+        "Caching",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "networksecurity.googleapis.com/",
+      "short": "networksecurity",
+      "name": "Google Cloud Armor",
+      "id": "gcp-networksecurity",
+      "categories": [
+        "Google Cloud",
+        "Network",
+        "Security"
+      ]
+    },
+    {
+      "prefix": "monitoring.googleapis.com/",
+      "short": "monitoring",
+      "name": "Google Cloud Monitoring Uptime Checks",
+      "id": "gcp-monitoring",
+      "categories": [
+        "Google Cloud",
+        "Monitoring"
+      ]
+    },
+    {
+      "prefix": "pubsublite.googleapis.com/",
+      "short": "pubsublite",
+      "name": "Google Cloud Pub/Sub Lite",
+      "id": "gcp-pubsublite",
+      "categories": [
+        "Google Cloud",
+        "Message Queues"
+      ]
+    },
+    {
+      "prefix": "datastream.googleapis.com/",
+      "short": "datastream",
+      "name": "Google Cloud Datastream",
+      "id": "gcp-datastream",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "datafusion.googleapis.com/",
+      "short": "datafusion",
+      "name": "Google Cloud Data Fusion",
+      "id": "gcp-datafusion",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "metastore.googleapis.com/",
+      "short": "metastore",
+      "name": "Google Cloud Dataproc Metastore",
+      "id": "gcp-metastore",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "dataplex.googleapis.com/",
+      "short": "dataplex",
+      "name": "Google Cloud Dataplex",
+      "id": "gcp-dataplex",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "bigquerystorage.googleapis.com/",
+      "short": "bigquerystorage",
+      "name": "Google BigQuery Storage API",
+      "id": "gcp-bigquerystorage",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "bigquerydatatransfer.googleapis.com/",
+      "short": "bigquerydatatransfer",
+      "name": "Google BigQuery Data Transfer",
+      "id": "gcp-bigquerydatatransfer",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "storagetransfer.googleapis.com/",
+      "short": "storagetransfer",
+      "name": "Google Cloud Storage Transfer Service",
+      "id": "gcp-storagetransfer",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "netapp.googleapis.com/",
+      "short": "netapp",
+      "name": "Google Cloud NetApp Volumes",
+      "id": "gcp-netapp",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "backupdr.googleapis.com/",
+      "short": "backupdr",
+      "name": "Google Cloud Backup and DR",
+      "id": "gcp-backupdr",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "ml.googleapis.com/",
+      "short": "ml",
+      "name": "Google AI Platform",
+      "id": "gcp-ml",
+      "categories": [
+        "Google Cloud",
+        "AI/ML"
+      ]
+    },
+    {
+      "prefix": "vpcaccess.googleapis.com/",
+      "short": "vpcaccess",
+      "name": "Google Cloud Serverless VPC Access",
+      "id": "gcp-vpcaccess",
+      "categories": [
+        "Google Cloud",
+        "Network"
+      ]
+    },
+    {
+      "prefix": "networkservices.googleapis.com/",
+      "short": "networkservices",
+      "name": "Google Cloud Network Services",
+      "id": "gcp-networkservices",
+      "categories": [
+        "Google Cloud",
+        "Network"
+      ]
+    },
+    {
+      "prefix": "edgecache.googleapis.com/",
+      "short": "edgecache",
+      "name": "Google Cloud Media CDN",
+      "id": "gcp-edgecache",
+      "categories": [
+        "Google Cloud",
+        "Network"
+      ]
+    },
+    {
+      "prefix": "trafficdirector.googleapis.com/",
+      "short": "trafficdirector",
+      "name": "Google Cloud Traffic Director",
+      "id": "gcp-trafficdirector",
+      "categories": [
+        "Google Cloud",
+        "Network"
+      ]
+    },
+    {
+      "prefix": "apigee.googleapis.com/",
+      "short": "apigee",
+      "name": "Google Apigee",
+      "id": "gcp-apigee",
+      "categories": [
+        "Google Cloud",
+        "Web"
+      ]
+    },
+    {
+      "prefix": "cloudkms.googleapis.com/",
+      "short": "cloudkms",
+      "name": "Google Cloud Key Management Service",
+      "id": "gcp-cloudkms",
+      "categories": [
+        "Google Cloud",
+        "Security"
+      ]
+    },
+    {
+      "prefix": "privateca.googleapis.com/",
+      "short": "privateca",
+      "name": "Google Cloud Certificate Authority Service",
+      "id": "gcp-privateca",
+      "categories": [
+        "Google Cloud",
+        "Security"
+      ]
+    },
+    {
+      "prefix": "certificatemanager.googleapis.com/",
+      "short": "certificatemanager",
+      "name": "Google Cloud Certificate Manager",
+      "id": "gcp-certificatemanager",
+      "categories": [
+        "Google Cloud",
+        "Security"
+      ]
+    },
+    {
+      "prefix": "recaptchaenterprise.googleapis.com/",
+      "short": "recaptchaenterprise",
+      "name": "Google reCAPTCHA Enterprise",
+      "id": "gcp-recaptchaenterprise",
+      "categories": [
+        "Google Cloud",
+        "Security"
+      ]
+    },
+    {
+      "prefix": "eventarc.googleapis.com/",
+      "short": "eventarc",
+      "name": "Google Cloud Eventarc",
+      "id": "gcp-eventarc",
+      "categories": [
+        "Google Cloud",
+        "Message Queues"
+      ]
+    },
+    {
+      "prefix": "cloudtrace.googleapis.com/",
+      "short": "cloudtrace",
+      "name": "Google Cloud Trace",
+      "id": "gcp-cloudtrace",
+      "categories": [
+        "Google Cloud",
+        "Monitoring"
+      ]
+    },
+    {
+      "prefix": "healthcare.googleapis.com/",
+      "short": "healthcare",
+      "name": "Google Cloud Healthcare API",
+      "id": "gcp-healthcare",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "firebasedatabase.googleapis.com/",
+      "short": "firebasedatabase",
+      "name": "Google Firebase Realtime Database",
+      "id": "gcp-firebasedatabase",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "firebasehosting.googleapis.com/",
+      "short": "firebasehosting",
+      "name": "Google Firebase Hosting",
+      "id": "gcp-firebasehosting",
+      "categories": [
+        "Google Cloud",
+        "Web"
+      ]
+    },
+    {
+      "prefix": "gkebackup.googleapis.com/",
+      "short": "gkebackup",
+      "name": "Google Backup for GKE",
+      "id": "gcp-gkebackup",
+      "categories": [
+        "Google Cloud",
+        "Kubernetes"
+      ]
+    },
+    {
+      "prefix": "parallelstore.googleapis.com/",
+      "short": "parallelstore",
+      "name": "Google Cloud Parallelstore",
+      "id": "gcp-parallelstore",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "lustre.googleapis.com/",
+      "short": "lustre",
+      "name": "Google Cloud Managed Lustre",
+      "id": "gcp-lustre",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    }
+  ],
+  "percentiles": [
+    "appengine.googleapis.com/http/server/response_latencies",
+    "cloudfunctions.googleapis.com/function/execution_times",
+    "cloudfunctions.googleapis.com/function/user_memory_bytes",
+    "cloudsql.googleapis.com/database/postgresql/insights/aggregate/latencies",
+    "cloudsql.googleapis.com/database/postgresql/insights/perquery/latencies",
+    "cloudsql.googleapis.com/database/postgresql/insights/pertag/latencies",
+    "loadbalancing.googleapis.com/https/backend_latencies",
+    "loadbalancing.googleapis.com/https/frontend_tcp_rtt",
+    "loadbalancing.googleapis.com/https/internal/backend_latencies",
+    "loadbalancing.googleapis.com/https/internal/total_latencies",
+    "loadbalancing.googleapis.com/https/total_latencies",
+    "loadbalancing.googleapis.com/l3/external/rtt_latencies",
+    "loadbalancing.googleapis.com/l3/internal/rtt_latencies",
+    "loadbalancing.googleapis.com/tcp_ssl_proxy/frontend_tcp_rtt",
+    "run.googleapis.com/container/cpu/utilizations",
+    "run.googleapis.com/container/max_request_concurrencies",
+    "run.googleapis.com/container/memory/utilizations",
+    "run.googleapis.com/request_latencies"
+  ],
+  "custom_namespaces": [
+    {
+      "prefix": "custom.googleapis.com/",
+      "short": "custom",
+      "name": "Custom metrics"
+    },
+    {
+      "prefix": "workload.googleapis.com/",
+      "short": "workload",
+      "name": "Ops Agent workload metrics"
+    },
+    {
+      "prefix": "prometheus.googleapis.com/",
+      "short": "prometheus",
+      "name": "Managed Service for Prometheus metrics"
     }
   ]
 }

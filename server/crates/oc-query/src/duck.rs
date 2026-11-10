@@ -4,7 +4,7 @@
 //! Differences from ClickHouse handled here: map lookups go through `map_extract` (a missing key
 //! reads as '' like ClickHouse), LIKE needs an explicit escape character, and "no filter" is `true`.
 
-use crate::sql::{any_of, build_where, Param, Schema, SqlFilter};
+use crate::sql::{any_of, array_paths, build_where, Param, Schema, SqlFilter};
 use crate::Term;
 
 /// Archived `oc.logs` rows read by DuckDB.
@@ -23,6 +23,25 @@ impl Schema for ArchiveLogsSchema {
     }
     fn ignored(&self, key: &str) -> bool {
         key == "index"
+    }
+    fn compare(&self, expr: &str, op: &str) -> String {
+        format!("TRY_CAST({expr} AS DOUBLE) {op} CAST(? AS DOUBLE)")
+    }
+    fn element_match(&self, key: &str, cond: &str, cond_params: &[Param]) -> Option<(String, Vec<Param>)> {
+        let paths = array_paths(key.strip_prefix('@')?);
+        if paths.is_empty() {
+            return None;
+        }
+        let (mut parts, mut params) = (vec![], vec![]);
+        let held = "coalesce(map_extract(attr, ?)[1], '')";
+        for (prefix, rest) in paths {
+            // Only valid JSON arrays are read: json_extract fails on other text.
+            parts.push(format!("(CASE WHEN starts_with({held}, '[') AND json_valid({held}) THEN len(list_filter(list_transform(json_extract({held}, '$[*]'), lambda _e: json_extract_string(_e, ?)), lambda _v: {cond})) > 0 ELSE false END)"));
+            params.extend((0..3).map(|_| Param::Str(prefix.clone())));
+            params.push(Param::Str(format!("${}", rest.iter().map(|k| format!(".\"{}\"", k.replace('"', "\\\""))).collect::<String>())));
+            params.extend_from_slice(cond_params);
+        }
+        Some((parts.join(" OR "), params))
     }
 }
 
@@ -48,8 +67,14 @@ mod tests {
     use crate::parse_query;
 
     #[test]
+    fn duckdb_numeric_comparisons() {
+        let f = build_where_duckdb(&parse_query("@token_ttl:>=46080"));
+        assert_eq!(f.clause, "(TRY_CAST(coalesce(map_extract(attr, ?)[1], '') AS DOUBLE) >= CAST(? AS DOUBLE))");
+    }
+
+    #[test]
     fn duckdb_dialect() {
-        let f = build_where_duckdb(&parse_query("service:(a OR b*) -env:qa @http.method:GET oops"));
+        let f = build_where_duckdb(&parse_query("service:(a OR b*) -env:qa @method:GET oops"));
         assert_eq!(
             f.clause,
             "(service = ? OR service ILIKE ? ESCAPE '\\') AND NOT (coalesce(map_extract(tags, ?)[1], '') = ?) AND (coalesce(map_extract(attr, ?)[1], '') = ?) AND (lower(message) LIKE ? ESCAPE '\\')"
@@ -64,6 +89,14 @@ mod tests {
         assert_eq!(f.clause, "((service ILIKE ? ESCAPE '\\')) OR ((coalesce(map_extract(tags, ?)[1], '') = ?))");
         assert_eq!(f.params.len(), 3);
         assert_eq!(build_any_duckdb(&[]).clause, "false");
+    }
+
+    #[test]
+    fn duckdb_reaches_into_arrays_of_objects() {
+        let f = build_where_duckdb(&parse_query("@install_targets.name:url*"));
+        assert!(f.clause.contains("list_filter(") && f.clause.contains("json_extract_string(_e, ?)") && f.clause.contains("_v ILIKE ? ESCAPE '\\'"), "{}", f.clause);
+        assert_eq!(f.clause.matches('?').count(), f.params.len());
+        assert!(f.params.contains(&Param::Str("$.\"name\"".into())), "{:?}", f.params);
     }
 
     #[test]

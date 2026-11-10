@@ -1,0 +1,686 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.bandwidth",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 1240021133.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.errors",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 12.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.hits",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 41520.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.miss",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 6032.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.origin_fetches",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 6691.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.pass",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 659.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.requests",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 48211.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_200",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 46500.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_2xx",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 47010.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_404",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 1101.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_4xx",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 1189.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_503",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 12.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_5xx",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 12.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "fastly.hit_ratio",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 0.873
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "fastly.hits_time",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 12.5
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "fastly.miss_time",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 410.2
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.bandwidth",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 1220540000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.errors",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 3.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.hits",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 41110.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.miss",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 6210.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.origin_fetches",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 6840.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.pass",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 630.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.requests",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 47950.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_200",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 46300.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_2xx",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 46800.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_404",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 1050.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_4xx",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 1147.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_503",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 3.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "fastly.status_5xx",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 3.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "fastly.hit_ratio",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 0.869
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "fastly.hits_time",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 12.1
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "fastly.miss_time",
+      "tags": [
+        [
+          "fastly_account",
+          "example-shop"
+        ],
+        [
+          "service",
+          "storefront-cdn"
+        ],
+        [
+          "service_id",
+          "5VqE6MOOy1QFJbgmCK41pY"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 405.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "5VqE6MOOy1QFJbgmCK41pY": {
+        "cursor": 1794311700000
+      }
+    }
+  }
+}

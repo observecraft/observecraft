@@ -1,0 +1,658 @@
+[
+  {
+    "id": "stripe-overview",
+    "title": "Stripe - Overview",
+    "description": "A Stripe account's events: payments, failures, disputes, invoices and payouts.",
+    "kind": "integration",
+    "logo": "stripe",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "stripe-1",
+        "definition": {
+          "type": "group",
+          "title": "",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "stripe-2",
+              "definition": {
+                "type": "note",
+                "content": "**Stripe** processes online payments. This dashboard reads the account's events (source `stripe`): failed charges and their decline codes, disputes, refunds, invoices paid and failed, payouts. Correlate a spike of declines with a deploy or an outage of the checkout.\n\nConnect an account in [Integrations → Stripe](/integrations/connectors/stripe) with a restricted key that reads events.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "id": "stripe-11",
+        "definition": {
+          "type": "group",
+          "title": "Payments",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "stripe-3",
+              "definition": {
+                "type": "integration",
+                "title": "Events",
+                "original": {
+                  "type": "query_value",
+                  "title": "Events",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:stripe"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "stripe-4",
+              "definition": {
+                "type": "integration",
+                "title": "Failed payments",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failed payments",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:stripe @evt.name:(charge.failed OR payment_intent.payment_failed)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "stripe-5",
+              "definition": {
+                "type": "integration",
+                "title": "Disputes",
+                "original": {
+                  "type": "query_value",
+                  "title": "Disputes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:stripe @evt.name:charge.dispute.created"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "stripe-6",
+              "definition": {
+                "type": "integration",
+                "title": "Failed invoices",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failed invoices",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:stripe @evt.name:invoice.payment_failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "stripe-7",
+              "definition": {
+                "type": "integration",
+                "title": "Events by type",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Events by type",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:stripe"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "stripe-8",
+              "definition": {
+                "type": "integration",
+                "title": "Decline codes",
+                "original": {
+                  "type": "toplist",
+                  "title": "Decline codes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:stripe @evt.name:charge.failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@data.object.failure_code",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "warm"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "stripe-9",
+              "definition": {
+                "type": "integration",
+                "title": "Decline reasons",
+                "original": {
+                  "type": "toplist",
+                  "title": "Decline reasons",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:stripe @evt.name:charge.failed"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@data.object.outcome.reason",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "warm"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 10,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "stripe-10",
+              "definition": {
+                "type": "integration",
+                "title": "Currencies",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Currencies",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:stripe @data.object.object:charge"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@data.object.currency",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 20,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 10,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 19
+        }
+      },
+      {
+        "id": "stripe-14",
+        "definition": {
+          "type": "group",
+          "title": "Disputes, refunds and payouts",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "stripe-12",
+              "definition": {
+                "type": "log_stream",
+                "title": "Errors and warnings",
+                "query": "source:stripe status:(error OR warn)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 8
+              }
+            },
+            {
+              "id": "stripe-13",
+              "definition": {
+                "type": "integration",
+                "title": "Payouts",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Payouts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:stripe @evt.name:payout.*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 8,
+                "w": 12,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 25,
+          "w": 12,
+          "h": 17
+        }
+      }
+    ],
+    "source": {
+      "repository": "connector:stripe",
+      "path": "assets/dashboards/overview.json",
+      "license": "MIT"
+    }
+  }
+]

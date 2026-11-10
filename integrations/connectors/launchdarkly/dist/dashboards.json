@@ -1,0 +1,457 @@
+[
+  {
+    "id": "launchdarkly-overview",
+    "title": "LaunchDarkly - Overview",
+    "description": "A LaunchDarkly account's flag, segment and environment changes as events.",
+    "kind": "integration",
+    "logo": "launchdarkly",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "launchdarkly-1",
+        "definition": {
+          "type": "group",
+          "title": "",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "launchdarkly-2",
+              "definition": {
+                "type": "note",
+                "content": "**LaunchDarkly** manages feature flags: who sees which feature, in which environment. This dashboard shows its change history (events of source `launchdarkly`, tagged `env`, `project`, `flag` and `kind`), so a flag turned on can be lined up with the errors and latency that followed.\n\nConnect an account in [Integrations → LaunchDarkly](/integrations/connectors/launchdarkly) with a Reader token.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "id": "launchdarkly-10",
+        "definition": {
+          "type": "group",
+          "title": "Changes",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "launchdarkly-3",
+              "definition": {
+                "type": "integration",
+                "title": "Changes",
+                "original": {
+                  "type": "query_value",
+                  "title": "Changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "events",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:launchdarkly"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "launchdarkly-4",
+              "definition": {
+                "type": "integration",
+                "title": "Flags changed",
+                "original": {
+                  "type": "query_value",
+                  "title": "Flags changed",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "events",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:launchdarkly kind:flag"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "launchdarkly-5",
+              "definition": {
+                "type": "integration",
+                "title": "Turned off or deleted",
+                "original": {
+                  "type": "query_value",
+                  "title": "Turned off or deleted",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "events",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:launchdarkly status:warning"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "launchdarkly-6",
+              "definition": {
+                "type": "integration",
+                "title": "Projects",
+                "original": {
+                  "type": "query_value",
+                  "title": "Projects",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "events",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:launchdarkly"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "project"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "launchdarkly-7",
+              "definition": {
+                "type": "integration",
+                "title": "Changes by environment",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Changes by environment",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "events",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:launchdarkly"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "env",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "launchdarkly-8",
+              "definition": {
+                "type": "integration",
+                "title": "Changes by kind",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Changes by kind",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "events",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:launchdarkly"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "kind",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "launchdarkly-9",
+              "definition": {
+                "type": "integration",
+                "title": "Feature flag changes",
+                "original": {
+                  "type": "list_stream",
+                  "title": "Feature flag changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "event_list",
+                      "query": {
+                        "data_source": "event_stream",
+                        "query_string": "source:launchdarkly",
+                        "indexes": []
+                      },
+                      "columns": [
+                        {
+                          "field": "stream",
+                          "width": "auto"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 10,
+                "w": 12,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 21
+        }
+      }
+    ],
+    "source": {
+      "repository": "connector:launchdarkly",
+      "path": "assets/dashboards/overview.json",
+      "license": "MIT"
+    }
+  }
+]

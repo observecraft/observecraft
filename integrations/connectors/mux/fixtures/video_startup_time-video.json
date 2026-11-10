@@ -1,0 +1,9 @@
+{
+  "data": [
+    { "field": "storefront-autumn-teaser", "value": 812, "views": 320, "negative_impact": 2 },
+    { "field": "how-to-brew-pour-over", "value": 1420, "views": 141, "negative_impact": 1 }
+  ],
+  "total_row_count": 2,
+  "timeframe": [1794308400, 1794312000],
+  "meta": { "total_row_count": 2, "granularity": "minute", "aggregation": "view_end" }
+}

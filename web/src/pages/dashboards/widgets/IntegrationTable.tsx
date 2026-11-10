@@ -4,6 +4,7 @@ import type { IntegrationWidgetDefinition } from '../../../api/integrations/eval
 import type { PanelSeries } from '../../../api/integrations/panels';
 import { formatMetricValue } from '../../../api/integrations/units';
 import { fills, formatStyle, matchFormat, type ConditionalFormat } from './conditionalFormats';
+import { tableColumns } from '../../../api/integrations/tableColumns';
 
 interface TableFormula {
   formula: string;
@@ -35,15 +36,19 @@ type Sort = { column: string; desc: boolean };
 export function IntegrationTable({ def, series }: { def: IntegrationWidgetDefinition; series: PanelSeries[] }) {
   const request = (def.requests[0] ?? {}) as TableRequest;
   const formulas = request.formulas ?? [];
+  // `request_type: table` requests name their columns apart from their queries.
+  const labels = useMemo(() => tableColumns(request as Parameters<typeof tableColumns>[0]), [request]);
   const formulaColumns = useMemo(() => {
     const named = formulas.map((f) => ({ key: f.alias ?? f.formula, label: f.alias ?? f.formula, formula: f as TableFormula | undefined }));
     // Series of requests without formulas (or columns not declared) still get a column.
     for (const s of series) {
       const key = s.column ?? s.name;
-      if (!named.some((c) => c.key === key)) named.push({ key, label: key, formula: undefined });
+      const compute = labels.computes.get(key);
+      if (!named.some((c) => c.key === key))
+        named.push({ key, label: compute?.label ?? key, formula: compute ? ({ formula: key, conditional_formats: compute.conditional_formats } as TableFormula) : undefined });
     }
     return named;
-  }, [formulas, series]);
+  }, [formulas, series, labels]);
   const units = new Map(series.map((s) => [s.column ?? s.name, s.unit]));
   const tagColumns = useMemo(() => {
     const declared = /\bby\s*\{([^}]*)\}/.exec(request.queries?.[0]?.query ?? '')?.[1];
@@ -99,7 +104,7 @@ export function IntegrationTable({ def, series }: { def: IntegrationWidgetDefini
         <table>
           <thead>
             <tr>
-              {tagColumns.map((key) => header(key, key, false))}
+              {tagColumns.map((key) => header(key, labels.tags.get(key) ?? key, false))}
               {formulaColumns.map((c) => header(c.key, c.label, true))}
             </tr>
           </thead>

@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "title": "Temporal Cloud task queue backlog is old",
+  "description": "Tasks wait in a task queue: workers are missing or too slow.",
+  "definition": {
+    "name": "Temporal Cloud: tasks wait over 5 minutes in {{temporal_task_queue.name}} ({{temporal_namespace.name}})",
+    "type": "query alert",
+    "query": "max(last_15m):max:temporal.cloud.v1_approximate_backlog_age{*} by {temporal_namespace,temporal_task_queue} > 300",
+    "message": "{{#is_alert}}The oldest task in {{temporal_task_queue.name}} has waited {{value}} seconds: check that its workers are running and keep up.{{/is_alert}}",
+    "tags": ["integration:temporal-cloud"],
+    "options": { "thresholds": { "critical": 300, "warning": 120 }, "notify_no_data": false, "require_full_window": false }
+  }
+}

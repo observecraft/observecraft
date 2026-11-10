@@ -176,6 +176,40 @@ pub const PACKS: &[ContentPack] = &[
         ],
     },
     ContentPack {
+        id: "gitlab-audit-events",
+        name: "GitLab",
+        category: "Collaboration",
+        platform: "SaaS",
+        logo: "gitlab",
+        description: "Watch who gets into your GitLab: logins failing again and again for one user, and projects made public.",
+        query: "source:gitlab-audit-events",
+        setup: "Connect GitLab in Integrations → GitLab Audit Events: ObserveCraft reads its audit events (Premium or Ultimate) with source `gitlab-audit-events`.",
+        rules: &[
+            DefaultRule {
+                id: "def-glb-001",
+                version: 1,
+                name: "GitLab logins failing for one user",
+                message: "Logins to GitLab failed again and again for one user: someone guessing a password or a one-time code. Check the client addresses and whether a login finally succeeded.",
+                query: "source:gitlab-audit-events @evt.name:*login_failed*",
+                group_by: &["@usr.name"],
+                cases: &[("a > 10", "high", ""), ("a > 4", "medium", "")],
+                window: 900,
+                tags: BRUTE_FORCE,
+            },
+            DefaultRule {
+                id: "def-glb-002",
+                version: 1,
+                name: "GitLab project made public",
+                message: "A GitLab project became public: anyone can read its code. Check that no secrets or internal code are exposed.",
+                query: "source:gitlab-audit-events @evt.name:project_visibility_level_updated @gitlab.details.to:(Public OR public)",
+                group_by: &["@gitlab.entity_path"],
+                cases: &[("a > 0", "high", "")],
+                window: 300,
+                tags: &["tactic:TA0010-exfiltration", "technique:T1567-exfiltration-over-web-service"],
+            },
+        ],
+    },
+    ContentPack {
         id: "kubernetes-audit",
         name: "Kubernetes Audit",
         category: "Containers",
@@ -206,6 +240,51 @@ pub const PACKS: &[ContentPack] = &[
                 cases: &[("a > 0", "high", "")],
                 window: 300,
                 tags: &["tactic:TA0001-initial-access", "technique:T1190-exploit-public-facing-application"],
+            },
+        ],
+    },
+    ContentPack {
+        id: "hashicorp-vault",
+        name: "HashiCorp Vault",
+        category: "Secrets",
+        platform: "Kubernetes",
+        logo: "vault",
+        description: "Watch who reads your secrets: denied requests, root tokens and changes to Vault's own configuration.",
+        query: "source:vault",
+        setup: "Enable a Vault audit device (file or socket) and collect it with the Datadog Agent's Vault integration, with source `vault`.",
+        rules: &[
+            DefaultRule {
+                id: "def-vlt-001",
+                version: 2,
+                name: "Vault requests denied for one client",
+                message: "Vault denied a client's requests again and again: a token probing for secrets it has no policy for.",
+                query: "source:vault @error:*permission*",
+                group_by: &["@auth.display_name"],
+                cases: &[("a > 20", "high", ""), ("a > 5", "medium", "")],
+                window: 900,
+                tags: &["evt.name:permission_denied", "tactic:TA0006-credential-access", "technique:T1555-credentials-from-password-stores"],
+            },
+            DefaultRule {
+                id: "def-vlt-002",
+                version: 2,
+                name: "Vault root token used",
+                message: "A request was made with a root token. Root tokens should be generated for an emergency and revoked right after.",
+                query: "source:vault @auth.display_name:root",
+                group_by: &["@request.remote_address"],
+                cases: &[("a > 0", "high", "")],
+                window: 300,
+                tags: &["evt.name:root_token_used", "tactic:TA0004-privilege-escalation", "technique:T1078-valid-accounts"],
+            },
+            DefaultRule {
+                id: "def-vlt-003",
+                version: 2,
+                name: "Vault policy, auth method or audit device changed",
+                message: "Vault's own configuration changed (policies, auth methods or audit devices under sys/).",
+                query: "source:vault @request.path:sys/* @request.operation:(update OR delete)",
+                group_by: &["@auth.display_name", "@request.path"],
+                cases: &[("a > 0", "medium", "")],
+                window: 300,
+                tags: &["evt.name:configuration_changed", "tactic:TA0005-defense-evasion", "technique:T1562-impair-defenses"],
             },
         ],
     },
@@ -263,6 +342,51 @@ pub const PACKS: &[ContentPack] = &[
             window: 300,
             tags: &["tactic:TA0004-privilege-escalation", "technique:T1098-account-manipulation"],
         }],
+    },
+    ContentPack {
+        id: "azure-entra-id",
+        name: "Microsoft Entra ID",
+        category: "Identity",
+        platform: "Azure",
+        logo: "azure",
+        description: "Watch who signs in to your Microsoft tenant: passwords guessed for one user, sign-ins Identity Protection rates high risk, and new Global Administrators.",
+        query: "source:azure.activedirectory",
+        setup: "Turn on Entra ID logs for an app registration in Integrations → Microsoft Azure (sign-ins need Entra ID P1, risk levels P2), or forward the tenant's diagnostic settings with source `azure.activedirectory`.",
+        rules: &[
+            DefaultRule {
+                id: "def-ent-001",
+                version: 1,
+                name: "Entra ID sign-ins failing for one user",
+                message: "Sign-ins to Microsoft Entra ID failed again and again for one user: someone guessing a password, or spraying one. Check the client addresses and whether a sign-in finally succeeded.",
+                query: "source:azure.activedirectory @category:SignInLogs @properties.status.errorCode:* -@properties.status.errorCode:0",
+                group_by: &["@properties.userPrincipalName"],
+                cases: &[("a > 10", "high", ""), ("a > 4", "medium", "")],
+                window: 900,
+                tags: BRUTE_FORCE,
+            },
+            DefaultRule {
+                id: "def-ent-002",
+                version: 1,
+                name: "High-risk Entra ID sign-in",
+                message: "Identity Protection rated a sign-in, or a detection for the user, high risk (an anonymous or malicious IP address, leaked credentials, unfamiliar sign-in properties). Confirm with the user and reset their credentials if it wasn't them.",
+                query: "source:azure.activedirectory ((@category:SignInLogs (@properties.riskLevelDuringSignIn:high OR @properties.riskLevelAggregated:high)) OR (@category:UserRiskEvents @properties.riskLevel:high))",
+                group_by: &["@properties.userPrincipalName"],
+                cases: &[("a > 0", "high", "")],
+                window: 300,
+                tags: &["tactic:TA0001-initial-access", "technique:T1078.004-cloud-accounts"],
+            },
+            DefaultRule {
+                id: "def-ent-003",
+                version: 1,
+                name: "Entra ID Global Administrator role assigned",
+                message: "A principal was given Microsoft Entra ID's Global Administrator role (or made eligible for it): full control of the tenant. Confirm the change was approved.",
+                query: "source:azure.activedirectory @category:AuditLogs @operationName:Add*member\\ to\\ role* @properties.targetResources:*Global\\ Administrator*",
+                group_by: &["@properties.initiatedBy.user.userPrincipalName"],
+                cases: &[("a > 0", "high", "")],
+                window: 300,
+                tags: &["tactic:TA0004-privilege-escalation", "technique:T1098.003-additional-cloud-roles"],
+            },
+        ],
     },
     ContentPack {
         id: "gcp-audit",
@@ -341,6 +465,73 @@ pub const PACKS: &[ContentPack] = &[
         ],
     },
     ContentPack {
+        id: "google-workspace",
+        name: "Google Workspace",
+        category: "Collaboration",
+        platform: "SaaS",
+        logo: "google-workspace",
+        description: "Watch who gets into your Google Workspace and what they open up: failed and suspicious logins, administrator roles granted, 2-step verification turned off and Drive files made public.",
+        query: "source:gsuite",
+        setup: "Connect Google Workspace in Integrations → Google Workspace: ObserveCraft reads its Reports API activities with source `gsuite`.",
+        rules: &[
+            DefaultRule {
+                id: "def-gws-001",
+                version: 1,
+                name: "Google Workspace logins failing for one user",
+                message: "Logins to Google Workspace failed again and again for one user: someone guessing a password. Check the client addresses and countries, and whether a login finally succeeded.",
+                query: "source:gsuite service:login @evt.name:login_failure",
+                group_by: &["@usr.email"],
+                cases: &[("a > 10", "high", ""), ("a > 4", "medium", "")],
+                window: 900,
+                tags: BRUTE_FORCE,
+            },
+            DefaultRule {
+                id: "def-gws-002",
+                version: 1,
+                name: "Google Workspace suspicious login",
+                message: "Google flagged a login as suspicious (an unusual place or device, a less secure app, a programmatic login). Confirm with the user that it was them, and reset their password and sessions if not.",
+                query: "source:gsuite service:login @evt.name:(suspicious_login OR suspicious_login_less_secure_app OR suspicious_programmatic_login)",
+                group_by: &["@usr.email"],
+                cases: &[("a > 0", "high", "")],
+                window: 300,
+                tags: &["tactic:TA0001-initial-access", "technique:T1078-valid-accounts"],
+            },
+            DefaultRule {
+                id: "def-gws-003",
+                version: 1,
+                name: "Google Workspace user granted an administrator role",
+                message: "A user was granted an administrator role or privilege in the Admin console. Check that the change was planned and that the role is no broader than needed.",
+                query: "source:gsuite service:admin @evt.name:(ASSIGN_ROLE OR GRANT_ADMIN_PRIVILEGE OR ADD_PRIVILEGE)",
+                group_by: &["@event.parameters.USER_EMAIL"],
+                cases: &[("a > 0", "medium", "")],
+                window: 300,
+                tags: &["tactic:TA0004-privilege-escalation", "technique:T1098-account-manipulation"],
+            },
+            DefaultRule {
+                id: "def-gws-004",
+                version: 1,
+                name: "Google Drive file shared publicly",
+                message: "A Drive file became readable by anyone with its link, or public on the web. Check that it holds nothing internal.",
+                query: "source:gsuite service:drive @evt.name:change_document_visibility @event.parameters.visibility:(people_with_link OR public_on_the_web)",
+                group_by: &["@usr.email"],
+                cases: &[("a > 5", "high", ""), ("a > 0", "medium", "")],
+                window: 900,
+                tags: &["tactic:TA0010-exfiltration", "technique:T1567-exfiltration-over-web-service"],
+            },
+            DefaultRule {
+                id: "def-gws-005",
+                version: 1,
+                name: "Google Workspace user turned off 2-step verification",
+                message: "A user turned off 2-step verification: their account is protected by its password alone. Check that it was them and why.",
+                query: "source:gsuite service:user_accounts @evt.name:2sv_disable",
+                group_by: &["@usr.email"],
+                cases: &[("a > 0", "medium", "")],
+                window: 300,
+                tags: &["tactic:TA0005-defense-evasion", "technique:T1556-modify-authentication-process"],
+            },
+        ],
+    },
+    ContentPack {
         id: "slack-audit",
         name: "Slack Audit Logs",
         category: "Collaboration",
@@ -391,5 +582,100 @@ mod tests {
         }
         let packs: HashSet<_> = PACKS.iter().map(|p| p.id).collect();
         assert_eq!(packs.len(), PACKS.len());
+    }
+
+    /// The GitLab rules match the GitLab Audit Events poller's logs.
+    #[test]
+    fn gitlab_audit_event_rules_match_the_pollers_logs() {
+        use crate::gitlab_audit::{fixtures, logs::log_of};
+        use crate::pipelines::{Filter, Log};
+        let pack = PACKS.iter().find(|p| p.id == "gitlab-audit-events").expect("the GitLab pack");
+        let matches = |rule: &str, event: serde_json::Value| {
+            let mut attrs = log_of(&event, "gitlab.example.com");
+            for k in ["date", "message", "status", "service", "ddsource", "host", "_oc_ingest"] {
+                attrs.as_object_mut().unwrap().remove(k);
+            }
+            let row = serde_json::json!({"status": "error", "service": "gitlab", "source": "gitlab-audit-events", "message": "", "attributes": attrs.to_string()});
+            let query = pack.rules.iter().find(|r| r.id == rule).unwrap().query;
+            Log::from_row(&row).matches(&Filter::parse(query))
+        };
+        assert!(matches("def-glb-001", fixtures::failed_login(1, "2026-11-06T10:00:00Z", "root")));
+        assert!(!matches("def-glb-001", fixtures::changed(2, "2026-11-06T10:00:00Z")));
+        let public = fixtures::event(3, "project_visibility_level_updated", "2026-11-06T10:00:00Z", serde_json::json!({ "change": "visibility", "from": "Private", "to": "Public" }));
+        assert!(matches("def-glb-002", public));
+        assert!(!matches("def-glb-002", fixtures::changed(4, "2026-11-06T10:00:00Z")), "made internal");
+    }
+
+    /// The Google Workspace rules match the Google Workspace poller's logs.
+    #[test]
+    fn google_workspace_rules_match_the_pollers_logs() {
+        use crate::google_workspace::{fixtures, logs::logs_of};
+        use crate::pipelines::{Filter, Log};
+        let pack = PACKS.iter().find(|p| p.id == "google-workspace").expect("the Google Workspace pack");
+        assert_eq!(pack.query, "source:gsuite");
+        let matches = |rule: &str, activity: serde_json::Value| {
+            let mut log = logs_of(&activity).remove(0);
+            let (status, service) = (log["status"].clone(), log["service"].clone());
+            for k in ["date", "message", "status", "service", "ddsource", "_oc_ingest"] {
+                log.as_object_mut().unwrap().remove(k);
+            }
+            let row = serde_json::json!({"status": status, "service": service, "source": "gsuite", "message": "", "attributes": log.to_string()});
+            let query = pack.rules.iter().find(|r| r.id == rule).unwrap().query;
+            Log::from_row(&row).matches(&Filter::parse(query))
+        };
+        let at = "2026-11-06T10:00:00Z";
+        assert!(matches("def-gws-001", fixtures::login_failure("1", at, "sam.lee@example.com")));
+        assert!(!matches("def-gws-001", fixtures::login_success("2", at)));
+        assert!(matches("def-gws-002", fixtures::suspicious_login("3", at)));
+        assert!(!matches("def-gws-002", fixtures::login_failure("4", at, "sam.lee@example.com")));
+        assert!(matches("def-gws-003", fixtures::role_assigned("5", at)));
+        assert!(!matches("def-gws-003", fixtures::activity("admin", "6", at, "admin@example.com", "USER_SETTINGS", "CREATE_USER", &[])));
+        assert!(matches("def-gws-004", fixtures::shared_publicly("7", at, "people_with_link")));
+        assert!(matches("def-gws-004", fixtures::shared_publicly("8", at, "public_on_the_web")));
+        assert!(!matches("def-gws-004", fixtures::shared_publicly("9", at, "people_within_domain_with_link")), "shared within the domain");
+        assert!(matches("def-gws-005", fixtures::activity("user_accounts", "10", at, "sam.lee@example.com", "2sv_change", "2sv_disable", &[])));
+    }
+
+    /// The Entra ID rules match the Entra ID poller's logs, before or after the integration's pipeline.
+    #[test]
+    fn entra_id_rules_match_the_pollers_logs() {
+        use crate::entra::{api::Stream, fixtures, logs::log_of};
+        use crate::pipelines::{Filter, Log};
+        let pack = PACKS.iter().find(|p| p.id == "azure-entra-id").expect("the Entra ID pack");
+        let matches = |rule: &str, stream: Stream, event: serde_json::Value| {
+            let mut attrs = log_of(stream, &event, fixtures::TENANT);
+            for k in ["date", "message", "service", "ddsource", "_oc_ingest"] {
+                attrs.as_object_mut().unwrap().remove(k);
+            }
+            let row = serde_json::json!({"status": "info", "service": "azure", "source": "azure.activedirectory", "message": "", "attributes": attrs.to_string()});
+            let query = pack.rules.iter().find(|r| r.id == rule).unwrap().query;
+            Log::from_row(&row).matches(&Filter::parse(query))
+        };
+        let sign_in = |code: i64| fixtures::sign_in("s-1", "2026-11-06T10:00:00Z", "jordan.patel@example.com", code);
+        assert!(matches("def-ent-001", Stream::SignIns, sign_in(50126)));
+        assert!(!matches("def-ent-001", Stream::SignIns, sign_in(0)));
+        let mut risky = sign_in(0);
+        risky["riskLevelDuringSignIn"] = "high".into();
+        assert!(matches("def-ent-002", Stream::SignIns, risky));
+        assert!(matches("def-ent-002", Stream::Risk, fixtures::risk("r-1", "2026-11-06T10:00:00Z", "high")));
+        assert!(!matches("def-ent-002", Stream::Risk, fixtures::risk("r-2", "2026-11-06T10:00:00Z", "low")));
+        assert!(!matches("def-ent-002", Stream::SignIns, sign_in(0)));
+        assert!(matches("def-ent-003", Stream::Audits, fixtures::role_assigned("d-1", "2026-11-06T10:00:00Z", "Global Administrator")));
+        assert!(!matches("def-ent-003", Stream::Audits, fixtures::role_assigned("d-2", "2026-11-06T10:00:00Z", "Reports Reader")));
+        let mut eligible = fixtures::role_assigned("d-3", "2026-11-06T10:00:00Z", "Global Administrator");
+        eligible["activityDisplayName"] = "Add eligible member to role in PIM completed (permanent)".into();
+        assert!(matches("def-ent-003", Stream::Audits, eligible), "made eligible through Privileged Identity Management");
+    }
+
+    #[test]
+    fn vault_audit_logs_have_a_pack() {
+        let vault = PACKS.iter().find(|p| p.id == "hashicorp-vault").expect("the Vault pack");
+        assert_eq!(vault.query, "source:vault");
+        assert!(vault.rules.len() >= 3);
+        // Vault's audit logs carry no `evt.name` (nor does its integration pipeline): the rules name their event,
+        // so its dashboards' "Security Signals by Events" widget counts them; version 2 updates installed rules.
+        for r in vault.rules {
+            assert!(r.tags.iter().any(|t| t.starts_with("evt.name:")) && r.version >= 2, "{}", r.id);
+        }
     }
 }

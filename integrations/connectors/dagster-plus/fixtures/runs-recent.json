@@ -1,0 +1,21 @@
+{
+  "data": {
+    "runsOrError": {
+      "__typename": "Runs",
+      "results": [
+        {
+          "runId": "a3bcb088-1640-40dc-9701-4b554c0b9cac",
+          "jobName": "orders_daily_job",
+          "status": "STARTED",
+          "updateTime": 1794311000.12
+        },
+        {
+          "runId": "ff550567-4f6f-4aa0-a7b1-548d97a99170",
+          "jobName": "__ASSET_JOB",
+          "status": "FAILURE",
+          "updateTime": 1794311700.5
+        }
+      ]
+    }
+  }
+}

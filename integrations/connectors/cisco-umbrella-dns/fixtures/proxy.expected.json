@@ -1,0 +1,108 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c53e-5900-7a78-83a3-ce47f9666010"
+      },
+      "categories": [
+        {
+          "deprecated": false,
+          "id": 26,
+          "integration": false,
+          "label": "Shopping",
+          "type": "content"
+        }
+      ],
+      "contenttype": "text/html",
+      "date": 1794310560000,
+      "ddsource": "cisco-umbrella-dns",
+      "destinationip": "198.51.100.80",
+      "externalip": "203.0.113.60",
+      "host": "3f1c0000aaaa4000b000000000000001",
+      "identities": [
+        {
+          "deleted": false,
+          "id": 617800001,
+          "label": "laptop-jdoe",
+          "type": {
+            "id": 9,
+            "label": "Roaming Computers",
+            "type": "roaming"
+          }
+        }
+      ],
+      "internalip": "10.20.1.15",
+      "message": "GET https://shop.example.com/cart allowed 200",
+      "referer": "https://shop.example.com/",
+      "requestmethod": "GET",
+      "requestsize": 812,
+      "responsesize": 30211,
+      "service": "proxy",
+      "status": "info",
+      "statuscode": 200,
+      "time": "11:36:00",
+      "timestamp": 1794310560000,
+      "type": "proxy",
+      "url": "https://shop.example.com/cart",
+      "useragent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "verdict": "allowed"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c538-dac0-7d69-b9d1-bbd66158e485"
+      },
+      "categories": [
+        {
+          "deprecated": false,
+          "id": 67,
+          "integration": false,
+          "label": "Malware",
+          "type": "security"
+        }
+      ],
+      "contenttype": "application/octet-stream",
+      "date": 1794310200000,
+      "ddsource": "cisco-umbrella-dns",
+      "destinationip": "192.0.2.44",
+      "externalip": "203.0.113.60",
+      "host": "3f1c0000aaaa4000b000000000000001",
+      "identities": [
+        {
+          "deleted": false,
+          "id": 617800001,
+          "label": "laptop-jdoe",
+          "type": {
+            "id": 9,
+            "label": "Roaming Computers",
+            "type": "roaming"
+          }
+        }
+      ],
+      "internalip": "10.20.1.15",
+      "message": "GET http://downloads.badsite.example/setup.exe blocked 403",
+      "requestmethod": "GET",
+      "requestsize": 402,
+      "responsesize": 0,
+      "service": "proxy",
+      "sha256": "9f2c0e5d1a2f3e4d5c6b7a8998877665544332211aabbccddeeff00112233445",
+      "status": "info",
+      "statuscode": 403,
+      "time": "11:30:00",
+      "timestamp": 1794310200000,
+      "type": "proxy",
+      "url": "http://downloads.badsite.example/setup.exe",
+      "useragent": "Microsoft-Delivery-Optimization/10.0",
+      "verdict": "blocked"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311400000
+      }
+    }
+  }
+}

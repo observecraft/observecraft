@@ -1,0 +1,37 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "Administrator": "security.lead@example.com",
+      "Description": "User 'observecraft@example.com' added with role 'Account Admin - View Only'",
+      "EventTime": "2026-11-10T07:30:00.50Z",
+      "Feature": "User Management",
+      "InternalSessionId": 3099874,
+      "LoggedAt": "2026-11-10T07:30:00.61Z",
+      "LoggedFrom": "198.51.100.41",
+      "PermissionDescription": "None",
+      "Role": "AccountAdmin",
+      "_oc_ingest": {
+        "id": "01a1c45d-22b4-7cde-919e-5a244fd165d7"
+      },
+      "date": "2026-11-10T07:30:00.50Z",
+      "ddsource": "idira-endpoint-privilege-manager",
+      "host": "observecraft@example.com",
+      "message": "User 'observecraft@example.com' added with role 'Account Admin - View Only'",
+      "service": "idira-endpoint-privilege-manager",
+      "status": "info",
+      "vendor": {
+        "endpoint": "account-admin-audit-events"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

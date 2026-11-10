@@ -1,0 +1,59 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4cb-1148-772c-9f58-39c300560147"
+      },
+      "date": "2026-11-10T09:30:05Z",
+      "ddsource": "trend-micro-vision-one-endpoint-security",
+      "ddtags": "vendor_endpoint:virus-malware",
+      "host": "a1b2c3.manage.trendmicro.com",
+      "message": "\"Nov 10 2026 09:30:12 a1b2c3.manage.trendmicro.com CEF:0|Trend Micro|Apex Central|2019|AV:File quarantined|Eicar_test_file|3|deviceExternalId=1991 rt=Nov 10 2026 09:30:05 GMT+00:00 cnt=1 dhost=i-0a1b2c3d4e5f60001 TMCMLogDetectedHost=i-0a1b2c3d4e5f60001 duser=SHOP\\\\\\\\jane.doe act=File quarantined cn1Label=Pattern cn1=1947100 cs1Label=VLF_FunctionCode cs1=Real-time Scan cs2Label=Engine cs2=23.620.1013 cat=1703 dvchost=a1b2c3.manage.trendmicro.com fname=eicar_com.zip filePath=C:\\\\\\\\Users\\\\\\\\jane.doe\\\\\\\\Downloads\\\\\\\\ msg=eicar.com dst=10.0.11.20 TMCMLogDetectedIP=10.0.11.20 fileHash=3395856CE81F2B7382DEE72602F798B642F14140 deviceFacility=Apex One ApexCentralHost=Standard Endpoint Protection Manager TMCMdevicePlatform=Windows 11 10.0 (Build 22631) dntdom=Workgroup\"",
+      "service": "trend-micro-vision-one-endpoint-security",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e8-e600-7f75-ae75-4c52da726002"
+      },
+      "date": "2026-11-10T10:02:40Z",
+      "ddsource": "trend-micro-vision-one-endpoint-security",
+      "ddtags": "vendor_endpoint:virus-malware",
+      "host": "a1b2c3.manage.trendmicro.com",
+      "message": "\"Nov 10 2026 10:02:44 a1b2c3.manage.trendmicro.com CEF:0|Trend Micro|Apex Central|2019|AV:File cleaned|TROJ_GEN.R002C0DKL26|3|deviceExternalId=1992 rt=Nov 10 2026 10:02:40 GMT+00:00 cnt=1 dhost=i-0a1b2c3d4e5f60002 TMCMLogDetectedHost=i-0a1b2c3d4e5f60002 duser=SHOP\\\\\\\\build-agent act=File cleaned cs1Label=VLF_FunctionCode cs1=Scheduled Scan cat=1703 fname=invoice-tool.exe filePath=C:\\\\\\\\ProgramData\\\\\\\\tools\\\\\\\\ dst=10.0.12.34 TMCMLogDetectedIP=10.0.12.34 deviceFacility=Apex One ApexCentralHost=Standard Endpoint Protection Manager TMCMdevicePlatform=Windows Server 2022 10.0 (Build 20348) dntdom=Workgroup\"",
+      "service": "trend-micro-vision-one-endpoint-security",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c526-b250-7a98-b31d-dac5311e2c03"
+      },
+      "date": "2026-11-10T11:10:10Z",
+      "ddsource": "trend-micro-vision-one-endpoint-security",
+      "ddtags": "vendor_endpoint:attack-discovery-detections",
+      "host": "a1b2c3.manage.trendmicro.com",
+      "message": "\"Nov 10 2026 11:10:20 a1b2c3.manage.trendmicro.com CEF:0|Trend Micro|Apex Central|2019|700211|Attack Discovery Detections|3|deviceExternalId=41 rt=Nov 10 2026 11:10:10 GMT+00:00 dhost=i-0a1b2c3d4e5f60001 dst=10.0.11.20 cn1Label=SLF_RiskLevel cn1=2 cs1Label=SLF_RuleID cs1=powershell invoke expression cat=point of entry cs2Label=SLF_ADEObjectGroup_Info_1 cs2=process - powershell.exe - {USER: jane.doe} deviceNtDomain=SHOP dntdom=Workgroup TMCMLogDetectedHost=i-0a1b2c3d4e5f60001 TMCMLogDetectedIP=10.0.11.20 ApexCentralHost=Standard Endpoint Protection Manager TMCMdevicePlatform=Windows 11 10.0 (Build 22631)\"",
+      "service": "trend-micro-vision-one-endpoint-security",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "Attack_Discovery_Detections": {
+        "token": {
+          "PageToken": 42,
+          "SinceTime": 1794225600
+        }
+      },
+      "officescan_virus": {
+        "token": {
+          "PageToken": 1993,
+          "SinceTime": 1794225600
+        }
+      }
+    }
+  }
+}

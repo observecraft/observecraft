@@ -1,0 +1,42 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "@timestamp": 1794309000000,
+      "_document_id": "Q9wE8rT7yU6iO5pA4sD3fG",
+      "_oc_ingest": {
+        "id": "01a1c526-8b40-78f4-b032-c9a162fcbb2b"
+      },
+      "action": "business.set_actions_fork_pr_approvals_policy",
+      "actor": "alex-morgan",
+      "actor_id": 1003,
+      "business": "example-enterprise",
+      "business_id": 801,
+      "created_at": 1794309000000,
+      "date": "2026-11-10T11:10:00.000Z",
+      "ddsource": "github",
+      "evt": {
+        "category": "business",
+        "name": "business.set_actions_fork_pr_approvals_policy"
+      },
+      "host": "example-org",
+      "message": "business.set_actions_fork_pr_approvals_policy by alex-morgan",
+      "operation_type": "modify",
+      "service": "github",
+      "status": "info",
+      "usr": {
+        "id": "1003",
+        "name": "alex-morgan"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

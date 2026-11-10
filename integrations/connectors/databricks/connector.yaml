@@ -1,0 +1,276 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Databricks: the parts of Datadog's integration that call the workspace's API.
+# - Model Serving: each serving endpoint's metrics export (https://docs.databricks.com/api/workspace/servingendpoints/exportmetrics,
+#   Prometheus text) as Datadog's databricks.model_serving.* gauges, tagged endpoint_name, served_entity_name,
+#   workspace_id and workspace_name.
+# - DBU costs: system.billing.usage priced with system.billing.list_prices through the SQL Statement Execution API
+#   (https://docs.databricks.com/api/workspace/statementexecution), one cost row per day, workspace, SKU, product,
+#   cluster, job, warehouse and serving endpoint (Cloud Cost Management, provider databricks).
+# Clusters' Spark and host metrics and Data Jobs Monitoring come from the Datadog Agent on the clusters (its init
+# script), through the intake. The tile's integrations-core dashboards read these names, so this package ships none.
+schema_version: 1
+id: databricks
+name: Databricks
+publisher: ObserveCraft
+vendor: Databricks
+description: >-
+  A Databricks workspace's Model Serving endpoints (CPU, memory, GPU, requests, 4xx and 5xx, provisioned
+  concurrency) as metrics every minute, and its DBU usage priced at list price as daily costs in Cloud Cost
+  Management, read with a service principal's OAuth secret or an access token.
+tiles: [databricks]
+categories: [AI/ML, Cloud, Cost Management, Metrics]
+docs_url: https://docs.databricks.com/api/workspace/introduction
+setup: |
+  1. In the workspace's **Settings → Identity and access → Service principals**, add a service principal and, under
+     **Secrets**, generate an **OAuth secret**; copy its client ID and secret. Workspaces that only allow personal
+     access tokens: create one for the service principal (or a user) and choose **Personal access token** below.
+  2. Give it **Can Query** (or **Can View**) on the serving endpoints, and for costs `SELECT` on `system.billing.usage`
+     and `system.billing.list_prices` (system tables need Unity Catalog) and **Can use** on a SQL warehouse.
+  3. Copy the SQL warehouse's ID (**SQL Warehouses → the warehouse → Connection details**, the end of the HTTP path).
+     A small serverless warehouse is enough: the cost query runs every 6 hours.
+instance: "{{ config.workspace_url | host }}"
+
+config:
+  - key: workspace_url
+    label: Workspace URL
+    type: url
+    required: true
+    placeholder: https://dbc-a1b2c3d4-e5f6.cloud.databricks.com
+    help: The workspace's URL (….cloud.databricks.com, adb-….azuredatabricks.net or ….gcp.databricks.com).
+  - key: workspace_name
+    label: Workspace name
+    type: string
+    help: Tags the metrics as workspace_name; default the workspace's host.
+  - key: auth_method
+    label: Sign in with
+    type: select
+    required: true
+    default: oauth
+    options:
+      - { value: oauth, label: Service principal OAuth secret (M2M) }
+      - { value: token, label: Personal access token }
+  - key: client_id
+    label: Client ID
+    type: string
+    help: "OAuth: the service principal's application (client) ID."
+  - key: client_secret
+    label: OAuth secret
+    type: string
+    secret: true
+    help: "OAuth: the service principal's OAuth secret."
+  - key: token
+    label: Personal access token
+    type: string
+    secret: true
+    placeholder: dapi…
+    help: "Personal access token: a service principal's (or a user's) token."
+  - key: warehouse_id
+    label: SQL warehouse ID
+    type: string
+    pattern: "[0-9a-f]{16}"
+    help: For costs. Leave empty to collect Model Serving metrics only, and turn the DBU costs stream off.
+
+auth:
+  kind: choice
+  field: auth_method
+  options:
+    oauth:
+      kind: oauth2_client_credentials
+      token_url: "{{ config.workspace_url }}/oidc/v1/token"
+      client_id: "{{ config.client_id }}"
+      client_secret: "{{ secrets.client_secret }}"
+      scopes: [all-apis]
+    token: { kind: bearer, token: "{{ secrets.token }}" }
+
+# Databricks' REST API allows tens of requests a second per workspace.
+rate_limit: { requests_per_minute: 300 }
+
+errors:
+  - status: [400]
+    when: "{{ response.error_code == 'INVALID_PARAMETER_VALUE' }}"
+    kind: access_denied
+    message: "Databricks refused the request: {{ response.message }}"
+  - status: [401]
+    kind: auth
+    message: Databricks refused the service principal's OAuth secret or the access token
+  - status: [403]
+    kind: access_denied
+    message: "The service principal lacks a permission: {{ response.message ?? 'see the setup steps' }}"
+
+discover:
+  # Every workspace API answer names the workspace in X-Databricks-Org-Id.
+  - { name: workspace_id, request: { url: "{{ config.workspace_url }}/api/2.0/serving-endpoints" }, value: "{{ headers['x-databricks-org-id'] }}", ttl: 24h }
+
+# Datadog's names for the export's per-entity metrics. GPUs (one sample per GPU) and request_latency_ms (a histogram)
+# have their own outputs below; the other histograms (model_prediction_latency_ms, model_queue_time_ms) have no
+# Datadog names.
+tables:
+  serving:
+    cpu_usage_percentage: databricks.model_serving.cpu_usage_percentage
+    mem_usage_percentage: databricks.model_serving.mem_usage_percentage
+    provisioned_concurrent_requests_total: databricks.model_serving.provisioned_concurrent_requests_total
+    request_4xx_count_total: databricks.model_serving.request_4xx_count_total
+    request_5xx_count_total: databricks.model_serving.request_5xx_count_total
+    request_count_total: databricks.model_serving.request_count_total
+
+streams:
+  - id: model_serving
+    name: Model Serving metrics
+    description: >-
+      Every serving endpoint's CPU, memory, GPU (average, min and max across GPUs), request, 4xx and 5xx counts,
+      provisioned concurrency and request latency percentiles (databricks.model_serving.*), per served entity.
+    lookups:
+      - { name: endpoints, request: { url: "{{ config.workspace_url }}/api/2.0/serving-endpoints" }, records: "{{ response.endpoints }}", key: "{{ record.name }}", ttl: 10m }
+    for_each: "{{ lookups.endpoints | keys }}"
+    request:
+      url: "{{ config.workspace_url + '/api/2.0/serving-endpoints/' + (item | urlencode) + '/metrics' }}"
+      format: prometheus
+    # Each latency bucket carries its series' request count (the histogram's _count sample) as `total`.
+    records: >-
+      {{ response | map(it + {total: (response | where('name', 'request_latency_ms_count')
+           | map({key: it.labels.served_entity_name, value: it.value}) | from_entries)[it.labels.served_entity_name]}) }}
+    filter: "{{ tables.serving[record.name] || record.name in ['gpu_usage_percentage', 'gpu_memory_usage_percentage', 'request_latency_ms_bucket'] }}"
+    vars:
+      gpu: "{{ {gpu_usage_percentage: 'databricks.model_serving.gpu_usage_percentage', gpu_memory_usage_percentage: 'databricks.model_serving.gpu_mem_usage_percentage'}[record.name] }}"
+      # A latency bucket's upper bound (ms); +Inf has none.
+      le: "{{ record.name == 'request_latency_ms_bucket' && record.labels.le != '+Inf' && record.total > 0 ? (record.labels.le | float) : null }}"
+    output:
+      metrics:
+        - name: "{{ tables.serving[record.name] }}"
+          value: "{{ record.value }}"
+          tags: &entity
+            endpoint_name: "{{ item }}"
+            workspace_id: "{{ discovery.workspace_id }}"
+            workspace_name: "{{ config.workspace_name ?? connection.instance }}"
+          tags_from: "{{ record.labels }}"
+        - name: "{{ vars.gpu + '.avg' }}"
+          examples: [databricks.model_serving.gpu_mem_usage_percentage.avg, databricks.model_serving.gpu_usage_percentage.avg]
+          filter: "{{ vars.gpu }}"
+          value: "{{ record.value }}"
+          aggregate: avg
+          unit: percent
+          tags: *entity
+          tags_from: "{{ record.labels + {gpu: null} }}"
+        - name: "{{ vars.gpu + '.min' }}"
+          examples: [databricks.model_serving.gpu_mem_usage_percentage.min, databricks.model_serving.gpu_usage_percentage.min]
+          filter: "{{ vars.gpu }}"
+          value: "{{ record.value }}"
+          aggregate: min
+          unit: percent
+          tags: *entity
+          tags_from: "{{ record.labels + {gpu: null} }}"
+        - name: "{{ vars.gpu + '.max' }}"
+          examples: [databricks.model_serving.gpu_mem_usage_percentage.max, databricks.model_serving.gpu_usage_percentage.max]
+          filter: "{{ vars.gpu }}"
+          value: "{{ record.value }}"
+          aggregate: max
+          unit: percent
+          tags: *entity
+          tags_from: "{{ record.labels + {gpu: null} }}"
+        # The latency percentiles from the cumulative buckets: the smallest bucket bound holding the share of requests.
+        - name: databricks.model_serving.request_latency_ms.75percentile
+          filter: "{{ vars.le != null && record.value >= 0.75 * record.total }}"
+          value: "{{ vars.le }}"
+          aggregate: min
+          unit: millisecond
+          description: The 75th percentile of the minute's request latency, as the upper bound of its histogram bucket.
+          tags: *entity
+          tags_from: "{{ record.labels + {le: null} }}"
+        - name: databricks.model_serving.request_latency_ms.90percentile
+          filter: "{{ vars.le != null && record.value >= 0.9 * record.total }}"
+          value: "{{ vars.le }}"
+          aggregate: min
+          unit: millisecond
+          description: The 90th percentile of the minute's request latency, as the upper bound of its histogram bucket.
+          tags: *entity
+          tags_from: "{{ record.labels + {le: null} }}"
+        - name: databricks.model_serving.request_latency_ms.95percentile
+          filter: "{{ vars.le != null && record.value >= 0.95 * record.total }}"
+          value: "{{ vars.le }}"
+          aggregate: min
+          unit: millisecond
+          description: The 95th percentile of the minute's request latency, as the upper bound of its histogram bucket.
+          tags: *entity
+          tags_from: "{{ record.labels + {le: null} }}"
+        - name: databricks.model_serving.request_latency_ms.99percentile
+          filter: "{{ vars.le != null && record.value >= 0.99 * record.total }}"
+          value: "{{ vars.le }}"
+          aggregate: min
+          unit: millisecond
+          description: The 99th percentile of the minute's request latency, as the upper bound of its histogram bucket.
+          tags: *entity
+          tags_from: "{{ record.labels + {le: null} }}"
+
+  - id: dbu_costs
+    name: DBU costs
+    description: >-
+      The last 7 days of DBU usage at list price, one row per day, workspace, SKU (charge_description), product
+      (servicename), cluster, job, warehouse and serving endpoint; each run replaces those days.
+    interval: 6h
+    request:
+      method: POST
+      url: "{{ config.workspace_url }}/api/2.0/sql/statements"
+      body:
+        warehouse_id: "{{ config.warehouse_id }}"
+        wait_timeout: 50s
+        on_wait_timeout: CANCEL
+        disposition: INLINE
+        format: JSON_ARRAY
+        statement: >-
+          SELECT u.usage_date, u.workspace_id, u.sku_name, u.billing_origin_product, u.usage_unit,
+          u.usage_metadata.cluster_id, u.usage_metadata.job_id, u.usage_metadata.warehouse_id,
+          u.usage_metadata.endpoint_name, SUM(u.usage_quantity) AS usage_quantity,
+          SUM(u.usage_quantity * CAST(p.pricing.default AS DOUBLE)) AS list_cost, FIRST(p.currency_code) AS currency_code
+          FROM system.billing.usage u LEFT JOIN system.billing.list_prices p
+          ON p.sku_name = u.sku_name AND p.cloud = u.cloud AND p.usage_unit = u.usage_unit
+          AND u.usage_end_time >= p.price_start_time AND (p.price_end_time IS NULL OR u.usage_end_time < p.price_end_time)
+          WHERE u.usage_date >= DATE_SUB(CURRENT_DATE(), 7)
+          GROUP BY ALL
+    errors:
+      - status: [400, 404]
+        when: "{{ response.message | contains('warehouse') }}"
+        kind: access_denied
+        message: "No usable SQL warehouse {{ config.warehouse_id }}: {{ response.message }}"
+    # One inline chunk (up to 25 MiB): a day's rows grouped as above stay far below it.
+    records: "{{ response.status.state == 'SUCCEEDED' ? ((response.result.data_array ?? []) | to_objects(response.manifest.schema.columns)) : [] }}"
+    # The row's key without its amounts: a day read again replaces its rows instead of adding to them.
+    record_id: "{{ [record.usage_date, record.workspace_id, record.sku_name, record.billing_origin_product, record.usage_unit, record.cluster_id, record.job_id, record.warehouse_id, record.endpoint_name] | json }}"
+    filter: "{{ record.list_cost != null }}"
+    output:
+      costs:
+        provider: databricks
+        date: "{{ record.usage_date }}"
+        cost: "{{ record.list_cost | float }}"
+        currency: "{{ record.currency_code ?? 'USD' }}"
+        service: "{{ record.billing_origin_product }}"
+        account: "{{ record.workspace_id }}"
+        usage_type: "{{ record.sku_name }}"
+        usage_amount: "{{ record.usage_quantity | float }}"
+        tags:
+          workspace_id: "{{ record.workspace_id }}"
+          servicename: "{{ record.billing_origin_product }}"
+          charge_description: "{{ record.sku_name }}"
+          usage_unit: "{{ record.usage_unit }}"
+          cluster_id: "{{ record.cluster_id }}"
+          job_id: "{{ record.job_id }}"
+          warehouse_id: "{{ record.warehouse_id }}"
+          endpoint_name: "{{ record.endpoint_name }}"
+
+test:
+  request: { url: "{{ config.workspace_url }}/api/2.0/serving-endpoints" }
+  message: "Connected: {{ response.endpoints | len }} serving endpoints"
+
+mock:
+  config: { workspace_url: "https://dbc-a1b2c3d4-e5f6.cloud.databricks.com", workspace_name: shop-analytics, auth_method: oauth, client_id: 6f0e1d2c-3b4a-5968-7a8b-9c0d1e2f3a4b, warehouse_id: 0123456789abcdef }
+  secrets: { client_secret: dbx-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://dbc-a1b2c3d4-e5f6.cloud.databricks.com/oidc/v1/token", body_contains: "client_credentials", body: { access_token: dbx-access-token, token_type: Bearer, expires_in: 3600 } }
+    - { url: "https://dbc-a1b2c3d4-e5f6.cloud.databricks.com/api/2.0/serving-endpoints", file: fixtures/serving-endpoints.json, headers: { X-Databricks-Org-Id: "1234567890123456" } }
+    - { url: "https://dbc-a1b2c3d4-e5f6.cloud.databricks.com/api/2.0/serving-endpoints/product-recs/metrics", file: fixtures/metrics-product-recs.txt }
+    - { url: "https://dbc-a1b2c3d4-e5f6.cloud.databricks.com/api/2.0/serving-endpoints/support-assistant/metrics", file: fixtures/metrics-support-assistant.txt }
+    - { method: POST, url: "https://dbc-a1b2c3d4-e5f6.cloud.databricks.com/api/2.0/sql/statements", body_contains: "system.billing.usage", file: fixtures/billing-usage.json }
+  expect:
+    model_serving: { records: 18, metrics: 18, golden: fixtures/model_serving.expected.json }
+    dbu_costs: { records: 4, costs: 4, golden: fixtures/dbu_costs.expected.json }
+    test: { ok: true, message: "2 serving endpoints" }

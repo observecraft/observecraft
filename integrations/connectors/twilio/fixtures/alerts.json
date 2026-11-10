@@ -1,0 +1,12 @@
+{
+  "alerts": [
+    { "sid": "NO5a7a84730f529f0a76b3e30c01315d1a", "account_sid": "ACexample_account_sid", "error_code": "30003", "log_level": "warning",
+      "alert_text": "Unreachable destination handset", "date_created": "2026-11-10T11:40:00Z", "date_generated": "2026-11-10T11:39:58Z", "date_updated": "2026-11-10T11:40:00Z",
+      "resource_sid": "SM1a2b3c4d5e6f708192a3b4c5d6e7f809", "service_sid": "MG0123456789abcdef0123456789abcdef", "request_method": null, "request_url": null,
+      "more_info": "https://www.twilio.com/docs/errors/30003", "api_version": "2010-04-01", "url": "https://monitor.twilio.com/v1/Alerts/NO5a7a84730f529f0a76b3e30c01315d1a" },
+    { "sid": "NO6b8b95841a630a1b87c4f41d12426e2b", "account_sid": "ACexample_account_sid", "error_code": "11200", "log_level": "error",
+      "alert_text": "HTTP retrieval failure", "date_created": "2026-11-10T10:05:12Z", "resource_sid": "CA1a2b3c4d5e6f708192a3b4c5d6e7f809",
+      "request_method": "POST", "request_url": "https://storefront-api.example.com/twilio/voice", "more_info": "https://www.twilio.com/docs/errors/11200" }
+  ],
+  "meta": { "page": 0, "page_size": 1000, "first_page_url": "https://monitor.twilio.com/v1/Alerts?PageSize=1000&Page=0", "next_page_url": null, "key": "alerts" }
+}

@@ -1,0 +1,201 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.errors_count",
+      "tags": [
+        [
+          "labelid",
+          "3b6d1bf0989a1c2d"
+        ],
+        [
+          "labelname",
+          "POST /api/checkout"
+        ],
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "message",
+          "Internal Server Error"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "rc",
+          "500"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 180.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.errors_count",
+      "tags": [
+        [
+          "labelid",
+          "3b6d1bf0989a1c2d"
+        ],
+        [
+          "labelname",
+          "POST /api/checkout"
+        ],
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "message",
+          "Gateway Timeout"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "rc",
+          "504"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 20.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.errors_url_count",
+      "tags": [
+        [
+          "labelid",
+          "3b6d1bf0989a1c2d"
+        ],
+        [
+          "labelname",
+          "POST /api/checkout"
+        ],
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ],
+        [
+          "url",
+          "https://shop.example.com/api/checkout"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 200.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.failedEmbeddedResources_count",
+      "tags": [
+        [
+          "labelid",
+          "5c7e2a10b3d4e5f6"
+        ],
+        [
+          "labelname",
+          "GET /api/cart"
+        ],
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "message",
+          "Bad Gateway"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "rc",
+          "502"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.assertions_failures",
+      "tags": [
+        [
+          "assertion",
+          "Order id present"
+        ],
+        [
+          "labelid",
+          "3b6d1bf0989a1c2d"
+        ],
+        [
+          "labelname",
+          "POST /api/checkout"
+        ],
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "message",
+          "Test failed: text expected to contain /orderId/"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 40.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "123456": {
+        "cursor": 1794312000000,
+        "seen": [
+          {
+            "id": "98c92e9253c87e4e",
+            "t": 1794297600000
+          }
+        ]
+      }
+    }
+  }
+}

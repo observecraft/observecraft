@@ -1,0 +1,434 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.requests.all",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 18234.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.requests.cached",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 12001.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.requests.uncached",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 6233.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.requests.encrypted",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 18100.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.bandwidth.all",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 734002112.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.bandwidth.cached",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 512330240.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.bandwidth.uncached",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 221671872.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.threats.all",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 12.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.pageviews.all",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 4321.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "cloudflare.uniques.all",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 2210.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.requests.all",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 17950.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.requests.cached",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 11870.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.requests.uncached",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 6080.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.requests.encrypted",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 17820.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.bandwidth.all",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 721004000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.bandwidth.cached",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 505000000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.bandwidth.uncached",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 216004000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.threats.all",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 3.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.pageviews.all",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 4205.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "cloudflare.uniques.all",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311640000,
+      "value": 2188.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "023e105f4ecef8ad9ca31a8372d0c353": {
+        "cursor": 1794311700000
+      }
+    }
+  }
+}

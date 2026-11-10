@@ -242,7 +242,8 @@ fn numeric_offset(s: &str) -> Option<i32> {
     (h <= 18 && m < 60).then_some(sign * (h * 3600 + m * 60))
 }
 
-/// Epoch milliseconds of an epoch number in seconds, milliseconds, microseconds or nanoseconds.
+/// Epoch milliseconds of an epoch number in seconds, milliseconds, microseconds or nanoseconds; a fraction of a
+/// millisecond is dropped, as Datadog does (to the microsecond first, so `…200.123` stays `…200_123`).
 fn epoch_ms(n: f64) -> Option<i64> {
     let a = n.abs();
     let ms = if a > 1e17 {
@@ -254,7 +255,7 @@ fn epoch_ms(n: f64) -> Option<i64> {
     } else {
         n * 1e3
     };
-    ms.is_finite().then_some(ms.round() as i64)
+    ms.is_finite().then_some(((ms * 1e3).round() / 1e3).floor() as i64)
 }
 
 /// Epoch milliseconds of a date attribute (the date remapper): epoch seconds / ms / µs / ns as a
@@ -403,6 +404,8 @@ mod tests {
         assert_eq!(parse_any(&json!(ms), NOW), Some(ms));
         assert_eq!(parse_any(&json!(1_792_933_200), NOW), Some(1_792_933_200_000));
         assert_eq!(parse_any(&json!(1_792_933_200.5), NOW), Some(1_792_933_200_500));
+        assert_eq!(parse_any(&json!(1_792_933_200.123), NOW), Some(ms));
+        assert_eq!(parse_any(&json!(1_792_933_200_123.9), NOW), Some(ms), "truncated, not rounded");
         assert_eq!(parse_any(&json!(1_792_933_200_123_456_789_i64), NOW), Some(ms));
         assert_eq!(parse_any(&json!("1792933200123"), NOW), Some(ms));
         assert_eq!(parse_any(&json!("2026-10-25T13:00:00.123Z"), NOW), Some(ms));

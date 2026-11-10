@@ -1,0 +1,14 @@
+[
+  { "log_id": "90020261110080012000000000000000000000000000000000001", "date": "2026-11-10T08:00:12.345Z", "type": "f", "description": "Wrong email or password.",
+    "connection": "Username-Password-Authentication", "connection_id": "con_AbCdEf0123456789", "client_id": "Zx0123456789AbCdEfGhIjKlMnOpQrSt", "client_name": "storefront-web",
+    "ip": "203.0.113.77", "user_agent": "Chrome 141.0.0 / Linux 0.0.0", "hostname": "example.us.auth0.com", "user_name": "sam.lee@example.com", "strategy": "auth0", "strategy_type": "database",
+    "details": { "error": { "message": "Wrong email or password." } }, "tenant": "example" },
+  { "log_id": "90020261110080130000000000000000000000000000000000002", "date": "2026-11-10T08:01:30.002Z", "type": "s", "description": "Successful login",
+    "connection": "Username-Password-Authentication", "connection_id": "con_AbCdEf0123456789", "client_id": "Zx0123456789AbCdEfGhIjKlMnOpQrSt", "client_name": "storefront-web",
+    "ip": "203.0.113.77", "user_agent": "Chrome 141.0.0 / Linux 0.0.0", "hostname": "example.us.auth0.com", "user_id": "auth0|6730aa00bb11cc22dd330001", "user_name": "sam.lee@example.com",
+    "strategy": "auth0", "strategy_type": "database", "tenant": "example" },
+  { "log_id": "90020261110110500000000000000000000000000000000000003", "date": "2026-11-10T11:05:00.000Z", "type": "sapi", "description": "Update a client",
+    "client_id": "Mg0123456789AbCdEfGhIjKlMnOpQrSt", "client_name": "", "ip": "198.51.100.7", "user_agent": "node-fetch 1.0.0",
+    "details": { "request": { "method": "patch", "path": "/api/v2/clients/Zx0123456789AbCdEfGhIjKlMnOpQrSt", "auth": { "user": { "email": "jordan.patel@example.com" } } }, "response": { "statusCode": 200 } },
+    "user_id": "google-oauth2|1001", "tenant": "example" }
+]

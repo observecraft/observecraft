@@ -1,0 +1,15 @@
+{
+  "cursor": "aXRlbS0y", "has_more": false,
+  "items": [
+    { "uuid": "OK41XEGLRTH4YKO5YRTCPNX3IU", "timestamp": "2026-11-10T09:01:00Z", "used_version": 3, "vault_uuid": "jaqxqf5qylslqiitnduawrndc5",
+      "item_uuid": "bvwmmwxisuca7wbehrbyqhag54", "action": "reveal",
+      "user": { "uuid": "IR7VJHJ36JHINBFAD7V2T5MP3E", "name": "Jordan Patel", "email": "jordan.patel@example.com" },
+      "client": { "app_name": "1Password for Mac", "platform_name": "macOS", "ip_address": "198.51.100.12" },
+      "location": { "country": "RO", "city": "Bucharest" } },
+    { "uuid": "PL52YFHMSUI5ZLP6SUDQOY4JV", "timestamp": "2026-11-10T11:30:45Z", "used_version": 1, "vault_uuid": "jaqxqf5qylslqiitnduawrndc5",
+      "item_uuid": "cwxnnxyjtvdb8xcfiszcrbih65", "action": "secure-copy",
+      "user": { "uuid": "JS8WKIK47KIJOCGBE8W3U6NQ4F", "name": "Sam Lee", "email": "sam.lee@example.com" },
+      "client": { "app_name": "1Password Browser Extension", "platform_name": "Chrome", "ip_address": "203.0.113.20" },
+      "location": { "country": "US", "city": "Ashburn" } }
+  ]
+}

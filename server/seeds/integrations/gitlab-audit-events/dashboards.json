@@ -1,0 +1,2735 @@
+[
+  {
+    "id": "gitlab-audit-events-overview",
+    "title": "GitLab Audit Events Overview",
+    "description": "A GitLab instance's audit events: users and addresses, failed logins, members and authorizations, merge requests, project activity, access tokens and the Cloud SIEM signals they raise.",
+    "kind": "integration",
+    "logo": "gitlab-audit-events",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "gitlab-audit-events-3",
+        "definition": {
+          "type": "group",
+          "title": "",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "gitlab-audit-events-1",
+              "definition": {
+                "type": "image",
+                "title": "GitLab Audit Events",
+                "logo": "gitlab-audit-events",
+                "background": "#ffffff"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-2",
+              "definition": {
+                "type": "note",
+                "content": "**GitLab audit events** record who did what on a GitLab instance: sign-ins and failed logins, access tokens created, rotated and revoked, members and their roles, OAuth applications authorized, merge request approvals and merges, approval rules, project and group settings, CI/CD variables and runners. This dashboard follows the connected instance's (or group's) audit events, the users and addresses behind them, and the Cloud SIEM signals their detection rules raise.\n\nConnect GitLab in [Integrations → GitLab Audit Events](/integrations/gitlab-audit-events): ObserveCraft reads the audit events API every minute (GitLab Premium or Ultimate), with no access to ObserveCraft needed.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 2,
+                "y": 0,
+                "w": 10,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "id": "gitlab-audit-events-14",
+        "definition": {
+          "type": "group",
+          "title": "Overview",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gitlab-audit-events-4",
+              "definition": {
+                "type": "integration",
+                "title": "Audit events",
+                "original": {
+                  "type": "query_value",
+                  "title": "Audit events",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-5",
+              "definition": {
+                "type": "integration",
+                "title": "Users",
+                "original": {
+                  "type": "query_value",
+                  "title": "Users",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@usr.name"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-6",
+              "definition": {
+                "type": "integration",
+                "title": "Failed logins",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failed logins",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:*login_failed*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-7",
+              "definition": {
+                "type": "integration",
+                "title": "Tokens created",
+                "original": {
+                  "type": "query_value",
+                  "title": "Tokens created",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:*token_created"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-8",
+              "definition": {
+                "type": "integration",
+                "title": "Merge requests merged",
+                "original": {
+                  "type": "query_value",
+                  "title": "Merge requests merged",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:merge_request_merged*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-9",
+              "definition": {
+                "type": "integration",
+                "title": "Security signals",
+                "original": {
+                  "type": "query_value",
+                  "title": "Security signals",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "security_signals",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": []
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 0,
+                "w": 2,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-10",
+              "definition": {
+                "type": "integration",
+                "title": "Audit events by category",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Audit events by category",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@gitlab.category",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-11",
+              "definition": {
+                "type": "integration",
+                "title": "Events by category",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Events by category",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@gitlab.category",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 4,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-12",
+              "definition": {
+                "type": "integration",
+                "title": "Most frequent events",
+                "original": {
+                  "type": "toplist",
+                  "title": "Most frequent events",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 10,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "gitlab-audit-events-13",
+              "definition": {
+                "type": "integration",
+                "title": "Events by group or project",
+                "original": {
+                  "type": "treemap",
+                  "title": "Events by group or project",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@gitlab.entity_path",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 10,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 21
+        }
+      },
+      {
+        "id": "gitlab-audit-events-22",
+        "definition": {
+          "type": "group",
+          "title": "User insights",
+          "color": "green",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gitlab-audit-events-15",
+              "definition": {
+                "type": "integration",
+                "title": "Most active users",
+                "original": {
+                  "type": "toplist",
+                  "title": "Most active users",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "cool"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "gitlab-audit-events-16",
+              "definition": {
+                "type": "integration",
+                "title": "Most active addresses",
+                "original": {
+                  "type": "toplist",
+                  "title": "Most active addresses",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "cool"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 0,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "gitlab-audit-events-17",
+              "definition": {
+                "type": "integration",
+                "title": "Events by entity type",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Events by entity type",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@gitlab.entity_type",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "gitlab-audit-events-18",
+              "definition": {
+                "type": "integration",
+                "title": "Failed logins by user",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Failed logins by user",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:*login_failed*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 8,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-19",
+              "definition": {
+                "type": "integration",
+                "title": "Addresses failing to log in",
+                "original": {
+                  "type": "toplist",
+                  "title": "Addresses failing to log in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:*login_failed*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 8,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-20",
+              "definition": {
+                "type": "integration",
+                "title": "Users by activity",
+                "original": {
+                  "type": "query_table",
+                  "title": "Users by activity",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 25,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@evt.name"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 25,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query3",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "cardinality",
+                            "metric": "@network.client.ip"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 25,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "events",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "event types",
+                          "formula": "query2"
+                        },
+                        {
+                          "alias": "addresses",
+                          "formula": "query3"
+                        }
+                      ],
+                      "sort": {
+                        "count": 100,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 14,
+                "w": 6,
+                "h": 8
+              }
+            },
+            {
+              "id": "gitlab-audit-events-21",
+              "definition": {
+                "type": "log_stream",
+                "title": "Failed logins",
+                "query": "source:gitlab-audit-events @evt.name:*login_failed*",
+                "limit": 50
+              },
+              "layout": {
+                "x": 6,
+                "y": 14,
+                "w": 6,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 27,
+          "w": 12,
+          "h": 25
+        }
+      },
+      {
+        "id": "gitlab-audit-events-28",
+        "definition": {
+          "type": "group",
+          "title": "Authorization granted",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gitlab-audit-events-23",
+              "definition": {
+                "type": "integration",
+                "title": "Members added, changed and removed",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Members added, changed and removed",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @gitlab.category:membership"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-24",
+              "definition": {
+                "type": "integration",
+                "title": "Membership changes by group or project",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "Membership changes by group or project",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @gitlab.category:membership"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@gitlab.entity_path",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-25",
+              "definition": {
+                "type": "integration",
+                "title": "Users granting access",
+                "original": {
+                  "type": "toplist",
+                  "title": "Users granting access",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @gitlab.category:membership"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "purple"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "gitlab-audit-events-26",
+              "definition": {
+                "type": "integration",
+                "title": "OAuth applications authorized",
+                "original": {
+                  "type": "toplist",
+                  "title": "OAuth applications authorized",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @gitlab.category:authorization"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@gitlab.target_details",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "purple"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "gitlab-audit-events-27",
+              "definition": {
+                "type": "log_stream",
+                "title": "Members and authorizations",
+                "query": "source:gitlab-audit-events @gitlab.category:(membership OR authorization)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 8,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 52,
+          "w": 12,
+          "h": 17
+        }
+      },
+      {
+        "id": "gitlab-audit-events-37",
+        "definition": {
+          "type": "group",
+          "title": "Merge requests",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gitlab-audit-events-29",
+              "definition": {
+                "type": "integration",
+                "title": "Merged",
+                "original": {
+                  "type": "query_value",
+                  "title": "Merged",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:merge_request_merged*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-30",
+              "definition": {
+                "type": "integration",
+                "title": "Approvals",
+                "original": {
+                  "type": "query_value",
+                  "title": "Approvals",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:merge_request_approval_operation"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0,
+                  "timeseries_background": {
+                    "type": "bars"
+                  }
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-31",
+              "definition": {
+                "type": "integration",
+                "title": "Approval rules changed",
+                "original": {
+                  "type": "query_value",
+                  "title": "Approval rules changed",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:(update_approval_rules OR *approval_rule* OR *approval_setting*)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-32",
+              "definition": {
+                "type": "integration",
+                "title": "Merged by bots",
+                "original": {
+                  "type": "query_value",
+                  "title": "Merged by bots",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:merge_request_merged_by_project_bot"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-33",
+              "definition": {
+                "type": "integration",
+                "title": "Merge request events",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Merge request events",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @gitlab.category:merge_request"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-34",
+              "definition": {
+                "type": "integration",
+                "title": "Projects merging most",
+                "original": {
+                  "type": "toplist",
+                  "title": "Projects merging most",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:merge_request_merged*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@gitlab.entity_path",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 4,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-35",
+              "definition": {
+                "type": "integration",
+                "title": "Users approving most",
+                "original": {
+                  "type": "toplist",
+                  "title": "Users approving most",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:merge_request_approval_operation"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 10,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "gitlab-audit-events-36",
+              "definition": {
+                "type": "log_stream",
+                "title": "Approval rules and settings changed",
+                "query": "source:gitlab-audit-events @evt.name:(update_approval_rules OR *approval_rule* OR *approval_setting*)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 4,
+                "y": 10,
+                "w": 8,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 69,
+          "w": 12,
+          "h": 21
+        }
+      },
+      {
+        "id": "gitlab-audit-events-42",
+        "definition": {
+          "type": "group",
+          "title": "Project activity",
+          "color": "gray",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gitlab-audit-events-38",
+              "definition": {
+                "type": "integration",
+                "title": "Project events",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Project events",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @gitlab.category:project"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-39",
+              "definition": {
+                "type": "integration",
+                "title": "Projects with the most changes",
+                "original": {
+                  "type": "bar_chart",
+                  "title": "Projects with the most changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @gitlab.category:project"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@gitlab.entity_path",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-40",
+              "definition": {
+                "type": "integration",
+                "title": "Repository and CI/CD changes",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Repository and CI/CD changes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @gitlab.category:(repository OR ci_cd)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "gitlab-audit-events-41",
+              "definition": {
+                "type": "log_stream",
+                "title": "Projects created, deleted, exported or made more visible",
+                "query": "source:gitlab-audit-events @evt.name:(project_created OR project_destroyed OR project_visibility_level_updated OR project_export_*)",
+                "limit": 50
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 8,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 90,
+          "w": 12,
+          "h": 17
+        }
+      },
+      {
+        "id": "gitlab-audit-events-47",
+        "definition": {
+          "type": "group",
+          "title": "Token management",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gitlab-audit-events-43",
+              "definition": {
+                "type": "integration",
+                "title": "Tokens created, rotated and revoked",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Tokens created, rotated and revoked",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:*token_created"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query2",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:*token_rotated"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        },
+                        {
+                          "data_source": "logs",
+                          "name": "query3",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:(*token_revoked OR *token_destroyed)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "created",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "rotated",
+                          "formula": "query2"
+                        },
+                        {
+                          "alias": "revoked",
+                          "formula": "query3"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-44",
+              "definition": {
+                "type": "integration",
+                "title": "Token events",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Token events",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @gitlab.category:token"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 12,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "dog_classic"
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  },
+                  "hide_total": false
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "gitlab-audit-events-45",
+              "definition": {
+                "type": "integration",
+                "title": "Users creating tokens",
+                "original": {
+                  "type": "toplist",
+                  "title": "Users creating tokens",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events @evt.name:*token_created"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "gitlab-audit-events-46",
+              "definition": {
+                "type": "log_stream",
+                "title": "Token events",
+                "query": "source:gitlab-audit-events @gitlab.category:token",
+                "limit": 50
+              },
+              "layout": {
+                "x": 4,
+                "y": 6,
+                "w": 8,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 107,
+          "w": 12,
+          "h": 17
+        }
+      },
+      {
+        "id": "gitlab-audit-events-52",
+        "definition": {
+          "type": "group",
+          "title": "Cloud SIEM signals",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gitlab-audit-events-48",
+              "definition": {
+                "type": "integration",
+                "title": "High and critical",
+                "original": {
+                  "type": "query_value",
+                  "title": "High and critical",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "security_signals",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events status:(high OR critical)"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": []
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-49",
+              "definition": {
+                "type": "integration",
+                "title": "Medium",
+                "original": {
+                  "type": "query_value",
+                  "title": "Medium",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "security_signals",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events status:medium"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": []
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "yellow_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "gitlab-audit-events-50",
+              "definition": {
+                "type": "integration",
+                "title": "Signals by severity",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Signals by severity",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "security_signals",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "status",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 5,
+                "h": 8
+              }
+            },
+            {
+              "id": "gitlab-audit-events-51",
+              "definition": {
+                "type": "integration",
+                "title": "Signals by rule",
+                "original": {
+                  "type": "toplist",
+                  "title": "Signals by rule",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "security_signals",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:gitlab-audit-events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@workflow.rule.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "warm"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 124,
+          "w": 12,
+          "h": 11
+        }
+      },
+      {
+        "id": "gitlab-audit-events-54",
+        "definition": {
+          "type": "group",
+          "title": "All events",
+          "color": "gray",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gitlab-audit-events-53",
+              "definition": {
+                "type": "log_stream",
+                "title": "Audit events",
+                "query": "source:gitlab-audit-events",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 10
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 135,
+          "w": 12,
+          "h": 13
+        }
+      }
+    ],
+    "source": {
+      "repository": "observecraft",
+      "path": "scripts/gitlab-audit-events-dashboard.mjs",
+      "license": "MIT"
+    }
+  }
+]

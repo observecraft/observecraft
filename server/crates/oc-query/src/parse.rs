@@ -5,16 +5,30 @@ pub enum Term {
     Tag { key: String, values: Vec<String>, negate: bool },
     /// Free text matched against the message.
     Text { text: String, negate: bool },
+    /// `(a OR b)`, `-(@x:1 OR @y:2 z)`: a group of searches, any of which matches (each one's terms ANDed).
+    Any { alternatives: Vec<Vec<Term>>, negate: bool },
 }
 
-/// Splits on whitespace, keeping quoted strings and parenthesised groups intact.
+/// Splits on whitespace, keeping quoted strings (with their escaped `\"` and `\\`), parenthesised groups and escaped
+/// spaces (`\ `) intact.
 pub fn tokenize(q: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
     let mut depth = 0usize;
     let mut quoted = false;
-    for ch in q.chars() {
+    let mut chars = q.chars().peekable();
+    while let Some(ch) = chars.next() {
         match ch {
+            '\\' if !quoted && chars.peek().is_some_and(|c| c.is_whitespace()) => {
+                cur.push(ch);
+                cur.extend(chars.next());
+                continue;
+            }
+            '\\' if quoted => {
+                cur.push(ch);
+                cur.extend(chars.next());
+                continue;
+            }
             '"' => quoted = !quoted,
             '(' if !quoted => depth += 1,
             ')' if !quoted => depth = depth.saturating_sub(1),
@@ -34,11 +48,24 @@ pub fn tokenize(q: &str) -> Vec<String> {
     out
 }
 
+/// A value as written: without its quotes (`\"` and `\\` inside them decoded), or with its escaped spaces (`\ `) as
+/// spaces.
 fn unquote(s: &str) -> String {
     if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
-        s[1..s.len() - 1].to_string()
+        let mut out = String::new();
+        let mut chars = s[1..s.len() - 1].chars().peekable();
+        while let Some(ch) = chars.next() {
+            match chars.peek() {
+                Some(&next @ ('"' | '\\')) if ch == '\\' => {
+                    out.push(next);
+                    chars.next();
+                }
+                _ => out.push(ch),
+            }
+        }
+        out
     } else {
-        s.to_string()
+        s.replace("\\ ", " ")
     }
 }
 
@@ -47,11 +74,35 @@ fn is_key(s: &str) -> bool {
     !body.is_empty() && body.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
 }
 
+/// Splits a group's inside on its top-level ` OR `s (not those of nested groups or quotes).
+fn split_or(inner: &str) -> Vec<String> {
+    let mut out = vec![String::new()];
+    for tok in tokenize(inner) {
+        if tok == "OR" || tok == "or" {
+            out.push(String::new());
+        } else {
+            let cur = out.last_mut().expect("one part");
+            if !cur.is_empty() {
+                cur.push(' ');
+            }
+            cur.push_str(&tok);
+        }
+    }
+    out
+}
+
 fn parse_term(token: &str) -> Term {
     let (negate, body) = match token.strip_prefix('-') {
         Some(rest) if !rest.is_empty() => (true, rest),
         _ => (false, token),
     };
+    if body.len() > 2 && body.starts_with('(') && body.ends_with(')') {
+        let parts = split_or(&body[1..body.len() - 1]);
+        let alternatives: Vec<Vec<Term>> = parts.iter().map(|p| parse_query(p)).filter(|t| !t.is_empty()).collect();
+        if !alternatives.is_empty() {
+            return Term::Any { alternatives, negate };
+        }
+    }
     if let Some(idx) = body.find(':') {
         let (key, raw) = (&body[..idx], &body[idx + 1..]);
         if is_key(key) && !raw.is_empty() {
@@ -92,6 +143,54 @@ mod tests {
                 Term::Text { text: "timeout".into(), negate: false },
             ]
         );
+    }
+
+    #[test]
+    fn groups_across_attributes() {
+        let t = parse_query("source:scfw (@warning:true OR @warned:true) -(@a:1 OR b c)");
+        let tag = |k: &str, v: &str| Term::Tag { key: k.into(), values: vec![v.into()], negate: false };
+        assert_eq!(
+            t,
+            vec![
+                tag("source", "scfw"),
+                Term::Any { alternatives: vec![vec![tag("@warning", "true")], vec![tag("@warned", "true")]], negate: false },
+                Term::Any { alternatives: vec![vec![tag("@a", "1")], vec![Term::Text { text: "b".into(), negate: false }, Term::Text { text: "c".into(), negate: false }]], negate: true },
+            ]
+        );
+        assert_eq!(parse_query("(timeout)"), vec![Term::Any { alternatives: vec![vec![Term::Text { text: "timeout".into(), negate: false }]], negate: false }]);
+    }
+
+    #[test]
+    fn escaped_spaces_stay_in_values() {
+        // Datadog's syntax (its integration pipelines use it): `\ ` is a space inside a value.
+        let t = parse_query(r"@evt.name:Add\ *member\ to\ role* -@role:*Global\ Administrator* timeout");
+        assert_eq!(
+            t,
+            vec![
+                Term::Tag { key: "@evt.name".into(), values: vec!["Add *member to role*".into()], negate: false },
+                Term::Tag { key: "@role".into(), values: vec!["*Global Administrator*".into()], negate: true },
+                Term::Text { text: "timeout".into(), negate: false },
+            ]
+        );
+        assert_eq!(parse_query(r"@a:(x\ y OR z)"), vec![Term::Tag { key: "@a".into(), values: vec!["x y".into(), "z".into()], negate: false }]);
+    }
+
+    #[test]
+    fn escaped_quotes_and_backslashes_stay_in_quoted_values() {
+        // Datadog's syntax: inside a quoted value `\"` is a quote and `\\` a backslash.
+        let t = parse_query(r#"@msg:"say \"hi\": a\\b" host:web-1 "C:\\dir \"x\"""#);
+        assert_eq!(
+            t,
+            vec![
+                Term::Tag { key: "@msg".into(), values: vec![r#"say "hi": a\b"#.into()], negate: false },
+                Term::Tag { key: "host".into(), values: vec!["web-1".into()], negate: false },
+                Term::Text { text: r#"C:\dir "x""#.into(), negate: false },
+            ]
+        );
+        // A value ending in a backslash closes its quotes.
+        assert_eq!(parse_query(r#"@path:"a\\" b"#), vec![Term::Tag { key: "@path".into(), values: vec![r"a\".into()], negate: false }, Term::Text { text: "b".into(), negate: false }]);
+        assert_eq!(parse_query(r#"@file:"C:\temp""#), vec![Term::Tag { key: "@file".into(), values: vec![r"C:\temp".into()], negate: false }]);
+        assert_eq!(parse_query(r#"@a:("x \"y\"" OR z)"#), vec![Term::Tag { key: "@a".into(), values: vec![r#"x "y""#.into(), "z".into()], negate: false }]);
     }
 
     #[test]

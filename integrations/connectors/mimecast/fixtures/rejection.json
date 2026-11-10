@@ -1,0 +1,13 @@
+{
+  "meta": { "status": 200, "pagination": { "pageSize": 500 } },
+  "data": [
+    { "id": "eNpVT1tPwjAU_i99hSW7dh1RE5iK0SGwOQ28LNCeDcwurF03wPjf7SRqfDv57ucDCaCSw56hEQonbDVYkO7ID2HmU0ocvLKEjOZ1OrmF2kzt0001",
+      "fromAddress": "promo@spam-sender.example", "toAddress": "jane.doe@example.com", "toAddressPreCheck": "jane.doe@example.com", "toAddressPostCheck": "",
+      "description": "Virus Signature Detection", "type": 14030, "info": "[clam.Eicar-Test-Signature]", "created": "2026-11-10T10:56:08+0000",
+      "ipAddress": "192.0.2.99", "remoteName": "spam-sender.example", "remoteEhlo": "mail.spam-sender.example", "manageRecipient": "false" },
+    { "id": "eNpVT1tPwjAU_i99hSW7dh1RE5iK0SGwOQ28LNCeDcwurF03wPjf7SRqfDv57ucDCaCSw56hEQonbDVYkO7ID2HmU0ocvLKEjOZ1OrmF2kzt0000",
+      "fromAddress": "old@spam-sender.example", "toAddress": "sam.lee@example.com", "description": "Message Bounced due to Spam Signature", "type": 12001,
+      "created": "2026-11-05T10:00:00+0000", "ipAddress": "192.0.2.98" }
+  ],
+  "fail": []
+}

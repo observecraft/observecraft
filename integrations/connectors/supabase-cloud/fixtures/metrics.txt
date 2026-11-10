@@ -1,0 +1,18 @@
+# HELP node_load1 1m load average.
+# TYPE node_load1 gauge
+node_load1{supabase_project_ref="abcdefghijklmnopqrst",service_type="db"} 0.42
+# TYPE node_memory_MemTotal_bytes gauge
+node_memory_MemTotal_bytes{supabase_project_ref="abcdefghijklmnopqrst",service_type="db"} 1.073741824e+09
+# TYPE node_memory_MemAvailable_bytes gauge
+node_memory_MemAvailable_bytes{supabase_project_ref="abcdefghijklmnopqrst",service_type="db"} 5.36870912e+08
+# TYPE node_cpu_seconds_total counter
+node_cpu_seconds_total{supabase_project_ref="abcdefghijklmnopqrst",service_type="db",cpu="0",mode="user"} 15342.5
+node_cpu_seconds_total{supabase_project_ref="abcdefghijklmnopqrst",service_type="db",cpu="0",mode="idle"} 902311.25
+# TYPE pg_up gauge
+pg_up{supabase_project_ref="abcdefghijklmnopqrst",service_type="db"} 1
+# TYPE pg_database_size_mb gauge
+pg_database_size_mb{supabase_project_ref="abcdefghijklmnopqrst",service_type="db",datname="postgres"} 182.4
+# TYPE pg_stat_database_xact_commit_total counter
+pg_stat_database_xact_commit_total{supabase_project_ref="abcdefghijklmnopqrst",service_type="db",datname="postgres"} 812234
+# TYPE go_goroutines gauge
+go_goroutines{supabase_project_ref="abcdefghijklmnopqrst",service_type="postgrest"} 31

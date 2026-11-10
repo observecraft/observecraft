@@ -1,0 +1,199 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b0-139a-7b9f-86d0-2c08321e6ac7"
+      },
+      "activity_log": {
+        "accountId": "93a15559-0000-4000-8000-683ea233c123",
+        "action": "Created",
+        "browser": "Chrome 130",
+        "city": "Boston",
+        "country": "united states",
+        "data": {
+          "EnvelopeId": "7d3d1d7a-0000-4000-8000-8684637b1001"
+        },
+        "device": "Other",
+        "eventId": "18f39c7c-0000-4000-8000-9aadcf98d001",
+        "ipAddress": "203.0.113.70",
+        "ipAddressLocation": {
+          "city": "Boston",
+          "country": "united states",
+          "latitude": 42.36,
+          "longitude": -71.06,
+          "state": "massachusetts"
+        },
+        "latitude": 42.36,
+        "longitude": -71.06,
+        "object": "Envelope",
+        "os": "Windows 10",
+        "site": "DEMO",
+        "source": "Web",
+        "state": "massachusetts",
+        "timestamp": "2026-11-10T09:00:36.1227494Z",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        "userId": "fc8d7d8c-0000-4000-8000-2c7df1510123"
+      },
+      "date": "2026-11-10T09:00:36.1227494Z",
+      "ddsource": "docusign",
+      "host": "0a1b2c3d-0000-4000-8000-123456789012",
+      "message": "Envelope Created by Riley Chen from 203.0.113.70",
+      "service": "docusign",
+      "status": "info",
+      "user_info": {
+        "is_admin": "False",
+        "user_name": "Riley Chen",
+        "user_status": "Active",
+        "user_type": "CompanyUser"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b0-7aa4-7d52-a903-9c9172315116"
+      },
+      "activity_log": {
+        "accountId": "93a15559-0000-4000-8000-683ea233c123",
+        "action": "Sent",
+        "browser": "Chrome 130",
+        "city": "Boston",
+        "country": "united states",
+        "data": {
+          "EnvelopeId": "7d3d1d7a-0000-4000-8000-8684637b1001"
+        },
+        "device": "Other",
+        "eventId": "18f39c7c-0000-4000-8000-9aadcf98d002",
+        "ipAddress": "203.0.113.70",
+        "ipAddressLocation": {
+          "city": "Boston",
+          "country": "united states",
+          "latitude": 42.36,
+          "longitude": -71.06,
+          "state": "massachusetts"
+        },
+        "latitude": 42.36,
+        "longitude": -71.06,
+        "object": "Envelope",
+        "os": "Windows 10",
+        "site": "DEMO",
+        "source": "Web",
+        "state": "massachusetts",
+        "timestamp": "2026-11-10T09:01:02.5000000Z",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        "userId": "fc8d7d8c-0000-4000-8000-2c7df1510123"
+      },
+      "date": "2026-11-10T09:01:02.5000000Z",
+      "ddsource": "docusign",
+      "host": "0a1b2c3d-0000-4000-8000-123456789012",
+      "message": "Envelope Sent by Riley Chen from 203.0.113.70",
+      "service": "docusign",
+      "status": "info",
+      "user_info": {
+        "is_admin": "False",
+        "user_name": "Riley Chen",
+        "user_status": "Active",
+        "user_type": "CompanyUser"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f4-dc80-7f05-a608-021adc5014f1"
+      },
+      "activity_log": {
+        "accountId": "93a15559-0000-4000-8000-683ea233c123",
+        "action": "Modified",
+        "browser": "Chrome 130",
+        "city": "Boston",
+        "country": "united states",
+        "data": {
+          "TemplateId": "2b9c0d1e-0000-4000-8000-000000000042"
+        },
+        "device": "Other",
+        "eventId": "18f39c7c-0000-4000-8000-9aadcf98d003",
+        "ipAddress": "198.51.100.24",
+        "ipAddressLocation": {
+          "city": "Boston",
+          "country": "united states",
+          "latitude": 42.36,
+          "longitude": -71.06,
+          "state": "massachusetts"
+        },
+        "latitude": 42.36,
+        "longitude": -71.06,
+        "object": "Template",
+        "os": "Windows 10",
+        "site": "DEMO",
+        "source": "Web",
+        "state": "massachusetts",
+        "timestamp": "2026-11-10T10:15:44.0000000Z",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        "userId": "4f5e6d7c-0000-4000-8000-000000000001"
+      },
+      "date": "2026-11-10T10:15:44.0000000Z",
+      "ddsource": "docusign",
+      "host": "0a1b2c3d-0000-4000-8000-123456789012",
+      "message": "Template Modified by Avery Admin from 198.51.100.24",
+      "service": "docusign",
+      "status": "info",
+      "user_info": {
+        "is_admin": "True",
+        "user_name": "Avery Admin",
+        "user_status": "Active",
+        "user_type": "CompanyUser"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c538-dac0-7320-bc6d-ce9ce6eb9210"
+      },
+      "activity_log": {
+        "accountId": "93a15559-0000-4000-8000-683ea233c123",
+        "action": "UnauthorizedIpAddress",
+        "browser": "Chrome 130",
+        "city": "unknown",
+        "data": {
+          "AlertName": "Unauthorized IP address",
+          "Severity": "High"
+        },
+        "device": "Other",
+        "eventId": "18f39c7c-0000-4000-8000-9aadcf98d004",
+        "ipAddress": "192.0.2.200",
+        "ipAddressLocation": {
+          "city": "unknown",
+          "latitude": 42.36,
+          "longitude": -71.06
+        },
+        "latitude": 42.36,
+        "longitude": -71.06,
+        "object": "Alert",
+        "os": "Windows 10",
+        "site": "DEMO",
+        "source": "Web",
+        "timestamp": "2026-11-10T11:30:00.0000000Z",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        "userId": "fc8d7d8c-0000-4000-8000-2c7df1510123"
+      },
+      "date": "2026-11-10T11:30:00.0000000Z",
+      "ddsource": "docusign",
+      "host": "0a1b2c3d-0000-4000-8000-123456789012",
+      "message": "Alert UnauthorizedIpAddress by Riley Chen from 192.0.2.200",
+      "service": "docusign",
+      "status": "info",
+      "user_info": {
+        "is_admin": "False",
+        "user_name": "Riley Chen",
+        "user_status": "Active",
+        "user_type": "CompanyUser"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "c3"
+      }
+    }
+  }
+}

@@ -1,0 +1,82 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Proofpoint On-Demand (PoD) Email Security: the Log API streams a cluster's message and mail logs over a WebSocket
+# (wss://logstream.proofpoint.com/v1/stream?cid=…&type=message|maillog&sinceTime=…, bearer API key), one JSON event
+# per frame. Not a request/response API, so the native connector `proofpoint-on-demand`
+# (server/crates/oc-api/src/connectors/sources/proofpoint_pod.rs) keeps a session per connection and type and resumes
+# from the last stored event's time. The logs are what the tile's integrations-core pipeline and dashboard read
+# (source:proofpoint-on-demand, service:message or maillog, the event's fields at the top with `ts`), so this package
+# ships none: saving a connection installs the tile's.
+schema_version: 1
+id: proofpoint-on-demand
+name: Proofpoint On-Demand
+publisher: ObserveCraft
+vendor: Proofpoint
+description: >-
+  A Proofpoint On-Demand cluster's message logs (envelope, filter actions and disposition, routes, verdicts, message
+  parts) and, optionally, its mail logs, streamed live from the PoD Log API as logs.
+tiles: [proofpoint-on-demand]
+source: proofpoint-on-demand
+categories: [Log Collection, Security, SIEM]
+native: proofpoint-on-demand
+docs_url: https://www.proofpoint.com/us/products/email-security-and-protection/email-protection
+setup: |
+  1. The Log API is enabled per cluster by Proofpoint: ask your account team or support for it if your admin portal
+     can't issue Log API keys yet.
+  2. In the PoD admin portal, create a Log API key for ObserveCraft and note your **cluster ID** (the portal shows it;
+     it is also the `cid` Proofpoint's documentation and support use).
+
+  ObserveCraft keeps a WebSocket session open per log type and resumes from the last stored event after a restart.
+  The Log API replays recent history: a new connection starts an hour back.
+instance: "{{ config.cluster_id }}"
+
+config:
+  - key: cluster_id
+    label: Cluster ID
+    type: string
+    required: true
+    placeholder: example_hosted
+    pattern: "[A-Za-z0-9_.-]{1,100}"
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+
+streams:
+  - id: message
+    name: Message logs
+    description: >-
+      One log per message (service:message): guid, connection (ip, host, TLS), envelope (from, rcpts), filter
+      (disposition, routeDirection, actions, routes, qid, quarantine), msg headers, msgParts and verdicts, with ts.
+    record_id: "{{ record.guid ?? record.id }}"
+    output:
+      logs:
+        service: message
+        message: >-
+          {{ 'Message ' + (record.filter.disposition ?? 'processed') + ': ' + ((record.msg.normalizedHeader.subject ?? record.msg.header.subject ?? []) | first ?? '')
+             + ' (' + (record.envelope.from ?? '?') + ' → ' + ((record.envelope.rcpts ?? []) | join(', ')) + ')' }}
+        status: "{{ record.filter.disposition in ['reject', 'discard'] ? 'warning' : 'info' }}"
+        date: "{{ record.ts }}"
+        attributes: "{{ record }}"
+  - id: maillog
+    name: Mail logs
+    description: >-
+      The mail transfer agent's log lines (service:maillog): data (the sendmail line), sm (the message's transfer
+      fields), pps (agent and cid) and ts.
+    default_enabled: false
+    record_id: "{{ record.id ?? record.guid }}"
+    output:
+      logs:
+        service: maillog
+        message: "{{ record.data ?? 'Mail log' }}"
+        date: "{{ record.ts }}"
+        attributes: "{{ record + {data: null} }}"
+
+# The web's mock mode (the native source's own tests serve fixtures/ over an in-process WebSocket).
+mock:
+  config: { cluster_id: example_hosted }
+  secrets: { api_key: pod-test-key-0001 }
+  now: "2026-11-10T12:00:00Z"
+  responses: []
+  expect:
+    test: { ok: true, message: "cluster example_hosted's message log stream" }

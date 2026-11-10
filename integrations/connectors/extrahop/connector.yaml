@@ -1,0 +1,140 @@
+# yaml-language-server: $schema=../connector.schema.json
+# ExtraHop RevealX 360 (https://docs.extrahop.com/current/rx360-rest-api/): detections and investigations, read from
+# the RevealX 360 REST API, as the logs Datadog's integration sends (source:extrahop, service:detection and
+# service:investigation, the record's fields at the top). integrations-core's ExtraHop pipeline and "ExtraHop -
+# Detections" dashboard read them as they are, so this package ships neither: saving a connection installs the tile's.
+#
+# A record's `status` field (a detection's or an investigation's workflow state) stays `@status`: the tile's pipeline
+# renames a detection's to `detection_status` (and its title to `detection_title`, its url to `http.url`), and the
+# dashboard filters investigations on `@status`.
+schema_version: 1
+id: extrahop
+name: ExtraHop
+publisher: ObserveCraft
+vendor: ExtraHop Networks
+description: >-
+  Network detections (risk score, MITRE tactics and techniques, offenders and victims) and analysts' investigations of
+  an ExtraHop RevealX 360 console, read from its REST API as logs; a detection is logged again whenever it changes.
+tiles: [extrahop]
+categories: [Log Collection, Security, SIEM, Network]
+docs_url: https://docs.extrahop.com/current/rx360-rest-api/
+setup: |
+  1. In the RevealX 360 console, open **System Settings → API Access** and, under **REST API Credentials**, click
+     **Create Credentials**.
+  2. Give it **Full read-only** system privileges and **Full Access** to the NDR module (the NPM module isn't needed).
+  3. Copy the **ID** and **Secret**, and the subdomain of the console's API endpoint (`<subdomain>.api.cloud.extrahop.com`).
+instance: "{{ config.sub_domain }}"
+
+config:
+  - key: sub_domain
+    label: Subdomain
+    type: string
+    required: true
+    pattern: "[a-z0-9][a-z0-9-]*"
+    placeholder: example-shop
+    help: The first part of your API endpoint, <subdomain>.api.cloud.extrahop.com (shown on the API Access page).
+  - key: client_id
+    label: Client ID
+    type: string
+    required: true
+  - key: client_secret
+    label: Client secret
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "https://{{ config.sub_domain }}.api.cloud.extrahop.com/oauth2/token"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: basic
+
+# ExtraHop publishes no limit for RevealX 360's API: one request a second.
+rate_limit: { requests_per_minute: 60 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: ExtraHop refused the REST API credentials
+  - status: [403]
+    kind: access_denied
+    message: The REST API credentials need full read-only system privileges and NDR module access
+
+streams:
+  - id: detections
+    name: Detections
+    description: >-
+      One log per detection and change (service:detection): title, type, risk_score, categories, mitre_tactics,
+      mitre_techniques, participants and the other fields, status (new, in_progress, closed, …; the pipeline's
+      detection_status) and the log's status from the risk score (info, warning, critical; the pipeline's risk_status).
+    interval: 5m
+    request:
+      method: POST
+      url: "https://{{ config.sub_domain }}.api.cloud.extrahop.com/api/v1/detections/search"
+      body:
+        mod_time: "{{ window.start }}"
+        limit: 1000
+        offset: "{{ page.offset }}"
+        sort: [{ field: mod_time, direction: asc }]
+    pagination: { kind: offset, size: 1000 }
+    max_pages: 50
+    # A detection changes in place (status, risk, end time): each change is a log of its own.
+    record_id: "{{ (record.id | str) + ':' + (record.mod_time | str) }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.mod_time }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 5m
+    vars:
+      risk: "{{ record.risk_score >= 80 ? 'critical' : record.risk_score >= 31 ? 'warning' : 'info' }}"
+    output:
+      logs:
+        service: detection
+        message: "{{ record.title ?? record.type }}"
+        status: "{{ vars.risk }}"
+        date: "{{ record.mod_time }}"
+        attributes: "{{ record }}"
+
+  - id: investigations
+    name: Investigations
+    description: >-
+      One log per investigation and change (service:investigation): name, assessment, assignee, detections, notes,
+      is_user_created and status (open, in_progress, closed).
+    interval: 5m
+    request:
+      url: "https://{{ config.sub_domain }}.api.cloud.extrahop.com/api/v1/investigations"
+    record_id: "{{ (record.id | str) + ':' + (record.update_time | str) }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.update_time }}"
+      order: unordered
+      lookback: 7d
+      overlap: 5m
+    output:
+      logs:
+        service: investigation
+        message: "{{ record.name }}"
+        date: "{{ record.update_time }}"
+        attributes: "{{ record }}"
+
+test:
+  request:
+    method: POST
+    url: "https://{{ config.sub_domain }}.api.cloud.extrahop.com/api/v1/detections/search"
+    body: { limit: 1 }
+  message: "Connected to {{ config.sub_domain }}.api.cloud.extrahop.com"
+
+mock:
+  config: { sub_domain: example-shop, client_id: oc-reader-0001 }
+  secrets: { client_secret: extrahop-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://example-shop.api.cloud.extrahop.com/oauth2/token", body: { access_token: test-access-token, token_type: bearer, expires_in: 600 } }
+    - { method: POST, url: "https://example-shop.api.cloud.extrahop.com/api/v1/detections/search", file: fixtures/detections.json }
+    - { url: "https://example-shop.api.cloud.extrahop.com/api/v1/investigations", file: fixtures/investigations.json }
+  expect:
+    detections: { records: 3, logs: 3, rerun: 0, golden: fixtures/detections.expected.json }
+    investigations: { records: 2, logs: 2, rerun: 0, golden: fixtures/investigations.expected.json }
+    test: { ok: true, message: "example-shop" }

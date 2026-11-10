@@ -1,0 +1,141 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Plivo (https://www.plivo.com/docs/): message detail records (SMS, MMS, WhatsApp) and call detail records of an
+# account, read from Plivo's REST API, as the logs Datadog's integration sends (source:plivo, service:messages and
+# service:voice, the record's fields at the top). integrations-core's Plivo pipeline, dashboards (Messages, Voice
+# Calls) and monitors read them as they are, so this package ships none: saving a connection installs the tile's.
+schema_version: 1
+id: plivo
+name: Plivo
+publisher: ObserveCraft
+vendor: Plivo
+description: >-
+  Message detail records (SMS, MMS, WhatsApp: state, cost, errors, destination) and call detail records (duration,
+  billed duration, cost, hangup cause) of a Plivo account or subaccount, read from Plivo's REST API as logs.
+tiles: [plivo]
+categories: [Log Collection, Collaboration, Notifications]
+docs_url: https://www.plivo.com/docs/messaging/api/message/list-all-messages
+setup: |
+  1. In the [Plivo console](https://cx.plivo.com/), open the **Overview** page of the account (or of a subaccount, to
+     read only its records).
+  2. Copy its **Auth ID** and **Auth Token**.
+  3. Messages are read once they settle: ObserveCraft reads messages sent up to 3 hours ago (Plivo's default message
+     expiry), calls as soon as they end.
+links:
+  - { label: Plivo console, url: "https://cx.plivo.com/" }
+instance: "{{ config.auth_id }}"
+
+config:
+  - key: auth_id
+    label: Auth ID
+    type: string
+    required: true
+    pattern: "[A-Z0-9]+"
+    placeholder: MAXXXXXXXXXXXXXXXXXX
+    help: The account's or subaccount's Auth ID, from the Plivo console.
+  - key: auth_token
+    label: Auth Token
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: basic
+  username: "{{ config.auth_id }}"
+  password: "{{ secrets.auth_token }}"
+
+# Plivo allows 300 read requests per 5 seconds; stay well below.
+rate_limit: { requests_per_minute: 300 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Plivo refused the Auth ID and Auth Token
+  - status: [404]
+    kind: access_denied
+    message: "No Plivo account {{ config.auth_id }}: check the Auth ID"
+
+streams:
+  - id: messages
+    name: Messages
+    description: >-
+      One log per message detail record (service:messages): message_state, message_type, message_direction,
+      total_amount, error_code, destination_country_iso2 and the other fields of the record. Read once the message has
+      settled (3 hours after it was sent).
+    interval: 10m
+    request:
+      url: "https://api.plivo.com/v1/Account/{{ config.auth_id }}/Message/"
+      query:
+        message_time__gte: "{{ window.start | strftime('%Y-%m-%d %H:%M:%S') }}"
+        message_time__lt: "{{ window.end | strftime('%Y-%m-%d %H:%M:%S') }}"
+        limit: 20
+        offset: "{{ page.offset }}"
+    records: "{{ response.objects }}"
+    pagination: { kind: offset, size: 20 }
+    max_pages: 200
+    record_id: "{{ record.message_uuid }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.message_time }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 5m
+      # Plivo's default message expiry: a message's state is final 3 hours after it was sent.
+      settle: 3h
+    output:
+      logs:
+        service: messages
+        message: >-
+          {{ (record.message_type ?? 'message') | upper }} {{ record.message_direction }} {{ record.from_number }} → {{ record.to_number }}: {{ record.message_state }}
+        status: "{{ record.message_state in ['failed', 'undelivered', 'rejected'] ? 'error' : 'info' }}"
+        date: "{{ record.message_time }}"
+        attributes: "{{ record }}"
+
+  - id: calls
+    name: Voice calls
+    description: >-
+      One log per call detail record of a call that ended (service:voice): call_direction, call_duration,
+      bill_duration, total_amount, hangup_cause_name, hangup_source and the other fields of the record.
+    interval: 5m
+    request:
+      url: "https://api.plivo.com/v1/Account/{{ config.auth_id }}/Call/"
+      query:
+        end_time__gte: "{{ window.start | strftime('%Y-%m-%d %H:%M:%S') }}"
+        end_time__lt: "{{ window.end | strftime('%Y-%m-%d %H:%M:%S') }}"
+        limit: 20
+        offset: "{{ page.offset }}"
+    records: "{{ response.objects }}"
+    pagination: { kind: offset, size: 20 }
+    max_pages: 200
+    record_id: "{{ record.call_uuid }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.end_time }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        service: voice
+        message: >-
+          Call {{ record.call_direction }} {{ record.from_number }} → {{ record.to_number }}: {{ record.hangup_cause_name ?? 'ended' }} after {{ record.call_duration ?? 0 }}s
+        status: "{{ (record.hangup_cause_code ?? 4000) | int >= 5000 ? 'error' : 'info' }}"
+        date: "{{ record.end_time }}"
+        attributes: "{{ record }}"
+
+test:
+  request: { url: "https://api.plivo.com/v1/Account/{{ config.auth_id }}/" }
+  success: "{{ response.auth_id }}"
+  message: "Connected to {{ response.name ?? response.auth_id }} ({{ response.account_type ?? 'account' }})"
+
+mock:
+  config: { auth_id: MAEXAMPLE0000000000A }
+  secrets: { auth_token: plivo-test-token }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.plivo.com/v1/Account/MAEXAMPLE0000000000A/Message/", file: fixtures/messages.json }
+    - { url: "https://api.plivo.com/v1/Account/MAEXAMPLE0000000000A/Call/", file: fixtures/calls.json }
+    - { url: "https://api.plivo.com/v1/Account/MAEXAMPLE0000000000A/", file: fixtures/account.json }
+  expect:
+    messages: { records: 3, logs: 3, rerun: 0, golden: fixtures/messages.expected.json }
+    calls: { records: 2, logs: 2, rerun: 0, golden: fixtures/calls.expected.json }
+    test: { ok: true, message: "Example Shop" }

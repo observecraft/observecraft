@@ -1,0 +1,934 @@
+[
+  {
+    "id": "twilio-overview",
+    "title": "Twilio - Overview",
+    "description": "A Twilio account's debugger alerts, account events, message deliveries and call summaries.",
+    "kind": "integration",
+    "logo": "twilio",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "twilio-1",
+        "definition": {
+          "type": "group",
+          "title": "",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "twilio-2",
+              "definition": {
+                "type": "note",
+                "content": "**Twilio** sends and receives SMS, WhatsApp messages and calls through an API. This dashboard reads the account (source `twilio`): the Debugger's alerts by error code, messages that failed or weren't delivered, call summaries, and account changes such as new API keys. Message bodies are never collected. Daily spend is in Cloud Cost Management (provider `twilio`).\n\nConnect an account in [Integrations → Twilio](/integrations/connectors/twilio) with a Standard API key.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "id": "twilio-9",
+        "definition": {
+          "type": "group",
+          "title": "Alerts",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "twilio-3",
+              "definition": {
+                "type": "integration",
+                "title": "Alerts",
+                "original": {
+                  "type": "query_value",
+                  "title": "Alerts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:alerts"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "twilio-4",
+              "definition": {
+                "type": "integration",
+                "title": "Errors",
+                "original": {
+                  "type": "query_value",
+                  "title": "Errors",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:alerts status:error"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "twilio-5",
+              "definition": {
+                "type": "integration",
+                "title": "Undelivered messages",
+                "original": {
+                  "type": "query_value",
+                  "title": "Undelivered messages",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:messages status:error"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "twilio-6",
+              "definition": {
+                "type": "integration",
+                "title": "Account events",
+                "original": {
+                  "type": "query_value",
+                  "title": "Account events",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "twilio-7",
+              "definition": {
+                "type": "integration",
+                "title": "Alerts by error code",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Alerts by error code",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:alerts"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@error.code",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "twilio-8",
+              "definition": {
+                "type": "integration",
+                "title": "Top alerts",
+                "original": {
+                  "type": "toplist",
+                  "title": "Top alerts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:alerts"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@error.message",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "warm"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 13
+        }
+      },
+      {
+        "id": "twilio-15",
+        "definition": {
+          "type": "group",
+          "title": "Messages",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "twilio-10",
+              "definition": {
+                "type": "integration",
+                "title": "Messages by status",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Messages by status",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:messages"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@delivery_status",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "twilio-11",
+              "definition": {
+                "type": "integration",
+                "title": "Direction",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Direction",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:messages"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@direction",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 20,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 6
+              }
+            },
+            {
+              "id": "twilio-12",
+              "definition": {
+                "type": "integration",
+                "title": "Delivery errors",
+                "original": {
+                  "type": "sunburst",
+                  "title": "Delivery errors",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:messages status:error"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@error.code",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 20,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "legend": {
+                    "type": "inline"
+                  }
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 6
+              }
+            },
+            {
+              "id": "twilio-13",
+              "definition": {
+                "type": "integration",
+                "title": "Messaging services",
+                "original": {
+                  "type": "toplist",
+                  "title": "Messaging services",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:messages"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@messaging_service_sid",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "dog_classic"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "twilio-14",
+              "definition": {
+                "type": "integration",
+                "title": "Segments sent",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Segments sent",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:messages @direction:outbound*"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "sum",
+                            "metric": "@num_segments"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 19,
+          "w": 12,
+          "h": 15
+        }
+      },
+      {
+        "id": "twilio-19",
+        "definition": {
+          "type": "group",
+          "title": "Calls and account",
+          "color": "green",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "twilio-16",
+              "definition": {
+                "type": "integration",
+                "title": "Calls by state",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Calls by state",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:calls"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@call_state",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "twilio-17",
+              "definition": {
+                "type": "integration",
+                "title": "Account events",
+                "original": {
+                  "type": "toplist",
+                  "title": "Account events",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:twilio service:events"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "dog_classic"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "twilio-18",
+              "definition": {
+                "type": "log_stream",
+                "title": "Account events",
+                "query": "source:twilio service:events",
+                "limit": 50
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 12,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 34,
+          "w": 12,
+          "h": 17
+        }
+      }
+    ],
+    "source": {
+      "repository": "connector:twilio",
+      "path": "assets/dashboards/overview.json",
+      "license": "MIT"
+    }
+  }
+]

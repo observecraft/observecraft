@@ -1,0 +1,45 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c41b-be78-7f6d-8956-2679dac96ac9"
+      },
+      "application": "Google Drive",
+      "classifylabels": "Confidential",
+      "createdtime": "02 Nov 2026 10:00:00",
+      "date": 1794291515000,
+      "ddsource": "forcepoint-security-service-edge",
+      "dlpmatchlocations": "Sheet1!B2:B40",
+      "enterprisename": "Example Shop",
+      "fileid": "1AbCdEfGh0000000000000000001",
+      "filelink": "https://drive.example.com/file/1AbCdEfGh0000000000000000001",
+      "filename": "q4-pricing.xlsx",
+      "folder": "/My Drive/Pricing",
+      "host": "portal.bitglass.com",
+      "level": "info",
+      "message": "{\"message\":\"Google Drive: q4-pricing.xlsx (jane.doe@example.com): Credit Card Numbers\",\"status\":\"Internal, Shared, DLP\"}",
+      "modifiedtime": "10 Nov 2026 06:10:00",
+      "organization": "example.com",
+      "originalfolder": "/My Drive/Pricing",
+      "originalpatterns": "Credit Card Numbers",
+      "owner": "jane.doe@example.com",
+      "patterns": "Credit Card Numbers",
+      "policyid": "200101",
+      "service": "forcepoint-sse-cloudsummary",
+      "sharedwith": "partner@example.net",
+      "size": "48211",
+      "syslogheader": "<110>1 2026-11-10T06:18:35.000000Z api.bitglass.com NILVALUE NILVALUE cloudsummary",
+      "time": "10 Nov 2026 06:18:35"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "cloudsummary-t1"
+      }
+    }
+  }
+}

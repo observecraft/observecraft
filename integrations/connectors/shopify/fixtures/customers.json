@@ -1,0 +1,12 @@
+{
+  "data": {
+    "customers": {
+      "pageInfo": { "hasNextPage": false, "endCursor": "eyJsYXN0X2lkIjo3MDAwMDAwMDAyfQ" },
+      "nodes": [
+        { "id": "gid://shopify/Customer/7000000002", "legacyResourceId": "7000000002", "displayName": "Sam Example", "note": "", "state": "ENABLED", "taxExempt": false, "verifiedEmail": true, "validEmailAddress": true, "canDelete": false, "dataSaleOptOut": false, "productSubscriberStatus": "NEVER_SUBSCRIBED", "lifetimeDuration": "about 1 year", "numberOfOrders": "4", "createdAt": "2025-10-02T08:00:00Z", "updatedAt": "2026-11-09T19:02:13Z", "amountSpent": { "amount": "312.40", "currencyCode": "USD" }, "lastOrder": { "totalPriceSet": { "shopMoney": { "amount": "43.6", "currencyCode": "USD" } } }, "defaultAddress": { "city": "Berlin", "country": "Germany", "countryCodeV2": "DE" }, "emailMarketingConsent": { "marketingState": "NOT_SUBSCRIBED", "marketingOptInLevel": "SINGLE_OPT_IN", "consentUpdatedAt": null }, "smsMarketingConsent": null },
+        { "id": "gid://shopify/Customer/7000000001", "legacyResourceId": "7000000001", "displayName": "Jane Example", "note": "", "state": "ENABLED", "taxExempt": false, "verifiedEmail": true, "validEmailAddress": true, "canDelete": false, "dataSaleOptOut": false, "productSubscriberStatus": "NEVER_SUBSCRIBED", "lifetimeDuration": "3 months", "numberOfOrders": "1", "createdAt": "2026-08-10T12:00:00Z", "updatedAt": "2026-11-10T10:22:10Z", "amountSpent": { "amount": "127.44", "currencyCode": "USD" }, "lastOrder": { "totalPriceSet": { "shopMoney": { "amount": "127.44", "currencyCode": "USD" } } }, "defaultAddress": { "city": "Portland", "country": "United States", "countryCodeV2": "US" }, "emailMarketingConsent": { "marketingState": "SUBSCRIBED", "marketingOptInLevel": "SINGLE_OPT_IN", "consentUpdatedAt": "2026-08-10T12:00:00Z" }, "smsMarketingConsent": { "marketingState": "NOT_SUBSCRIBED", "marketingOptInLevel": "SINGLE_OPT_IN", "consentCollectedFrom": "SHOPIFY" } }
+      ]
+    }
+  },
+  "extensions": { "cost": { "requestedQueryCost": 52, "actualQueryCost": 6, "throttleStatus": { "maximumAvailable": 2000.0, "currentlyAvailable": 1994, "restoreRate": 100.0 } } }
+}

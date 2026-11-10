@@ -1,0 +1,55 @@
+{
+  "queryEndTime": "2026-11-10T11:59:00Z",
+  "clicksBlocked": [
+    {
+      "id": "1f2e0000-0000-4000-8000-00000000c001", "GUID": "b27d0000-0000-4000-8000-000000000001", "messageID": "<20261110.1001@mail.example.net>",
+      "campaignId": "4a6e0000-0000-4000-8000-0000000000a1", "classification": "phish", "clickIP": "203.0.113.24",
+      "clickTime": "2026-11-10T11:20:44.000Z", "threatTime": "2026-11-10T11:18:02.000Z", "threatID": "5d1f00000000000000000000000000000000000000000000000000000000c001",
+      "threatStatus": "active", "threatURL": "https://threatinsight.proofpoint.com/#/0a1b2c3d-0000-4000-8000-00000000c0de/threat/u/5d1f00000000000000000000000000000000000000000000000000000000c001",
+      "url": "http://login-update.example.net/account", "recipient": "jane.doe@example.com", "sender": "it-support@example.net", "senderIP": "198.51.100.66",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+    }
+  ],
+  "clicksPermitted": [
+    {
+      "id": "1f2e0000-0000-4000-8000-00000000c002", "GUID": "b27d0000-0000-4000-8000-000000000002", "messageID": "<20261110.1002@mail.example.org>",
+      "campaignId": null, "classification": "spam", "clickIP": "203.0.113.57",
+      "clickTime": "2026-11-10T11:31:10.000Z", "threatTime": "2026-11-10T11:40:00.000Z", "threatID": "5d1f00000000000000000000000000000000000000000000000000000000c002",
+      "threatStatus": "cleared", "threatURL": "https://threatinsight.proofpoint.com/#/0a1b2c3d-0000-4000-8000-00000000c0de/threat/u/5d1f00000000000000000000000000000000000000000000000000000000c002",
+      "url": "http://deals.example.org/black-friday", "recipient": "sam.lee@example.com", "sender": "offers@example.org", "senderIP": "198.51.100.12",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    }
+  ],
+  "messagesBlocked": [
+    {
+      "id": "1f2e0000-0000-4000-8000-00000000m001", "GUID": "c26d0000-0000-4000-8000-000000000001", "QID": "r2FNwRHF004109", "messageID": "<20261110.2001@mail.example.net>",
+      "messageTime": "2026-11-10T11:05:38.000Z", "subject": "Invoice for your last order", "sender": "billing@example.net", "fromAddress": ["billing@example.net"],
+      "headerFrom": "\"Billing\" <billing@example.net>", "headerTo": "\"Jane Doe\" <jane.doe@example.com>", "headerCC": "", "headerReplyTo": null,
+      "recipient": ["jane.doe@example.com"], "ccAddresses": [], "toAddresses": ["jane.doe@example.com"], "replyToAddress": [], "senderIP": "198.51.100.66",
+      "clusterId": "example_hosted", "completelyRewritten": "true", "impostorScore": 0, "malwareScore": 100, "phishScore": 46, "spamScore": 4,
+      "policyRoutes": ["default_inbound"], "modulesRun": ["sandbox", "urldefense", "spam", "av"], "quarantineFolder": "Attachment Defense", "quarantineRule": "module.sandbox.threat",
+      "messageSize": 48211,
+      "messageParts": [
+        { "disposition": "inline", "filename": "text.txt", "contentType": "text/plain", "oContentType": "text/plain", "sandboxStatus": "unsupported", "md5": "008c5926ca861023c1d2a36653fd88e2", "sha256": "85738f8f9a7f1b04b5329c590ebcb9e425925c6d0984089c43a022de4f19c281" },
+        { "disposition": "attached", "filename": "invoice-2026-11.pdf", "contentType": "application/pdf", "oContentType": "application/pdf", "sandboxStatus": "threat", "md5": "5873c7d37608e0d49bcaa6f32b6c731f", "sha256": "2fab740f143fc1aa4c1cd0146d334c5593b1428f6d062b2c406e5efe8abe95ca" }
+      ],
+      "threatsInfoMap": [
+        { "threatID": "2fab740f143fc1aa4c1cd0146d334c5593b1428f6d062b2c406e5efe8abe95ca", "threat": "2fab740f143fc1aa4c1cd0146d334c5593b1428f6d062b2c406e5efe8abe95ca", "threatType": "attachment", "classification": "malware", "threatStatus": "active", "threatTime": "2026-11-10T11:05:40.000Z", "campaignId": "4a6e0000-0000-4000-8000-0000000000a1", "threatUrl": "https://threatinsight.proofpoint.com/#/0a1b2c3d-0000-4000-8000-00000000c0de/threat/email/2fab740f143fc1aa4c1cd0146d334c5593b1428f6d062b2c406e5efe8abe95ca" }
+      ]
+    }
+  ],
+  "messagesDelivered": [
+    {
+      "id": "1f2e0000-0000-4000-8000-00000000m002", "GUID": "c26d0000-0000-4000-8000-000000000002", "QID": "r2FNwRHF004188", "messageID": "<20261110.2002@mail.example.org>",
+      "messageTime": "2026-11-10T11:12:02.000Z", "subject": "Your weekly catalog update", "sender": "news@example.org", "fromAddress": ["news@example.org"],
+      "headerFrom": "\"Catalog News\" <news@example.org>", "headerTo": "\"Sam Lee\" <sam.lee@example.com>", "headerCC": "", "headerReplyTo": null,
+      "recipient": ["sam.lee@example.com"], "ccAddresses": [], "toAddresses": ["sam.lee@example.com"], "replyToAddress": [], "senderIP": "198.51.100.12",
+      "clusterId": "example_hosted", "completelyRewritten": "true", "impostorScore": 0, "malwareScore": 0, "phishScore": 0, "spamScore": 62,
+      "policyRoutes": ["default_inbound"], "modulesRun": ["urldefense", "spam", "av"], "quarantineFolder": null, "quarantineRule": null,
+      "messageSize": 18342, "messageParts": [],
+      "threatsInfoMap": [
+        { "threatID": "9a0b00000000000000000000000000000000000000000000000000000000m002", "threat": "http://deals.example.org/black-friday", "threatType": "url", "classification": "spam", "threatStatus": "cleared", "threatTime": "2026-11-10T11:40:00.000Z", "campaignId": null, "threatUrl": "https://threatinsight.proofpoint.com/#/0a1b2c3d-0000-4000-8000-00000000c0de/threat/email/9a0b00000000000000000000000000000000000000000000000000000000m002" }
+      ]
+    }
+  ]
+}

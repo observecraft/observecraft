@@ -1,0 +1,781 @@
+[
+  {
+    "id": "salesforce-overview",
+    "title": "Salesforce - Overview",
+    "description": "A Salesforce org's Event Monitoring logs and its limits.",
+    "kind": "integration",
+    "logo": "salesforce",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "salesforce-1",
+        "definition": {
+          "type": "group",
+          "title": "",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "salesforce-2",
+              "definition": {
+                "type": "note",
+                "content": "**Salesforce** is a CRM platform. This dashboard reads an org's Event Monitoring log files (source `salesforce`: logins and their failures, API calls, reports run and exported, pages viewed) and its limits (`salesforce.limits.*`: daily API requests, storage).\n\nConnect an org in [Integrations → Salesforce](/integrations/connectors/salesforce) with an External Client App using the client credentials flow.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "id": "salesforce-9",
+        "definition": {
+          "type": "group",
+          "title": "Limits",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "salesforce-3",
+              "definition": {
+                "type": "integration",
+                "title": "API requests left today",
+                "original": {
+                  "type": "query_value",
+                  "title": "API requests left today",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:salesforce.limits.remaining{limit_name:DailyApiRequests}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "salesforce-4",
+              "definition": {
+                "type": "integration",
+                "title": "Data storage left (MB)",
+                "original": {
+                  "type": "query_value",
+                  "title": "Data storage left (MB)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:salesforce.limits.remaining{limit_name:DataStorageMB}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "salesforce-5",
+              "definition": {
+                "type": "integration",
+                "title": "File storage left (MB)",
+                "original": {
+                  "type": "query_value",
+                  "title": "File storage left (MB)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:salesforce.limits.remaining{limit_name:FileStorageMB}",
+                          "aggregator": "last"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "salesforce-6",
+              "definition": {
+                "type": "integration",
+                "title": "Events",
+                "original": {
+                  "type": "query_value",
+                  "title": "Events",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:salesforce"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "salesforce-7",
+              "definition": {
+                "type": "integration",
+                "title": "Daily API requests left",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Daily API requests left",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:salesforce.limits.remaining{limit_name:DailyApiRequests}"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "salesforce-8",
+              "definition": {
+                "type": "integration",
+                "title": "Limits by remaining",
+                "original": {
+                  "type": "toplist",
+                  "title": "Limits by remaining",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:salesforce.limits.remaining{*} by {limit_name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "dog_classic"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 13
+        }
+      },
+      {
+        "id": "salesforce-16",
+        "definition": {
+          "type": "group",
+          "title": "Events",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "salesforce-10",
+              "definition": {
+                "type": "integration",
+                "title": "Events by type",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Events by type",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:salesforce"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@evt.name",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "salesforce-11",
+              "definition": {
+                "type": "integration",
+                "title": "Most active users",
+                "original": {
+                  "type": "toplist",
+                  "title": "Most active users",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:salesforce"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@USER_NAME",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "dog_classic"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "salesforce-12",
+              "definition": {
+                "type": "integration",
+                "title": "Logins by status",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Logins by status",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:salesforce @evt.name:Login"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@LOGIN_STATUS",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "salesforce-13",
+              "definition": {
+                "type": "integration",
+                "title": "Failed logins by IP",
+                "original": {
+                  "type": "toplist",
+                  "title": "Failed logins by IP",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:salesforce @evt.name:Login -@LOGIN_STATUS:LOGIN_NO_ERROR"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "warm"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "salesforce-14",
+              "definition": {
+                "type": "integration",
+                "title": "Reports run",
+                "original": {
+                  "type": "toplist",
+                  "title": "Reports run",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:salesforce @evt.name:Report"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@REPORT_ID_DERIVED",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "dog_classic"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 12,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "salesforce-15",
+              "definition": {
+                "type": "integration",
+                "title": "Rows exported by user",
+                "original": {
+                  "type": "toplist",
+                  "title": "Rows exported by user",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:salesforce @evt.name:Report"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "sum",
+                            "metric": "@ROW_COUNT"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@usr.id",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "dog_classic"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 12,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 19,
+          "w": 12,
+          "h": 21
+        }
+      }
+    ],
+    "source": {
+      "repository": "connector:salesforce",
+      "path": "assets/dashboards/overview.json",
+      "license": "MIT"
+    }
+  }
+]

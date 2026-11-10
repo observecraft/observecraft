@@ -1,0 +1,15 @@
+{
+  "usage_records": [
+    { "account_sid": "ACexample_account_sid", "category": "sms-outbound", "description": "Outbound SMS", "start_date": "2026-11-09", "end_date": "2026-11-09",
+      "count": "1520", "count_unit": "messages", "usage": "1520", "usage_unit": "segments", "price": "12.008", "price_unit": "usd" },
+    { "account_sid": "ACexample_account_sid", "category": "calls-outbound", "description": "Outbound Voice Minutes", "start_date": "2026-11-09", "end_date": "2026-11-09",
+      "count": "210", "count_unit": "calls", "usage": "455", "usage_unit": "minutes", "price": "6.37", "price_unit": "usd" },
+    { "account_sid": "ACexample_account_sid", "category": "phonenumbers", "description": "Phone Numbers", "start_date": "2026-11-10", "end_date": "2026-11-10",
+      "count": "3", "count_unit": "phone-numbers", "usage": "3", "usage_unit": "phone-numbers", "price": "0.1", "price_unit": "usd" },
+    { "account_sid": "ACexample_account_sid", "category": "totalprice", "description": "Total Price", "start_date": "2026-11-09", "end_date": "2026-11-09",
+      "count": "0", "count_unit": "", "usage": "18.378", "usage_unit": "usd", "price": "18.378", "price_unit": "usd" },
+    { "account_sid": "ACexample_account_sid", "category": "mms", "description": "MMS", "start_date": "2026-11-09", "end_date": "2026-11-09",
+      "count": "0", "count_unit": "messages", "usage": "0", "usage_unit": "segments", "price": "0", "price_unit": "usd" }
+  ],
+  "next_page_uri": null, "page": 0, "page_size": 1000
+}

@@ -1,0 +1,119 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Klaviyo (https://developers.klaviyo.com/en/reference/get_events): every profile event, as the logs Datadog's
+# integration sends (source:klaviyo, the event resource as Klaviyo answers it plus metric_name, the event's metric,
+# and profile_id). integrations-core's log pipeline (which sorts metric names into marketing-events,
+# ecommerce-events and other-events) and its two dashboards for the tile read them as they are.
+schema_version: 1
+id: klaviyo
+name: Klaviyo
+publisher: ObserveCraft
+vendor: Klaviyo
+description: >-
+  Every Klaviyo event of an account (emails and SMS received, opened, clicked, bounced; orders placed, checkouts
+  started, products viewed; flows and forms), one log per event with its metric name and profile, read from
+  Klaviyo's API.
+tiles: [klaviyo]
+categories: [Log Collection]
+source: klaviyo
+docs_url: https://developers.klaviyo.com/en/reference/get_events
+setup: |
+  1. In Klaviyo, open **Settings → Account → API keys** and **Create Private API Key**, e.g. `observecraft`.
+  2. Choose **Custom Key** with read access to **Events** and **Metrics** (and **Accounts**); copy the key
+     (`pk_…`).
+instance: "{{ config.account ?? 'klaviyo' }}"
+
+config:
+  - key: account
+    label: Name for this account
+    type: string
+    placeholder: example-store
+    help: Shown as the logs' host; any name.
+  - key: api_key
+    label: Private API key
+    type: string
+    secret: true
+    required: true
+    placeholder: pk_…
+
+auth:
+  kind: api_key
+  name: Authorization
+  value: "Klaviyo-API-Key {{ secrets.api_key }}"
+
+headers:
+  revision: "2025-10-15"
+  Accept: application/vnd.api+json
+
+# Events: 350 a second in bursts, 3,500 a minute steady; metrics: 10 a second, 150 a minute.
+rate_limit: { requests_per_minute: 120 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Klaviyo refused the private API key
+  - status: [403]
+    kind: access_denied
+    message: The private API key lacks read access to Events or Metrics
+
+streams:
+  - id: events
+    name: Events
+    description: >-
+      Every event as a log (source:klaviyo): id, attributes (datetime, uuid, event_properties), metric_name (the
+      event's metric, e.g. Opened Email, Placed Order) and profile_id; the tile's pipeline picks the service.
+    interval: 5m
+    max_pages: 50
+    lookups:
+      - name: metrics
+        request: { url: https://a.klaviyo.com/api/metrics }
+        records: "{{ response.data }}"
+        pagination: { kind: next_url, next: "{{ response.links.next }}" }
+        key: "{{ record.id }}"
+        value: "{{ record.attributes.name }}"
+        ttl: 1h
+    request:
+      url: https://a.klaviyo.com/api/events
+      query:
+        filter: "{{ 'greater-or-equal(datetime,' + (window.start | rfc3339_s) + '),less-than(datetime,' + (window.end | rfc3339_s) + ')' }}"
+        sort: datetime
+    records: "{{ response.data }}"
+    pagination: { kind: next_url, next: "{{ response.links.next }}" }
+    record_id: "{{ record.id }}"
+    vars:
+      metric: "{{ lookups.metrics[record.relationships.metric.data.id] ?? record.relationships.metric.data.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.attributes.datetime }}"
+      order: oldest_first
+      lookback: 1d
+      # Integrations can send events up to an hour late.
+      overlap: 1h
+      settle: 1m
+    output:
+      logs:
+        message: "{{ vars.metric + (' (' + record.attributes.event_properties['Campaign Name'] + ')' ?? '') }}"
+        date: "{{ record.attributes.datetime }}"
+        attributes:
+          id: "{{ record.id }}"
+          type: "{{ record.type }}"
+          metric_name: "{{ vars.metric }}"
+          profile_id: "{{ record.relationships.profile.data.id }}"
+          attributes: "{{ record.attributes }}"
+          links: "{{ record.links }}"
+
+test:
+  request: { url: https://a.klaviyo.com/api/accounts }
+  message: "Connected to {{ response.data[0].attributes.contact_information.organization_name ?? 'the Klaviyo account' }}"
+
+mock:
+  config: { account: example-store }
+  secrets: { api_key: pk_test_0000000000000000000000000000000000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://a.klaviyo.com/api/metrics", file: fixtures/metrics.json }
+    - { url: "https://a.klaviyo.com/api/events", query: { "page[cursor]": "bmV4dDo6aWQ6OjU" }, file: fixtures/events-2.json }
+    - { url: "https://a.klaviyo.com/api/events", file: fixtures/events-1.json }
+    - { url: "https://a.klaviyo.com/api/accounts", body: { data: [{ type: account, id: "XyZ123", attributes: { contact_information: { organization_name: Example Store, default_sender_email: shop@example.com } } }] } }
+  expect:
+    events: { records: 3, logs: 3, rerun: 0, golden: fixtures/events.expected.json }
+    test: { ok: true, message: "Connected to Example Store" }

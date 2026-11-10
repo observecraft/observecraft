@@ -1,0 +1,99 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.workers.requests",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "worker",
+          "edge-router"
+        ]
+      ],
+      "time_ms": 1794311400000,
+      "value": 5000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.workers.errors",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "worker",
+          "edge-router"
+        ]
+      ],
+      "time_ms": 1794311400000,
+      "value": 3.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.workers.subrequests",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "worker",
+          "edge-router"
+        ]
+      ],
+      "time_ms": 1794311400000,
+      "value": 1200.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "cloudflare.workers.cpu_time.p50",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "worker",
+          "edge-router"
+        ]
+      ],
+      "time_ms": 1794311400000,
+      "value": 1.2
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "cloudflare.workers.cpu_time.p99",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "worker",
+          "edge-router"
+        ]
+      ],
+      "time_ms": 1794311400000,
+      "value": 7.9
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311700000
+      }
+    }
+  }
+}

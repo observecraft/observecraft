@@ -43,6 +43,16 @@
       ]
     },
     {
+      "type": "Microsoft.Web/sites (functionapp)",
+      "name": "Azure Functions",
+      "id": "azure-functions",
+      "prefix": "azure.functions",
+      "categories": [
+        "Azure",
+        "Languages"
+      ]
+    },
+    {
       "type": "Microsoft.Web/serverFarms",
       "name": "Azure App Service Plan",
       "id": "azure-web-serverfarms",
@@ -114,6 +124,46 @@
       ]
     },
     {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "name": "Azure Blob Storage",
+      "id": "azure-storage-storageaccounts-blobservices",
+      "prefix": "azure.storage_storageaccounts_blobservices",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices",
+      "name": "Azure File Storage",
+      "id": "azure-storage-storageaccounts-fileservices",
+      "prefix": "azure.storage_storageaccounts_fileservices",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/queueServices",
+      "name": "Azure Queue Storage",
+      "id": "azure-storage-storageaccounts-queueservices",
+      "prefix": "azure.storage_storageaccounts_queueservices",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/tableServices",
+      "name": "Azure Table Storage",
+      "id": "azure-storage-storageaccounts-tableservices",
+      "prefix": "azure.storage_storageaccounts_tableservices",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
       "type": "Microsoft.Sql/servers/databases",
       "name": "Azure SQL Database",
       "id": "azure-sql-servers-databases",
@@ -178,6 +228,17 @@
       "name": "Azure Cache for Redis",
       "id": "azure-cache-redis",
       "prefix": "azure.cache_redis",
+      "categories": [
+        "Azure",
+        "Caching",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Cache/redisEnterprise",
+      "name": "Azure Managed Redis",
+      "id": "azure-cache-redisenterprise",
+      "prefix": "azure.cache_redisenterprise",
       "categories": [
         "Azure",
         "Caching",
@@ -278,6 +339,16 @@
       ]
     },
     {
+      "type": "Microsoft.Network/privateDnsZones",
+      "name": "Azure Private DNS",
+      "id": "azure-network-privatednszones",
+      "prefix": "azure.network_privatednszones",
+      "categories": [
+        "Azure",
+        "Network"
+      ]
+    },
+    {
       "type": "Microsoft.Network/trafficManagerProfiles",
       "name": "Azure Traffic Manager",
       "id": "azure-network-trafficmanagerprofiles",
@@ -323,6 +394,16 @@
       "name": "Azure Event Grid",
       "id": "azure-eventgrid-topics",
       "prefix": "azure.eventgrid_topics",
+      "categories": [
+        "Azure",
+        "Message Queues"
+      ]
+    },
+    {
+      "type": "Microsoft.EventGrid/systemTopics",
+      "name": "Azure Event Grid System Topics",
+      "id": "azure-eventgrid-systemtopics",
+      "prefix": "azure.eventgrid_systemtopics",
       "categories": [
         "Azure",
         "Message Queues"
@@ -510,6 +591,16 @@
       ]
     },
     {
+      "type": "Microsoft.DataProtection/backupVaults",
+      "name": "Azure Backup Vault",
+      "id": "azure-dataprotection-backupvaults",
+      "prefix": "azure.dataprotection_backupvaults",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
       "type": "Microsoft.Insights/components",
       "name": "Azure Application Insights",
       "id": "azure-insights-components",
@@ -524,6 +615,16 @@
       "name": "Azure Log Analytics",
       "id": "azure-operationalinsights-workspaces",
       "prefix": "azure.operationalinsights_workspaces",
+      "categories": [
+        "Azure",
+        "Log Collection"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "name": "Azure Monitor Data Collection Rules",
+      "id": "azure-insights-datacollectionrules",
+      "prefix": "azure.insights_datacollectionrules",
       "categories": [
         "Azure",
         "Log Collection"

@@ -1,6 +1,7 @@
 // In-browser stand-in for Integrations → FleetDM (routes/fleetdm_integration.rs). The connection lives in memory
 // for the session; any token of 20 characters or more is accepted. Once saved, the last syncs follow the poller's
-// minute. `fleetdmLogs` is the mock activity feed (`source:fleetdm`), shaped as crate::fleetdm::logs makes it.
+// minute. `fleetdmLogs` is the mock activity feed (`source:fleetdm`), shaped as crate::fleetdm::logs makes it and the
+// FleetDM log pipeline completes it (`fleetdm.category`).
 import type { components } from '../generated/schema';
 import type { JsonValue, LogEvent, LogStatus } from '../types';
 import type { Rand } from './generator';
@@ -36,6 +37,9 @@ function status(): Status {
 }
 
 export const fleetdmStatus = (): Promise<Status> => delay(status());
+
+/** Whether the mock connection is saved: the catalog tile is installed, as the server counts a saved connection. */
+export const fleetdmConnected = (): boolean => !!saved;
 
 export function testFleetdm(input: Input): Promise<Test> {
   const baseUrl = checkedUrl(input);
@@ -101,9 +105,23 @@ const ACTIVITIES: [string, number, (r: Rand) => Record<string, JsonValue>][] = [
   ['wiped_host', 1, () => ({})],
   ['read_host_disk_encryption_key', 2, () => ({})],
   ['transferred_hosts', 2, () => ({ team_name: 'Workstations' })],
+  ['mdm_enrolled', 3, () => ({ host_serial: 'C02ABC123XYZ', installed_from_dep: true, mdm_platform: 'apple' })],
+  ['created_macos_profile', 2, (r) => ({ profile_name: pick(r, ['Wi-Fi', 'FileVault', 'Screen lock']) })],
+  ['enabled_macos_disk_encryption', 1, () => ({})],
 ];
+
+/** The FleetDM log pipeline's category of an activity. */
+function category(type: string): string {
+  if (type.startsWith('user_')) return 'authentication';
+  if (['ran_script', 'locked_host', 'wiped_host', 'read_host_disk_encryption_key', 'transferred_hosts'].includes(type)) return 'host_action';
+  if (type.endsWith('_software')) return 'software';
+  if (type.startsWith('mdm_') || type.endsWith('_profile') || type.endsWith('_disk_encryption')) return 'mdm';
+  if (type.endsWith('_policy')) return 'policy';
+  if (type === 'live_query' || type.endsWith('_saved_query')) return 'query';
+  return 'configuration';
+}
 /** Activities about one host. */
-const ON_HOST = ['ran_script', 'installed_software', 'locked_host', 'wiped_host', 'read_host_disk_encryption_key'];
+const ON_HOST = ['ran_script', 'installed_software', 'locked_host', 'wiped_host', 'read_host_disk_encryption_key', 'mdm_enrolled'];
 const TOTAL = ACTIVITIES.reduce((n, a) => n + a[1], 0);
 const WARNINGS = ['locked_host', 'wiped_host', 'read_host_disk_encryption_key'];
 const SUBJECTS = ['policy_name', 'query_name', 'script_name', 'software_title', 'team_name'];
@@ -111,12 +129,13 @@ const SUBJECTS = ['policy_name', 'query_name', 'script_name', 'software_title', 
 /** A week of activities, as the FleetDM poller stores them. */
 export function fleetdmLogs(r: Rand, now: number): LogEvent[] {
   const out: LogEvent[] = [];
-  for (let i = 0; i < 260; i++) {
-    const ts = Math.round(now - r() * 7 * 24 * HOUR);
+  // A week, denser in the last hours so short ranges look alive.
+  for (let i = 0; i < 340; i++) {
+    const ts = Math.round(now - r() * (i >= 260 ? 3 * HOUR : 7 * 24 * HOUR));
     let w = r() * TOTAL;
     const [type, , make] = ACTIVITIES.find((a) => (w -= a[1]) < 0) ?? ACTIVITIES[0];
     const details = make(r);
-    const target = ON_HOST.includes(type) ? pick(r, HOSTS) : null;
+    const target = ON_HOST.includes(type) ? pick(r, type === 'mdm_enrolled' ? HOSTS.slice(0, 2) : HOSTS) : null;
     if (target) Object.assign(details, { host_id: target[0], host_display_name: target[1] });
     const failedLogin = type === 'user_failed_login';
     const automatic = type === 'transferred_hosts' && r() < 0.5;
@@ -127,7 +146,7 @@ export function fleetdmLogs(r: Rand, now: number): LogEvent[] {
     const subject = SUBJECTS.map((k) => details[k]).find((v): v is string => typeof v === 'string');
     const where = target ? `${type.endsWith('_host') ? ' ' : ' on '}${target[1]}` : '';
     const message = failedLogin ? `Failed login for ${details.email}` : `${person?.[1] ?? 'Fleet'} ${verb}${subject ? ` ${subject}` : ''}${where}${details.status ? ` (${details.status})` : ''}`;
-    const fleetdm: Record<string, JsonValue> = { activity_id: String(9000 + i), fleet_initiated: automatic, details };
+    const fleetdm: Record<string, JsonValue> = { activity_id: String(9000 + i), fleet_initiated: automatic, details, category: category(type) };
     if (target) Object.assign(fleetdm, { host_id: target[0], host_display_name: target[1] });
     if (typeof details.team_name === 'string') fleetdm.team = details.team_name;
     const attributes: Record<string, JsonValue> = { evt: { name: type, outcome: failed ? 'failure' : 'success' }, fleetdm };

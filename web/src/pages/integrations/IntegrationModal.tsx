@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
 import { API_MODE } from '../../api/http';
 import { Link } from 'react-router-dom';
-import { BookOpen, Check, ChevronDown, Clock, ExternalLink, GitBranch, LayoutDashboard, Newspaper, Plus, Search, Siren, TriangleAlert, X } from 'lucide-react';
+import { ArrowRight, BookOpen, Ban, Check, ChevronDown, Clock, ExternalLink, GitBranch, LayoutDashboard, Newspaper, Plus, Search, Siren, TriangleAlert, X } from 'lucide-react';
 import type { IntegrationDocs } from '../../api/integrations/catalog';
+import { kubernetesHint } from '../../api/integrations/kubernetesHints';
+import { TEMPLATES } from '../monitors/templates';
+import { unavailableReason, webhookUrl } from '../../api/integrations/collection';
 import type { IntegrationDetail, IntegrationStatus } from '../../api/integrations/types';
 import { CodeBlock } from '../../components/code/CodeBlock';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
@@ -19,12 +22,18 @@ const CI_SETUP: Record<string, string> = { gitlab: '/ci/settings?provider=gitlab
 
 const TABS = ['Overview', 'Configure', 'Data Collected', 'Hosts', 'Monitoring Resources', 'Support', 'Release Notes'] as const;
 type Tab = (typeof TABS)[number];
+/** An integration ObserveCraft can't collect: what it is and what it collects, not Datadog's setup for it. */
+const UNAVAILABLE_TABS: readonly Tab[] = ['Overview', 'Data Collected'];
+
+/** The intake's address as the browser reaches this install (port 4318), as the setup pages show it. */
+const intakeUrl = () => `${window.location.protocol}//${window.location.hostname}:4318`;
 
 const STATUS_BADGE: Record<IntegrationStatus, string> = {
   available: 'AVAILABLE',
   detected: 'DETECTED',
   installed: 'INSTALLED',
   warning: 'NEEDS ATTENTION',
+  unavailable: 'NOT AVAILABLE IN OBSERVECRAFT',
 };
 
 interface Props {
@@ -54,6 +63,8 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
   const docs = useIntegrationDocs(d.coreId).data ?? null;
   const installed = d.status === 'installed' || d.status === 'warning';
   const waiting = d.status === 'installed' && !!d.waitingForData;
+  const unavailable = d.status === 'unavailable';
+  const tabs = unavailable ? UNAVAILABLE_TABS : TABS;
 
   return (
     <>
@@ -77,7 +88,12 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
               <GitBranch size={14} /> Set up CI pipelines
             </Link>
           )}
-          {installed ? (
+          {d.related && (
+            <Link className={`btn${unavailable ? ' btn-primary' : ''}`} to={d.related.to}>
+              Open {d.related.label} <ArrowRight size={14} />
+            </Link>
+          )}
+          {unavailable || (!installed && !d.installable) ? null : installed ? (
             <div className="btn-group">
               <span className="btn im-installed">
                 <Check size={14} /> Installed
@@ -96,6 +112,14 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
         </div>
       </header>
 
+      {unavailable && (
+        <div className="im-unavailable">
+          <Ban size={15} />
+          <span>
+            {unavailableReason(d.name, d)} ObserveCraft doesn&apos;t collect it{d.related ? `; ${d.related.label} covers it instead.` : '.'}
+          </span>
+        </div>
+      )}
       {d.status === 'warning' && d.warning && (
         <div className="im-warning">
           <TriangleAlert size={15} /> {d.warning}
@@ -120,7 +144,7 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
       )}
 
       <nav className="im-tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t} className={t === tab ? 'active' : ''} onClick={() => setTab(t)}>
             {t}
           </button>
@@ -240,6 +264,29 @@ function Overview({ d, docs, onCategory }: { d: IntegrationDetail; docs: Integra
   );
 }
 
+/** Running the check on Kubernetes: the Agent's Autodiscovery annotations on the workload's pods, or a cluster check. */
+function KubernetesHintSection({ check }: { check: string }) {
+  const hint = kubernetesHint(check);
+  if (!hint) return null;
+  return (
+    <div className="im-k8s-hint">
+      <h3>On Kubernetes</h3>
+      <p>
+        With the Datadog Agent deployed by its Helm chart or the Datadog Operator (see <Link to="/integrations/kubernetes">Kubernetes</Link>), no configuration file is needed: annotate the pods and
+        the Agent on their node runs the check against them (Autodiscovery). <code>%%host%%</code> is the pod&apos;s address. Some checks run by themselves; checks that read a whole cluster run once,
+        as cluster checks of the Cluster Agent set in the Datadog chart&apos;s values; a database outside the cluster runs as a cluster check on the chart&apos;s cluster checks runners.
+      </p>
+      {hint.variants.map((v) => (
+        <div key={v.label}>
+          <h4>{v.label}</h4>
+          <ReadmeMarkdown source={v.text} />
+          {v.code && <CodeBlock code={v.code} filename={v.filename} />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationDetail; docs: IntegrationDocs | null; installed: boolean; pending: boolean; onInstall: () => void }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const missing = d.settings.some((s) => !values[s.key]?.trim());
@@ -254,8 +301,10 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
                 <li key={s}>{s}</li>
               ))}
             </ol>
+            <IntakeTarget d={d} />
           </div>
-          <h3>Configuration</h3>
+          {/* The README's setup section usually opens with its own heading. */}
+          {!docs.setup.trimStart().startsWith('#') && <h3>Configuration</h3>}
           <ReadmeMarkdown source={docs.setup} />
         </>
       ) : (
@@ -266,6 +315,7 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
               <li key={s}>{s}</li>
             ))}
           </ol>
+          <IntakeTarget d={d} />
         </>
       )}
 
@@ -294,6 +344,7 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
         </div>
       )}
       {d.agent?.configurable && <AgentConfigForm check={d.agent.check} />}
+      {d.agent && <KubernetesHintSection check={d.agent.check} />}
 
       {d.configs.map((c) => (
         <CodeBlock
@@ -310,7 +361,7 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
       )}
 
       <div className="im-install-row">
-        {installed ? (
+        {!d.installable ? null : installed ? (
           <span className="im-installed-note">
             <Check size={15} /> Installed. Its log pipelines and dashboards are set up.
           </span>
@@ -326,11 +377,30 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
         )}
       </div>
       <p className="muted-text">
-        Installing adds the integration&apos;s log pipelines and dashboards. Collection is configured on your Agents or collectors; this page does not deploy them. Metrics received in the last 24
-        hours mark an integration as detected.
+        {d.installable ? 'Installing adds the integration’s log pipelines and dashboards. ' : 'There is nothing to install: its data comes as described above. '} Collection is configured on your
+        Agents or collectors; this page does not deploy them. Metrics received in the last 24 hours mark an integration as detected.
       </p>
     </div>
   );
+}
+
+/** Where a vendor that pushes its data sends it: a webhook's URL, or the intake for senders that take any URL. */
+function IntakeTarget({ d }: { d: IntegrationDetail }) {
+  if (d.collection === 'webhook')
+    return (
+      <>
+        <p>Paste this URL in {d.name}&apos;s webhook settings:</p>
+        <CodeBlock code={webhookUrl(intakeUrl(), d.logSource ?? d.coreId ?? d.id)} />
+      </>
+    );
+  if (d.collection === 'push-site' && d.customEndpoint)
+    return (
+      <>
+        <p>Works if you point {d.name} at your ObserveCraft intake:</p>
+        <CodeBlock code={intakeUrl()} />
+      </>
+    );
+  return null;
 }
 
 const PAGE = 10;
@@ -561,14 +631,18 @@ function Resources({ d, docs, installed }: { d: IntegrationDetail; docs: Integra
               </tr>
             </thead>
             <tbody>
-              {docs?.monitors.map((m) => (
-                <tr key={m.title} title={m.description}>
-                  <td>{m.title}</td>
-                  <td>
-                    <Siren size={14} /> {m.type}
-                  </td>
-                </tr>
-              ))}
+              {docs?.monitors.map((m) => {
+                // The recommended monitors we can run are monitor templates (pages/monitors/templates.ts).
+                const template = TEMPLATES.find((t) => t.title === m.title && t.id.startsWith(`${d.agent?.check}-`));
+                return (
+                  <tr key={m.title} title={m.description}>
+                    <td>{template ? <Link to={`/monitors/create/${template.type}?template=${template.id}`}>{m.title}</Link> : m.title}</td>
+                    <td>
+                      <Siren size={14} /> {m.type}
+                    </td>
+                  </tr>
+                );
+              })}
               {monitors.map((r) => (
                 <tr key={r.name} title={r.description}>
                   <td>{r.name}</td>

@@ -1,11 +1,20 @@
 // In-browser stand-in for the query service. Implements the same contract (types.ts)
 // so pages don't change when client.ts switches to fetch()/SSE.
-import { parseQuery } from '../../lib/searchQuery';
+import { parseSearch } from '../../lib/searchQuery';
 import type { Facet, FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, MetricSeries, QuerySuggestion, TimeRange } from '../types';
 import { generateLog, rng } from './generator';
 import { netbirdLogs } from './netbird';
 import { fleetdmLogs } from './fleetdm';
-import { logField, matchLog } from './match';
+import { authentikLogs } from './authentik';
+import { gitlabAuditLogs } from './gitlabAudit';
+import { googleWorkspaceLogs } from './googleWorkspace';
+import { entraLogs } from './entra';
+import { kubernetesToolLogs } from './kubernetesToolLogs';
+import { kafkaLogs } from './kafkaLogs';
+import { kubernetesIntegrationLogs } from './kubernetesIntegrationLogs';
+import { supplyChainFirewallLogs } from './supplyChainFirewallLogs';
+import { datastoreLogs } from './datastoreLogs';
+import { logField, logFieldValues, matchLog } from './match';
 import { standardPaths } from './standardAttributes';
 import type { LogAggregateRequest, LogAggregateResponse } from '../integrations/logs';
 
@@ -33,6 +42,24 @@ function logs(): LogEvent[] {
   out.push(...netbirdLogs(rng(7), now));
   // The FleetDM integration's activities (its dashboard and Logs → source:fleetdm).
   out.push(...fleetdmLogs(rng(11), now));
+  // The authentik integration's events (its dashboard and Logs → source:authentik).
+  out.push(...authentikLogs(rng(13), now));
+  // The GitLab Audit Events integration's audit log (its dashboard and Logs → source:gitlab-audit-events).
+  out.push(...gitlabAuditLogs(rng(19), now));
+  // The Google Workspace integration's activities (its dashboard and Logs → source:gsuite).
+  out.push(...googleWorkspaceLogs(rng(23), now));
+  // A Microsoft Entra ID tenant's sign-ins, audits and risk detections (its dashboard and Logs → source:azure.activedirectory).
+  out.push(...entraLogs(rng(29), now));
+  // Vault's audit log, Gatekeeper's, Argo CD's and cert-manager's (their integration dashboards).
+  out.push(...kubernetesToolLogs(rng(17), now));
+  // Kafka's brokers, for the Kafka dashboards' log widgets.
+  out.push(...kafkaLogs(rng(29), now));
+  // The Kubernetes integrations' own logs (the control plane, Temporal, vLLM, Argo, Istio, Envoy).
+  out.push(...kubernetesIntegrationLogs(rng(29), now));
+  // Supply Chain Firewall's runs (its integration dashboard and Logs → source:scfw).
+  out.push(...supplyChainFirewallLogs(rng(23), now));
+  // PostgreSQL's, PgBouncer's, Redis's and ClickHouse's server logs, parsed by their pipelines (their integration dashboards).
+  out.push(...datastoreLogs(rng(29), now));
   out.sort((a, b) => b.timestamp - a.timestamp);
   store = out;
   return out;
@@ -83,7 +110,7 @@ const AGGREGATED_FACETS = new Set(['service', 'status', 'host', 'source', 'index
 const MOCK_FACET_SCAN = 5000;
 
 export function mockSearchLogs(q: LogQuery): LogSearchResult {
-  const terms = parseQuery(q.query);
+  const terms = parseSearch(q.query);
   const scope = inRange(q.range);
   const hits = scope.filter((l) => matchLog(l, terms));
   // `scope` is newest first.
@@ -128,7 +155,7 @@ export function mockSearchLogs(q: LogQuery): LogSearchResult {
 
 /** The most frequent values of `key` among the matching logs, every filter applied. */
 export function mockTopLogValues(q: LogQuery & { key: string; limit?: number }): FacetValue[] {
-  const terms = parseQuery(q.query);
+  const terms = parseSearch(q.query);
   const counts = new Map<string, number>();
   for (const l of inRange(q.range)) {
     const v = matchLog(l, terms) ? logField(l, q.key) : undefined;
@@ -160,17 +187,25 @@ function aggregateOf(logs: LogEvent[], aggregation: string, metric?: string): nu
 /** Log analytics over the mock's logs, as /api/v1/logs/aggregate answers. */
 export function mockAggregateLogs(req: LogAggregateRequest): LogAggregateResponse {
   const range = { from: req.filter.from, to: req.filter.to };
-  const terms = parseQuery(req.filter.query);
+  const terms = parseSearch(req.filter.query);
   const facets = req.group_by.map((g) => g.facet);
   const groups = new Map<string, { by: Record<string, string>; logs: LogEvent[] }>();
   for (const l of inRange(range)) {
     if (!matchLog(l, terms)) continue;
-    const values = facets.map((f) => logField(l, f));
-    if (values.some((v) => v === undefined || v === '')) continue;
-    const key = values.join('\u0000');
-    const g = groups.get(key) ?? { by: Object.fromEntries(facets.map((f, i) => [f, values[i] as string])), logs: [] };
-    g.logs.push(l);
-    groups.set(key, g);
+    // A facet inside arrays of objects has a value per element: the log counts in each of its groups.
+    let combos: string[][] = [[]];
+    for (const f of facets)
+      combos = combos.flatMap((c) =>
+        logFieldValues(l, f)
+          .filter((v) => v !== '')
+          .map((v) => [...c, v]),
+      );
+    for (const values of new Set(combos.map((c) => c.join('\u0000')))) {
+      const parts = values.split('\u0000');
+      const g = groups.get(values) ?? { by: Object.fromEntries(facets.map((f, i) => [f, parts[i]])), logs: [] };
+      g.logs.push(l);
+      groups.set(values, g);
+    }
   }
   const [first] = req.compute;
   const timeseries = req.compute.some((c) => c.type === 'timeseries');
@@ -205,7 +240,7 @@ export function mockAggregateLogs(req: LogAggregateRequest): LogAggregateRespons
 
 /** Logs grouped by message pattern (numbers and ids as `*`), newest 10,000 matching logs. */
 export function mockLogPatterns(q: LogQuery): { pattern: string; count: number; status: string; service: string; sample: string }[] {
-  const terms = parseQuery(q.query);
+  const terms = parseSearch(q.query);
   const groups = new Map<string, { count: number; status: string; service: string; sample: string }>();
   for (const l of inRange(q.range)
     .filter((l) => matchLog(l, terms))
@@ -237,7 +272,7 @@ function attributePaths(attrs: Record<string, JsonValue>, prefix = ''): string[]
 }
 
 export function mockLogFields(q: LogQuery): { key: string; count: number; standard: boolean }[] {
-  const terms = parseQuery(q.query);
+  const terms = parseSearch(q.query);
   const counts = new Map<string, number>();
   for (const l of inRange(q.range)
     .filter((l) => matchLog(l, terms))
@@ -250,7 +285,7 @@ export function mockLogFields(q: LogQuery): { key: string; count: number; standa
 }
 
 export function mockHistogram(q: LogQuery): HistogramBucket[] {
-  const terms = parseQuery(q.query);
+  const terms = parseSearch(q.query);
   return histogramFor(
     inRange(q.range).filter((l) => matchLog(l, terms)),
     q.range,
@@ -330,7 +365,7 @@ const DISPLAY_CAP_PER_SEC = 40;
  * fresh, and pushes the matching events — sampled down to the display cap — every 250ms.
  */
 export function mockLiveTail(query: string, onBatch: (b: LiveTailBatch) => void): () => void {
-  const terms = parseQuery(query);
+  const terms = parseSearch(query);
   const r = rng(Date.now() % 100000);
   let matchedRate = 0;
   let last = Date.now();

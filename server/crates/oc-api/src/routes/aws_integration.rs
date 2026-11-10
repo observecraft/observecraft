@@ -145,6 +145,10 @@ mod tests {
         let s = setup_of(Some("arn:aws:iam::123456789012:role/observecraft-server".into()));
         assert_eq!(s.principal_arn.as_deref(), Some("arn:aws:iam::123456789012:role/observecraft-server"));
         assert!(s.permissions.iter().any(|p| p == "cloudwatch:GetMetricData"));
+        // The lookups of the resources whose ARNs their metrics don't carry (aws/naming.rs LOOKUPS).
+        for action in ["apigateway:GET", "rds:DescribeDBProxies", "dms:DescribeReplicationInstances", "waf:ListWebACLs", "waf:GetWebACL", "waf-regional:ListWebACLs", "waf-regional:GetWebACL"] {
+            assert!(s.permissions.iter().any(|p| p == action), "{action}");
+        }
         assert!(s.namespaces.as_array().unwrap().iter().any(|n| n["namespace"] == "AWS/EC2" && n["name"] == "Amazon EC2"));
         assert!(s.log_services.as_array().unwrap().iter().any(|l| l["id"] == "s3"));
         assert_eq!(s.default_excluded_namespaces, ["AWS/SQS", "AWS/ElasticMapReduce", "AWS/Usage"]);

@@ -1,0 +1,169 @@
+# yaml-language-server: $schema=../connector.schema.json
+# NetBird (Datadog has no NetBird integration): the audit log and the peers of a NetBird account, read from its
+# management API (https://docs.netbird.io/api). Before it became a package it was oc-api's `netbird` module; migration
+# 0102 moved its connections here with their ids, so their jobs and cursors carried on.
+schema_version: 1
+id: netbird
+name: NetBird
+publisher: ObserveCraft
+vendor: NetBird
+version: 2.0.0
+description: >-
+  The audit log of a NetBird account (peers added and removed, policies, routes, networks, DNS, setup keys, users and
+  logins) as logs, and every peer's state (connected, last seen, login expired, OS and client version) as metrics,
+  read every minute from NetBird Cloud or a self-hosted management server.
+tiles: [netbird]
+categories: [Network, Security, Log Collection]
+docs_url: https://docs.netbird.io/api
+setup: |
+  1. In the NetBird dashboard, open **Team → Service Users** and create one, e.g. `observecraft-reader`, with the
+     **Auditor** role (read-only; **Admin** works too). A regular user can't read the audit log.
+  2. Open the service user and **Create Token** (an expiration of up to a year); copy it, NetBird shows it once.
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: Management URL
+    type: url
+    required: true
+    default: https://api.netbird.io
+    placeholder: https://api.netbird.io
+    strip_suffix: [/api]
+    help: https://api.netbird.io for NetBird Cloud; your management server's URL when self-hosted (the one its dashboard calls).
+  - key: token
+    label: Personal access token
+    type: string
+    secret: true
+    required: true
+    placeholder: nbp_…
+    help: A service user's token with the Auditor or Admin role.
+
+auth:
+  kind: api_key
+  name: Authorization
+  value: "Token {{ secrets.token }}"
+
+errors:
+  - status: [401, 403]
+    kind: auth
+    message: NetBird refused the token, or its service user lacks the Admin or Auditor role
+  - status: [404]
+    kind: access_denied
+    message: "No NetBird management API at {{ config.base_url }}"
+
+streams:
+  - id: events
+    name: Audit events
+    description: >-
+      Every audit event as a log (source:netbird): evt.name is NetBird's activity code, usr.* the initiator,
+      netbird.category the code's first segment. Overused setup keys are errors; blocked users, expired logins and
+      revoked keys warnings.
+    # NetBird answers its newest 10,000 events in one list, with no time filter: a run keeps those since its window.
+    request:
+      url: "{{ config.base_url }}/api/events/audit"
+    # A full list may not reach back to the last run: the run then warns that events may be missing.
+    truncated: "{{ records | len >= 10000 }}"
+    record_id: "{{ record.id | str }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.timestamp }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 1m
+      cursor: last_record
+    vars:
+      code: "{{ record.activity_code ?? 'unknown' }}"
+      # `| nonempty`: "" when every field is empty, then nothing (`+` keeps "" but drops null).
+      subject: "{{ (record.meta.name ?? record.meta.peer_name ?? record.meta.email ?? record.meta.fqdn ?? record.meta.group ?? record.meta.key_name) | nonempty }}"
+      initiator: "{{ (record.initiator_name ?? record.initiator_email) | nonempty }}"
+      status: >-
+        {{ record.activity_code in ['setupkey.overuse', 'mcp.session.replay'] ? 'error'
+           : record.activity_code in ['user.block', 'user.reject', 'peer.login.expire', 'peer.approval.revoke', 'setupkey.revoke', 'account.delete', 'service.peer.expose.expire'] ? 'warn'
+           : 'info' }}
+    output:
+      logs:
+        message: "{{ (record.activity ?? vars.code) + (': ' + vars.subject ?? '') + (' (by ' + vars.initiator + ')' ?? '') }}"
+        status: "{{ vars.status }}"
+        date: "{{ record.timestamp }}"
+        attributes:
+          evt:
+            name: "{{ vars.code }}"
+            outcome: "{{ vars.status == 'error' ? 'failure' : 'success' }}"
+          usr:
+            id: "{{ record.initiator_id }}"
+            name: "{{ record.initiator_name }}"
+            email: "{{ record.initiator_email }}"
+          netbird:
+            event_id: "{{ record.id | str }}"
+            category: "{{ vars.code | split('.') | first }}"
+            activity: "{{ record.activity }}"
+            target_id: "{{ record.target_id }}"
+            target: "{{ vars.subject }}"
+            meta: "{{ record.meta | nonempty }}"
+
+  - id: peers
+    name: Peers
+    description: >-
+      Every peer's state as gauges, one series per peer (tags netbird_instance, peer, peer_id, os, netbird_version,
+      country_code, city). Peers aren't hosts: a laptop joining the network is not infrastructure.
+    request:
+      url: "{{ config.base_url }}/api/peers"
+    filter: "{{ record.id }}"
+    output:
+      metrics:
+        - name: netbird.peer.count
+          value: "1"
+          description: 1 per peer; summed, the peers (by os, netbird_version, country_code).
+          tags: &peer
+            netbird_instance: "{{ connection.instance }}"
+            peer: "{{ record.name ?? record.hostname ?? record.id }}"
+            peer_id: "{{ record.id }}"
+            os: "{{ record.os }}"
+            netbird_version: "{{ record.version }}"
+            country_code: "{{ record.country_code }}"
+            city: "{{ record.city_name }}"
+        - name: netbird.peer.connected
+          value: "{{ record.connected ? 1 : 0 }}"
+          description: 1 while the peer is connected to the management server, else 0.
+          tags: *peer
+        - name: netbird.peer.last_seen_age
+          value: "{{ record.connected ? 0 : ((((minute - (record.last_seen | epoch_ms)) / 1000) | floor | max(0)) ?? 0) }}"
+          unit: second
+          description: Seconds since the peer was last seen (0 while connected).
+          tags: *peer
+        - name: netbird.peer.login_expired
+          value: "{{ record.login_expired ? 1 : 0 }}"
+          description: 1 when the peer's login expired.
+          tags: *peer
+        - name: netbird.peer.approval_required
+          value: "{{ record.approval_required ? 1 : 0 }}"
+          description: 1 while the peer waits for an admin's approval.
+          tags: *peer
+        - name: netbird.peer.ssh_enabled
+          value: "{{ record.ssh_enabled ? 1 : 0 }}"
+          description: 1 when the peer runs NetBird's SSH server.
+          tags: *peer
+        - name: netbird.peer.accessible_peers
+          value: "{{ record.accessible_peers_count ?? 0 }}"
+          description: The peers its policies let it reach.
+          tags: *peer
+
+test:
+  stream: events
+  message: "Connected: {{ records | len }} audit events to read"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+  pipeline: assets/logs/pipeline.json
+
+mock:
+  config: { base_url: "https://netbird.example.com" }
+  secrets: { token: nbp_test_token }
+  now: "2026-11-06T12:00:00Z"
+  responses:
+    - { url: "https://netbird.example.com/api/events/audit", file: fixtures/events.json }
+    - { url: "https://netbird.example.com/api/peers", file: fixtures/peers.json }
+  expect:
+    events: { records: 4, logs: 4, rerun: 0, golden: fixtures/events.expected.json }
+    peers: { records: 3, metrics: 21, golden: fixtures/peers.expected.json }
+    test: { ok: true, message: "5 audit events" }

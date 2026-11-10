@@ -56,9 +56,13 @@ if !otlp {
   attrs = merge(extra, attrs)
 }
 body = null
+# The fields of the log's own JSON (its body or message) stay attributes after the log's status, date, service and
+# host are read from them, as in Datadog (`@level`, `@hostname`); the intake envelope's (the Agent's) are only the log's.
+own = []
 if otlp {
   body = .message
   if is_object(body) {
+    own = keys(object!(body))
     attrs = merge(attrs, object!(body))
     body = null
   } else if is_string(body) {
@@ -66,6 +70,7 @@ if otlp {
     if starts_with(b, "{") {
       parsed = parse_json(b) ?? null
       if is_object(parsed) {
+        own = keys(object!(parsed))
         attrs = merge(attrs, object!(parsed))
         body = null
       }
@@ -89,6 +94,7 @@ if is_string(msg) {
   if starts_with(m, "{") {
     parsed = parse_json(m) ?? null
     if is_object(parsed) {
+      own = append(own, keys(object!(parsed)))
       attrs = merge(filter(attrs) -> |k, _v| { !includes(used, k) }, object!(parsed))
       used = []
       flat = flatten(attrs)
@@ -103,6 +109,8 @@ if is_string(msg) {
     }
   }
 }
+# The field that became the message doesn't stay.
+message_key = get(used, [0]) ?? null
 if is_null(msg) { msg = body }
 msg = if is_string(msg) { string!(msg) } else if is_null(msg) { "" } else { encode_json(msg) }
 
@@ -284,7 +292,10 @@ host = null
 for_each(["host", "hostname", "syslog.hostname"]) -> |_i, k| {
   if is_null(host) {
     v = get(flat, [k]) ?? null
-    if is_string(v) && v != "" { host = v; used = push(used, k) }
+    if is_string(v) && v != "" {
+      host = v
+      used = push(used, k)
+    }
   }
 }
 if is_null(host) { host = get(r, ["host.name"]) ?? null }
@@ -309,7 +320,7 @@ if ddtags != "" {
 tags = merge(merge(root_tags, r), dd)
 tags = map_values(tags) -> |v| { to_string(v) ?? encode_json(v) }
 
-attrs = filter(attrs) -> |k, _v| { !includes(used, k) }
+attrs = filter(attrs) -> |k, _v| { !includes(used, k) || (includes(own, k) && k != message_key) }
 attr = map_values(flatten(attrs)) -> |v| { to_string(v) ?? encode_json(v) }
 scope = (to_string(get(., ["scope", "name"]) ?? "") ?? "")
 

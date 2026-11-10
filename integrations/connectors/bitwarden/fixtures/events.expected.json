@@ -1,0 +1,134 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c552-7bd9-7c72-906e-4ea4b3a0e74c"
+      },
+      "date": "2026-11-10T11:57:59.6413435Z",
+      "ddsource": "bitwarden",
+      "enrichment_details": {
+        "actingUser": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "type": 0
+        }
+      },
+      "event": {
+        "actingUserId": "7c2f0000-0000-4000-8000-000000000001",
+        "date": "2026-11-10T11:57:59.6413435Z",
+        "device": 9,
+        "ipAddress": "203.0.113.20",
+        "object": "event",
+        "type": 1000
+      },
+      "host": "0b1c2d3e-0000-4000-8000-000000000001",
+      "message": "Bitwarden event 1000 by Jane Doe",
+      "service": "event-logs",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c50c-2d40-7914-8cdc-25348364fb72"
+      },
+      "date": "2026-11-10T10:41:12.0000000Z",
+      "ddsource": "bitwarden",
+      "enrichment_details": {
+        "actingUser": {
+          "email": "sam.lee@example.com",
+          "name": "Sam Lee",
+          "type": 1
+        }
+      },
+      "event": {
+        "actingUserId": "7c2f0000-0000-4000-8000-000000000002",
+        "collectionId": "3e4b0000-0000-4000-8000-000000000301",
+        "date": "2026-11-10T10:41:12.0000000Z",
+        "device": 10,
+        "ipAddress": "198.51.100.23",
+        "object": "event",
+        "type": 1300
+      },
+      "host": "0b1c2d3e-0000-4000-8000-000000000001",
+      "message": "Bitwarden event 1300 by Sam Lee",
+      "service": "event-logs",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4c9-a018-7228-bb85-cdf10918fbe6"
+      },
+      "date": "2026-11-10T09:28:30.4884417Z",
+      "ddsource": "bitwarden",
+      "enrichment_details": {
+        "actingUser": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "type": 0
+        },
+        "member": {
+          "email": "alex.kim@example.com",
+          "type": 2
+        }
+      },
+      "event": {
+        "actingUserId": "7c2f0000-0000-4000-8000-000000000001",
+        "date": "2026-11-10T09:28:30.4884417Z",
+        "device": 9,
+        "ipAddress": "203.0.113.20",
+        "memberId": "5a1e0000-0000-4000-8000-000000000103",
+        "object": "event",
+        "type": 1500
+      },
+      "host": "0b1c2d3e-0000-4000-8000-000000000001",
+      "message": "Bitwarden event 1500 by Jane Doe",
+      "service": "event-logs",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4ad-b059-732b-9d00-8f45282177cb"
+      },
+      "date": "2026-11-10T08:57:59.6413435Z",
+      "ddsource": "bitwarden",
+      "enrichment_details": {
+        "actingUser": {
+          "email": "jane.doe@example.com",
+          "name": "Jane Doe",
+          "type": 0
+        },
+        "group": {
+          "name": "Platform engineers"
+        }
+      },
+      "event": {
+        "actingUserId": "7c2f0000-0000-4000-8000-000000000001",
+        "date": "2026-11-10T08:57:59.6413435Z",
+        "device": 9,
+        "groupId": "9d3a0000-0000-4000-8000-000000000201",
+        "ipAddress": "203.0.113.20",
+        "object": "event",
+        "type": 1400
+      },
+      "host": "0b1c2d3e-0000-4000-8000-000000000001",
+      "message": "Bitwarden event 1400 by Jane Doe",
+      "service": "event-logs",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000,
+        "seen": [
+          {
+            "id": "e3d9d05d0bb2f667",
+            "t": 1794311879641
+          }
+        ]
+      }
+    }
+  }
+}

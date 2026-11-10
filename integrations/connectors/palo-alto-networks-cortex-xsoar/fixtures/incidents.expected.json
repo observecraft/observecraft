@@ -1,0 +1,83 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c486-53a0-77c4-b65f-f835fa5c3cbf"
+      },
+      "closed": "0001-01-01T00:00:00Z",
+      "created": "2026-11-10T08:15:00.000Z",
+      "date": "2026-11-10T08:15:00.000Z",
+      "ddsource": "palo-alto-networks-cortex-xsoar",
+      "details": "Reported message 'Your invoice is ready' from billing@example.net",
+      "host": "api-shop.xdr.us.paloaltonetworks.com",
+      "id": "1201",
+      "investigationId": "1201",
+      "labels": [
+        {
+          "type": "Email/from",
+          "value": "billing@example.net"
+        }
+      ],
+      "level": "warning",
+      "message": "{\"message\":\"Reported message 'Your invoice is ready' from billing@example.net\",\"status\":1}",
+      "modified": "2026-11-10T08:20:00.000Z",
+      "name": "Phishing report from jane.doe@example.com",
+      "occurred": "2026-11-10T08:14:30.000Z",
+      "owner": "sam.lee@example.com",
+      "phase": "Triage",
+      "playbookId": "Phishing - Generic v3",
+      "service": "palo-alto-networks-cortex-xsoar",
+      "severity": 2,
+      "sla": 0,
+      "sourceBrand": "Mail Listener v2",
+      "sourceInstance": "Mail_Listener_1",
+      "type": "Phishing",
+      "vendor": {
+        "endpoint": "incidents"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4d4-5654-7cdd-ad01-999a15b54348"
+      },
+      "closed": "0001-01-01T00:00:00Z",
+      "created": "2026-11-10T09:40:12.500Z",
+      "date": "2026-11-10T09:40:12.500Z",
+      "ddsource": "palo-alto-networks-cortex-xsoar",
+      "host": "api-shop.xdr.us.paloaltonetworks.com",
+      "id": "1202",
+      "investigationId": "1202",
+      "labels": [
+        {
+          "type": "Brand",
+          "value": "Okta v2"
+        }
+      ],
+      "level": "warning",
+      "message": "{\"message\":\"Suspicious login for svc-orders\",\"status\":0}",
+      "modified": "2026-11-10T09:40:12.500Z",
+      "name": "Suspicious login for svc-orders",
+      "occurred": "2026-11-10T09:39:58.000Z",
+      "playbookId": "Access Investigation - Generic",
+      "service": "palo-alto-networks-cortex-xsoar",
+      "severity": 3,
+      "sla": 0,
+      "sourceBrand": "Okta v2",
+      "sourceInstance": "Okta_instance_1",
+      "type": "Access",
+      "vendor": {
+        "endpoint": "incidents"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

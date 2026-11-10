@@ -1,0 +1,374 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_service_request",
+      "tags": [
+        [
+          "operation",
+          "StartWorkflowExecution"
+        ],
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "orders-prod.a1b2c"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 12.5
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_service_request",
+      "tags": [
+        [
+          "operation",
+          "PollWorkflowTaskQueue"
+        ],
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "orders-prod.a1b2c"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 40.25
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_service_request",
+      "tags": [
+        [
+          "operation",
+          "StartWorkflowExecution"
+        ],
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "billing-prod.a1b2c"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 3.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_service_error",
+      "tags": [
+        [
+          "operation",
+          "StartWorkflowExecution"
+        ],
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "orders-prod.a1b2c"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 0.05
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_service_latency_p99",
+      "tags": [
+        [
+          "operation",
+          "StartWorkflowExecution"
+        ],
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "orders-prod.a1b2c"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 0.042
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_service_latency_p99",
+      "tags": [
+        [
+          "operation",
+          "StartWorkflowExecution"
+        ],
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "billing-prod.a1b2c"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 0.038
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_workflow_success",
+      "tags": [
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "orders-prod.a1b2c"
+        ],
+        [
+          "temporal_task_queue",
+          "order-fulfillment"
+        ],
+        [
+          "temporal_workflow_type",
+          "FulfillOrder"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 2.4
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_workflow_success",
+      "tags": [
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "billing-prod.a1b2c"
+        ],
+        [
+          "temporal_task_queue",
+          "invoices"
+        ],
+        [
+          "temporal_workflow_type",
+          "IssueInvoice"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 0.5
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_workflow_failed",
+      "tags": [
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "orders-prod.a1b2c"
+        ],
+        [
+          "temporal_task_queue",
+          "order-fulfillment"
+        ],
+        [
+          "temporal_workflow_type",
+          "FulfillOrder"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 0.0167
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_approximate_backlog",
+      "tags": [
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "task_priority",
+          "3"
+        ],
+        [
+          "task_type",
+          "Activity"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "orders-prod.a1b2c"
+        ],
+        [
+          "temporal_task_queue",
+          "order-fulfillment"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 17.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_approximate_backlog_age",
+      "tags": [
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "task_type",
+          "Activity"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "orders-prod.a1b2c"
+        ],
+        [
+          "temporal_task_queue",
+          "order-fulfillment"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 4.5
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_namespace_open_workflows",
+      "tags": [
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "orders-prod.a1b2c"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 1284.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_namespace_open_workflows",
+      "tags": [
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "billing-prod.a1b2c"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 96.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "temporal.cloud.v1_action_limit",
+      "tags": [
+        [
+          "region",
+          "aws-us-east-1"
+        ],
+        [
+          "temporal_account",
+          "a1b2c"
+        ],
+        [
+          "temporal_namespace",
+          "orders-prod.a1b2c"
+        ]
+      ],
+      "time_ms": 1794311820000,
+      "value": 500.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "cursor": "c2lnbmluLTM", "has_more": false,
+  "items": [
+    { "uuid": "8JYG4VAQ4XHATNPUJRMY7PXV7G", "session_uuid": "C7M8EQIXTXGLZLZ5ZSVBU9XCOO", "timestamp": "2026-11-10T10:40:19Z",
+      "category": "mfa_failed", "type": "mfa_wrong", "country": "NG",
+      "target_user": { "uuid": "JS8WKIK47KIJOCGBE8W3U6NQ4F", "name": "Sam Lee", "email": "sam.lee@example.com" },
+      "client": { "app_name": "1Password for Web", "platform_name": "Firefox", "ip_address": "203.0.113.77" },
+      "location": { "country": "NG", "city": "Lagos" } }
+  ]
+}

@@ -1,0 +1,454 @@
+// Mock logs of the Kubernetes integrations whose dashboards show logs (the control plane, Temporal, vLLM, Argo
+// Workflows and Rollouts, Istio, Envoy), as the Datadog Agent collects them from their pods and the integrations'
+// pipelines parse them: the source the pipeline reads, the status and attributes it sets. Over the last day, on the
+// demo's clusters and hosts.
+import type { JsonValue, LogEvent, LogStatus } from '../types';
+import type { Rand } from './generator';
+
+const HOUR = 3_600_000;
+const HOSTS = ['i-0a1b2c3d4e5f60001', 'i-0a1b2c3d4e5f60002', 'i-0a1b2c3d4e5f60003', 'i-0a1b2c3d4e5f60006'];
+const CLUSTERS = ['shop-prod-eks', 'shop-prod-eks', 'shop-prod-eks', 'shop-qa-eks'];
+
+const pick = <T>(r: Rand, a: readonly T[]): T => a[Math.floor(r() * a.length)];
+
+/** One kind of line: its status, message and parsed attributes, from a random pick of its values. */
+interface Line {
+  status: LogStatus;
+  message: (r: Rand) => string;
+  attributes?: (r: Rand, message: string) => Record<string, JsonValue>;
+  /** How often it appears, relative to the integration's other lines (default 1). */
+  weight?: number;
+}
+
+/** An integration's logs: `count` lines of `lines` from its pods. */
+interface Source {
+  source: string;
+  service: string | ((r: Rand) => string);
+  namespace: string;
+  pod: (i: number) => string;
+  count: number;
+  lines: Line[];
+}
+
+const KLOG = { I: 'info', W: 'warn', E: 'error' } as const;
+/** A klog line (`I1110 09:15:02.123456 1 file.go:42] text`) as the pipelines leave it: the text as the message,
+ * the level letter, the file and line. */
+const klogLine = (level: keyof typeof KLOG, at: string, text: (r: Rand) => string, weight = 1): Line => ({
+  status: KLOG[level],
+  message: text,
+  attributes: () => ({ level, logger: { name: at.split(':')[0], thread_id: 1 }, lineno: Number(at.split(':')[1]) }),
+  weight,
+});
+
+const RESOURCES = ['pods', 'deployments', 'configmaps', 'leases', 'endpointslices'];
+const APPS = ['storefront-api', 'order-service', 'billing', 'catalog-service', 'inventory-service'];
+const NAMESPACES = ['storefront', 'checkout', 'billing', 'catalog'];
+
+/** A zap JSON line of Temporal's server as its pipeline leaves it (`msg` the message, `level`, the call site). */
+const temporalLine = (status: LogStatus, msg: string, at: string, extra: (r: Rand) => Record<string, JsonValue> = () => ({}), weight = 1): Line => ({
+  status,
+  message: () => msg,
+  attributes: (r) => ({ level: status === 'warn' ? 'warn' : status, 'logging-call-at': at, ...extra(r) }),
+  weight,
+});
+const TEMPORAL_NAMESPACES = ['default', 'orders', 'billing', 'storefront'];
+const TASK_QUEUES = ['order-processing', 'payment-capture', 'email-notifications', 'inventory-sync'];
+const workflow = (r: Rand): Record<string, JsonValue> => ({
+  'wf-namespace': pick(r, TEMPORAL_NAMESPACES),
+  'wf-task-queue-name': pick(r, TASK_QUEUES),
+  'wf-id': `order-${100000 + Math.floor(r() * 900000)}`,
+});
+/** Temporal's services, each with its own `service` (temporal-frontend, …) as the dashboard's log streams read. */
+const temporal = (service: string, lines: Line[], count: number): Source => ({
+  source: 'temporal',
+  service: `temporal${service ? `-${service}` : ''}`,
+  namespace: 'temporal',
+  pod: (i) => `temporal-${service || 'worker'}-6b8d9c7f5-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+  count,
+  lines,
+});
+
+const MODELS = ['meta-llama/Llama-3.1-8B-Instruct', 'Qwen/Qwen2.5-14B-Instruct'];
+/** vLLM's log line (`INFO 11-10 09:15:02 loggers.py:123] …`) as its pipeline leaves it. */
+const vllmLine = (status: LogStatus, at: string, text: (r: Rand) => string, weight = 1): Line => ({
+  status,
+  message: text,
+  attributes: () => ({ level: status === 'warn' ? 'WARNING' : status.toUpperCase(), logger: { name: at.split(':')[0], lineno: Number(at.split(':')[1]) } }),
+  weight,
+});
+
+/** A logrus line (`level=info msg="…" key=value`) of the Argo controllers as their pipelines leave it. With fields after
+ * `msg` (`full`), Argo Workflows' pipeline keeps the line as the message and `msg` as an attribute. */
+const logrusLine = (status: LogStatus, msg: (r: Rand) => string, extra: (r: Rand) => Record<string, JsonValue> = () => ({}), weight = 1, full = false): Line => {
+  const level = status === 'warn' ? 'warning' : status;
+  let fields: Record<string, JsonValue> = {};
+  return {
+    status,
+    message: (r) => {
+      const text = msg(r);
+      fields = extra(r);
+      if (!full) return text;
+      fields = { msg: text, ...fields };
+      return `level=${level} ${Object.entries(fields)
+        .map(([k, v]) => `${k}=${typeof v === 'string' && /\s/.test(v) ? JSON.stringify(v) : v}`)
+        .join(' ')}`;
+    },
+    attributes: () => ({ level, ...fields }),
+    weight,
+  };
+};
+const WORKFLOWS = ['nightly-order-export', 'catalog-reindex', 'invoice-batch', 'image-thumbnails'];
+
+const ROLLOUTS = ['storefront/storefront-api', 'checkout/order-service', 'checkout/checkout-web', 'catalog/catalog-service'];
+
+const PATHS = ['/api/cart', '/api/products', '/api/orders', '/api/checkout', '/healthz'];
+/** An Envoy access log line as its pipeline leaves it: method, path, status code and category, duration. */
+const envoyAccess = (code: number, weight: number): Line => ({
+  status: code >= 500 ? 'error' : code >= 400 ? 'warn' : 'info',
+  message: (r) =>
+    `[2026-11-10T09:15:02.354Z] "${pick(r, ['GET', 'GET', 'POST'])} ${pick(r, PATHS)} HTTP/1.1" ${code} - "-" ${Math.floor(r() * 800)} ${200 + Math.floor(r() * 9000)} ${2 + Math.floor(r() * 120)} ${1 + Math.floor(r() * 100)} "-" "Mozilla/5.0" "${Math.floor(r() * 1e12).toString(16)}" "shop.example.com" "10.0.14.${10 + Math.floor(r() * 40)}:8080"`,
+  attributes: (r, message) => {
+    const [, method, path] = /"(\w+) (\S+) /.exec(message) ?? [];
+    return {
+      http: {
+        method,
+        url: path,
+        url_details: { path },
+        status_code: code,
+        status_category: code >= 500 ? 'error' : code >= 400 ? 'warning' : 'OK',
+        authority: 'shop.example.com',
+        useragent: 'Mozilla/5.0',
+      },
+      duration: (2 + Math.floor(r() * 120)) * 1e6,
+    };
+  },
+  weight,
+});
+
+const SOURCES: Source[] = [
+  // Istio's logs keep their images' names as sources (pilot, proxyv2), as the Istio Overview's log patterns read them.
+  {
+    source: 'pilot',
+    service: 'istiod',
+    namespace: 'istio-system',
+    pod: (i) => `istiod-7d9c6b5f4-${['2xkqp', '9tmwz', '2xkqp', '9tmwz'][i]}`,
+    count: 160,
+    lines: [
+      {
+        status: 'info',
+        message: (r) =>
+          `ads\tPush debounce stable[${Math.floor(r() * 900)}] ${1 + Math.floor(r() * 4)} for config ServiceEntry and VirtualService: 100.2ms since last change, 110.6ms since last push, full=true`,
+        weight: 5,
+      },
+      {
+        status: 'info',
+        message: (r) =>
+          `ads\tCDS: PUSH for node:${pick(r, APPS)}-7d9c6b5f4-${Math.floor(r() * 46656).toString(36)}.${pick(r, NAMESPACES)} resources:${80 + Math.floor(r() * 40)} size:${(60 + r() * 60).toFixed(1)}kB`,
+        weight: 5,
+      },
+      { status: 'warn', message: () => 'ads\tADS:EDS: ACK ERROR storefront-api-7d9c6b5f4-2xkqp.storefront Internal:Proxy rejected configuration', weight: 1 },
+    ],
+  },
+  {
+    source: 'proxyv2',
+    service: (r) => pick(r, APPS),
+    namespace: 'storefront',
+    pod: (i) => `${APPS[i]}-7d9c6b5f4-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+    count: 240,
+    lines: [
+      {
+        status: 'info',
+        message: (r) =>
+          `[2026-11-10T09:15:02.354Z] "GET ${pick(r, ['/api/cart', '/api/products', '/api/orders'])} HTTP/1.1" 200 - via_upstream - "-" 0 ${400 + Math.floor(r() * 4000)} ${2 + Math.floor(r() * 60)} ${1 + Math.floor(r() * 50)} "-" "Go-http-client/1.1" outbound|8080||order-service.checkout.svc.cluster.local`,
+        weight: 12,
+      },
+      {
+        status: 'warn',
+        message: () =>
+          '[2026-11-10T09:15:02.354Z] "POST /api/orders HTTP/1.1" 503 UF upstream_reset_before_response_started{connection_failure} - "-" 512 91 3 - "-" "Go-http-client/1.1" outbound|8080||billing.billing.svc.cluster.local',
+        weight: 1,
+      },
+      { status: 'warn', message: () => 'warning\tenvoy config\tStreamAggregatedResources gRPC config stream to xds-grpc closed since 1813s ago: 13, ', weight: 1 },
+    ],
+  },
+  {
+    source: 'envoy',
+    service: (r) => (r() < 0.8 ? 'storefront-gateway' : 'internal-gateway'),
+    namespace: 'gateway',
+    pod: (i) => `storefront-gateway-envoy-7c9d8b6f5-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+    count: 300,
+    lines: [
+      envoyAccess(200, 30),
+      envoyAccess(304, 3),
+      envoyAccess(404, 3),
+      envoyAccess(503, 1),
+      {
+        status: 'warn',
+        message: () => 'Unable to use runtime singleton for feature envoy.http.headermap.lazy_map_min_size',
+        attributes: () => ({ level: 'warning', logger_name: 'runtime', filename: 'source/common/runtime/runtime_features.cc', line_number: 31, thread_id: 1 }),
+        weight: 1,
+      },
+    ],
+  },
+  {
+    source: 'argo_rollouts',
+    service: 'argo-rollouts',
+    namespace: 'argo-rollouts',
+    pod: (i) => `argo-rollouts-6f8b9c7d5-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+    count: 200,
+    lines: [
+      logrusLine(
+        'info',
+        () => 'Started syncing rollout',
+        (r) => {
+          const [namespace, rollout] = pick(r, ROLLOUTS).split('/');
+          return { generation: 4 + Math.floor(r() * 30), argo_rollouts: { namespace, name: rollout, resource: { version: 24435000 + Math.floor(r() * 9000) } } };
+        },
+        6,
+      ),
+      logrusLine(
+        'info',
+        () => 'Reconciliation completed',
+        (r) => ({ argo_rollouts: { resource: { name: pick(r, ROLLOUTS) } } }),
+        6,
+      ),
+      logrusLine(
+        'info',
+        (r) => `Step Analysis Run 'storefront-api-${Math.floor(r() * 46656).toString(36)}-success-rate' Status: Successful`,
+        (r) => ({ argo_rollouts: { resource: { name: pick(r, ROLLOUTS) } } }),
+        2,
+      ),
+      logrusLine(
+        'warn',
+        () => 'Rollout paused: CanaryPauseStep',
+        () => ({ argo_rollouts: { resource: { name: 'checkout/checkout-web' } } }),
+        1,
+      ),
+      logrusLine(
+        'error',
+        () => 'Rollout aborted: Metric "success-rate" assessed Failed due to failed (3) > failureLimit (2)',
+        () => ({ argo_rollouts: { resource: { name: 'checkout/order-service' } } }),
+        1,
+      ),
+    ],
+  },
+  {
+    source: 'argo_workflows',
+    service: 'argo-workflows',
+    namespace: 'argo',
+    pod: (i) => `argo-workflows-workflow-controller-7d9c6b5f4-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+    count: 200,
+    lines: [
+      logrusLine(
+        'info',
+        () => 'Processing workflow',
+        (r) => ({ namespace: 'data', workflow: `${pick(r, WORKFLOWS)}-${Math.floor(r() * 46656).toString(36)}` }),
+        6,
+        true,
+      ),
+      logrusLine(
+        'info',
+        () => 'Created pod',
+        (r) => ({ namespace: 'data', workflow: pick(r, WORKFLOWS), podName: `${pick(r, WORKFLOWS)}-main-${Math.floor(r() * 1e9)}` }),
+        3,
+        true,
+      ),
+      logrusLine(
+        'info',
+        () => 'Workflow update successful',
+        (r) => ({ namespace: 'data', workflow: pick(r, WORKFLOWS), phase: pick(r, ['Running', 'Succeeded', 'Succeeded', 'Failed']) }),
+        3,
+        true,
+      ),
+      logrusLine(
+        'warn',
+        () => 'Non-transient error: exceeded quota: data-quota',
+        () => ({ namespace: 'data', workflow: 'invoice-batch' }),
+        1,
+        true,
+      ),
+      logrusLine(
+        'error',
+        () => 'Mark error node',
+        (r) => ({ namespace: 'data', workflow: pick(r, WORKFLOWS), error: 'failed to save outputs: timed out waiting for the condition' }),
+        1,
+        true,
+      ),
+    ],
+  },
+  {
+    source: 'vllm',
+    service: 'vllm',
+    namespace: 'vllm',
+    pod: (i) => `vllm-${['llama-3-1-8b', 'llama-3-1-8b', 'qwen2-5-14b', 'qwen2-5-14b'][i]}-6c9f8d7b5-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+    count: 240,
+    lines: [
+      vllmLine(
+        'info',
+        'loggers.py:123',
+        (r) =>
+          `Engine 000: Avg prompt throughput: ${(300 + r() * 900).toFixed(1)} tokens/s, Avg generation throughput: ${(150 + r() * 700).toFixed(1)} tokens/s, Running: ${2 + Math.floor(r() * 20)} reqs, Waiting: ${Math.floor(r() * 3)} reqs, GPU KV cache usage: ${(20 + r() * 60).toFixed(1)}%, Prefix cache hit rate: ${(40 + r() * 40).toFixed(1)}%`,
+        6,
+      ),
+      vllmLine(
+        'info',
+        'logger.py:41',
+        (r) =>
+          `Received request chatcmpl-${Math.floor(r() * 1e12).toString(16)}: prompt: '<|start_header_id|>user<|end_header_id|>', params: SamplingParams(n=1, temperature=0.2, max_tokens=512), lora_request: None`,
+        3,
+      ),
+      vllmLine('info', 'api_server.py:1880', (r) => `Starting vLLM API server on http://0.0.0.0:8000 for ${pick(r, MODELS)}`, 1),
+      vllmLine(
+        'warn',
+        'scheduler.py:1560',
+        () => 'Sequence group 0 is preempted by PreemptionMode.RECOMPUTE mode because there is not enough KV cache space. This can affect the end-to-end performance.',
+        1,
+      ),
+    ],
+  },
+  temporal(
+    'frontend',
+    [
+      temporalLine('info', 'Frontend is now healthy', 'service.go:245', () => ({}), 1),
+      temporalLine(
+        'warn',
+        'Namespace rate limit exceeded',
+        'telemetry.go:419',
+        (r) => ({ 'wf-namespace': pick(r, TEMPORAL_NAMESPACES), 'grpc-method': '/temporal.api.workflowservice.v1.WorkflowService/StartWorkflowExecution' }),
+        2,
+      ),
+      temporalLine('info', 'Workflow execution already started', 'telemetry.go:385', workflow, 3),
+      temporalLine('error', 'Unable to call matching.PollWorkflowTaskQueue.', 'workflow_handler.go:921', (r) => ({ ...workflow(r), error: 'context deadline exceeded' }), 1),
+    ],
+    160,
+  ),
+  temporal(
+    'matching',
+    [
+      temporalLine('info', 'Task queue manager started', 'task_queue_manager.go:264', workflow, 3),
+      temporalLine('info', 'Unloaded task queue', 'matching_engine.go:1204', workflow, 2),
+      temporalLine(
+        'error',
+        'Persistent store operation failure',
+        'task_reader.go:212',
+        (r) => ({ ...workflow(r), 'store-operation': 'update-task-queue', error: 'Failed to lock task queue. Error: driver: bad connection' }),
+        1,
+      ),
+    ],
+    120,
+  ),
+  temporal(
+    'history',
+    [
+      temporalLine('info', 'Acquired shard', 'context_impl.go:1968', (r) => ({ 'shard-id': 1 + Math.floor(r() * 512) }), 2),
+      temporalLine('warn', 'history size exceeds warn limit.', 'workflow_size_checker.go:123', workflow, 1),
+      temporalLine('info', 'Workflow task timed out', 'timer_queue_active_task_executor.go:327', workflow, 2),
+      temporalLine('error', 'Fail to process task', 'lazy_logger.go:68', (r) => ({ ...workflow(r), error: 'context deadline exceeded', 'queue-task-type': 'TransferActivityTask' }), 1),
+    ],
+    160,
+  ),
+  temporal(
+    '',
+    [
+      temporalLine('info', 'Scanner workflow started', 'scanner.go:292', () => ({ 'wf-type': 'temporal-sys-tq-scanner-workflow' }), 1),
+      temporalLine('info', 'none', 'worker.go:96', () => ({ component: 'worker-manager', lifecycle: 'Started' }), 1),
+    ],
+    40,
+  ),
+  {
+    source: 'kube-apiserver',
+    service: 'kube-apiserver',
+    namespace: 'kube-system',
+    pod: (i) => `kube-apiserver-ip-10-0-${(i % 3) + 1}-10`,
+    count: 300,
+    lines: [
+      klogLine('I', 'controller.go:615', () => 'quota admission added evaluator for: leases.coordination.k8s.io', 3),
+      klogLine('I', 'alloc.go:330', (r) => `"allocated clusterIPs" service="${pick(r, NAMESPACES)}/${pick(r, APPS)}" clusterIPs={"IPv4":"172.20.${Math.floor(r() * 200)}.${Math.floor(r() * 250)}"}`),
+      klogLine('W', 'dispatcher.go:217', () => 'Failed calling webhook, failing open validation.gatekeeper.sh: failed calling webhook "validation.gatekeeper.sh": context deadline exceeded'),
+      klogLine('E', 'status.go:71', (r) => `apiserver received an error that is not an metav1.Status: context canceled: context canceled verb="GET" resource="${pick(r, RESOURCES)}"`),
+      klogLine(
+        'I',
+        'trace.go:236',
+        (r) =>
+          `Trace[${Math.floor(r() * 1e9)}]: "List" accept:application/json,audit-id:${Math.floor(r() * 1e8).toString(16)} (10-Nov-2026 09:15:01.880) (total time: ${600 + Math.floor(r() * 900)}ms)`,
+      ),
+    ],
+  },
+  {
+    source: 'kube-scheduler',
+    service: 'kube-scheduler',
+    namespace: 'kube-system',
+    pod: (i) => `kube-scheduler-ip-10-0-${(i % 3) + 1}-10`,
+    count: 200,
+    lines: [
+      klogLine(
+        'I',
+        'schedule_one.go:286',
+        (r) =>
+          `"Successfully bound pod to node" pod="${pick(r, NAMESPACES)}/${pick(r, APPS)}-7d9c6b5f4-${Math.floor(r() * 46656).toString(36)}" node="ip-10-0-${Math.floor(r() * 3) + 1}-${10 + Math.floor(r() * 40)}.ec2.internal" evaluatedNodes=6 feasibleNodes=4`,
+        6,
+      ),
+      klogLine(
+        'I',
+        'schedule_one.go:1050',
+        (r) =>
+          `"Unable to schedule pod; no fit; waiting" pod="${pick(r, NAMESPACES)}/${pick(r, APPS)}-batch" err="0/6 nodes are available: 2 Insufficient cpu, 4 node(s) didn't match Pod's node affinity/selector."`,
+      ),
+      klogLine('I', 'leaderelection.go:260', () => 'successfully acquired lease kube-system/kube-scheduler'),
+      klogLine('E', 'reflector.go:150', () => 'k8s.io/client-go/informers/factory.go:160: Failed to watch *v1.PersistentVolumeClaim: the server has asked for the client to provide credentials'),
+    ],
+  },
+  {
+    source: 'kube-controller-manager',
+    service: 'kube-controller-manager',
+    namespace: 'kube-system',
+    pod: (i) => `kube-controller-manager-ip-10-0-${(i % 3) + 1}-10`,
+    count: 200,
+    lines: [
+      klogLine(
+        'I',
+        'event.go:389',
+        (r) =>
+          `"Event occurred" object="${pick(r, NAMESPACES)}/${pick(r, APPS)}" fieldPath="" kind="Deployment" apiVersion="apps/v1" type="Normal" reason="ScalingReplicaSet" message="Scaled up replica set ${pick(r, APPS)}-7d9c6b5f4 to ${2 + Math.floor(r() * 4)}"`,
+        5,
+      ),
+      klogLine(
+        'I',
+        'horizontal.go:842',
+        (r) =>
+          `"Successful rescale" HPA="${pick(r, NAMESPACES)}/${pick(r, APPS)}" currentReplicas=3 desiredReplicas=${4 + Math.floor(r() * 3)} reason="cpu resource utilization (percentage of request) above target"`,
+        2,
+      ),
+      klogLine('W', 'garbagecollector.go:818', () => 'failed to discover some groups: map[external.metrics.k8s.io/v1beta1:stale GroupVersion discovery: external.metrics.k8s.io/v1beta1]'),
+      klogLine('E', 'job_controller.go:597', (r) => `"Unhandled Error" err="syncing job: failed to delete pod ${pick(r, NAMESPACES)}/${pick(r, APPS)}-migrate: pods not found"`),
+    ],
+  },
+];
+
+/** Every integration's logs over the last day. */
+export function kubernetesIntegrationLogs(r: Rand, now: number): LogEvent[] {
+  const out: LogEvent[] = [];
+  for (const s of SOURCES) {
+    const total = s.lines.reduce((n, l) => n + (l.weight ?? 1), 0);
+    for (let i = 0; i < s.count; i++) {
+      let x = r() * total;
+      const line = s.lines.find((l) => (x -= l.weight ?? 1) < 0) ?? s.lines[0];
+      const ts = Math.round(now - Math.pow(r(), 1.2) * 24 * HOUR);
+      const n = Math.floor(r() * HOSTS.length);
+      const message = line.message(r);
+      const service = typeof s.service === 'string' ? s.service : s.service(r);
+      out.push({
+        id: `${s.source}-${ts}-${i}`,
+        timestamp: ts,
+        status: line.status,
+        service,
+        host: HOSTS[n],
+        source: s.source,
+        message,
+        tags: { env: CLUSTERS[n].includes('prod') ? 'prod' : 'qa', kube_cluster_name: CLUSTERS[n], kube_namespace: s.namespace, pod_name: s.pod(n) },
+        attributes: line.attributes?.(r, message) ?? {},
+      });
+    }
+  }
+  return out;
+}

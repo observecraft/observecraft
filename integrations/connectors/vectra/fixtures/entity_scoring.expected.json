@@ -1,0 +1,86 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4ea-4d60-7a42-bfe3-175f23d5c869"
+      },
+      "active_detection_types": [
+        "M365 Suspicious Mail Forwarding"
+      ],
+      "attack_rating": 4,
+      "breadth_contrib": 1,
+      "category": "ACCOUNT SCORING",
+      "date": "2026-11-10T10:04:12Z",
+      "ddsource": "vectra",
+      "entity_id": 1090,
+      "event_timestamp": 1794305052000,
+      "host": "example.portal.vectra.ai",
+      "id": 32739,
+      "importance": 1,
+      "is_prioritized": false,
+      "last_detection": {
+        "id": 36230,
+        "type": "M365 Suspicious Mail Forwarding",
+        "url": "https://example.portal.vectra.ai/detections/36230"
+      },
+      "message": "{\"active_detection_types\":[\"M365 Suspicious Mail Forwarding\"],\"attack_rating\":4,\"breadth_contrib\":1,\"category\":\"ACCOUNT SCORING\",\"entity_id\":1090,\"event_timestamp\":\"2026-11-10T10:04:12Z\",\"id\":32739,\"importance\":1,\"is_prioritized\":false,\"last_detection\":{\"id\":36230,\"type\":\"M365 Suspicious Mail Forwarding\",\"url\":\"https://example.portal.vectra.ai/detections/36230\"},\"name\":\"O365:jane.doe@example.com\",\"severity\":\"Medium\",\"type\":\"account\",\"urgency_score\":55,\"url\":\"https://example.portal.vectra.ai/accounts/1090\",\"velocity_contrib\":1}",
+      "name": "O365:jane.doe@example.com",
+      "service": "vectra",
+      "severity": "Medium",
+      "status": "warning",
+      "type": "account",
+      "urgency_score": 55,
+      "url": "https://example.portal.vectra.ai/accounts/1090",
+      "velocity_contrib": 1,
+      "vendor": {
+        "endpoint": "entity-scoring-events"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4eb-a520-7cf2-9b0e-553cb02c1bf9"
+      },
+      "active_detection_types": [
+        "Hidden HTTPS Tunnel"
+      ],
+      "attack_rating": 7,
+      "breadth_contrib": 1,
+      "category": "HOST SCORING",
+      "date": "2026-11-10T10:05:40Z",
+      "ddsource": "vectra",
+      "entity_id": 1083,
+      "event_timestamp": 1794305140000,
+      "host": "example.portal.vectra.ai",
+      "id": 32740,
+      "importance": 2,
+      "is_prioritized": true,
+      "last_detection": {
+        "id": 36224,
+        "type": "Hidden HTTPS Tunnel",
+        "url": "https://example.portal.vectra.ai/detections/36224"
+      },
+      "message": "{\"active_detection_types\":[\"Hidden HTTPS Tunnel\"],\"attack_rating\":7,\"breadth_contrib\":1,\"category\":\"HOST SCORING\",\"entity_id\":1083,\"event_timestamp\":\"2026-11-10T10:05:40Z\",\"id\":32740,\"importance\":2,\"is_prioritized\":true,\"last_detection\":{\"id\":36224,\"type\":\"Hidden HTTPS Tunnel\",\"url\":\"https://example.portal.vectra.ai/detections/36224\"},\"name\":\"i-0a1b2c3d4e5f60003\",\"severity\":\"High\",\"type\":\"host\",\"urgency_score\":81,\"url\":\"https://example.portal.vectra.ai/hosts/1083\",\"velocity_contrib\":2}",
+      "name": "i-0a1b2c3d4e5f60003",
+      "service": "vectra",
+      "severity": "High",
+      "status": "critical",
+      "type": "host",
+      "urgency_score": 81,
+      "url": "https://example.portal.vectra.ai/hosts/1083",
+      "velocity_contrib": 2,
+      "vendor": {
+        "endpoint": "entity-scoring-events"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": 32740
+      }
+    }
+  }
+}

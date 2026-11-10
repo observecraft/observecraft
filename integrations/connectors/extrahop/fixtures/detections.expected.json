@@ -1,0 +1,197 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c497-1c80-7d8e-847c-f3d5ea3c1db3"
+      },
+      "appliance_id": 3,
+      "categories": [
+        "sec",
+        "sec.attack",
+        "sec.recon"
+      ],
+      "create_time": 1794299500000,
+      "date": 1794299600000,
+      "ddsource": "extrahop",
+      "description": "Device web-01.example.com sent an unusually high number of TCP SYN packets to many ports of other devices without completing the connections.",
+      "end_time": 1794299400000,
+      "host": "example-shop",
+      "id": 8589934601,
+      "is_user_created": false,
+      "level": "warning",
+      "message": "{\"message\":\"TCP SYN Scan\",\"status\":\"new\"}",
+      "mitre_tactics": [
+        {
+          "id": "TA0007",
+          "name": "Discovery",
+          "url": "https://attack.mitre.org/tactics/TA0007"
+        }
+      ],
+      "mitre_techniques": [
+        {
+          "id": "T1046",
+          "legacy_ids": [
+            "T1046"
+          ],
+          "name": "Network Service Discovery",
+          "url": "https://attack.mitre.org/techniques/T1046"
+        }
+      ],
+      "mod_time": 1794299600000,
+      "participants": [
+        {
+          "external": false,
+          "id": 501,
+          "object_id": 8589934700,
+          "object_type": "device",
+          "object_value": "10.0.4.21",
+          "role": "offender"
+        },
+        {
+          "external": false,
+          "id": 502,
+          "object_id": 8589934701,
+          "object_type": "device",
+          "object_value": "10.0.7.12",
+          "role": "victim"
+        }
+      ],
+      "recommended": false,
+      "risk_score": 37,
+      "service": "detection",
+      "start_time": 1794298800000,
+      "title": "TCP SYN Scan",
+      "type": "tcp_syn_scan",
+      "update_time": 1794299500000,
+      "url": "https://example-shop.cloud.extrahop.com/extrahop/#/detections/detail/8589934601/"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4eb-08e0-72aa-a19b-35c252b728b7"
+      },
+      "appliance_id": 3,
+      "assignee": "analyst@example.com",
+      "categories": [
+        "sec",
+        "sec.exfil"
+      ],
+      "create_time": 1794303000000,
+      "date": 1794305100000,
+      "ddsource": "extrahop",
+      "description": "Device db-02.example.com transferred an unusually large amount of data to an external S3 bucket.",
+      "end_time": 1794304200000,
+      "host": "example-shop",
+      "id": 8589934602,
+      "is_user_created": false,
+      "level": "critical",
+      "message": "{\"message\":\"Data Exfiltration to S3 Bucket\",\"status\":\"in_progress\"}",
+      "mitre_tactics": [
+        {
+          "id": "TA0010",
+          "name": "Exfiltration",
+          "url": "https://attack.mitre.org/tactics/TA0010"
+        }
+      ],
+      "mitre_techniques": [
+        {
+          "id": "T1567",
+          "legacy_ids": [],
+          "name": "Exfiltration Over Web Service",
+          "url": "https://attack.mitre.org/techniques/T1567"
+        }
+      ],
+      "mod_time": 1794305100000,
+      "participants": [
+        {
+          "external": false,
+          "id": 503,
+          "object_id": 8589934702,
+          "object_type": "device",
+          "object_value": "10.0.5.40",
+          "role": "offender"
+        },
+        {
+          "external": true,
+          "hostname": "uploads.example.net",
+          "id": 504,
+          "object_type": "ipaddr",
+          "object_value": "198.51.100.23",
+          "role": "victim"
+        }
+      ],
+      "recommended": true,
+      "risk_score": 87,
+      "service": "detection",
+      "start_time": 1794302400000,
+      "title": "Data Exfiltration to S3 Bucket",
+      "type": "data_exfiltration_s3",
+      "update_time": 1794304300000,
+      "url": "https://example-shop.cloud.extrahop.com/extrahop/#/detections/detail/8589934602/"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c52b-1f20-707b-a9e2-969b293d8142"
+      },
+      "appliance_id": 3,
+      "categories": [
+        "sec",
+        "sec.command"
+      ],
+      "create_time": 1794306000000,
+      "date": 1794309300000,
+      "ddsource": "extrahop",
+      "description": "Device checkout-03.example.com sent DNS queries with unusually long subdomains.",
+      "end_time": 1794306100000,
+      "host": "example-shop",
+      "id": 8589934603,
+      "is_user_created": false,
+      "level": "info",
+      "message": "{\"message\":\"DNS Tunnel\",\"status\":\"closed\"}",
+      "mitre_tactics": [
+        {
+          "id": "TA0011",
+          "name": "Command and Control",
+          "url": "https://attack.mitre.org/tactics/TA0011"
+        }
+      ],
+      "mitre_techniques": [
+        {
+          "id": "T1071.004",
+          "legacy_ids": [],
+          "name": "DNS",
+          "url": "https://attack.mitre.org/techniques/T1071/004"
+        }
+      ],
+      "mod_time": 1794309300000,
+      "participants": [
+        {
+          "external": false,
+          "id": 505,
+          "object_id": 8589934703,
+          "object_type": "device",
+          "object_value": "10.0.6.33",
+          "role": "offender"
+        }
+      ],
+      "recommended": false,
+      "resolution": "no_action_taken",
+      "risk_score": 18,
+      "service": "detection",
+      "start_time": 1794305800000,
+      "title": "DNS Tunnel",
+      "type": "dns_tunnel",
+      "update_time": 1794309000000,
+      "url": "https://example-shop.cloud.extrahop.com/extrahop/#/detections/detail/8589934603/"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

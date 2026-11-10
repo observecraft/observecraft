@@ -114,6 +114,7 @@ fn terms_match(terms: &[Term], attrs: &BTreeMap<String, Vec<String>>, text: &str
                 (got.is_some_and(|got| values.iter().any(|p| got.iter().any(|v| glob(p, v)))), *negate)
             }
             Term::Text { text: t, negate } => (text.to_lowercase().contains(&t.to_lowercase()), *negate),
+            Term::Any { alternatives, negate } => (alternatives.iter().any(|a| terms_match(a, attrs, text)), *negate),
         };
         hit != negate
     })

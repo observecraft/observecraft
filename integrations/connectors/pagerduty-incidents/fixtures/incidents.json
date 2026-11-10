@@ -1,0 +1,11 @@
+{
+  "incidents": [
+    { "id": "Q2BCDE3FGHI4JK", "type": "incident", "incident_number": 4822, "title": "Checkout latency above 2s", "status": "triggered", "urgency": "high",
+      "created_at": "2026-11-10T11:50:00Z", "priority": { "id": "PPRIO1", "summary": "P1" }, "service": { "id": "P1234AB", "summary": "order-service" },
+      "html_url": "https://example.pagerduty.com/incidents/Q2BCDE3FGHI4JK" },
+    { "id": "Q3CDEF4GHIJ5KL", "type": "incident", "incident_number": 4819, "title": "Inventory sync lag", "status": "acknowledged", "urgency": "low",
+      "created_at": "2026-11-10T09:00:00Z", "priority": null, "service": { "id": "P5678CD", "summary": "inventory-service" },
+      "html_url": "https://example.pagerduty.com/incidents/Q3CDEF4GHIJ5KL" }
+  ],
+  "limit": 100, "offset": 0, "more": false, "total": null
+}

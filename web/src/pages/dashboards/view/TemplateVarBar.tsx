@@ -28,7 +28,7 @@ function writeViews(id: string, views: SavedView[]) {
 }
 
 function VarSelect({ tv, value, onChange }: { tv: TemplateVariable; value: string; onChange: (v: string) => void }) {
-  const values = useTagValues(tv.prefix);
+  const values = useTagValues(tv.prefix.replace(/^@/, ''));
   return (
     <Select
       label={tv.name}

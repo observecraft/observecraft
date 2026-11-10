@@ -1,0 +1,114 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Doppler (https://docs.doppler.com/reference/activity_logs-list): the workplace's activity log, read from Doppler's API
+# and shaped as the logs Doppler's own Datadog integration sends (source:doppler; createdAt, text, title, link, slug,
+# user, workplace, metadata.project*), so integrations-extras' Doppler pipeline and dashboard read them unchanged.
+# The API's entries have no `type` (the activity's code, e.g. `enclave.project.create`, which Doppler's push carries),
+# so the dashboard's "by type" widgets stay empty; project, environment and config are kept instead.
+schema_version: 1
+id: doppler
+name: Doppler
+publisher: ObserveCraft
+vendor: Doppler
+description: >-
+  The activity log of a Doppler workplace (secrets, configs, environments and projects changed, members and service
+  accounts, integrations and settings) as logs, read every five minutes from Doppler's API.
+tiles: [doppler]
+categories: [Security, SIEM, Developer Tools, Log Collection]
+source: doppler
+docs_url: https://docs.doppler.com/reference/activity_logs-list
+setup: |
+  1. In Doppler, open **Team → Service Accounts** and create one, e.g. `observecraft-activity`, with the workplace role
+     **Viewer** (it can read the activity log, not secrets' values).
+  2. Under the service account, **Generate** an API token (`dp.sa.…`) and copy it.
+links:
+  - { label: Service accounts, url: "https://dashboard.doppler.com/workplace/team/service_accounts" }
+
+config:
+  - key: token
+    label: API token
+    type: string
+    secret: true
+    required: true
+    placeholder: dp.sa.…
+    help: A service account's (or a personal) token that can read the workplace.
+
+auth:
+  kind: bearer
+  token: "{{ secrets.token }}"
+
+rate_limit: { requests_per_minute: 60 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Doppler refused the API token
+  - status: [403]
+    kind: access_denied
+    message: The token can't read the workplace's activity log; give its service account the Viewer role or higher
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Doppler (retry after {{ headers['retry-after'] ?? '?' }}s)"
+
+discover:
+  - name: workplace
+    request: { url: "https://api.doppler.com/v3/workplace" }
+    value: "{{ response.workplace }}"
+    ttl: 6h
+
+streams:
+  - id: activity_logs
+    name: Activity log
+    description: >-
+      Every activity log entry as a log (source:doppler): text is the message, user the actor (usr.* after the
+      pipeline), metadata.projectName / environment / config what it changed, link the entry in Doppler's dashboard.
+    interval: 5m
+    # Newest first, with no time filter: pages stop at the first entry older than the window.
+    request:
+      url: https://api.doppler.com/v3/logs
+      query: { page: "{{ page.cursor ?? 1 }}", per_page: 20 }
+    records: "{{ response.logs }}"
+    pagination:
+      kind: cursor
+      next: "{{ (records | len) < 20 ? null : (page.cursor ?? 1) + 1 }}"
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.created_at }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 10m
+    vars:
+      workplace_id: "{{ discovery.workplace.id }}"
+    output:
+      logs:
+        message: "{{ record.text }}"
+        date: "{{ record.created_at }}"
+        attributes:
+          createdAt: "{{ record.created_at }}"
+          text: "{{ record.text }}"
+          title: "{{ 'Activity Log: ' + record.id }}"
+          slug: "{{ record.id }}"
+          link: "{{ 'https://dashboard.doppler.com/workplace/' + vars.workplace_id + '/logs?id=' + record.id }}"
+          user: "{{ record.user }}"
+          workplace: { id: "{{ vars.workplace_id }}", name: "{{ discovery.workplace.name }}" }
+          metadata:
+            projectId: "{{ record.project }}"
+            projectName: "{{ record.project }}"
+            environment: "{{ record.environment }}"
+            config: "{{ record.config }}"
+
+test:
+  request: { url: https://api.doppler.com/v3/workplace }
+  success: "{{ response.workplace.id }}"
+  message: "Connected to the {{ response.workplace.name }} workplace"
+
+mock:
+  secrets: { token: dp.sa.test-token }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.doppler.com/v3/workplace", file: fixtures/workplace.json }
+    - { url: "https://api.doppler.com/v3/logs", query: { page: "2" }, file: fixtures/logs-2.json }
+    - { url: "https://api.doppler.com/v3/logs", file: fixtures/logs-1.json }
+  expect:
+    activity_logs: { records: 21, logs: 21, rerun: 0, golden: fixtures/activity_logs.expected.json }
+    test: { ok: true, message: "Shop Example workplace" }

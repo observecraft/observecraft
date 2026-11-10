@@ -1,0 +1,7 @@
+{
+  "meta": { "status": 200, "pagination": { "pageSize": 1 } },
+  "data": [
+    { "id": "eNoVjt0KgjAYQN9ltwXZSh1BF7LIBNNSXBrdmPua5l9MJ_3Qu2f353DOB3WQKQkFRyukYpdW0002", "auditType": "Policy Definition Updated", "user": "jane.doe@example.com", "eventTime": "2026-11-10T09:12:05+0000", "eventInfo": "Updated Anti-Spoofing policy 'Storefront domains', IP: 203.0.113.12", "category": "account_logs" }
+  ],
+  "fail": []
+}

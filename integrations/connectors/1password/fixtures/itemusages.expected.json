@@ -1,0 +1,110 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b0-70e0-786b-8818-a8e3d599a793"
+      },
+      "action": "reveal",
+      "client": {
+        "app_name": "1Password for Mac",
+        "ip_address": "198.51.100.12",
+        "platform_name": "macOS"
+      },
+      "date": "2026-11-10T09:01:00Z",
+      "ddsource": "1password",
+      "evt": {
+        "name": "reveal"
+      },
+      "host": "events.1password.com",
+      "item_uuid": "bvwmmwxisuca7wbehrbyqhag54",
+      "location": {
+        "city": "Bucharest",
+        "country": "RO"
+      },
+      "message": "jordan.patel@example.com: reveal of item bvwmmwxisuca7wbehrbyqhag54 in vault jaqxqf5qylslqiitnduawrndc5",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": "Bucharest",
+            "country": "RO"
+          },
+          "ip": "198.51.100.12"
+        }
+      },
+      "service": "itemusages",
+      "status": "info",
+      "timestamp": "2026-11-10T09:01:00Z",
+      "used_version": 3,
+      "user": {
+        "email": "jordan.patel@example.com",
+        "name": "Jordan Patel",
+        "uuid": "IR7VJHJ36JHINBFAD7V2T5MP3E"
+      },
+      "usr": {
+        "email": "jordan.patel@example.com",
+        "id": "IR7VJHJ36JHINBFAD7V2T5MP3E",
+        "name": "Jordan Patel"
+      },
+      "uuid": "OK41XEGLRTH4YKO5YRTCPNX3IU",
+      "vault_uuid": "jaqxqf5qylslqiitnduawrndc5"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c539-8a88-7de7-a988-0eed453096ef"
+      },
+      "action": "secure-copy",
+      "client": {
+        "app_name": "1Password Browser Extension",
+        "ip_address": "203.0.113.20",
+        "platform_name": "Chrome"
+      },
+      "date": "2026-11-10T11:30:45Z",
+      "ddsource": "1password",
+      "evt": {
+        "name": "secure-copy"
+      },
+      "host": "events.1password.com",
+      "item_uuid": "cwxnnxyjtvdb8xcfiszcrbih65",
+      "location": {
+        "city": "Ashburn",
+        "country": "US"
+      },
+      "message": "sam.lee@example.com: secure-copy of item cwxnnxyjtvdb8xcfiszcrbih65 in vault jaqxqf5qylslqiitnduawrndc5",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": "Ashburn",
+            "country": "US"
+          },
+          "ip": "203.0.113.20"
+        }
+      },
+      "service": "itemusages",
+      "status": "info",
+      "timestamp": "2026-11-10T11:30:45Z",
+      "used_version": 1,
+      "user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "uuid": "JS8WKIK47KIJOCGBE8W3U6NQ4F"
+      },
+      "usr": {
+        "email": "sam.lee@example.com",
+        "id": "JS8WKIK47KIJOCGBE8W3U6NQ4F",
+        "name": "Sam Lee"
+      },
+      "uuid": "PL52YFHMSUI5ZLP6SUDQOY4JV",
+      "vault_uuid": "jaqxqf5qylslqiitnduawrndc5"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

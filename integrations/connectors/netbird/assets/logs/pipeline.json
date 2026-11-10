@@ -1,0 +1,19 @@
+{
+  "name": "NetBird",
+  "is_enabled": true,
+  "filter": { "query": "source:netbird" },
+  "processors": [
+    {
+      "type": "category-processor",
+      "name": "What the event changed: peers, access, users or setup keys",
+      "is_enabled": true,
+      "target": "netbird.area",
+      "categories": [
+        { "name": "peers", "filter": { "query": "@netbird.category:peer" } },
+        { "name": "access", "filter": { "query": "@netbird.category:(policy OR route OR network OR nameserver OR dns OR posture)" } },
+        { "name": "users", "filter": { "query": "@netbird.category:(user OR service OR personal)" } },
+        { "name": "setup keys", "filter": { "query": "@netbird.category:setupkey" } }
+      ]
+    }
+  ]
+}

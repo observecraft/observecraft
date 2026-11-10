@@ -1,0 +1,40 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c446-3d60-7fb5-8bc5-016251868991"
+      },
+      "action": "Update",
+      "activity": "Policy, Edit",
+      "application": "Admin Portal",
+      "date": 1794294300000,
+      "ddsource": "forcepoint-security-service-edge",
+      "details": "Changed the Salesforce download policy",
+      "device": "Windows",
+      "email": "admin@example.com",
+      "host": "portal.bitglass.com",
+      "ipaddress": "203.0.113.10",
+      "location": "Berlin, DE",
+      "message": "Policy, Edit by admin@example.com: Update",
+      "pagetitle": "Policies",
+      "service": "forcepoint-sse-admin",
+      "status": "info",
+      "syslogheader": "<110>1 2026-11-10T07:05:00.000000Z api.bitglass.com NILVALUE NILVALUE access",
+      "time": "10 Nov 2026 07:05:00",
+      "transactionid": "1f5e0000bb01 [10 Nov 2026 07:05:00]",
+      "url": "/policies/300101/",
+      "user": "Shop Admin",
+      "useragent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "admin-t1"
+      }
+    }
+  }
+}

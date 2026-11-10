@@ -1,0 +1,116 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "snowflake.billing.warehouse.total_credit.sum",
+      "tags": [
+        [
+          "snowflake_account",
+          "exampleorg-analytics"
+        ],
+        [
+          "warehouse",
+          "ANALYTICS_WH"
+        ]
+      ],
+      "time_ms": 1794290400000,
+      "value": 1.25
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "snowflake.billing.warehouse.virtual_warehouse.sum",
+      "tags": [
+        [
+          "snowflake_account",
+          "exampleorg-analytics"
+        ],
+        [
+          "warehouse",
+          "ANALYTICS_WH"
+        ]
+      ],
+      "time_ms": 1794290400000,
+      "value": 1.2
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "snowflake.billing.warehouse.cloud_service.sum",
+      "tags": [
+        [
+          "snowflake_account",
+          "exampleorg-analytics"
+        ],
+        [
+          "warehouse",
+          "ANALYTICS_WH"
+        ]
+      ],
+      "time_ms": 1794290400000,
+      "value": 0.05
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "snowflake.billing.warehouse.total_credit.sum",
+      "tags": [
+        [
+          "snowflake_account",
+          "exampleorg-analytics"
+        ],
+        [
+          "warehouse",
+          "ETL_WH"
+        ]
+      ],
+      "time_ms": 1794290400000,
+      "value": 4.01
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "snowflake.billing.warehouse.virtual_warehouse.sum",
+      "tags": [
+        [
+          "snowflake_account",
+          "exampleorg-analytics"
+        ],
+        [
+          "warehouse",
+          "ETL_WH"
+        ]
+      ],
+      "time_ms": 1794290400000,
+      "value": 3.98
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "snowflake.billing.warehouse.cloud_service.sum",
+      "tags": [
+        [
+          "snowflake_account",
+          "exampleorg-analytics"
+        ],
+        [
+          "warehouse",
+          "ETL_WH"
+        ]
+      ],
+      "time_ms": 1794290400000,
+      "value": 0.03
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794301200000
+      }
+    }
+  }
+}

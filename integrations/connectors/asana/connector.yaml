@@ -1,0 +1,101 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Asana (https://developers.asana.com/reference/getauditlogevents): a workspace's audit log, as the logs Datadog's
+# integration sends (source:asana, service:audit-logs, the event as it comes: gid, event_type, event_category, actor, resource, details,
+# context). integrations-core's log pipeline and "Asana - Audit Logs" dashboard for the tile read them as they are.
+schema_version: 1
+id: asana
+name: Asana
+publisher: ObserveCraft
+vendor: Asana
+description: >-
+  The audit log of an Asana organization or workspace (logins, app authorizations, permission and privacy changes,
+  exports, deletions), one log per event, read every few minutes from Asana's Audit Log API.
+tiles: [asana]
+categories: [Log Collection, Security, SIEM]
+source: asana
+docs_url: https://developers.asana.com/docs/audit-log-api
+setup: |
+  1. The Audit Log API needs an Enterprise or Enterprise+ plan.
+  2. In the Admin Console, open **Apps → Service accounts** and add one; copy its token (Asana shows it once). Give it
+     the **Audit logs** scope when scopes are offered.
+  3. The workspace (domain) id is in the Admin Console's **Settings**, or in any project URL's first number.
+instance: "{{ config.workspace_id }}"
+
+config:
+  - key: workspace_id
+    label: Workspace (domain) id
+    type: string
+    required: true
+    pattern: "[0-9]+"
+    placeholder: "1208000000000000"
+  - key: token
+    label: Service account token
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: bearer
+  token: "{{ secrets.token }}"
+
+# Asana allows 1,500 requests a minute on paid plans; a few a run are enough.
+rate_limit: { requests_per_minute: 60 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Asana refused the service account token
+  - status: [402, 403]
+    kind: access_denied
+    message: "The token can't read the audit log of workspace {{ config.workspace_id }}: it needs a service account of an Enterprise or Enterprise+ organization"
+  - status: [404]
+    kind: access_denied
+    message: "No Asana workspace {{ config.workspace_id }}"
+
+streams:
+  - id: audit_log_events
+    name: Audit log events
+    description: >-
+      Every audit log event as a log (source:asana) with Asana's fields as they are; the tile's pipeline maps actor.*
+      to usr.*, context.client_ip_address to network.client.ip and context.user_agent to http.useragent.
+    interval: 5m
+    request:
+      url: "https://app.asana.com/api/1.0/workspaces/{{ config.workspace_id }}/audit_log_events"
+      query:
+        start_at: "{{ window.start | rfc3339 }}"
+        end_at: "{{ window.end | rfc3339 }}"
+        limit: 100
+        offset: "{{ page.cursor }}"
+    records: "{{ response.data }}"
+    # Asana always answers a next_page (the log keeps growing): an empty page ends the run.
+    pagination: { kind: cursor, next: "{{ response.next_page.offset }}" }
+    record_id: "{{ record.gid }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.created_at }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+      settle: 1m
+    output:
+      logs:
+        service: audit-logs
+        message: "{{ record.event_type + (' by ' + (record.actor.name ?? record.actor.email ?? record.actor.actor_type) ?? '') }}"
+        date: "{{ record.created_at }}"
+        attributes: "{{ record }}"
+
+test:
+  stream: audit_log_events
+  message: "Connected to workspace {{ config.workspace_id }}: the audit log is readable"
+
+mock:
+  config: { workspace_id: "1208000000000000" }
+  secrets: { token: "2/1208000000000099/1208000000000098:test" }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://app.asana.com/api/1.0/workspaces/1208000000000000/audit_log_events", query: { offset: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.page2" }, file: fixtures/audit_log_events-2.json }
+    - { url: "https://app.asana.com/api/1.0/workspaces/1208000000000000/audit_log_events", query: { offset: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.page3" }, body: { data: [], next_page: { offset: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.page3" } } }
+    - { url: "https://app.asana.com/api/1.0/workspaces/1208000000000000/audit_log_events", file: fixtures/audit_log_events-1.json }
+  expect:
+    audit_log_events: { records: 4, logs: 4, rerun: 0, golden: fixtures/audit_log_events.expected.json }
+    test: { ok: true, message: "the audit log is readable" }

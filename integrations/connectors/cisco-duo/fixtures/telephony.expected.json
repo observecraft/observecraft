@@ -1,0 +1,32 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b7-1479-7e58-b1c7-3cd39595745e"
+      },
+      "context": "authentication",
+      "credits": 1,
+      "date": "2026-11-10T09:08:15.097338+00:00",
+      "ddsource": "cisco-duo",
+      "host": "api-0a1b2c3d.duosecurity.com",
+      "message": "sms for authentication (1 credits)",
+      "phone": "+15555550100",
+      "service": "telephony",
+      "status": "info",
+      "telephony_id": "9c2d0000-0000-4000-8000-000000000001",
+      "ts": "2026-11-10T09:08:15.097338+00:00",
+      "txid": "7a3f0000-0000-4000-8000-000000000009",
+      "type": "sms"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311880000
+      }
+    }
+  }
+}

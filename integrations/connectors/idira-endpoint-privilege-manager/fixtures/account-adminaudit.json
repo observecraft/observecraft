@@ -1,0 +1,16 @@
+{
+  "AdminAudits": [
+    {
+      "EventTime": "2026-11-10T07:30:00.50Z",
+      "LoggedAt": "2026-11-10T07:30:00.61Z",
+      "Administrator": "security.lead@example.com",
+      "Role": "AccountAdmin",
+      "Feature": "User Management",
+      "Description": "User 'observecraft@example.com' added with role 'Account Admin - View Only'",
+      "LoggedFrom": "198.51.100.41",
+      "InternalSessionId": 3099874,
+      "PermissionDescription": "None"
+    }
+  ],
+  "TotalCount": 1
+}

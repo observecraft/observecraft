@@ -1,15 +1,19 @@
 // integrations-core widgets beyond charts and tables, drawn as Datadog draws them: the geomap (a world map
 // coloured by value per country), the bar chart, the distribution (a histogram of the groups' values), the
-// host map, free text, a log pattern list and the sunburst (pie).
+// host map, free text, a log pattern list, the sunburst (pie) and the Data Streams topology.
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as echarts from 'echarts';
 import { Chart } from '../../../components/charts/Chart';
 import type { IntegrationWidgetDefinition } from '../../../api/integrations/evaluate';
 import { queryIntegrationPanel } from '../../../api/integrations/panels';
 import { formatMetricValue } from '../../../api/integrations/units';
-import { countryValues, distributionBuckets, groupLabel, hostmapColor, sunburstTree, type SunburstNode } from '../../../api/integrations/widgetData';
+import { countryValues, distributionBuckets, groupLabel, hostmapColor, hostmapGroups, hostmapQuery, hostmapScope, sunburstTree, type SunburstNode } from '../../../api/integrations/widgetData';
 import { loadWorldMap } from '../../../api/integrations/worldMap';
+import { queryTopology, type TopologyRequest } from '../../../api/integrations/topology';
+import { StreamGraph } from '../../dataStreams/StreamGraph';
+import '../../dataStreams/dataStreams.css';
 import { logPatterns } from '../../../api/client';
 import { palette, token } from '../../../theme/chartTheme';
 import { currentTheme } from '../../../theme/mode';
@@ -59,6 +63,27 @@ export function IntegrationGeomap({ values }: { values: Value[] }) {
             ],
           }}
         />
+      )}
+    </WidgetState>
+  );
+}
+
+/** A topology map on Data Streams: the queue's producers and consumers; a node opens it on the Data Streams map. */
+export function IntegrationTopology({ def }: { def: IntegrationWidgetDefinition }) {
+  const { range, resolve } = useDashboardContext();
+  const navigate = useNavigate();
+  const request = (def.requests as unknown as TopologyRequest[] | undefined)?.[0];
+  const data = useQuery({
+    queryKey: ['integration-topology', request, range, resolve(request?.query?.query_string ?? ''), (request?.query?.filters ?? []).map(resolve)],
+    queryFn: () => queryTopology(request, resolve, range),
+    placeholderData: keepPreviousData,
+  });
+  return (
+    <WidgetState loading={data.isPending} error={data.error} empty={!data.data?.edges.length}>
+      {data.data && (
+        <div className="iw-topology">
+          <StreamGraph nodes={data.data.nodes} edges={data.data.edges} fit onSelect={(id) => id && navigate(`/data-streams?node=${encodeURIComponent(id)}`)} />
+        </div>
       )}
     </WidgetState>
   );
@@ -124,22 +149,40 @@ export function IntegrationFreeText({ def }: { def: IntegrationWidgetDefinition 
 /** Hosts as tiles, coloured by the fill query (green lowest, orange highest); hovering names the host and value. */
 export function IntegrationHostmap({ def }: { def: IntegrationWidgetDefinition }) {
   const { range, resolve } = useDashboardContext();
-  const requests = def.requests as unknown as { fill?: { q?: string } };
-  const fill = requests?.fill?.q;
-  const panel = useMemo(() => (fill ? ({ type: 'query_table', requests: [{ q: /\bby\b/.test(fill) ? fill : `${fill} by {host}` }] } as unknown as IntegrationWidgetDefinition) : null), [fill]);
+  const query = hostmapQuery(def);
+  const groups = useMemo(() => (Array.isArray(def.group) ? def.group.filter((g): g is string => typeof g === 'string') : []), [def.group]);
+  const panel = useMemo(() => (query ? ({ type: 'query_table', requests: [{ q: query }] } as unknown as IntegrationWidgetDefinition) : null), [query]);
   const data = useQuery({
-    queryKey: ['integration-hostmap', fill, range, resolve(fill ?? '')],
+    queryKey: ['integration-hostmap', query, range, resolve(query ?? '')],
     queryFn: () => queryIntegrationPanel(panel!, resolve, range),
     enabled: !!panel,
     placeholderData: keepPreviousData,
   });
-  const hosts = (data.data ?? []).map((s) => ({ name: s.name, unit: s.unit, value: s.points.at(-1)?.[1] ?? 0 })).sort((a, b) => a.name.localeCompare(b.name));
-  const [min, max] = [Math.min(...hosts.map((h) => h.value)), Math.max(...hosts.map((h) => h.value))];
+  const values = (data.data ?? []).map((s) => ({ name: s.name, unit: s.unit, value: s.points.at(-1)?.[1] ?? 0 }));
+  const unit = values[0]?.unit;
+  const boxes = hostmapGroups(values, groups);
+  const [min, max] = [Math.min(...values.map((h) => h.value)), Math.max(...values.map((h) => h.value))];
+  const metric = /:([\w.]+)\{/.exec(query ?? '')?.[1];
+  const scope = query ? hostmapScope(query) : undefined;
+  if (panel && !data.isPending && !data.error && !values.length)
+    return (
+      <div className="wd-state iw-hostmap-empty">
+        <span>No data for {scope ?? 'this query'}</span>
+        {/^process\./.test(metric ?? '') && <small>Sent by the Datadog Agent's Process Agent (process collection or container collection enabled).</small>}
+      </div>
+    );
   return (
-    <WidgetState loading={!!panel && data.isPending} error={panel ? data.error : new Error('This host map has no fill query')} empty={!hosts.length}>
+    <WidgetState loading={!!panel && data.isPending} error={panel ? data.error : new Error('This host map has no fill query')}>
       <div className="iw-hostmap">
-        {hosts.map((h) => (
-          <span key={h.name} className="iw-hostmap-cell" style={{ background: hostmapColor(h.value, min, max) }} title={`${h.name}: ${formatMetricValue(h.value, h.unit)}`} />
+        {boxes.map((box) => (
+          <div key={box.label} className="iw-hostmap-group">
+            {box.label && <span className="iw-hostmap-label">{box.label}</span>}
+            <div className="iw-hostmap-cells">
+              {box.nodes.map((h) => (
+                <span key={h.name} className="iw-hostmap-cell" style={{ background: hostmapColor(h.value, min, max) }} title={`${h.name}: ${formatMetricValue(h.value, unit)}`} />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </WidgetState>
@@ -149,7 +192,7 @@ export function IntegrationHostmap({ def }: { def: IntegrationWidgetDefinition }
 /** The log patterns of the widget's query, most frequent first. */
 export function IntegrationLogPatterns({ def }: { def: IntegrationWidgetDefinition }) {
   const { range, resolveSearch } = useDashboardContext();
-  const query = resolveSearch((def.requests?.[0]?.query?.query_string ?? '').replace(/\$[a-zA-Z_]\w*/g, ''));
+  const query = resolveSearch(def.requests?.[0]?.query?.query_string ?? '');
   const result = useQuery({ queryKey: ['logs', 'patterns', 'integration-panel', query, range], queryFn: () => logPatterns({ range, query }), placeholderData: keepPreviousData });
   const patterns = [...(result.data ?? [])].sort((a, b) => b.count - a.count).slice(0, 50);
   return (

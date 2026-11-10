@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "starting_at": "2026-11-10T09:00:00Z", "ending_at": "2026-11-10T10:00:00Z",
+      "results": [
+        { "uncached_input_tokens": 120345, "cache_creation": { "ephemeral_5m_input_tokens": 5000, "ephemeral_1h_input_tokens": 0 }, "cache_read_input_tokens": 40000, "output_tokens": 20345, "server_tool_use": { "web_search_requests": 3 },
+          "api_key_id": "apikey_01ExampleCatalog", "workspace_id": "wrkspc_01ExampleStorefront", "model": "claude-sonnet-4-5-20250929", "service_tier": "standard", "context_window": "0-200k" },
+        { "uncached_input_tokens": 9100, "cache_creation": { "ephemeral_5m_input_tokens": 0, "ephemeral_1h_input_tokens": 2048 }, "cache_read_input_tokens": 61440, "output_tokens": 3120, "server_tool_use": { "web_search_requests": 0 },
+          "api_key_id": "apikey_01ExampleSupport", "workspace_id": "wrkspc_01ExampleSupportBot", "model": "claude-haiku-4-5-20251001", "service_tier": "standard", "context_window": "0-200k" }
+      ]
+    }
+  ],
+  "has_more": true, "next_page": "page_MjAyNi0xMS0xMFQxMDowMDowMFo"
+}

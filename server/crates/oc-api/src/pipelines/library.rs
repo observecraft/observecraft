@@ -92,6 +92,416 @@ mod tests {
         }
     }
 
+    /// A log of `source` with these attributes.
+    fn with_attrs(id: &str, source: &str, attrs: serde_json::Value) -> super::super::Log {
+        let p = get(id).unwrap();
+        let (pipeline, errors) = Pipeline::compile(&p.name, &p.filter, &p.processors);
+        assert!(errors.is_empty(), "{errors:?}");
+        let mut log = super::super::Log::from_row(&serde_json::json!({"status": "info", "service": source, "source": source, "message": "event", "attributes": attrs.to_string()}));
+        assert!(pipeline.apply(&mut log, 1_792_933_200_000), "{id} matches source:{source}");
+        log
+    }
+
+    #[test]
+    fn authentik_events_get_categories_users_and_statuses() {
+        use crate::authentik::{fixtures, logs::log_of};
+        use serde_json::json;
+        assert_eq!(get("authentik").unwrap().integration, "authentik", "installed with the integration");
+        // The poller's logs: categorized.
+        let attrs = |event: Value| {
+            let mut log = log_of(&event, "portal.example.com");
+            for k in ["date", "message", "status", "service", "ddsource", "host", "_oc_ingest"] {
+                log.as_object_mut().unwrap().remove(k);
+            }
+            log
+        };
+        let login = with_attrs("authentik", "authentik", attrs(fixtures::login("1", "2026-11-06T10:00:00Z")));
+        assert_eq!((login.get("authentik.category"), login.status.as_str()), (Some(json!("authentication")), "info"));
+        let device = fixtures::event("2", "model_created", "2026-11-06T10:00:00Z", json!({ "model": { "app": "authentik_stages_authenticator_totp", "model_name": "totpdevice", "name": "phone" } }));
+        assert_eq!(with_attrs("authentik", "authentik", attrs(device)).get("authentik.category"), Some(json!("mfa")));
+        let group = fixtures::event("3", "model_updated", "2026-11-06T10:00:00Z", json!({ "model": { "app": "authentik_core", "model_name": "group", "name": "admins" } }));
+        assert_eq!(with_attrs("authentik", "authentik", attrs(group)).get("authentik.category"), Some(json!("configuration_change")));
+        let mut failed = fixtures::event("4", "login_failed", "2026-11-06T10:00:00Z", json!({ "username": "admin", "stage": { "name": "default-authentication-password" } }));
+        failed["user"] = json!({ "pk": 1, "username": "AnonymousUser" });
+        let failed = with_attrs("authentik", "authentik", attrs(failed));
+        assert_eq!((failed.get("authentik.category"), failed.get("usr.name"), failed.status.as_str()), (Some(json!("authentication")), Some(json!("admin")), "error"), "the user who tried");
+        let impersonation = with_attrs("authentik", "authentik", attrs(fixtures::event("5", "impersonation_started", "2026-11-06T10:00:00Z", json!({}))));
+        assert_eq!((impersonation.get("authentik.category"), impersonation.status.as_str()), (Some(json!("impersonation")), "warn"));
+        assert_eq!(with_attrs("authentik", "authentik", attrs(fixtures::event("6", "custom_thing", "2026-11-06T10:00:00Z", json!({})))).get("authentik.category"), Some(json!("other")));
+        // An event as authentik's API serializes it, shipped another way (a notification webhook): remapped.
+        let raw = with_attrs("authentik", "authentik", fixtures::event("7", "suspicious_request", "2026-11-06T10:00:00.250Z", json!({ "geo": { "country": "RO", "city": "Bucharest" }, "message": "too many attempts" })));
+        assert_eq!((raw.get("evt.name"), raw.get("usr.name"), raw.get("usr.email")), (Some(json!("suspicious_request")), Some(json!("jordan.patel")), Some(json!("jordan.patel@example.com"))));
+        assert_eq!((raw.get("network.client.ip"), raw.get("network.client.geoip.country.iso_code"), raw.get("network.client.geoip.city.name")), (Some(json!("203.0.113.24")), Some(json!("RO")), Some(json!("Bucharest"))));
+        assert_eq!((raw.get("authentik.category"), raw.status.as_str(), raw.get("authentik.context.message")), (Some(json!("suspicious")), "error", Some(json!("too many attempts"))));
+        assert_eq!(raw.timestamp_ms, Some(1_793_959_200_250), "authentik's time");
+    }
+
+    #[test]
+    fn fleetdm_activities_get_categories_users_and_statuses() {
+        use crate::fleetdm::{fixtures, logs::log_of};
+        use serde_json::json;
+        assert_eq!(get("fleetdm").unwrap().integration, "fleetdm", "installed with the integration");
+        let attrs = |activity: Value| {
+            let mut log = log_of(&activity, "fleet.example.com");
+            for k in ["date", "message", "status", "service", "ddsource", "host", "_oc_ingest"] {
+                log.as_object_mut().unwrap().remove(k);
+            }
+            log
+        };
+        let run = |activity: Value| with_attrs("fleetdm", "fleetdm", attrs(activity));
+        let policy = run(fixtures::created_policy(1, "2026-11-06T10:00:00Z"));
+        assert_eq!((policy.get("fleetdm.category"), policy.status.as_str()), (Some(json!("policy")), "info"));
+        let wiped = run(fixtures::activity(2, "wiped_host", "2026-11-06T10:00:00Z", json!({ "host_id": 3, "host_display_name": "desktop-sam" })));
+        assert_eq!((wiped.get("fleetdm.category"), wiped.status.as_str()), (Some(json!("host_action")), "warn"));
+        let install = run(fixtures::activity(3, "installed_software", "2026-11-06T10:00:00Z", json!({ "software_title": "zoom.us.app", "status": "failed_install" })));
+        assert_eq!((install.get("fleetdm.category"), install.status.as_str()), (Some(json!("software")), "error"));
+        let profile = run(fixtures::activity(4, "created_macos_profile", "2026-11-06T10:00:00Z", json!({ "profile_name": "Wi-Fi" })));
+        assert_eq!(profile.get("fleetdm.category"), Some(json!("mdm")));
+        let mut failed = fixtures::activity(5, "user_failed_login", "2026-11-06T10:00:00Z", json!({ "email": "admin@example.com", "public_ip": "198.51.100.7" }));
+        failed["actor_email"] = Value::Null;
+        let failed = run(failed);
+        assert_eq!((failed.get("fleetdm.category"), failed.get("usr.email"), failed.status.as_str()), (Some(json!("authentication")), Some(json!("admin@example.com")), "error"));
+        assert_eq!(run(fixtures::activity(6, "something_new", "2026-11-06T10:00:00Z", json!({}))).get("fleetdm.category"), Some(json!("other")));
+        // An activity as Fleet's audit log destination writes it: remapped.
+        let raw = with_attrs("fleetdm", "fleetdm", fixtures::activity(7, "user_logged_in", "2026-11-06T10:00:00.000Z", json!({ "public_ip": "203.0.113.24" })));
+        assert_eq!((raw.get("evt.name"), raw.get("usr.name"), raw.get("usr.email"), raw.get("network.client.ip")), (Some(json!("user_logged_in")), Some(json!("Jordan Patel")), Some(json!("jordan.patel@example.com")), Some(json!("203.0.113.24"))));
+        assert_eq!((raw.get("fleetdm.category"), raw.timestamp_ms), (Some(json!("authentication")), Some(1_793_959_200_000)));
+    }
+
+    #[test]
+    fn gitlab_audit_events_get_categories_users_and_statuses() {
+        use crate::gitlab_audit::{fixtures, logs::log_of};
+        use serde_json::json;
+        assert_eq!(get("gitlab-audit-events").unwrap().integration, "gitlab-audit-events", "installed with the integration");
+        let attrs = |event: Value| {
+            let mut log = log_of(&event, "gitlab.example.com");
+            for k in ["date", "message", "status", "service", "ddsource", "host", "_oc_ingest"] {
+                log.as_object_mut().unwrap().remove(k);
+            }
+            log
+        };
+        let run = |event: Value| with_attrs("gitlab-audit-events", "gitlab-audit-events", attrs(event));
+        let category = |name: &str| run(fixtures::event(1, name, "2026-11-06T10:00:00Z", json!({}))).get("gitlab.category");
+        for (name, want) in [
+            ("personal_access_token_created", "token"),
+            ("group_deploy_token_revoked", "token"),
+            ("merge_request_approval_operation", "merge_request"),
+            ("member_created", "membership"),
+            ("user_authorized_oauth_application", "authorization"),
+            ("user_blocked", "user_management"),
+            ("ci_variable_updated", "ci_cd"),
+            ("protected_branch_allow_force_push_updated", "repository"),
+            ("project_visibility_level_updated", "project"),
+            ("group_created", "group"),
+            ("audit_events_streaming_headers_create", "compliance"),
+            ("something_new", "other"),
+        ] {
+            assert_eq!(category(name), Some(json!(want)), "{name}");
+        }
+        let failed = run(fixtures::failed_login(2, "2026-11-06T10:00:00Z", "root"));
+        assert_eq!((failed.get("gitlab.category"), failed.get("usr.name"), failed.status.as_str()), (Some(json!("authentication")), Some(json!("root")), "error"));
+        let locked = run(fixtures::event(3, "user_access_locked", "2026-11-06T10:00:00Z", json!({})));
+        assert_eq!((locked.get("gitlab.category"), locked.status.as_str()), (Some(json!("authentication")), "warn"));
+        assert_eq!(run(fixtures::changed(4, "2026-11-06T10:00:00Z")).status, "info");
+        // An event as GitLab's API serializes it, shipped another way (a streaming destination, a log shipper): remapped.
+        let raw = with_attrs("gitlab-audit-events", "gitlab-audit-events", fixtures::event(5, "personal_access_token_created", "2026-11-06T10:00:00.250Z", json!({})));
+        assert_eq!((raw.get("evt.name"), raw.get("usr.id"), raw.get("usr.name"), raw.get("usr.email")), (Some(json!("personal_access_token_created")), Some(json!(42)), Some(json!("Jordan Patel")), Some(json!("jordan.patel@example.com"))));
+        assert_eq!((raw.get("network.client.ip"), raw.get("gitlab.entity_path"), raw.get("gitlab.category")), (Some(json!("203.0.113.24")), Some(json!("example-org/storefront-api")), Some(json!("token"))));
+        assert_eq!(raw.timestamp_ms, Some(1_793_959_200_250), "GitLab's time");
+    }
+
+    /// The Entra ID poller's logs (`crate::entra`) read as the Event Hub records integrations-core's
+    /// `azure.activedirectory_tests.yaml` (revision in `pipelines.json`) expects: the same `evt.*`, `usr.*`, client IP,
+    /// message, date and title. Its OCSF sub-pipelines are left out of the library (no schema processor here), and its
+    /// user-agent and GeoIP parsers are skipped by the engine.
+    #[test]
+    fn entra_id_logs_read_as_the_event_hubs() {
+        use crate::entra::{api::Stream, fixtures, logs::log_of};
+        use serde_json::json;
+        assert_eq!(get("azure_active_directory").unwrap().integration, "azure-active-directory", "installed with the integration");
+        let run = |stream: Stream, event: Value| agent_log("azure_active_directory", log_of(stream, &event, fixtures::TENANT));
+        let ok = run(Stream::SignIns, fixtures::sign_in("b95c8eca", "2026-11-06T10:00:00.1234567Z", "jordan.patel@example.com", 0));
+        assert_eq!((ok.get("evt.category"), ok.get("evt.name"), ok.get("evt.outcome")), (Some(json!("SignInLogs")), Some(json!("Sign-in activity")), Some(json!("success"))));
+        assert_eq!((ok.get("usr.id"), ok.get("usr.email"), ok.get("usr.name")), (Some(json!("jordan.patel@example.com")), Some(json!("jordan.patel@example.com")), Some(json!("Jordan Patel"))));
+        assert_eq!((ok.get("network.client.ip"), ok.get("duration").and_then(|d| d.as_f64())), (Some(json!("203.0.113.24")), Some(0.0)));
+        assert_eq!((ok.source.as_str(), ok.service.as_str(), ok.status.as_str()), ("azure.activedirectory", "azure", "info"));
+        assert_eq!(ok.timestamp_ms, Some(1_793_959_200_123), "the sign-in's time");
+        assert_eq!(ok.get("title"), Some(json!("'Sign-in activity' resulted in success initiated by jordan.patel@example.com ")));
+        assert_eq!(ok.message, "jordan.patel@example.com signed in to Azure Portal");
+        let failed = run(Stream::SignIns, fixtures::sign_in("c95c8eca", "2026-11-06T10:00:00Z", "jordan.patel@example.com", 50126));
+        assert_eq!(failed.get("evt.outcome"), Some(json!("failure")));
+        assert_eq!(failed.message, "Invalid username or password or Invalid on-premise username or password.", "the failure reason, as `resultDescription`");
+        let role = run(Stream::Audits, fixtures::role_assigned("Directory_5d3c_1", "2026-11-06T10:00:00Z", "Global Administrator"));
+        assert_eq!((role.get("evt.category"), role.get("evt.name"), role.get("evt.outcome")), (Some(json!("AuditLogs")), Some(json!("Add member to role")), Some(json!("success"))));
+        assert_eq!((role.get("usr.id"), role.get("usr.name"), role.get("network.client.ip")), (Some(json!("sam.lee@example.com")), Some(json!("sam.lee@example.com")), Some(json!("198.51.100.7"))));
+        assert_eq!(role.get("title"), Some(json!("'Add member to role' resulted in success initiated by sam.lee@example.com ")));
+        assert_eq!(role.timestamp_ms, Some(1_793_959_200_000));
+        let risk = run(Stream::Risk, fixtures::risk("r-1", "2026-11-06T10:00:00Z", "high"));
+        assert_eq!((risk.get("evt.category"), risk.get("network.client.ip"), risk.timestamp_ms), (Some(json!("UserRiskEvents")), Some(json!("198.51.100.200")), Some(1_793_959_200_000)));
+    }
+
+    /// A log as the Datadog Agent forwards it to the intake (`/api/v2/logs`), normalized as the log ingester
+    /// does, then run through integration pipeline `id` as the indexer does.
+    fn agent_log(id: &str, envelope: Value) -> super::super::Log {
+        let mut fields = envelope.as_object().unwrap().clone();
+        fields.insert("source_type".into(), "kafka".into());
+        fields.insert("_oc_kafka_headers".into(), serde_json::json!({"x-oc-org": "example-org"}));
+        let mut row = crate::log_normalize::normalize(crate::log_normalize::LogEvent { fields, timestamp: None }, chrono::Utc::now()).unwrap();
+        let p = get(id).unwrap();
+        let (pipeline, errors) = Pipeline::compile(&p.name, &p.filter, &p.processors);
+        assert!(errors.is_empty(), "{errors:?}");
+        let mut log = super::super::Log::default();
+        (log.message, log.status, log.service, log.host, log.source) = (row.message, row.status, row.service, row.host, row.source);
+        log.tags = row.tags.into_iter().collect();
+        log.attrs = std::mem::take(&mut row.attrs);
+        assert!(pipeline.apply(&mut log, 1_792_933_200_000), "{id} matches {}", log.source);
+        log
+    }
+
+    /// Supply Chain Firewall's run logs (`scfw configure`: its Datadog Agent TCP listener or its JSON Lines file
+    /// tailed by the Agent, `source:scfw`), as integrations-core's `supply-chain-firewall_tests.yaml` expects:
+    /// the fields its dashboard reads (`@usr.name`, `@evt.outcome`, `@warning`, `@install_targets.name`).
+    #[test]
+    fn supply_chain_firewall_runs() {
+        use serde_json::json;
+        assert_eq!(get("supply_chain_firewall").unwrap().integration, "supply-chain-firewall", "installed with the integration");
+        let line = json!({
+            "msg": "Command 'pip install urllib3==2.0.2' was allowed", "ecosystem": "PyPI", "created": 1755017456.590666, "source": "scfw",
+            "env": "dev", "version": "3.0.0", "log_version": 1, "install_targets": [{"ecosystem": "PyPI", "name": "urllib3", "version": "2.0.2"}],
+            "executable": "/home/devuser/.venv/bin/python", "hostname": "test10-10-1-10", "package_manager": "pip", "service": "scfw",
+            "warning": true, "verified": true, "action": "ALLOW", "username": "root", "cwd": "/home/devuser/project"
+        });
+        let envelope = json!({"message": line.to_string(), "status": "info", "hostname": "dev-laptop-01", "service": "scfw", "ddsource": "scfw", "ddtags": "filename:scfw.log"});
+        let log = agent_log("supply_chain_firewall", envelope);
+        assert_eq!((log.message.as_str(), log.service.as_str(), log.source.as_str(), log.status.as_str()), ("Command 'pip install urllib3==2.0.2' was allowed", "scfw", "scfw", "info"));
+        assert_eq!((log.get("usr.name"), log.get("evt.outcome"), log.get("warning")), (Some(json!("root")), Some(json!("ALLOW")), Some(json!(true))));
+        assert_eq!((log.get("package_manager"), log.get("ecosystem"), log.host.as_str()), (Some(json!("pip")), Some(json!("PyPI")), "test10-10-1-10"), "the host scfw ran on");
+        assert_eq!(log.get("hostname"), Some(json!("test10-10-1-10")), "kept as `@hostname`, as Datadog does");
+        assert_eq!((log.get("install_targets"), log.get("version"), log.get("env")), (Some(json!([{"ecosystem": "PyPI", "name": "urllib3", "version": "2.0.2"}])), Some(json!("3.0.0")), Some(json!("dev"))));
+        assert_eq!((log.get("username"), log.get("action")), (None, None), "remapped, not kept");
+        assert_eq!(log.timestamp_ms, Some(1_755_017_456_590), "the run's time");
+        // Before v3: `warned` and `targets`.
+        let old = json!({"msg": "Command 'npm install left-pad' was blocked", "created": 1755017456.5, "action": "BLOCK", "warned": false, "username": "dev", "package_manager": "npm", "targets": ["left-pad-1.3.0"]});
+        let log = agent_log("supply_chain_firewall", json!({"message": old.to_string(), "hostname": "dev-laptop-01", "service": "scfw", "ddsource": "scfw"}));
+        assert_eq!((log.get("evt.outcome"), log.get("warning"), log.get("warned")), (Some(json!("BLOCK")), Some(json!(false)), None));
+    }
+
+    /// GuardDog's scan results (the Agent check's logs) and IDE Shepherd's OCSF events (its Agent TCP listener), as
+    /// integrations-core's `guarddog_tests.yaml` and `ide-shepherd_tests.yaml` expect.
+    #[test]
+    fn guarddog_scans_and_ide_shepherd_events() {
+        use serde_json::json;
+        let scan = json!({"enrichment_details": {"package_ecosystem": "pypi"}, "log": {"result": {"path": "/tmp/scan/urllib3", "issues": 0, "errors": {"repository_integrity_mismatch": "failed to run rule"}}, "dependency": "urllib3", "version": "1.24.1"}});
+        let log = agent_log("guarddog", json!({"message": scan.to_string(), "timestamp": 1758799611000_i64, "hostname": "ci-runner-01", "service": "guarddog", "ddsource": "guarddog"}));
+        assert_eq!((log.get("has_errors"), log.get("log.dependency")), (Some(json!("yes")), Some(json!("urllib3"))), "an object attribute exists (`@log.result.errors:*`)");
+        let clean = json!({"log": {"result": {"issues": 0, "results": {}}, "dependency": "requests"}});
+        assert_eq!(agent_log("guarddog", json!({"message": clean.to_string(), "service": "guarddog", "ddsource": "guarddog"})).get("has_errors"), None);
+        let event = json!({"isAlert": false, "category_uid": 2, "class_uid": 2007, "activity_id": 2, "severity_id": 1, "status_id": 1, "type_uid": 200702, "time": 1769418941951_i64,
+            "metadata": {"product": {"name": "IDE Shepherd"}, "environment": {"ide_flavor": "cursor"}}, "application": {"name": "rust-lang.rust-analyzer", "version": "0.3.2769"}});
+        let log = agent_log("ide_shepherd", json!({"message": event.to_string(), "hostname": "dev-laptop-01", "service": "ide-shepherd-telemetry", "ddsource": "ide-shepherd"}));
+        assert_eq!((log.get("ocsf.application.name"), log.get("ocsf.metadata.environment.ide_flavor"), log.get("ocsf.is_alert")), (Some(json!("rust-lang.rust-analyzer")), Some(json!("cursor")), Some(json!(false))));
+        assert_eq!((log.get("ide_shepherd.activity_name"), log.get("ide_shepherd.class_name"), log.timestamp_ms), (Some(json!("Update")), Some(json!("Application Security Posture Finding")), Some(1_769_418_941_951)));
+    }
+
+    /// ingress-nginx's access and error logs (`ad.datadoghq.com/controller.logs` naming the source
+    /// `nginx-ingress-controller`), as integrations-core's `nginx-ingress-controller_tests.yaml` expects.
+    #[test]
+    fn ingress_nginx_access_and_error_logs() {
+        use serde_json::json;
+        let line = r#"10.0.12.34 - - [10/Nov/2026:09:15:02 +0000] "GET /api/cart?id=7&q=red%20shoes HTTP/1.1" 503 605 "-" "curl/8.4.0" 412 0.002 [storefront-storefront-api-80] 10.0.14.71:8080 0 0.002 503 7f2a9c4e1b8d6a3f"#;
+        let log = agent_log("nginx_ingress_controller", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60001", "service": "ingress-nginx", "ddsource": "nginx-ingress-controller"}));
+        assert_eq!((log.get("http.status_code"), log.get("http.method"), log.get("network.client.ip")), (Some(json!(503)), Some(json!("GET")), Some(json!("10.0.12.34"))));
+        assert_eq!(log.get("http.url_details"), Some(json!({"path": "/api/cart", "queryString": {"id": "7", "q": "red%20shoes"}})), "query values as sent");
+        assert_eq!((log.get("http.upstream_status_code"), log.get("duration"), log.status.as_str()), (Some(json!(503)), Some(json!(2_000_000)), "error"));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_000));
+        let line = r#"2026/11/10 09:15:03 [error] 31#31: *4812 connect() failed (111: Connection refused) while connecting to upstream, client: 10.0.12.34, server: shop.example.com, request: "GET /api/cart HTTP/1.1", host: "shop.example.com""#;
+        let log = agent_log("nginx_ingress_controller", json!({"message": line, "service": "ingress-nginx", "ddsource": "nginx-ingress-controller"}));
+        assert_eq!((log.status.as_str(), log.get("network.client.ip"), log.get("server")), ("error", Some(json!("10.0.12.34")), Some(json!("shop.example.com"))));
+    }
+
+    /// kube-scheduler's klog lines, as integrations-core's `kube_scheduler_tests.yaml` expects: the level letter as
+    /// the status, the text after the header as the message.
+    #[test]
+    fn kube_scheduler_klog_lines() {
+        use serde_json::json;
+        let line = r#"E1110 09:15:02.123456       1 reflector.go:150] k8s.io/client-go/informers/factory.go:160: Failed to watch *v1.PersistentVolumeClaim: the server has asked for the client to provide credentials"#;
+        let log = agent_log("kube_scheduler", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60001", "service": "kube-scheduler", "ddsource": "kube-scheduler"}));
+        assert_eq!((log.status.as_str(), log.get("logger.name"), log.get("lineno")), ("error", Some(json!("reflector.go")), Some(json!(150))));
+        assert!(log.message.starts_with("k8s.io/client-go/informers/factory.go:160: Failed to watch"), "{}", log.message);
+        assert_eq!(log.get("msg"), None, "moved to the message");
+        let line = r#"I1110 09:15:03.000001       1 schedule_one.go:286] "Successfully bound pod to node" pod="checkout/order-service-7d9c6b5f4-x2k9p" node="ip-10-0-2-17.ec2.internal""#;
+        let log = agent_log("kube_scheduler", json!({"message": line, "service": "kube-scheduler", "ddsource": "kube-scheduler"}));
+        assert_eq!((log.status.as_str(), log.get("logger.thread_id")), ("info", Some(json!(1))));
+    }
+
+    /// CoreDNS's query log (its `log` plugin), as integrations-core's `coredns_tests.yaml` expects: the question,
+    /// the answer's rcode and the duration (OCSF's mapping is a schema processor, not run here yet).
+    #[test]
+    fn coredns_query_log() {
+        use serde_json::json;
+        let line = r#"[INFO] 10.0.12.34:53111 - 4521 "AAAA IN orders-db.checkout.svc.cluster.local.storefront.svc.cluster.local. udp 92 false 1232" NXDOMAIN qr,aa,rd 185 0.000094523s"#;
+        let log = agent_log("coredns", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60002", "service": "coredns", "ddsource": "coredns"}));
+        assert_eq!((log.get("dns.question.type"), log.get("dns.question.name")), (Some(json!("AAAA")), Some(json!("orders-db.checkout.svc.cluster.local.storefront.svc.cluster.local."))));
+        assert_eq!((log.get("dns.flags.rcode"), log.get("dns.id"), log.get("network.client.ip")), (Some(json!("NXDOMAIN")), Some(json!(4521)), Some(json!("10.0.12.34"))));
+        assert_eq!((log.get("duration"), log.get("dns.flags.list"), log.status.as_str()), (Some(json!(94523)), Some(json!(["qr", "aa", "rd"])), "info"));
+    }
+
+    /// KEDA's operator (zap, a JSON tail) and metrics adapter (klog with quoted key-values), as integrations-core's
+    /// `keda_tests.yaml` expects.
+    #[test]
+    fn keda_operator_and_metrics_adapter_logs() {
+        use serde_json::json;
+        let line = "2026-11-10T09:15:02Z\tERROR\tscale_handler\terror resolving auth params\t{\"type\": \"ScaledObject\", \"namespace\": \"checkout\", \"name\": \"order-worker\", \"triggerIndex\": 0, \"error\": \"secret redis-auth not found\"}";
+        let log = agent_log("keda", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60001", "service": "keda-operator", "ddsource": "keda"}));
+        assert_eq!((log.message.as_str(), log.status.as_str(), log.get("logger.name")), ("error resolving auth params", "error", Some(json!("scale_handler"))));
+        assert_eq!((log.get("name"), log.get("namespace"), log.get("error")), (Some(json!("order-worker")), Some(json!("checkout")), Some(json!("secret redis-auth not found"))));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_000));
+        let line = r#"I1110 09:15:02.261024       1 main.go:112] "msg"="Connecting Metrics Service gRPC client to the server" "address"="keda-operator.keda.svc.cluster.local:9666" "logger"="keda_metrics_adapter""#;
+        let log = agent_log("keda", json!({"message": line, "service": "keda-operator-metrics-apiserver", "ddsource": "keda-metrics-apiserver"}));
+        assert_eq!((log.get("address"), log.get("logger"), log.status.as_str()), (Some(json!("keda-operator.keda.svc.cluster.local:9666")), Some(json!("keda_metrics_adapter")), "info"), "quoted keys");
+        assert!(log.message.contains("Connecting Metrics Service gRPC client"), "{}", log.message);
+    }
+
+    /// Karpenter's JSON logs (its `controller` container, the source named `karpenter` by the logs annotation), as
+    /// integrations-core's `karpenter_tests.yaml` expects.
+    #[test]
+    fn karpenter_controller_logs() {
+        use serde_json::json;
+        let line = json!({"level": "INFO", "time": "2026-11-10T09:15:02.908Z", "logger": "controller", "message": "launched nodeclaim", "commit": "1a2b3c4",
+            "controller": "nodeclaim.lifecycle", "NodeClaim": {"name": "default-x7k2p"}, "provider-id": "aws:///eu-west-1a/i-0a1b2c3d4e5f60007", "instance-type": "m6i.xlarge", "zone": "eu-west-1a", "capacity-type": "on-demand"});
+        let log = agent_log("karpenter", json!({"message": line.to_string(), "hostname": "i-0a1b2c3d4e5f60001", "service": "karpenter", "ddsource": "karpenter"}));
+        assert_eq!((log.message.as_str(), log.status.as_str(), log.get("logger.name")), ("launched nodeclaim", "info", Some(json!("controller"))));
+        assert_eq!((log.get("controller"), log.get("instance-type")), (Some(json!("nodeclaim.lifecycle")), Some(json!("m6i.xlarge"))));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_908));
+        let line = json!({"level": "ERROR", "time": "2026-11-10T09:15:03.000Z", "logger": "controller.interruption", "message": "getting messages from queue, discovering queue url"});
+        assert_eq!(agent_log("karpenter", json!({"message": line.to_string(), "service": "karpenter", "ddsource": "karpenter"})).status, "error");
+    }
+
+    /// Temporal's server logs (zap JSON, `source:temporal`), as integrations-core's `temporal_tests.yaml` expects:
+    /// `msg` as the message, `level` as the status, the service as `temporal-<service>`.
+    #[test]
+    fn temporal_server_logs() {
+        use serde_json::json;
+        let line = json!({"level": "error", "ts": "2026-11-10T09:15:02.921Z", "msg": "Persistent store operation failure", "service": "matching", "component": "matching-engine",
+            "wf-namespace": "orders", "wf-task-queue-name": "order-processing", "store-operation": "update-task-queue", "error": "Failed to lock task queue. Error: driver: bad connection", "logging-call-at": "task_reader.go:212"});
+        let log = agent_log("temporal", json!({"message": line.to_string(), "hostname": "i-0a1b2c3d4e5f60003", "service": "temporal-matching", "ddsource": "temporal"}));
+        assert_eq!((log.message.as_str(), log.status.as_str(), log.service.as_str()), ("Persistent store operation failure", "error", "temporal-matching"));
+        assert_eq!((log.get("wf-namespace"), log.get("store-operation"), log.get("msg")), (Some(json!("orders")), Some(json!("update-task-queue")), None));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_921));
+    }
+
+    /// vLLM's log lines (`source:vllm`), as integrations-core's `vllm_tests.yaml` expects: the level, the logger and
+    /// its line, the date without a year.
+    #[test]
+    fn vllm_engine_logs() {
+        use serde_json::json;
+        let line = "WARNING 11-10 09:15:02 scheduler.py:1560] Sequence group 0 is preempted by PreemptionMode.RECOMPUTE mode because there is not enough KV cache space.";
+        let log = agent_log("vllm", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60006", "service": "vllm", "ddsource": "vllm"}));
+        assert_eq!((log.status.as_str(), log.get("logger.name"), log.get("logger.lineno")), ("warn", Some(json!("scheduler.py")), Some(json!(1560))));
+        assert!(log.message.starts_with("Sequence group 0 is preempted"), "{}", log.message);
+        let line = "INFO 06-11-2024 21:02:01 cpu_executor.py:72] # CPU blocks: 7281";
+        let log = agent_log("vllm", json!({"message": line, "service": "vllm", "ddsource": "vllm"}));
+        assert_eq!((log.message.as_str(), log.timestamp_ms), ("# CPU blocks: 7281", Some(1_718_139_721_000)));
+    }
+
+    /// Argo Workflows' controller logs (logrus key-values), as integrations-core's `argo_workflows_tests.yaml`
+    /// expects: unquoted numbers as numbers, `msg` as the message when nothing follows it.
+    #[test]
+    fn argo_workflows_controller_logs() {
+        use serde_json::json;
+        let line = r#"time="2026-11-10T09:15:02.258Z" level=info duration="144.502µs" method=GET path=index.html size=487 status=0"#;
+        let log = agent_log("argo_workflows", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60002", "service": "argo-workflows", "ddsource": "argo_workflows"}));
+        assert_eq!((log.get("size"), log.get("status"), log.get("duration")), (Some(json!(487)), Some(json!(0)), Some(json!("144.502µs"))));
+        assert_eq!((log.status.as_str(), log.timestamp_ms), ("info", Some(1_794_302_102_258)));
+        // Fields after the message: the fallback rule reads them, the line stays the message and `msg` an attribute.
+        let line = r#"time="2026-11-10T09:15:03.000Z" level=warning msg="Mark error node" namespace=data workflow=invoice-batch"#;
+        let log = agent_log("argo_workflows", json!({"message": line, "service": "argo-workflows", "ddsource": "argo_workflows"}));
+        assert_eq!((log.status.as_str(), log.get("workflow"), log.get("msg")), ("warn", Some(json!("invoice-batch")), Some(json!("Mark error node"))));
+        let line = r#"time="2026-11-10T09:15:04.000Z" level=info msg="Processing workflow""#;
+        assert_eq!(agent_log("argo_workflows", json!({"message": line, "service": "argo-workflows", "ddsource": "argo_workflows"})).message, "Processing workflow");
+    }
+
+    /// Argo Rollouts' controller logs (logrus), as integrations-core's `argo_rollouts_tests.yaml` expects: `msg` moved
+    /// to the message, the rollout's name, namespace and resource version as numbers under `argo_rollouts`.
+    #[test]
+    fn argo_rollouts_controller_logs() {
+        use serde_json::json;
+        let line = r#"time="2026-11-10T09:15:02Z" level=info msg="Started syncing rollout" generation=4 namespace=checkout resourceVersion=24435167 rollout=order-service"#;
+        let log = agent_log("argo_rollouts", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60001", "service": "argo-rollouts", "ddsource": "argo_rollouts"}));
+        assert_eq!((log.message.as_str(), log.get("msg"), log.get("generation")), ("Started syncing rollout", None, Some(json!(4))));
+        assert_eq!((log.get("argo_rollouts.name"), log.get("argo_rollouts.namespace"), log.get("argo_rollouts.resource.version")), (Some(json!("order-service")), Some(json!("checkout")), Some(json!(24435167))));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_000));
+        let line = r#"time="2026-11-10T09:15:03Z" level=info msg="Reconciliation completed" resource=checkout/order-service"#;
+        let log = agent_log("argo_rollouts", json!({"message": line, "service": "argo-rollouts", "ddsource": "argo_rollouts"}));
+        assert_eq!((log.message.as_str(), log.get("argo_rollouts.resource.name")), ("Reconciliation completed", Some(json!("checkout/order-service"))));
+    }
+
+    /// Envoy's access log (its default format), as integrations-core's `envoy_tests.yaml` expects: the request, the
+    /// status code and its category, the duration in nanoseconds, the query string as sent.
+    #[test]
+    fn envoy_access_log() {
+        use serde_json::json;
+        let line = r#"[2026-11-10T09:15:02.354Z] "GET /api/products?q=red+shoes HTTP/1.1" 503 UF "-" 0 91 25 - "-" "curl/8.4.0" "d209e46f-9ed5-9b61-bbdd-43e22662702a" "shop.example.com" "10.0.14.31:8080""#;
+        let log = agent_log("envoy", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60003", "service": "storefront-gateway", "ddsource": "envoy"}));
+        assert_eq!((log.get("http.status_code"), log.get("http.method"), log.get("http.authority")), (Some(json!(503)), Some(json!("GET")), Some(json!("shop.example.com"))));
+        assert_eq!((log.get("http.url_details.queryString.q"), log.get("duration"), log.status.as_str()), (Some(json!("red+shoes")), Some(json!(25_000_000)), "error"));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_354));
+    }
+
+    /// Istio's access log entries (JSON, `source:istio`), as integrations-core's `istio_tests.yaml` expects: the
+    /// response code and its category, the latency in nanoseconds, source and destination.
+    #[test]
+    fn istio_access_log_entries() {
+        use serde_json::json;
+        let line = json!({"instance": "accesslog.logentry.istio-system", "level": "info", "latency": "13.601485ms", "destination": "order-service", "responseSize": 178,
+            "time": "2026-11-10T09:15:02.009801Z", "source": "storefront-api", "user": "unknown", "responseCode": 503});
+        let log = agent_log("istio", json!({"message": line.to_string(), "hostname": "i-0a1b2c3d4e5f60002", "service": "istio-proxy", "ddsource": "istio"}));
+        assert_eq!((log.get("http.status_code"), log.get("http.status_category"), log.status.as_str()), (Some(json!(503)), Some(json!("error")), "error"));
+        assert_eq!((log.get("istio.source"), log.get("istio.destination"), log.get("duration")), (Some(json!("storefront-api")), Some(json!("order-service")), Some(json!(13_601_485))));
+        assert_eq!((log.get("network.bytes_written"), log.get("usr.name")), (Some(json!(178)), Some(json!("unknown"))));
+    }
+
+    #[test]
+    fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
+        use crate::google_workspace::{fixtures, logs::logs_of};
+        use serde_json::json;
+        assert_eq!(get("google-workspace").unwrap().integration, "google-workspace", "installed with the integration");
+        let run = |activity: Value| {
+            let mut log = logs_of(&activity).remove(0);
+            let (status, service) = (log["status"].as_str().unwrap().to_string(), log["service"].as_str().unwrap().to_string());
+            for k in ["date", "message", "status", "service", "ddsource", "_oc_ingest"] {
+                log.as_object_mut().unwrap().remove(k);
+            }
+            let p = get("google-workspace").unwrap();
+            let (pipeline, errors) = Pipeline::compile(&p.name, &p.filter, &p.processors);
+            assert!(errors.is_empty(), "{errors:?}");
+            let mut out = super::super::Log::from_row(&json!({"status": "info", "service": service, "source": "gsuite", "message": "event", "attributes": log.to_string()}));
+            assert!(pipeline.apply(&mut out, 1_792_933_200_000));
+            assert_eq!(out.status, status, "the pipeline's status is the poller's");
+            out
+        };
+        let at = "2026-11-06T10:00:00Z";
+        for (activity, category) in [
+            (fixtures::login_success("1", at), "authentication"),
+            (fixtures::login_failure("2", at, "sam.lee@example.com"), "authentication"),
+            (fixtures::suspicious_login("3", at), "authentication"),
+            (fixtures::role_assigned("4", at), "administration"),
+            (fixtures::shared_publicly("5", at, "people_with_link"), "data_access"),
+            (fixtures::token_authorized("6", at), "authorization"),
+            (fixtures::activity("groups_enterprise", "7", at, "admin@example.com", "moderator_action", "add_member", &[]), "groups"),
+            (fixtures::activity("mobile", "8", at, "sam.lee@example.com", "device_updates", "DEVICE_COMPROMISED_EVENT", &[]), "devices"),
+            (fixtures::activity("user_accounts", "9", at, "sam.lee@example.com", "2sv_change", "2sv_disable", &[]), "authentication"),
+            (fixtures::activity("rules", "10", at, "admin@example.com", "rule_trigger_type", "rule_match", &[]), "cloud"),
+        ] {
+            let name = activity["events"][0]["name"].clone();
+            assert_eq!(run(activity).get("google_workspace.category"), Some(json!(category)), "{name}");
+        }
+        // An activity as the Reports API answers it, shipped another way (a log shipper): remapped.
+        let raw = with_attrs("google-workspace", "gsuite", fixtures::login_failure("11", "2026-11-06T10:00:00.250Z", "sam.lee@example.com"));
+        assert_eq!((raw.get("usr.email"), raw.get("usr.id"), raw.get("network.client.ip")), (Some(json!("sam.lee@example.com")), Some(json!("104857600000000000042")), Some(json!("198.51.100.7"))));
+        assert_eq!((raw.get("network.client.geoip.country.iso_code"), raw.service.as_str(), raw.timestamp_ms), (Some(json!("NL")), "login", Some(1_793_959_200_250)));
+    }
+
     #[test]
     fn every_integrations_pipelines_are_listed() {
         assert!(all().len() >= 240, "{} pipelines", all().len());
@@ -154,18 +564,20 @@ mod tests {
 
     #[test]
     fn redis_and_etcd_statuses() {
-        // Redis marks severities with a symbol: '#' is a warning.
-        let log = run("redisdb", "redis", "1:M 25 Oct 2026 12:59:58.000 # WARNING overcommit_memory is set to 0");
-        assert_eq!((log.status.as_str(), log.message.as_str()), ("warn", "WARNING overcommit_memory is set to 0"));
+        // Redis marks severities with a symbol: '#' is a warning. Its pipeline parses the text into `@message` but has no
+        // message remapper: the message stays the line, as integrations-core's redis_tests.yaml expects.
+        let line = "1:M 25 Oct 2026 12:59:58.000 # WARNING overcommit_memory is set to 0";
+        let log = run("redisdb", "redis", line);
+        assert_eq!((log.status.as_str(), log.message.as_str(), log.get("message")), ("warn", line, Some(serde_json::json!("WARNING overcommit_memory is set to 0"))));
         let log = run("redisdb", "redis", "1:M 25 Oct 2026 12:59:58.000 * Ready to accept connections");
         assert_eq!(log.status, "info");
         let log = run("etcd", "etcd", "2026-10-25 12:59:58.123456 E | rafthttp: failed to dial peer");
-        assert_eq!((log.status.as_str(), log.message.as_str()), ("error", "failed to dial peer"));
-        assert_eq!(log.get("package"), Some(serde_json::json!("rafthttp")));
+        assert_eq!((log.status.as_str(), log.message.as_str()), ("error", "failed to dial peer"), "its message remapper takes the parsed `message`");
+        assert_eq!((log.get("package"), log.attrs.get("message")), (Some(serde_json::json!("rafthttp")), None));
     }
 
     /// The pipelines the mock offers too: every sample of theirs parses.
-    const CURATED: [&str; 8] = ["coredns", "etcd", "kube_scheduler", "mysql", "nginx", "nginx_ingress_controller", "postgres", "redisdb"];
+    const CURATED: [&str; 10] = ["clickhouse", "coredns", "etcd", "kube_scheduler", "mysql", "nginx", "nginx_ingress_controller", "pgbouncer", "postgres", "redisdb"];
 
     #[test]
     fn integration_pipelines_compile_and_parse_their_samples() {
@@ -193,3 +605,4 @@ mod tests {
         assert!(parsers_ok * 100 >= parsers_total * 95, "{parsers_ok} of {parsers_total} parsers parse their samples");
     }
 }
+

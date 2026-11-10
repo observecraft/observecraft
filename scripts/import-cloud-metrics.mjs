@@ -116,10 +116,25 @@ export function awsMetrics(packageDir, docs = []) {
   });
 }
 
+const curatedFile = () => JSON.parse(readFileSync(new URL('./aws-datadog-metrics.json', import.meta.url), 'utf8'));
+
 /** The namespaces whose metrics follow Datadog's AWS integration (scripts/aws-datadog-metrics.json: statistics, units,
- *  names and dimension sets as Datadog publishes them; `datadog: true`), in place of aws-cdk-lib's or the docs'. */
-export function withDatadogNamespaces(result, curated = JSON.parse(readFileSync(new URL('./aws-datadog-metrics.json', import.meta.url), 'utf8')).namespaces) {
+ *  names and dimension sets as Datadog publishes them; `datadog: true`), in place of aws-cdk-lib's or the docs', and its
+ *  `overrides` of the other namespaces: a metric's fields where Datadog differs (a count's bare name is its Sum, a
+ *  latency's `percentiles`, a daily `period`), metrics the sources lack (with their statistic and dimensions) and
+ *  namespace fields (`period`). */
+export function withDatadogNamespaces(result, curated = curatedFile().namespaces, overrides = curatedFile().overrides ?? {}) {
   const namespaces = { ...result.namespaces, ...curated };
+  for (const [ns, { metrics = {}, ...fields }] of Object.entries(overrides)) {
+    const spec = { ...namespaces[ns], ...fields, metrics: [...(namespaces[ns]?.metrics ?? [])] };
+    for (const [name, patch] of Object.entries(metrics)) {
+      const i = spec.metrics.findIndex((m) => m.name === name);
+      if (i >= 0) spec.metrics[i] = { ...spec.metrics[i], ...patch };
+      else if (patch.statistic && patch.dimensions) spec.metrics.push({ name, ...patch });
+      else throw new Error(`${ns} ${name}: a metric the sources lack needs its statistic and dimensions`);
+    }
+    namespaces[ns] = spec;
+  }
   const note = '; CloudFront, ECS, ECS Container Insights, RDS, RDS Proxy and WAF as Datadog publishes them (scripts/aws-datadog-metrics.json)';
   return {
     source: result.source.replace(note, '') + note,
@@ -134,16 +149,37 @@ export function withDatadogNamespaces(result, curated = JSON.parse(readFileSync(
 /** Azure Monitor units → Datadog's (counts have none). */
 const AZURE_UNITS = { Bytes: 'byte', BytesPerSecond: 'byte/second', BitsPerSecond: 'bit/second', Percent: 'percent', Milliseconds: 'millisecond', MilliSeconds: 'millisecond', Seconds: 'second' };
 
-/** One supported-metrics page: `[{name, display, aggregation, unit}]` from its tables. */
+/** One supported-metrics page: `[{name, display, aggregation, aggregations, unit, dimensions, grain}]` from its tables:
+ *  the default aggregation and the others listed, the dimensions (the crawler splits the most used ones,
+ *  server/crates/oc-api/src/azure/naming.rs `splits`) and the finest time grain when it isn't a minute (the crawler
+ *  reads each metric at its finest grain). */
 export function azurePage(md) {
   const metrics = [];
   // |**Percentage CPU**<br><br>… |`Percentage CPU` | No | Percent |Average |\<none\>|PT1M |Yes|
   for (const row of md.split('\n').filter((l) => l.startsWith('|**'))) {
-    const [, metric, rest, , unit, aggregations] = row.split('|').map((c) => c.trim());
+    const [, metric, rest, , unit, listed, dims, grains] = row.split('|').map((c) => c.trim());
     const [display, name] = [metric.match(/^\*\*(.+?)\*\*/)?.[1], rest.match(/^`([^`]+)`$/)?.[1]];
-    // The default aggregation: the first listed (`Total (Sum), Average, …`).
-    const aggregation = aggregations?.split(',')[0].replace(/\s*\(.*\)$/, '');
-    if (display && name && aggregation && !metrics.some((m) => m.name === name)) metrics.push({ name, display, aggregation, ...(AZURE_UNITS[unit] ? { unit: AZURE_UNITS[unit] } : {}) });
+    // The default aggregation is the first listed (`Total (Sum), Average, …`).
+    const aggregations = (listed ?? '')
+      .split(',')
+      .map((a) => a.trim().replace(/\s*\(.*\)$/, ''))
+      .filter(Boolean);
+    const aggregation = aggregations[0];
+    const dimensions = [...(dims ?? '').matchAll(/`([^`]+)`/g)].map((d) => d[1]);
+    const grain = (grains ?? '')
+      .split(',')
+      .map((g) => g.trim())
+      .filter(Boolean)[0];
+    if (display && name && aggregation && !metrics.some((m) => m.name === name))
+      metrics.push({
+        name,
+        display,
+        aggregation,
+        aggregations,
+        ...(AZURE_UNITS[unit] ? { unit: AZURE_UNITS[unit] } : {}),
+        ...(dimensions.length ? { dimensions } : {}),
+        ...(grain && grain !== 'PT1M' ? { grain } : {}),
+      });
   }
   return metrics;
 }
@@ -152,7 +188,9 @@ export function azureMetrics(dir, revision) {
   const catalog = JSON.parse(readFileSync(new URL('../../azure_integration.json', OUT), 'utf8')).resource_types;
   const resource_types = {};
   for (const t of catalog) {
-    const file = join(dir, `${t.type.toLowerCase().replace(/[/.]/g, '-')}-metrics.md`);
+    // Function apps (`Microsoft.Web/sites (functionapp)`, azure/naming.rs FUNCTION_APPS) are App Service sites.
+    const namespace = t.type.replace(/ \(.*\)$/, '');
+    const file = join(dir, `${namespace.toLowerCase().replace(/[/.]/g, '-')}-metrics.md`);
     if (existsSync(file)) resource_types[t.type] = { metrics: azurePage(readFileSync(file, 'utf8')) };
   }
   return { source: `MicrosoftDocs/azure-monitor-docs@${revision} (CC BY 4.0), articles/azure-monitor/reference/supported-metrics`, resource_types };
@@ -229,6 +267,11 @@ export function gcpMetrics(dir) {
         .filter((m) => m.resources.includes(resource))
         .filter((m, i, a) => a.findIndex((o) => o.type === m.type) === i)
         .map((m) => ({ type: m.type, display: m.display, kind: m.kind, value: m.value, ...(GCP_UNITS[m.unit] ? { unit: GCP_UNITS[m.unit] } : {}) })),
+      // The service's metrics of its other resources (GKE nodes and pods, …): collected too, charted by the overviews.
+      others: metrics
+        .filter((m) => !m.resources.includes(resource))
+        .filter((m, i, a) => a.findIndex((o) => o.type === m.type) === i)
+        .map((m) => ({ type: m.type, kind: m.kind, value: m.value, ...(GCP_UNITS[m.unit] ? { unit: GCP_UNITS[m.unit] } : {}) })),
     };
   }
   return { source: 'cloud.google.com/monitoring/api Cloud Monitoring metrics list (CC BY 4.0), metrics_gcp_*, metrics_kubernetes and resources', services };

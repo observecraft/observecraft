@@ -22,8 +22,16 @@ export function blankProcessor(type: ProcessorType): Processor {
       return { type, name: '', enabled: true, expression: '', target: '', replaceMissing: false };
     case 'url-parser':
       return { type, name: '', enabled: true, sources: ['http.url'], target: 'http.url_details' };
+    case 'geo-ip-parser':
+      return { type, name: '', enabled: true, sources: ['network.client.ip'], target: 'network.client.geoip' };
+    case 'user-agent-parser':
+      return { type, name: '', enabled: true, sources: ['http.useragent'], target: 'http.useragent_details', encoded: false };
+    case 'array-processor':
+      return { type, name: '', enabled: true, operation: { type: 'length', source: '', target: '' } };
     case 'pipeline':
       return { type, name: '', enabled: true, filter: { query: '' }, processors: [] };
+    case 'schema-processor':
+      return { type, name: '', enabled: true, schema: { schemaType: 'ocsf', version: '1.5.0', className: '', classUid: 0 }, mappers: [] };
     default:
       return { type, name: '', enabled: true, sources: [] };
   }
@@ -250,6 +258,72 @@ function Fields({ draft, onChange }: { draft: Processor; onChange: (p: Processor
           {input('Target attribute (gets scheme, host, port, path and queryString)', draft.target, (target) => onChange({ ...draft, target }), 'http.url_details')}
         </>
       );
+    case 'user-agent-parser':
+      return (
+        <>
+          <SourcesInput value={draft.sources} onChange={(sources) => onChange({ ...draft, sources })} label="User agent attribute" />
+          {input('Target attribute (gets browser, os and device)', draft.target, (target) => onChange({ ...draft, target }), 'http.useragent_details')}
+          {check('The user agent is URL-encoded', draft.encoded, (encoded) => onChange({ ...draft, encoded }))}
+        </>
+      );
+    case 'geo-ip-parser':
+      return (
+        <>
+          <SourcesInput value={draft.sources} onChange={(sources) => onChange({ ...draft, sources })} label="IP address attribute" />
+          {input('Target attribute', draft.target, (target) => onChange({ ...draft, target }), 'network.client.geoip')}
+          <p className="muted pl-help">No location database ships with ObserveCraft: an address gets an empty location, as unknown ones do in Datadog.</p>
+        </>
+      );
+    case 'array-processor': {
+      const op = draft.operation;
+      const setOp = (o: Partial<typeof op>) => onChange({ ...draft, operation: { ...op, ...o } as typeof op });
+      return (
+        <>
+          <label className="form-label">
+            Operation
+            <select
+              value={op.type}
+              onChange={(e) => {
+                const type = e.target.value as typeof op.type;
+                const { source, target } = op;
+                onChange({
+                  ...draft,
+                  operation:
+                    type === 'select'
+                      ? { type, source, target, filter: '', valueToExtract: '' }
+                      : type === 'append'
+                        ? { type, source, target, preserveSource: true }
+                        : type === 'key-value'
+                          ? { type, source, target, keyToExtract: '', valueToExtract: '', overrideOnConflict: false }
+                          : { type, source, target },
+                });
+              }}
+            >
+              <option value="select">Select a value from the first matching element</option>
+              <option value="append">Append a value to an array</option>
+              <option value="length">Count the elements</option>
+              <option value="key-value">Turn key-value elements into attributes</option>
+            </select>
+          </label>
+          {input(op.type === 'append' ? 'Attribute to append' : 'Array attribute', op.source, (source) => setOp({ source }), 'entries')}
+          {input('Target attribute', op.target, (target) => setOp({ target }), op.type === 'length' ? 'entries_count' : op.type === 'key-value' ? 'empty: at the root' : 'outcome')}
+          {op.type === 'select' && (
+            <>
+              {input('Filter — on the element’s fields', op.filter, (filter) => setOp({ filter }), 'name:login')}
+              {input('Value to extract', op.valueToExtract, (valueToExtract) => setOp({ valueToExtract }), 'outcome')}
+            </>
+          )}
+          {op.type === 'append' && check('Keep the source attribute', op.preserveSource !== false, (preserveSource) => setOp({ preserveSource }))}
+          {op.type === 'key-value' && (
+            <>
+              {input('Key to extract', op.keyToExtract, (keyToExtract) => setOp({ keyToExtract }), 'name')}
+              {input('Value to extract', op.valueToExtract, (valueToExtract) => setOp({ valueToExtract }), 'value')}
+              {check('Override existing attributes', op.overrideOnConflict === true, (overrideOnConflict) => setOp({ overrideOnConflict }))}
+            </>
+          )}
+        </>
+      );
+    }
     case 'pipeline':
       return (
         <>

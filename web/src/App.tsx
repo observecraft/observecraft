@@ -27,8 +27,10 @@ import { AddAwsAccountPage } from './pages/integrations/aws/AddAwsAccountPage';
 import { KubernetesIntegrationPage } from './pages/integrations/kubernetes/KubernetesIntegrationPage';
 import { SlackPage } from './pages/integrations/slack/SlackPage';
 import { AuthentikIntegrationPage } from './pages/integrations/authentik/AuthentikIntegrationPage';
-import { NetbirdIntegrationPage } from './pages/integrations/netbird/NetbirdIntegrationPage';
+import { ConnectorPage } from './pages/integrations/connectors/ConnectorPage';
 import { FleetdmIntegrationPage } from './pages/integrations/fleetdm/FleetdmIntegrationPage';
+import { GitlabAuditIntegrationPage } from './pages/integrations/gitlabAudit/GitlabAuditIntegrationPage';
+import { GoogleWorkspaceIntegrationPage } from './pages/integrations/googleWorkspace/GoogleWorkspaceIntegrationPage';
 import { AzurePage } from './pages/integrations/azure/AzurePage';
 import { AddAzurePage } from './pages/integrations/azure/AddAzurePage';
 import { GcpPage } from './pages/integrations/gcp/GcpPage';
@@ -387,8 +389,12 @@ function Shell() {
             <Route path="/integrations/kubernetes" element={<KubernetesIntegrationPage />} />
             <Route path="/integrations/slack" element={<SlackPage />} />
             <Route path="/integrations/authentik" element={<AuthentikIntegrationPage />} />
-            <Route path="/integrations/netbird" element={<NetbirdIntegrationPage />} />
+            {/* NetBird became a connector package (integrations/connectors/netbird). */}
+            <Route path="/integrations/netbird" element={<Navigate to="/integrations/connectors/netbird" replace />} />
+            <Route path="/integrations/connectors/:id" element={<ConnectorPage />} />
             <Route path="/integrations/fleetdm" element={<FleetdmIntegrationPage />} />
+            <Route path="/integrations/gitlab-audit-events" element={<GitlabAuditIntegrationPage />} />
+            <Route path="/integrations/google-workspace" element={<GoogleWorkspaceIntegrationPage />} />
             <Route path="/integrations/aws/add" element={<AddAwsAccountPage />} />
             <Route path="/integrations/azure" element={<AzurePage />} />
             <Route path="/integrations/azure/add" element={<AddAzurePage />} />

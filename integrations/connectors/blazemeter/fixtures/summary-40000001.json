@@ -1,0 +1,1 @@
+{ "api_version": 4, "error": null, "result": { "summary": [ { "id": "ALL", "first": 1794297660, "last": 1794299400, "hits": 120000, "hits_avg": 66.7, "failed": 240, "avg": 210.5, "min": 18, "max": 4210, "tp90": 380, "stDev": 95.25, "latency": 45.2, "bytes": 98000000, "concurrency": 500, "maxUsers": 500, "duration": 1800 } ] } }

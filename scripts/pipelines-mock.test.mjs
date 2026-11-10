@@ -44,8 +44,8 @@ test('grok preview: matchers, filters, nested attributes and rule order', () => 
   assert.equal(out.error, null);
   assert.deepEqual(out.samples[0], { matched: true, rule: 'access', attributes: { network: { client: { ip: '10.0.0.12' } }, http: { method: 'GET', url: '/cart', status_code: 503 }, duration: 250 } });
   assert.deepEqual(out.samples[1], { matched: true, rule: 'any', attributes: { msg: 'not an access log' } });
-  const kv = engine.parseGrok({ supportRules: '', matchRules: 'r %{date("yyyy-MM-dd HH:mm:ss"):ts} %{data::keyvalue}', samples: ['2026-10-25 13:00:00 user=jane order="A 1"', 'x'] });
-  assert.deepEqual(kv.samples[0].attributes, { ts: Date.UTC(2026, 9, 25, 13), user: 'jane', order: 'A 1' });
+  const kv = engine.parseGrok({ supportRules: '', matchRules: 'r %{date("yyyy-MM-dd HH:mm:ss"):ts} %{data::keyvalue}', samples: ['2026-10-25 13:00:00 user=jane order="A 1" items=3', 'x'] });
+  assert.deepEqual(kv.samples[0].attributes, { ts: Date.UTC(2026, 9, 25, 13), user: 'jane', order: 'A 1', items: 3 });
   assert.equal(kv.samples[1].matched, false);
   const bad = engine.parseGrok({ supportRules: '', matchRules: 'r %{nope:x}', samples: ['x'] });
   assert.match(bad.error, /nope/);
@@ -75,6 +75,44 @@ test('test endpoint: processors run on the sample when the filter matches', () =
   const miss = mock.testPipeline({ filter: 'source:redis', processors, log: sample('WARN 503 x') });
   assert.equal(miss.matched, false);
   assert.equal(miss.log.message, 'WARN 503 x');
+});
+
+test('test endpoint: a parsed message stays an attribute until remapped; GeoIP and array processors, as the server', () => {
+  const processors = [
+    { type: 'grok-parser', grok: { matchRules: 'r %{ip:network.client.ip} %{data:message}' } },
+    { type: 'geo-ip-parser', sources: ['network.client.ip'], target: 'network.client.geoip' },
+    { type: 'geo-ip-parser', sources: ['peer'], target: 'peer_geoip' },
+    { type: 'array-processor', operation: { type: 'select', source: 'entries', target: 'outcome', filter: 'name:login', valueToExtract: 'outcome' } },
+    { type: 'array-processor', operation: { type: 'length', source: 'entries', target: 'count' } },
+  ];
+  const attributes = {
+    peer: 'unknown',
+    entries: [
+      { name: 'check', outcome: 'skip' },
+      { name: 'login', outcome: 'ok' },
+    ],
+  };
+  const out = mock.testPipeline({ processors, log: sample('10.0.0.12 card declined', attributes) });
+  assert.equal(out.log.message, '10.0.0.12 card declined');
+  assert.equal(out.log.attributes.message, 'card declined');
+  assert.deepEqual(out.log.attributes.network.client.geoip, {});
+  assert.deepEqual(out.log.attributes.peer_geoip, { invalidAddress: 'unknown' });
+  assert.equal(out.log.attributes.outcome, 'ok');
+  assert.equal(out.log.attributes.count, 2);
+  const remapped = mock.testPipeline({ processors: [...processors, { type: 'message-remapper', sources: ['message'] }], log: sample('10.0.0.12 card declined') });
+  assert.equal(remapped.log.message, 'card declined');
+  assert.equal(remapped.log.attributes.message, undefined);
+  const url = mock.testPipeline({ processors: [{ type: 'url-parser', sources: ['u'], target: 'd' }], log: sample('m', { u: 'https://Shop.Example.com:8443/cart?q=red%20shoes#top' }) });
+  assert.deepEqual(url.log.attributes.d, { scheme: 'https', host: 'shop.example.com', port: 8443, path: '/cart', queryString: { q: 'red%20shoes' }, hash: 'top' });
+});
+
+test('test endpoint: the array processor turns key-value elements into attributes, as the server', () => {
+  const tags = { tags: [{ name: 'team', value: 'payments' }, { name: 'env', value: 'prod' }, { value: 'no key' }], env: 'staging' };
+  const op = { type: 'key-value', source: 'tags', target: '', keyToExtract: 'name', valueToExtract: 'value' };
+  const kept = mock.testPipeline({ processors: [{ type: 'array-processor', operation: op }], log: sample('m', tags) });
+  assert.deepEqual([kept.log.attributes.team, kept.log.attributes.env], ['payments', 'staging']);
+  const under = mock.testPipeline({ processors: [{ type: 'array-processor', operation: { ...op, target: 'extracted', overrideOnConflict: true } }], log: sample('m', tags) });
+  assert.deepEqual(under.log.attributes.extracted, { team: 'payments', env: 'prod' });
 });
 
 test('mock pipelines: deterministic demo seed, CRUD, reorder and read-only integration pipelines', async () => {
@@ -144,4 +182,30 @@ test('the mock runs the imported nginx pipeline on an access log', () => {
   assert.equal(out.log.attributes.http.url_details.path, '/cart');
   assert.equal(out.log.status, 'error');
   assert.equal(out.log.date, '2026-10-25T12:59:58.000Z');
+});
+
+test('a parsed `message` is an attribute; a message remapper makes it the message (as Datadog’s engine)', () => {
+  const redis = mock.libraryPipeline('redisdb');
+  const line = '1:M 25 Oct 2026 12:59:58.000 # WARNING overcommit_memory is set to 0';
+  const out = mock.testPipeline({ filter: redis.filter, processors: redis.processors, log: sample(line, {}, { source: 'redis' }) });
+  assert.equal(out.log.message, line);
+  assert.equal(out.log.attributes.message, 'WARNING overcommit_memory is set to 0');
+  assert.equal(out.log.status, 'warn');
+  const etcd = mock.libraryPipeline('etcd');
+  const parsed = mock.testPipeline({ filter: etcd.filter, processors: etcd.processors, log: sample('2026-10-25 12:59:58.123456 E | rafthttp: failed to dial peer', {}, { source: 'etcd' }) });
+  assert.equal(parsed.log.message, 'failed to dial peer');
+  assert.equal(parsed.log.attributes.message, undefined);
+});
+
+test('grok: `.` matches line breaks and a final line break ends the log, as in Datadog’s parser (and the server’s)', () => {
+  const stack = 'java.net.UnknownHostException: zookeeper: Name or service not known\n\tat java.net.Inet4AddressImpl.lookupAllHostAddr(Native Method)\n\tat Main.run(Main.java:1)';
+  const rules = engine.compileGrok('', 'error_rule %{notSpace:error.kind}: %{data:error.message}(\\n|\\t).*');
+  assert.deepEqual(engine.grokParse(rules, stack, 0)?.values, [
+    ['error.kind', 'java.net.UnknownHostException'],
+    ['error.message', 'zookeeper: Name or service not known'],
+  ]);
+  assert.deepEqual(engine.grokParse(engine.compileGrok('', 'rule %{word:a} %{data:b}'), 'x tail\n', 0)?.values, [
+    ['a', 'x'],
+    ['b', 'tail'],
+  ]);
 });

@@ -55,5 +55,1028 @@
       "path": "server/seeds/pipelines/observecraft.json",
       "license": "MIT"
     }
+  },
+  {
+    "id": "authentik",
+    "integration": "authentik",
+    "name": "authentik",
+    "filter": "source:authentik",
+    "processors": [
+      {
+        "type": "date-remapper",
+        "name": "Define `created` as the official date of the log",
+        "enabled": true,
+        "sources": [
+          "created"
+        ]
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `action` to `evt.name`",
+        "enabled": true,
+        "sources": [
+          "action"
+        ],
+        "target": "evt.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `user.username` to `usr.name`",
+        "enabled": true,
+        "sources": [
+          "user.username"
+        ],
+        "target": "usr.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `user.email` to `usr.email`",
+        "enabled": true,
+        "sources": [
+          "user.email"
+        ],
+        "target": "usr.email",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `user.pk` to `usr.id`",
+        "enabled": true,
+        "sources": [
+          "user.pk"
+        ],
+        "target": "usr.id",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `client_ip` to `network.client.ip`",
+        "enabled": true,
+        "sources": [
+          "client_ip"
+        ],
+        "target": "network.client.ip",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `context` to `authentik.context`",
+        "enabled": true,
+        "sources": [
+          "context"
+        ],
+        "target": "authentik.context",
+        "preserveSource": false,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `app` to `authentik.app`",
+        "enabled": true,
+        "sources": [
+          "app"
+        ],
+        "target": "authentik.app",
+        "preserveSource": false,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `authentik.context.geo.country` to `network.client.geoip.country.iso_code`",
+        "enabled": true,
+        "sources": [
+          "authentik.context.geo.country"
+        ],
+        "target": "network.client.geoip.country.iso_code",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `authentik.context.geo.city` to `network.client.geoip.city.name`",
+        "enabled": true,
+        "sources": [
+          "authentik.context.geo.city"
+        ],
+        "target": "network.client.geoip.city.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `authentik.context.geo.continent` to `network.client.geoip.continent.code`",
+        "enabled": true,
+        "sources": [
+          "authentik.context.geo.continent"
+        ],
+        "target": "network.client.geoip.continent.code",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `authentik.context.asn.as_org` to `network.client.asn.organization`",
+        "enabled": true,
+        "sources": [
+          "authentik.context.asn.as_org"
+        ],
+        "target": "network.client.asn.organization",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `authentik.context.http_request.user_agent` to `http.useragent`",
+        "enabled": true,
+        "sources": [
+          "authentik.context.http_request.user_agent"
+        ],
+        "target": "http.useragent",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "pipeline",
+        "name": "Failed logins: the user is the one who tried",
+        "enabled": true,
+        "filter": {
+          "query": "@evt.name:login_failed"
+        },
+        "processors": [
+          {
+            "type": "attribute-remapper",
+            "name": "Map the attempted `authentik.context.username` to `usr.name`",
+            "enabled": true,
+            "sources": [
+              "authentik.context.username"
+            ],
+            "target": "usr.name",
+            "preserveSource": true,
+            "overrideOnConflict": true,
+            "sourceType": "attribute",
+            "targetType": "attribute"
+          }
+        ]
+      },
+      {
+        "type": "category-processor",
+        "name": "Categorise the event",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:(model_created OR model_updated OR model_deleted) @authentik.context.model.model_name:(totpdevice OR webauthndevice OR staticdevice OR duodevice OR smsdevice OR emaildevice OR endpointdevice)"
+            },
+            "name": "mfa"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(login OR login_failed OR logout)"
+            },
+            "name": "authentication"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(password_set OR secret_view OR secret_rotate)"
+            },
+            "name": "password"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(impersonation_started OR impersonation_ended)"
+            },
+            "name": "impersonation"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:authorize_application"
+            },
+            "name": "application_access"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:access_request_*"
+            },
+            "name": "access_request"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:suspicious_request"
+            },
+            "name": "suspicious"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(policy_execution OR policy_exception)"
+            },
+            "name": "policy"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(model_created OR model_updated OR model_deleted)"
+            },
+            "name": "configuration_change"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(user_write OR invitation_used OR source_linked OR email_sent)"
+            },
+            "name": "user_lifecycle"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(system_exception OR system_task_exception OR system_task_execution OR configuration_error OR configuration_warning OR property_mapping_exception OR update_available)"
+            },
+            "name": "system"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "other"
+          }
+        ],
+        "target": "authentik.category"
+      },
+      {
+        "type": "category-processor",
+        "name": "Severity of the event: failures and exceptions are errors, denials and impersonation warnings",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:(login_failed OR suspicious_request OR system_exception OR system_task_exception OR policy_exception OR property_mapping_exception OR configuration_error)"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(configuration_warning OR access_request_denied OR impersonation_started)"
+            },
+            "name": "warn"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "info"
+          }
+        ],
+        "target": "authentik.severity"
+      },
+      {
+        "type": "status-remapper",
+        "name": "Define `authentik.severity` as the official status of the log",
+        "enabled": true,
+        "sources": [
+          "authentik.severity"
+        ]
+      }
+    ],
+    "source": {
+      "repository": "observecraft/observecraft",
+      "revision": "",
+      "path": "server/seeds/pipelines/observecraft.json",
+      "license": "MIT"
+    }
+  },
+  {
+    "id": "fleetdm",
+    "integration": "fleetdm",
+    "name": "FleetDM",
+    "filter": "source:fleetdm",
+    "processors": [
+      {
+        "type": "date-remapper",
+        "name": "Define `created_at` as the official date of the log",
+        "enabled": true,
+        "sources": [
+          "created_at"
+        ]
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `type` to `evt.name`",
+        "enabled": true,
+        "sources": [
+          "type"
+        ],
+        "target": "evt.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `actor_full_name` to `usr.name`",
+        "enabled": true,
+        "sources": [
+          "actor_full_name"
+        ],
+        "target": "usr.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `actor_email` to `usr.email`",
+        "enabled": true,
+        "sources": [
+          "actor_email"
+        ],
+        "target": "usr.email",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `actor_id` to `usr.id`",
+        "enabled": true,
+        "sources": [
+          "actor_id"
+        ],
+        "target": "usr.id",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details` to `fleetdm.details`",
+        "enabled": true,
+        "sources": [
+          "details"
+        ],
+        "target": "fleetdm.details",
+        "preserveSource": false,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `fleetdm.details.public_ip` to `network.client.ip`",
+        "enabled": true,
+        "sources": [
+          "fleetdm.details.public_ip"
+        ],
+        "target": "network.client.ip",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `fleetdm.details.host_display_name` to `fleetdm.host_display_name`",
+        "enabled": true,
+        "sources": [
+          "fleetdm.details.host_display_name"
+        ],
+        "target": "fleetdm.host_display_name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "pipeline",
+        "name": "Failed logins: the user is the one who tried",
+        "enabled": true,
+        "filter": {
+          "query": "@evt.name:user_failed_login"
+        },
+        "processors": [
+          {
+            "type": "attribute-remapper",
+            "name": "Map the attempted `fleetdm.details.email` to `usr.email`",
+            "enabled": true,
+            "sources": [
+              "fleetdm.details.email"
+            ],
+            "target": "usr.email",
+            "preserveSource": true,
+            "overrideOnConflict": true,
+            "sourceType": "attribute",
+            "targetType": "attribute"
+          }
+        ]
+      },
+      {
+        "type": "category-processor",
+        "name": "Categorise the activity",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:(user_logged_in OR user_failed_login OR user_added_by_sso OR user_logged_out)"
+            },
+            "name": "authentication"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(ran_script OR locked_host OR unlocked_host OR wiped_host OR read_host_disk_encryption_key OR transferred_hosts OR deleted_host OR ran_script_batch OR canceled_run_script)"
+            },
+            "name": "host_action"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(installed_software OR uninstalled_software OR added_software OR edited_software OR deleted_software OR added_app_store_app OR deleted_app_store_app OR installed_app_store_app)"
+            },
+            "name": "software"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(mdm_enrolled OR mdm_unenrolled OR *_profile OR *_declaration_profile OR enabled_macos_disk_encryption OR disabled_macos_disk_encryption OR enabled_windows_mdm OR disabled_windows_mdm)"
+            },
+            "name": "mdm"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:*_policy"
+            },
+            "name": "policy"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(live_query OR *_saved_query OR *_pack)"
+            },
+            "name": "query"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(added_script OR edited_script OR deleted_script)"
+            },
+            "name": "script"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(created_user OR deleted_user OR changed_user_global_role OR deleted_user_global_role OR changed_user_team_role OR deleted_user_team_role OR user_added_by_sso OR reset_password)"
+            },
+            "name": "user_management"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(edited_agent_options OR created_team OR deleted_team OR applied_spec_team OR edited_enroll_secrets OR changed_macos_setup_assistant OR created_fleet OR deleted_fleet)"
+            },
+            "name": "configuration"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "other"
+          }
+        ],
+        "target": "fleetdm.category"
+      },
+      {
+        "type": "category-processor",
+        "name": "Severity of the activity: failed logins and installs are errors, hosts locked or wiped, keys read and deletions warnings",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:user_failed_login"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@fleetdm.details.status:*fail*"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(locked_host OR wiped_host OR read_host_disk_encryption_key OR deleted_*)"
+            },
+            "name": "warn"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "info"
+          }
+        ],
+        "target": "fleetdm.severity"
+      },
+      {
+        "type": "status-remapper",
+        "name": "Define `fleetdm.severity` as the official status of the log",
+        "enabled": true,
+        "sources": [
+          "fleetdm.severity"
+        ]
+      }
+    ],
+    "source": {
+      "repository": "observecraft/observecraft",
+      "revision": "",
+      "path": "server/seeds/pipelines/observecraft.json",
+      "license": "MIT"
+    }
+  },
+  {
+    "id": "gitlab-audit-events",
+    "integration": "gitlab-audit-events",
+    "name": "GitLab Audit Events",
+    "filter": "source:gitlab-audit-events",
+    "processors": [
+      {
+        "type": "date-remapper",
+        "name": "Define `created_at` as the official date of the log",
+        "enabled": true,
+        "sources": [
+          "created_at"
+        ]
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `event_name`, `event_type`, `details.event_name` to `evt.name`",
+        "enabled": true,
+        "sources": [
+          "event_name",
+          "event_type",
+          "details.event_name"
+        ],
+        "target": "evt.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `author_id` to `usr.id`",
+        "enabled": true,
+        "sources": [
+          "author_id"
+        ],
+        "target": "usr.id",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.author_name`, `author_name` to `usr.name`",
+        "enabled": true,
+        "sources": [
+          "details.author_name",
+          "author_name"
+        ],
+        "target": "usr.name",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.author_email`, `author_email` to `usr.email`",
+        "enabled": true,
+        "sources": [
+          "details.author_email",
+          "author_email"
+        ],
+        "target": "usr.email",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.ip_address`, `ip_address` to `network.client.ip`",
+        "enabled": true,
+        "sources": [
+          "details.ip_address",
+          "ip_address"
+        ],
+        "target": "network.client.ip",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `entity_type` to `gitlab.entity_type`",
+        "enabled": true,
+        "sources": [
+          "entity_type"
+        ],
+        "target": "gitlab.entity_type",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.entity_path`, `entity_path` to `gitlab.entity_path`",
+        "enabled": true,
+        "sources": [
+          "details.entity_path",
+          "entity_path"
+        ],
+        "target": "gitlab.entity_path",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.target_type`, `target_type` to `gitlab.target_type`",
+        "enabled": true,
+        "sources": [
+          "details.target_type",
+          "target_type"
+        ],
+        "target": "gitlab.target_type",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `details.target_details`, `target_details` to `gitlab.target_details`",
+        "enabled": true,
+        "sources": [
+          "details.target_details",
+          "target_details"
+        ],
+        "target": "gitlab.target_details",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "category-processor",
+        "name": "Categorise the audit event",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:(*login* OR *authentication* OR *two_factor* OR *otp* OR *webauthn* OR *passkey* OR user_access_locked OR user_access_unlocked OR password_reset_* OR user_password_updated)"
+            },
+            "name": "authentication"
+          },
+          {
+            "filter": {
+              "query": "@gitlab.details.failed_login:*"
+            },
+            "name": "authentication"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*token*)"
+            },
+            "name": "token"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*merge_request* OR *approval* OR *approver*)"
+            },
+            "name": "merge_request"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(member_* OR *_member_* OR *_members_* OR *access_level* OR *user_access_* OR *saml_group_link* OR user_access_added OR user_access_removed)"
+            },
+            "name": "membership"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*oauth_application* OR user_authorized_* OR user_rejected_*)"
+            },
+            "name": "authorization"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(user_* OR *_user_* OR registration_*)"
+            },
+            "name": "user_management"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(ci_* OR *runner* OR *variable* OR *pipeline* OR *environment* OR *deploy_key* OR *deploy_token*)"
+            },
+            "name": "ci_cd"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*protected_branch* OR *protected_tag* OR *push_rule* OR *repository* OR *branch*)"
+            },
+            "name": "repository"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(project_*)"
+            },
+            "name": "project"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(group_*)"
+            },
+            "name": "group"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*audit* OR *compliance* OR *streaming_destination*)"
+            },
+            "name": "compliance"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "other"
+          }
+        ],
+        "target": "gitlab.category"
+      },
+      {
+        "type": "category-processor",
+        "name": "Severity of the audit event: failed logins and creations are errors, accounts locked or blocked, administrators and impersonation warnings",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:*failed*"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@evt.outcome:failure"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@gitlab.details.failed_login:*"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*locked* OR *blocked* OR *banned* OR *admin_status* OR *impersonat* OR *two_factor_disabled* OR *disable_two_factor*)"
+            },
+            "name": "warn"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "info"
+          }
+        ],
+        "target": "gitlab.severity"
+      },
+      {
+        "type": "status-remapper",
+        "name": "Define `gitlab.severity` as the official status of the log",
+        "enabled": true,
+        "sources": [
+          "gitlab.severity"
+        ]
+      }
+    ],
+    "source": {
+      "repository": "observecraft/observecraft",
+      "revision": "",
+      "path": "server/seeds/pipelines/observecraft.json",
+      "license": "MIT"
+    }
+  },
+  {
+    "id": "google-workspace",
+    "integration": "google-workspace",
+    "name": "Google Workspace",
+    "filter": "source:gsuite",
+    "processors": [
+      {
+        "type": "date-remapper",
+        "name": "Define `id.time` as the official date of the log",
+        "enabled": true,
+        "sources": [
+          "id.time"
+        ]
+      },
+      {
+        "type": "service-remapper",
+        "name": "Define `id.applicationName` as the official service of the log",
+        "enabled": true,
+        "sources": [
+          "id.applicationName"
+        ]
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `actor.email` to `usr.email`",
+        "enabled": true,
+        "sources": [
+          "actor.email"
+        ],
+        "target": "usr.email",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `actor.profileId` to `usr.id`",
+        "enabled": true,
+        "sources": [
+          "actor.profileId"
+        ],
+        "target": "usr.id",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `ipAddress` to `network.client.ip`",
+        "enabled": true,
+        "sources": [
+          "ipAddress"
+        ],
+        "target": "network.client.ip",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `networkInfo.regionCode` to `network.client.geoip.country.iso_code`",
+        "enabled": true,
+        "sources": [
+          "networkInfo.regionCode"
+        ],
+        "target": "network.client.geoip.country.iso_code",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `networkInfo.subdivisionCode` to `network.client.geoip.subdivision.iso_code`",
+        "enabled": true,
+        "sources": [
+          "networkInfo.subdivisionCode"
+        ],
+        "target": "network.client.geoip.subdivision.iso_code",
+        "preserveSource": true,
+        "overrideOnConflict": false,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "category-processor",
+        "name": "Categorise the activity by the application that recorded it",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "service:(login OR saml OR user_accounts)"
+            },
+            "name": "authentication"
+          },
+          {
+            "filter": {
+              "query": "service:token"
+            },
+            "name": "authorization"
+          },
+          {
+            "filter": {
+              "query": "service:admin"
+            },
+            "name": "administration"
+          },
+          {
+            "filter": {
+              "query": "service:(groups OR groups_enterprise)"
+            },
+            "name": "groups"
+          },
+          {
+            "filter": {
+              "query": "service:(drive OR takeout OR vault OR keep OR calendar OR chat OR meet OR jamboard OR gplus)"
+            },
+            "name": "data_access"
+          },
+          {
+            "filter": {
+              "query": "service:(mobile OR chrome OR context_aware_access OR access_evaluation)"
+            },
+            "name": "devices"
+          },
+          {
+            "filter": {
+              "query": "service:(gcp OR access_transparency OR rules OR data_studio)"
+            },
+            "name": "cloud"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "other"
+          }
+        ],
+        "target": "google_workspace.category"
+      },
+      {
+        "type": "category-processor",
+        "name": "Severity of the event: suspicious logins, attacks and disabled accounts are errors, failed logins and blocked actions warnings",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@evt.name:(*suspicious* OR *gov_attack* OR *hijack* OR *leak* OR *account_disabled* OR *compromised* OR *SUSPICIOUS* OR *HIJACK* OR *LEAK* OR *COMPROMISED*)"
+            },
+            "name": "error"
+          },
+          {
+            "filter": {
+              "query": "@evt.name:(*failure* OR *failed* OR *blocked* OR *denied* OR *FAILURE* OR *FAILED* OR *BLOCKED* OR *DENIED* OR 2sv_disable)"
+            },
+            "name": "warn"
+          },
+          {
+            "filter": {
+              "query": "*"
+            },
+            "name": "info"
+          }
+        ],
+        "target": "google_workspace.severity"
+      },
+      {
+        "type": "status-remapper",
+        "name": "Define `google_workspace.severity` as the official status of the log",
+        "enabled": true,
+        "sources": [
+          "google_workspace.severity"
+        ]
+      }
+    ],
+    "source": {
+      "repository": "observecraft/observecraft",
+      "revision": "",
+      "path": "server/seeds/pipelines/observecraft.json",
+      "license": "MIT"
+    }
   }
 ]

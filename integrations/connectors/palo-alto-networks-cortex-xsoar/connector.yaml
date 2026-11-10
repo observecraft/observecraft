@@ -1,0 +1,165 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Palo Alto Networks Cortex XSOAR 8 (https://cortex-panw.stoplight.io/docs/cortex-xsoar-8/): the tenant's incidents and
+# its management audit log, as the logs Datadog's integration sends (source:palo-alto-networks-cortex-xsoar, the
+# record's fields at the top and vendor.endpoint `incidents` or `audit-logs`, which integrations-core's pipeline and
+# dashboards filter on). Datadog's automation, API execution and SLA metrics (palo_alto_networks_cortex_xsoar.*) are
+# not read: the API they come from isn't documented publicly.
+schema_version: 1
+id: palo-alto-networks-cortex-xsoar
+name: Palo Alto Networks Cortex XSOAR
+publisher: ObserveCraft
+vendor: Palo Alto Networks
+description: >-
+  The incidents (type, severity, status, owner, playbook) and the management audit log (logins, role and settings
+  changes) of a Cortex XSOAR 8 tenant as logs, read every 5 minutes from its public API.
+tiles: [palo-alto-networks-cortex-xsoar]
+categories: [Security, Log Collection, Automation, SIEM]
+source: palo-alto-networks-cortex-xsoar
+docs_url: https://cortex-panw.stoplight.io/docs/cortex-xsoar-8/
+setup: |
+  1. In Cortex XSOAR, open **Settings & Info → Settings → Integrations → API Keys** and select **New Key**.
+  2. Choose the **Standard** security level (Advanced works too) and the **Read-Only** role, then copy the key; it is
+     shown once.
+  3. Copy the key's **ID** from the table and the tenant's API URL from **Copy API URL**
+     (`https://api-<tenant>.xdr.<region>.paloaltonetworks.com`).
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: API URL
+    type: url
+    required: true
+    placeholder: https://api-shop.xdr.us.paloaltonetworks.com
+    strip_suffix: [/xsoar/public/v1, /xsoar, /public_api/v1]
+    help: The tenant's API URL (Copy API URL on the API Keys page).
+  - key: key_id
+    label: API key ID
+    type: string
+    required: true
+    pattern: "[0-9]+"
+  - key: security_level
+    label: Security level
+    type: select
+    default: standard
+    options:
+      - { value: standard, label: Standard }
+      - { value: advanced, label: Advanced }
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: signer
+  signer: cortex_xdr_advanced
+  params:
+    key_id: "{{ config.key_id }}"
+    key: "{{ secrets.api_key }}"
+    level: "{{ config.security_level }}"
+
+rate_limit: { requests_per_minute: 60 }
+
+# The tile's pipeline maps the numeric severity the same way, and looks up severity_value and status_value from the
+# incident's own `severity` and `status` (0, 1, 2), which stay at the top.
+tables:
+  severity: { "0": info, "0.5": info, "1": notice, "2": warning, "3": warning, "4": critical }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Cortex XSOAR refused the API key (check the key ID, the key and its security level)
+  - status: [402]
+    kind: access_denied
+    message: The Cortex XSOAR license doesn't include the public API
+  - status: [403]
+    kind: access_denied
+    message: The API key's role can't read incidents or the audit log; give it the Read-Only role or higher
+
+streams:
+  - id: incidents
+    name: Incidents
+    description: >-
+      One log per incident (vendor.endpoint:incidents) with its fields at the top (id, name, type, severity, status,
+      owner, playbookId, labels, …); the pipeline adds severity_value, status_value and usr.name.
+    interval: 5m
+    request:
+      method: POST
+      url: "{{ config.base_url }}/xsoar/public/v1/incidents/search"
+      body:
+        filter:
+          fromDate: "{{ window.start | rfc3339 }}"
+          toDate: "{{ window.end | rfc3339 }}"
+          page: "{{ page.number }}"
+          size: "{{ page.size }}"
+          sort: [{ field: created, asc: true }]
+    records: "{{ response.data }}"
+    pagination: { kind: page, start: 0, size: 100 }
+    record_id: "{{ record.id | str }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.created }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        status: "{{ tables.severity[record.severity | str] ?? 'info' }}"
+        message: "{{ record.details | nonempty ?? record.name }}"
+        date: "{{ record.created }}"
+        attributes: "{{ record + {vendor: {endpoint: 'incidents'}} }}"
+
+  - id: audit_logs
+    name: Audit logs
+    description: >-
+      One log per management audit entry (vendor.endpoint:audit-logs) with its AUDIT_* fields at the top; the
+      pipeline maps the owner to usr.*, AUDIT_ENTITY / AUDIT_RESULT to evt.name / evt.outcome and the source IP to
+      network.client.ip.
+    interval: 5m
+    request:
+      method: POST
+      url: "{{ config.base_url }}/public_api/v1/audits/management_logs"
+      body:
+        request_data:
+          filters:
+            - { field: timestamp, operator: gte, value: "{{ window.start }}" }
+            - { field: timestamp, operator: lte, value: "{{ window.end }}" }
+          search_from: "{{ page.offset }}"
+          search_to: "{{ page.offset + page.size }}"
+          sort: { field: timestamp, keyword: asc }
+    records: "{{ response.reply.data }}"
+    pagination: { kind: offset, size: 100, total: "{{ response.reply.total_count }}" }
+    record_id: "{{ record.AUDIT_ID | str }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.AUDIT_INSERT_TIME }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        status: "{{ record.AUDIT_RESULT == 'FAIL' ? 'warn' : 'info' }}"
+        message: "{{ record.AUDIT_DESCRIPTION | nonempty ?? (record.AUDIT_ENTITY + ' ' + record.AUDIT_ENTITY_SUBTYPE) }}"
+        date: "{{ record.AUDIT_INSERT_TIME }}"
+        attributes: "{{ record + {vendor: {endpoint: 'audit-logs'}} }}"
+
+test:
+  request:
+    method: POST
+    url: "{{ config.base_url }}/public_api/v1/audits/management_logs"
+    body: { request_data: { search_from: 0, search_to: 1 } }
+  success: "{{ response.reply.total_count != null }}"
+  message: "Connected: {{ response.reply.total_count }} audit log entries"
+
+mock:
+  config: { base_url: "https://api-shop.xdr.us.paloaltonetworks.com", key_id: "12", security_level: standard }
+  secrets: { api_key: xsoar-test-key-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://api-shop.xdr.us.paloaltonetworks.com/public_api/v1/audits/management_logs", body_contains: '"search_to":1}', body: { reply: { total_count: 318, result_count: 0, data: [] } } }
+    - { method: POST, url: "https://api-shop.xdr.us.paloaltonetworks.com/public_api/v1/audits/management_logs", file: fixtures/audit_logs.json }
+    - { method: POST, url: "https://api-shop.xdr.us.paloaltonetworks.com/xsoar/public/v1/incidents/search", file: fixtures/incidents.json }
+  expect:
+    incidents: { records: 2, logs: 2, rerun: 0, golden: fixtures/incidents.expected.json }
+    audit_logs: { records: 2, logs: 2, rerun: 0, golden: fixtures/audit_logs.expected.json }
+    test: { ok: true, message: "318 audit log entries" }

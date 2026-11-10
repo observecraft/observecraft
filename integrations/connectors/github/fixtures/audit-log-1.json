@@ -1,0 +1,8 @@
+[
+  { "@timestamp": 1794294000123, "_document_id": "Zx1aB2cD3eF4gH5iJ6kL7m", "action": "repo.create", "actor": "jordan-patel", "actor_id": 1001, "actor_ip": "198.51.100.7",
+    "actor_location": { "country_code": "RO" }, "created_at": 1794294000123, "operation_type": "create", "org": "example-org", "org_id": 9001,
+    "repo": "example-org/catalog-service", "repo_id": 70001, "visibility": "private", "user_agent": "Mozilla/5.0 (Macintosh) Firefox/144.0" },
+  { "@timestamp": 1794301200456, "_document_id": "Ay2bC3dE4fG5hI6jK7lM8n", "action": "protected_branch.destroy", "actor": "sam-lee", "actor_id": 1002, "actor_ip": "203.0.113.77",
+    "actor_location": { "country_code": "NG" }, "created_at": 1794301200456, "operation_type": "remove", "org": "example-org", "repo": "example-org/billing",
+    "branch": "main", "name": "main" }
+]

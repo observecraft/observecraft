@@ -1,0 +1,28 @@
+{
+  "AdminAudits": [
+    {
+      "EventTime": "2026-11-10T09:00:04.21Z",
+      "LoggedAt": "2026-11-10T09:00:04.31Z",
+      "Administrator": "it.admin@example.com",
+      "Role": "SetAdmin",
+      "Feature": "Policies",
+      "Description": "Policy 'Restrict scripting tools' updated",
+      "LoggedFrom": "198.51.100.40",
+      "InternalSessionId": 3100201,
+      "PermissionDescription": "Manage policies",
+      "SetName": "Servers"
+    },
+    {
+      "EventTime": "2026-11-10T09:12:47.02Z",
+      "LoggedAt": "2026-11-10T09:12:47.10Z",
+      "Administrator": "it.admin@example.com",
+      "Role": "SetAdmin",
+      "Feature": "Computers",
+      "Description": "Computer 'i-0a1b2c3d4e5f60003' moved to group 'Payment hosts'",
+      "LoggedFrom": "198.51.100.40",
+      "InternalSessionId": 3100201,
+      "PermissionDescription": "Manage computers"
+    }
+  ],
+  "TotalCount": 2
+}

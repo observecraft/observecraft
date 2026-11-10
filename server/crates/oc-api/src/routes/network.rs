@@ -240,6 +240,7 @@ fn matches(terms: &[Term], (client, server): (&Tags, &Tags), labels: (&str, &str
             let hit = labels.0.to_lowercase().contains(&t) || labels.1.to_lowercase().contains(&t);
             hit != *negate
         }
+        Term::Any { alternatives, negate } => alternatives.iter().any(|a| matches(a, (client, server), labels, skip)) != *negate,
     })
 }
 

@@ -1,0 +1,241 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Supabase Cloud: a project's Metrics API (https://supabase.com/docs/guides/telemetry/metrics, Prometheus text with HTTP
+# basic auth) and its logs through the Management API (https://supabase.com/docs/reference/api/v1-get-project-logs,
+# ClickHouse SQL over the `logs` table that replaced `logs.all` on 2026-09-23). The metrics get Datadog's names
+# (supabase.cloud.*, from the tile's metadata.csv and dashboard; Datadog's map isn't published, so the Prometheus names
+# on the left of `tables.gauges` / `tables.counts` are Supabase's documented ones or the obvious exporter names); logs
+# are Datadog's shape (source:supabase, service = the log source, the row under `data`, its log_attributes as
+# data.metadata). The tile's integrations-core pipeline and dashboard read them, so this package ships neither.
+schema_version: 1
+id: supabase-cloud
+name: Supabase Cloud
+publisher: ObserveCraft
+vendor: Supabase
+description: >-
+  A Supabase project's database host and Postgres metrics (CPU, memory, disk, connections, PostgREST pool, Realtime
+  subscriptions, auth users) every minute from its Metrics API, and its Postgres, API gateway, auth, storage, Realtime,
+  Edge Function and PostgREST logs from the Management API.
+tiles: [supabase-cloud]
+categories: [Cloud, Developer Tools, Metrics, Log Collection]
+source: supabase
+docs_url: https://supabase.com/docs/guides/telemetry/metrics
+setup: |
+  1. Copy the project's **reference** from its URL (`https://supabase.com/dashboard/project/<ref>`).
+  2. In **Project Settings → API Keys**, create or copy a **secret key** (`sb_secret_…`; the legacy `service_role` key
+     works too): the Metrics API takes it as the password of the `service_role` user.
+  3. For logs, create a **personal access token** (`sbp_…`) in **Account → Access Tokens** for a member of the
+     project's organization (a fine-grained token needs `analytics_logs_read`).
+instance: "{{ config.project_ref }}"
+
+config:
+  - key: project_ref
+    label: Project reference
+    type: string
+    required: true
+    pattern: "[a-z0-9]{20}"
+    placeholder: abcdefghijklmnopqrst
+  - key: secret_key
+    label: Secret key
+    type: string
+    secret: true
+    required: true
+    placeholder: sb_secret_…
+    help: The project's secret (or legacy service_role) key, for the Metrics API.
+  - key: access_token
+    label: Personal access token
+    type: string
+    secret: true
+    placeholder: sbp_…
+    help: For logs (the Management API). Leave empty to collect metrics only, and turn the Logs stream off.
+  - key: sources
+    label: Log sources
+    type: multiselect
+    default: [postgres_logs, edge_logs, auth_logs, storage_logs, realtime_logs, function_logs, function_edge_logs, postgrest_logs]
+    options:
+      - { value: postgres_logs, label: Postgres }
+      - { value: edge_logs, label: API gateway }
+      - { value: auth_logs, label: Auth }
+      - { value: storage_logs, label: Storage }
+      - { value: realtime_logs, label: Realtime }
+      - { value: function_logs, label: Edge Function logs }
+      - { value: function_edge_logs, label: Edge Function invocations }
+      - { value: postgrest_logs, label: PostgREST }
+      - { value: pgbouncer_logs, label: PgBouncer }
+      - { value: supavisor_logs, label: Supavisor }
+
+auth:
+  kind: basic
+  username: service_role
+  password: "{{ secrets.secret_key }}"
+
+# Supabase's Metrics API and Management API names, as Datadog stores them.
+tables:
+  gauges:
+    # 1 per online CPU: a gauge, though Datadog's catalog says count.
+    node_cpu_online: supabase.cloud.node.cpu.online
+    auth_users_user_count: supabase.cloud.auth_users.user_count
+    connection_stats_connection_count: supabase.cloud.connection.stats.connection.count
+    node_disk_filesystem_info: supabase.cloud.node.disk.filesystem.info
+    node_disk_info: supabase.cloud.node.disk.info
+    node_filesystem_avail_bytes: supabase.cloud.node.filesystem.avail.bytes
+    node_filesystem_device_error: supabase.cloud.node.filesystem.device_error
+    node_filesystem_size_bytes: supabase.cloud.node.filesystem.size.bytes
+    node_load1: supabase.cloud.node.load1
+    node_load5: supabase.cloud.node.load5
+    node_load15: supabase.cloud.node.load15
+    node_memory_Active_bytes: supabase.cloud.node.memory.active_bytes
+    node_memory_Buffers_bytes: supabase.cloud.node.memory.buffers.bytes
+    node_memory_Cached_bytes: supabase.cloud.node.memory.cached.bytes
+    node_memory_Inactive_bytes: supabase.cloud.node.memory.inactive.bytes
+    node_memory_MemAvailable_bytes: supabase.cloud.node.memory.mem_available.bytes
+    node_memory_MemFree_bytes: supabase.cloud.node.memory.mem_free.bytes
+    node_memory_MemTotal_bytes: supabase.cloud.node.memory.mem_total.bytes
+    node_memory_SwapFree_bytes: supabase.cloud.node.memory.swap_free.bytes
+    node_memory_SwapTotal_bytes: supabase.cloud.node.memory.swap_total.bytes
+    pg_up: supabase.cloud.pg.up
+    pg_database_size_mb: supabase.cloud.pg_database.size.mb
+    pg_stat_database_num_backends: supabase.cloud.pg_stat_database.num_backends
+    pg_status_in_recovery: supabase.cloud.pg_status.in_recovery
+    pg_wal_size_mb: supabase.cloud.pg_wal.size
+    pgrst_db_pool_available: supabase.cloud.pgrst.db_pool.available_connections
+    pgrst_db_pool_max: supabase.cloud.pgrst.db_pool.max_connections
+    pgrst_db_pool_waiting: supabase.cloud.pgrst.db_pool.waiting
+    pgrst_schema_cache_query_time_seconds: supabase.cloud.pgrst.schema_cache.query_time_seconds
+    realtime_postgres_changes_client_subscriptions: supabase.cloud.realtime_postgres_changes.client_subscriptions
+    realtime_postgres_changes_total_subscriptions: supabase.cloud.realtime_postgres_changes.total_subscriptions
+  counts:
+    node_cpu_seconds_total: supabase.cloud.node.cpu.seconds.count
+    node_disk_io_time_seconds_total: supabase.cloud.node.disk.io_time_seconds.count
+    node_disk_io_time_weighted_seconds_total: supabase.cloud.node.disk.io_time_weighted_seconds.count
+    node_disk_read_bytes_total: supabase.cloud.node.disk.read_bytes.count
+    node_disk_read_time_seconds_total: supabase.cloud.node.disk.read_time_seconds.count
+    node_disk_write_time_seconds_total: supabase.cloud.node.disk.write_time_seconds.count
+    node_disk_written_bytes_total: supabase.cloud.node.disk.written_bytes.count
+    node_network_receive_bytes_total: supabase.cloud.node.network.receive_bytes.count
+    node_network_transmit_bytes_total: supabase.cloud.node.network.transmit_bytes.count
+    node_vmstat_oom_kill: supabase.cloud.node.vmstat.oom_kill.count
+    pg_stat_bgwriter_buffers_alloc_total: supabase.cloud.pg_stat_bgwriter.buffers_alloc.count
+    pg_stat_bgwriter_buffers_checkpoint_total: supabase.cloud.pg_stat_bgwriter.buffers_checkpoint.count
+    pg_stat_bgwriter_buffers_clean_total: supabase.cloud.pg_stat_bgwriter.buffers_clean.count
+    pg_stat_bgwriter_checkpoint_sync_time_total: supabase.cloud.pg_stat_bgwriter.checkpoint_sync_time.count
+    pg_stat_bgwriter_checkpoint_write_time_total: supabase.cloud.pg_stat_bgwriter.checkpoint_write_time.count
+    pg_stat_bgwriter_checkpoints_req_total: supabase.cloud.pg_stat_bgwriter.checkpoints_req.count
+    pg_stat_bgwriter_checkpoints_timed_total: supabase.cloud.pg_stat_bgwriter.checkpoints_timed.count
+    pg_stat_bgwriter_maxwritten_clean_total: supabase.cloud.pg_stat_bgwriter.maxwritten_clean.count
+    pg_stat_bgwriter_stats_reset_total: supabase.cloud.pg_stat_bgwriter.stats_reset.count
+    pg_stat_database_blks_hit_total: supabase.cloud.pg_stat_database.blks_hit.count
+    pg_stat_database_blks_read_total: supabase.cloud.pg_stat_database.blks_read.count
+    pg_stat_database_deadlocks_total: supabase.cloud.pg_stat_database.deadlocks.count
+    pg_stat_database_temp_bytes_total: supabase.cloud.pg_stat_database.temp_bytes.count
+    pg_stat_database_temp_files_total: supabase.cloud.pg_stat_database.temp_files.count
+    pg_stat_database_tup_deleted_total: supabase.cloud.pg_stat_database.tup_deleted.count
+    pg_stat_database_tup_fetched_total: supabase.cloud.pg_stat_database.tup_fetched.count
+    pg_stat_database_tup_inserted_total: supabase.cloud.pg_stat_database.tup_inserted.count
+    pg_stat_database_tup_returned_total: supabase.cloud.pg_stat_database.tup_returned.count
+    pg_stat_database_tup_updated_total: supabase.cloud.pg_stat_database.tup_updated.count
+    pg_stat_database_xact_commit_total: supabase.cloud.pg_stat_database.xact_commit.count
+    pg_stat_database_xact_rollback_total: supabase.cloud.pg_stat_database.xact_rollback.count
+    pgrst_db_pool_timeouts_total: supabase.cloud.pgrst.db_pool.timeouts.count
+    pgrst_schema_cache_loads_total: supabase.cloud.pgrst.schema_cache.loads.count
+    postgresql_restarts_total: supabase.cloud.postgresql.restarts.count
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Supabase refused the secret key (Metrics API) or the personal access token (Management API)
+  - status: [402]
+    kind: access_denied
+    message: The project's plan doesn't include log queries through the Management API
+  - status: [403]
+    kind: access_denied
+    message: The access token's member can't read the project's logs (a fine-grained token needs analytics_logs_read)
+  - status: [404]
+    kind: access_denied
+    message: "No Supabase project {{ config.project_ref }}"
+
+streams:
+  - id: metrics
+    name: Metrics
+    description: >-
+      The project's database host (node.*), Postgres (pg.*, pg_stat_database.*, pg_stat_bgwriter.*), PostgREST pool,
+      Realtime and auth metrics as supabase.cloud.*, tagged supabase_project_ref and the series' labels.
+    request:
+      url: "{{ 'https://' + config.project_ref + '.supabase.co/customer/v1/privileged/metrics' }}"
+      format: prometheus
+    filter: "{{ tables.gauges[record.name] || tables.counts[record.name] }}"
+    output:
+      metrics:
+        - name: "{{ tables.gauges[record.name] }}"
+          type: gauge
+          value: "{{ record.value }}"
+          tags: &tags { supabase_project_ref: "{{ config.project_ref }}" }
+          tags_from: "{{ record.labels }}"
+        - name: "{{ tables.counts[record.name] }}"
+          type: count
+          value: "{{ record.value }}"
+          tags: *tags
+          tags_from: "{{ record.labels }}"
+
+  - id: logs
+    name: Logs
+    description: >-
+      The log sources chosen in the setup as logs (source:supabase, service: postgres_logs, edge_logs, auth_logs, …),
+      the row under data (id, timestamp, event_message, project) with its log_attributes as data.metadata.
+    interval: 1m
+    auth:
+      kind: bearer
+      token: "{{ secrets.access_token }}"
+    request:
+      url: "{{ 'https://api.supabase.com/v1/projects/' + config.project_ref + '/analytics/endpoints/logs' }}"
+      query:
+        iso_timestamp_start: "{{ window.start | rfc3339 }}"
+        iso_timestamp_end: "{{ window.end | rfc3339 }}"
+        sql: >-
+          {{ "select id, timestamp, event_message, source, severity_text, log_attributes from logs where source in ('"
+             + (config.sources | join("', '")) + "') order by timestamp asc, id asc limit 1000 offset " + (page.offset | str) }}
+    records: "{{ response.result }}"
+    pagination: { kind: offset, size: 1000 }
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.timestamp }}"
+      order: oldest_first
+      lookback: 1h
+      overlap: 2m
+      settle: 1m
+      # The endpoint answers windows of up to 24 hours, rounded to the minute.
+      slice: 1h
+      max_window: 24h
+    output:
+      logs:
+        service: "{{ record.source }}"
+        message: "{{ record.event_message }}"
+        status: >-
+          {{ (record.severity_text | lower) in ['error', 'fatal', 'panic'] ? 'error'
+             : (record.severity_text | lower) in ['warning', 'warn'] ? 'warn' : 'info' }}
+        date: "{{ record.timestamp | epoch_ms }}"
+        attributes:
+          data:
+            id: "{{ record.id }}"
+            timestamp: "{{ record.timestamp }}"
+            event_message: "{{ record.event_message }}"
+            project: "{{ config.project_ref }}"
+            identifier: "{{ record.log_attributes.identifier ?? record.log_attributes.project }}"
+            severity_text: "{{ record.severity_text }}"
+            metadata: "{{ record.log_attributes }}"
+
+test:
+  stream: metrics
+  message: "Connected: {{ records | len }} series in the Metrics API"
+
+mock:
+  config: { project_ref: abcdefghijklmnopqrst }
+  secrets: { secret_key: sb_secret_test0000, access_token: sbp_test0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://abcdefghijklmnopqrst.supabase.co/customer/v1/privileged/metrics", file: fixtures/metrics.txt }
+    - { url: "https://api.supabase.com/v1/projects/abcdefghijklmnopqrst/analytics/endpoints/logs", file: fixtures/logs.json }
+  expect:
+    metrics: { records: 8, metrics: 8, golden: fixtures/metrics.expected.json }
+    logs: { records: 3, logs: 3, rerun: 0, golden: fixtures/logs.expected.json }
+    test: { ok: true, message: "9 series" }

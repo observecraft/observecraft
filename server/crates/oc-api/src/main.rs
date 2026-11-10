@@ -10,12 +10,15 @@ mod auth;
 mod aws;
 mod bills;
 mod azure;
+mod entra;
 mod cloud;
 mod gcp;
 mod authentik;
-mod netbird;
+mod connectors;
 mod fleetdm;
 mod gitlab;
+mod gitlab_audit;
+mod google_workspace;
 mod cache;
 mod config;
 mod demo;
@@ -235,16 +238,37 @@ async fn main() -> anyhow::Result<()> {
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, authentik::crawler::LOGS_TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(authentik::crawler::AuthentikCrawler { api: Arc::new(authentik::api::Rest { allow_private: state.config.portal_allow_private }), sink: logs });
         tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, authentik::crawler::INTERVAL_SECS, concurrency)));
-        // The NetBird integration's poller: the accounts' audit events as logs, their peers as metrics.
-        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, netbird::crawler::LOGS_TOPIC));
-        let metrics: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));
-        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(netbird::crawler::NetbirdCrawler { api: Arc::new(netbird::api::Rest { allow_private: state.config.portal_allow_private }), logs, metrics });
-        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, netbird::crawler::INTERVAL_SECS, concurrency)));
+        // The Microsoft Entra ID logs' poller: the Azure app registrations' tenants' sign-ins, audits and risk
+        // detections from Microsoft Graph, as logs (JSON logs).
+        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, entra::crawler::LOGS_TOPIC));
+        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(entra::crawler::EntraCrawler { api: Arc::new(azure::api::Rest::new(reqwest::Client::new(), Default::default())), sink: logs });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, entra::crawler::INTERVAL_SECS, concurrency)));
+        // Connector packages (integrations/connectors, OC_CONNECTORS_DIR): one loop over every package's streams; logs,
+        // metrics and events to their topics.
+        let sinks = connectors::runner::Sinks {
+            logs: Arc::new(cloud::kafka::KafkaSink::new(&brokers, connectors::runner::LOGS_TOPIC)),
+            metrics: Arc::new(cloud::kafka::KafkaSink::new(&brokers, connectors::runner::METRICS_TOPIC)),
+            events: Arc::new(cloud::kafka::KafkaSink::new(&brokers, connectors::runner::EVENTS_TOPIC)),
+        };
+        let transport: Arc<dyn oc_connectors::http::Transport> = Arc::new(connectors::net::Net { allow_private: state.config.portal_allow_private });
+        let runner = Arc::new(connectors::runner::Runner { rt: Arc::new(oc_connectors::engine::Runtime::new(transport, true)), sinks });
+        tokio::spawn(org_limits::background(connectors::runner::run(state.clone(), runner, concurrency)));
+        // Native sources (CrowdStrike FDR's queue, Proofpoint On-Demand's WebSocket): long sessions of their own.
+        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, connectors::runner::LOGS_TOPIC));
+        tokio::spawn(org_limits::background(connectors::sources::run(state.clone(), logs, concurrency)));
         // The FleetDM integration's poller: the Fleet servers' activities as logs, their hosts and policies as metrics.
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, fleetdm::crawler::LOGS_TOPIC));
         let metrics: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(fleetdm::crawler::FleetCrawler { api: Arc::new(fleetdm::api::Rest { allow_private: state.config.portal_allow_private }), logs, metrics });
         tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, fleetdm::crawler::INTERVAL_SECS, concurrency)));
+        // The GitLab Audit Events integration's poller: the instances' (groups', projects') audit events as logs.
+        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, gitlab_audit::crawler::LOGS_TOPIC));
+        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(gitlab_audit::crawler::GitlabAuditCrawler { api: Arc::new(gitlab::api::Rest { allow_private: state.config.portal_allow_private }), sink: logs });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, gitlab_audit::crawler::INTERVAL_SECS, concurrency)));
+        // The Google Workspace integration's poller: the Reports API's activities as logs, one job per application.
+        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, google_workspace::crawler::LOGS_TOPIC));
+        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(google_workspace::crawler::WorkspaceCrawler { api: Arc::new(google_workspace::api::Rest::default()), sink: logs });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, google_workspace::crawler::INTERVAL_SECS, concurrency)));
     }
     // Cloud Cost Management's provider bills (`cost_bill_configs`), for the same clouds; written to ClickHouse directly.
     if state.config.cloud_crawlers.iter().any(|c| c == "aws") {

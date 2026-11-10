@@ -139,6 +139,16 @@ server:
   affinity: {}
   topologySpreadConstraints: []
 
+# Connector packages of your own (docs/connectors.md, "Third-party packages"): mounted into the servers as
+# OC_CONNECTORS_DIR and listed in the catalog beside the bundled ones. Either a ConfigMap of flat files named
+# `<package>__<path with __ for />` (`acme-status__connector.yaml`, `acme-status__fixtures__incidents.json`), or any
+# volume with one directory per package.
+connectors:
+  # -- A ConfigMap's name.
+  configMap: ""
+  # -- A volume definition (`persistentVolumeClaim: {claimName: …}`, `image: {reference: …}`), used when configMap is empty.
+  volume: {}
+
 # ObserveCraft monitoring itself (server/crates/oc-api/src/self_monitoring.rs): every minute one server writes
 # `observecraft.*` gauges (ClickHouse disks, parts and freshness, the log ingester's Kafka lag, Postgres, jobs, cost
 # and each organization's usage) into the operator's organization, which alone sees the "ObserveCraft Overview"
@@ -405,6 +415,15 @@ kafka:
   retentionHours: 72
   liveRetentionMinutes: 60
   heapOpts: "-Xms1g -Xmx1g"
+  # The brokers' metrics for the Datadog Agent's kafka check (Integrations → Kafka Broker): remote JMX on each
+  # broker, without authentication, and the Autodiscovery annotation that runs the check. The Agent must be its JMX
+  # image (Datadog chart: agents.image.tagSuffix: jmx). Consumer lag is the kafka_consumer check, as a cluster check
+  # against <release>-observecraft-kafka:9092.
+  jmx:
+    enabled: false
+    port: 9999
+    # -- Pods allowed to reach the JMX port with networkPolicy.enabled (e.g. the Datadog Agent's namespace). Empty: any pod.
+    allowFrom: []
   persistence:
     size: 50Gi
   resources:

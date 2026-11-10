@@ -1,0 +1,23 @@
+{
+  "meta": {},
+  "data": [
+    {
+      "timestamp": 1794310560000, "date": "2026-11-10", "time": "11:36:00", "type": "proxy",
+      "url": "https://shop.example.com/cart", "requestmethod": "GET", "statuscode": 200, "verdict": "allowed",
+      "useragent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "internalip": "10.20.1.15", "externalip": "203.0.113.60", "destinationip": "198.51.100.80", "contenttype": "text/html",
+      "requestsize": 812, "responsesize": 30211, "referer": "https://shop.example.com/", "sha256": "",
+      "categories": [{ "id": 26, "label": "Shopping", "type": "content", "deprecated": false, "integration": false }],
+      "identities": [{ "id": 617800001, "label": "laptop-jdoe", "deleted": false, "type": { "id": 9, "label": "Roaming Computers", "type": "roaming" } }]
+    },
+    {
+      "timestamp": 1794310200000, "date": "2026-11-10", "time": "11:30:00", "type": "proxy",
+      "url": "http://downloads.badsite.example/setup.exe", "requestmethod": "GET", "statuscode": 403, "verdict": "blocked",
+      "useragent": "Microsoft-Delivery-Optimization/10.0", "internalip": "10.20.1.15", "externalip": "203.0.113.60",
+      "destinationip": "192.0.2.44", "contenttype": "application/octet-stream", "requestsize": 402, "responsesize": 0,
+      "sha256": "9f2c0e5d1a2f3e4d5c6b7a8998877665544332211aabbccddeeff00112233445",
+      "categories": [{ "id": 67, "label": "Malware", "type": "security", "deprecated": false, "integration": false }],
+      "identities": [{ "id": 617800001, "label": "laptop-jdoe", "deleted": false, "type": { "id": 9, "label": "Roaming Computers", "type": "roaming" } }]
+    }
+  ]
+}

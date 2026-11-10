@@ -1,0 +1,9 @@
+{
+  "lists": [
+    { "id": "l1a0000001", "web_id": 100001, "name": "Customers", "list_rating": 4, "date_created": "2025-03-01T10:00:00+00:00",
+      "stats": { "member_count": 12000, "total_contacts": 12500, "unsubscribe_count": 300, "cleaned_count": 41, "campaign_count": 40, "open_rate": 36.5, "click_rate": 4.1, "avg_sub_rate": 120, "avg_unsub_rate": 2, "last_sub_date": "2026-11-10T08:00:00+00:00" } },
+    { "id": "l1a0000002", "web_id": 100002, "name": "Newsletter", "list_rating": 3, "date_created": "2025-06-15T10:00:00+00:00",
+      "stats": { "member_count": 4300, "total_contacts": 4410, "unsubscribe_count": 95, "cleaned_count": 12, "campaign_count": 18, "open_rate": 41.2, "click_rate": 6.3, "avg_sub_rate": 60, "avg_unsub_rate": 1, "last_sub_date": "2026-11-09T21:00:00+00:00" } }
+  ],
+  "total_items": 2
+}

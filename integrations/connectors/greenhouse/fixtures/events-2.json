@@ -1,0 +1,12 @@
+{
+  "paging": { "pit_id": "46ToAwMDaWR5BXV1aWQyKwZub2RlX2lkA", "next_search_after": null },
+  "hits": 3,
+  "results": [
+    {
+      "event_time": "2026-11-10T09:05:13.500Z", "organization_id": 4080000,
+      "request": { "id": "7061a2ccacae8d2b49e17a46a1328f03", "type": "my_dashboard/controllers/my_dashboard#index" },
+      "performer": { "id": 4080002, "type": "user", "ip_address": "203.0.113.13", "meta": { "name": "Sam Lee", "username": "sam.lee@example.com" } },
+      "event": { "type": "action", "target_type": "PII Page Accessed", "meta": { "path": "/people/55501/personal_info" } }
+    }
+  ]
+}

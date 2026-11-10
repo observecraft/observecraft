@@ -1,0 +1,86 @@
+{
+  "costs": [
+    {
+      "account": "1234567890123456",
+      "cost": 6.375,
+      "currency": "USD",
+      "date": "2026-11-08",
+      "line": 4007346384,
+      "provider": "databricks",
+      "service": "JOBS",
+      "tags": {
+        "charge_description": "PREMIUM_JOBS_COMPUTE",
+        "cluster_id": "1108-093000-orders01",
+        "job_id": "512",
+        "servicename": "JOBS",
+        "usage_unit": "DBU",
+        "workspace_id": "1234567890123456"
+      },
+      "usage_amount": 42.5,
+      "usage_type": "PREMIUM_JOBS_COMPUTE"
+    },
+    {
+      "account": "1234567890123456",
+      "cost": 12.775,
+      "currency": "USD",
+      "date": "2026-11-08",
+      "line": 2991895276,
+      "provider": "databricks",
+      "service": "SQL",
+      "tags": {
+        "charge_description": "PREMIUM_SERVERLESS_SQL_COMPUTE_US_EAST_N_VIRGINIA",
+        "servicename": "SQL",
+        "usage_unit": "DBU",
+        "warehouse_id": "0123456789abcdef",
+        "workspace_id": "1234567890123456"
+      },
+      "usage_amount": 18.25,
+      "usage_type": "PREMIUM_SERVERLESS_SQL_COMPUTE_US_EAST_N_VIRGINIA"
+    },
+    {
+      "account": "1234567890123456",
+      "cost": 6.0,
+      "currency": "USD",
+      "date": "2026-11-09",
+      "line": 3250891520,
+      "provider": "databricks",
+      "service": "JOBS",
+      "tags": {
+        "charge_description": "PREMIUM_JOBS_COMPUTE",
+        "cluster_id": "1109-093000-orders02",
+        "job_id": "512",
+        "servicename": "JOBS",
+        "usage_unit": "DBU",
+        "workspace_id": "1234567890123456"
+      },
+      "usage_amount": 40.0,
+      "usage_type": "PREMIUM_JOBS_COMPUTE"
+    },
+    {
+      "account": "1234567890123456",
+      "cost": 6.72,
+      "currency": "USD",
+      "date": "2026-11-09",
+      "line": 3970986447,
+      "provider": "databricks",
+      "service": "MODEL_SERVING",
+      "tags": {
+        "charge_description": "PREMIUM_SERVERLESS_REAL_TIME_INFERENCE_US_EAST_N_VIRGINIA",
+        "endpoint_name": "product-recs",
+        "servicename": "MODEL_SERVING",
+        "usage_unit": "DBU",
+        "workspace_id": "1234567890123456"
+      },
+      "usage_amount": 96.0,
+      "usage_type": "PREMIUM_SERVERLESS_REAL_TIME_INFERENCE_US_EAST_N_VIRGINIA"
+    }
+  ],
+  "events": [],
+  "logs": [],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

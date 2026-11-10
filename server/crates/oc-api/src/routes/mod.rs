@@ -1,10 +1,14 @@
 pub mod apm;
 pub mod apm_settings;
 pub mod authentik_integration;
-pub mod netbird_integration;
+pub mod connector_oauth;
+pub mod connectors;
 pub mod fleetdm_integration;
+pub mod gitlab_audit_integration;
+pub mod google_workspace_integration;
 pub mod aws_integration;
 pub mod azure_integration;
+pub mod entra_logs;
 pub mod gcp_integration;
 pub mod apps;
 pub mod assist;
@@ -865,21 +869,40 @@ use crate::state::AppState;
         azure_integration::update_account,
         azure_integration::delete_account,
         azure_integration::account_status,
+        entra_logs::get_entra_logs,
+        entra_logs::put_entra_logs,
+        entra_logs::test_entra_logs,
         authentik_integration::get_authentik,
         authentik_integration::put_authentik,
         authentik_integration::delete_authentik,
         authentik_integration::test_authentik,
         authentik_integration::sync_authentik,
-        netbird_integration::get_netbird,
-        netbird_integration::put_netbird,
-        netbird_integration::delete_netbird,
-        netbird_integration::test_netbird,
-        netbird_integration::sync_netbird,
+        connectors::list_connectors,
+        connectors::get_connector,
+        connectors::list_connections,
+        connectors::create_connection,
+        connectors::update_connection,
+        connectors::delete_connection,
+        connectors::test_connection,
+        connectors::sync_connection,
+        connectors::create_push,
+        connector_oauth::start,
+        connector_oauth::callback,
         fleetdm_integration::get_fleetdm,
         fleetdm_integration::put_fleetdm,
         fleetdm_integration::delete_fleetdm,
         fleetdm_integration::test_fleetdm,
         fleetdm_integration::sync_fleetdm,
+        gitlab_audit_integration::get_gitlab_audit,
+        gitlab_audit_integration::put_gitlab_audit,
+        gitlab_audit_integration::delete_gitlab_audit,
+        gitlab_audit_integration::test_gitlab_audit,
+        gitlab_audit_integration::sync_gitlab_audit,
+        google_workspace_integration::get_google_workspace,
+        google_workspace_integration::put_google_workspace,
+        google_workspace_integration::delete_google_workspace,
+        google_workspace_integration::test_google_workspace,
+        google_workspace_integration::sync_google_workspace,
         integration_installs::list,
         integration_installs::install,
         integration_installs::uninstall,
@@ -1661,15 +1684,35 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/integrations/azure/accounts", get(azure_integration::list_accounts).post(azure_integration::create_account))
         .route("/api/v1/integrations/azure/accounts/{id}", axum::routing::put(azure_integration::update_account).delete(azure_integration::delete_account))
         .route("/api/v1/integrations/azure/accounts/{id}/status", get(azure_integration::account_status))
+        .route("/api/v1/integrations/azure/accounts/{id}/entra-logs", get(entra_logs::get_entra_logs).put(entra_logs::put_entra_logs))
+        .route("/api/v1/integrations/azure/accounts/{id}/entra-logs/test", axum::routing::post(entra_logs::test_entra_logs))
         .route("/api/v1/integrations/authentik", get(authentik_integration::get_authentik).put(authentik_integration::put_authentik).delete(authentik_integration::delete_authentik))
         .route("/api/v1/integrations/authentik/test", axum::routing::post(authentik_integration::test_authentik))
         .route("/api/v1/integrations/authentik/sync", axum::routing::post(authentik_integration::sync_authentik))
-        .route("/api/v1/integrations/netbird", get(netbird_integration::get_netbird).put(netbird_integration::put_netbird).delete(netbird_integration::delete_netbird))
-        .route("/api/v1/integrations/netbird/test", axum::routing::post(netbird_integration::test_netbird))
-        .route("/api/v1/integrations/netbird/sync", axum::routing::post(netbird_integration::sync_netbird))
+        .route("/api/v1/connectors", get(connectors::list_connectors))
+        .route("/api/v1/connectors/{id}", get(connectors::get_connector))
+        .route("/api/v1/connectors/{id}/connections", get(connectors::list_connections).post(connectors::create_connection))
+        .route("/api/v1/connectors/{id}/connections/{connection}", axum::routing::put(connectors::update_connection).delete(connectors::delete_connection))
+        .route("/api/v1/connectors/{id}/connections/{connection}/sync", axum::routing::post(connectors::sync_connection))
+        .route("/api/v1/connectors/{id}/test", axum::routing::post(connectors::test_connection))
+        .route("/api/v1/connectors/{id}/push", axum::routing::post(connectors::create_push))
+        .route("/api/v1/connectors/{id}/oauth", axum::routing::post(connector_oauth::start))
+        .route("/api/v1/public/connectors/oauth/callback", get(connector_oauth::callback))
         .route("/api/v1/integrations/fleetdm", get(fleetdm_integration::get_fleetdm).put(fleetdm_integration::put_fleetdm).delete(fleetdm_integration::delete_fleetdm))
         .route("/api/v1/integrations/fleetdm/test", axum::routing::post(fleetdm_integration::test_fleetdm))
         .route("/api/v1/integrations/fleetdm/sync", axum::routing::post(fleetdm_integration::sync_fleetdm))
+        .route(
+            "/api/v1/integrations/gitlab-audit-events",
+            get(gitlab_audit_integration::get_gitlab_audit).put(gitlab_audit_integration::put_gitlab_audit).delete(gitlab_audit_integration::delete_gitlab_audit),
+        )
+        .route("/api/v1/integrations/gitlab-audit-events/test", axum::routing::post(gitlab_audit_integration::test_gitlab_audit))
+        .route("/api/v1/integrations/gitlab-audit-events/sync", axum::routing::post(gitlab_audit_integration::sync_gitlab_audit))
+        .route(
+            "/api/v1/integrations/google-workspace",
+            get(google_workspace_integration::get_google_workspace).put(google_workspace_integration::put_google_workspace).delete(google_workspace_integration::delete_google_workspace),
+        )
+        .route("/api/v1/integrations/google-workspace/test", axum::routing::post(google_workspace_integration::test_google_workspace))
+        .route("/api/v1/integrations/google-workspace/sync", axum::routing::post(google_workspace_integration::sync_google_workspace))
         .route("/api/v1/integrations/installed", get(integration_installs::list))
         .route("/api/v1/integrations/checks/{check}/hosts", get(fleet::integration_hosts))
         .route("/api/v1/integrations/{id}/install", axum::routing::put(integration_installs::install).delete(integration_installs::uninstall))
@@ -2023,8 +2066,12 @@ mod tests {
             include_str!("ci.rs"),
             include_str!("gitlab_ci.rs"),
             include_str!("authentik_integration.rs"),
-            include_str!("netbird_integration.rs"),
+            include_str!("entra_logs.rs"),
+            include_str!("connectors.rs"),
+            include_str!("../connectors/mod.rs"),
             include_str!("fleetdm_integration.rs"),
+            include_str!("gitlab_audit_integration.rs"),
+            include_str!("google_workspace_integration.rs"),
             include_str!("sso.rs"),
             include_str!("spans.rs"),
             include_str!("dashboards.rs"),
@@ -2346,10 +2393,14 @@ mod tests {
     fn server_sources() -> Vec<(&'static str, &'static str)> {
         vec![
             ("authentik_integration.rs", include_str!("authentik_integration.rs")),
-            ("netbird_integration.rs", include_str!("netbird_integration.rs")),
+            ("connectors.rs", include_str!("connectors.rs")),
+            ("connector_oauth.rs", include_str!("connector_oauth.rs")),
             ("fleetdm_integration.rs", include_str!("fleetdm_integration.rs")),
+            ("gitlab_audit_integration.rs", include_str!("gitlab_audit_integration.rs")),
+            ("google_workspace_integration.rs", include_str!("google_workspace_integration.rs")),
             ("aws_integration.rs", include_str!("aws_integration.rs")),
             ("azure_integration.rs", include_str!("azure_integration.rs")),
+            ("entra_logs.rs", include_str!("entra_logs.rs")),
             ("gcp_integration.rs", include_str!("gcp_integration.rs")),
             ("kubernetes_autoscaling.rs", include_str!("kubernetes_autoscaling.rs")),
             ("kubernetes_integration.rs", include_str!("kubernetes_integration.rs")),
@@ -2369,12 +2420,21 @@ mod tests {
             ("../authentik/crawler.rs", include_str!("../authentik/crawler.rs")),
             ("../authentik/fixtures.rs", include_str!("../authentik/fixtures.rs")),
             ("../authentik/logs.rs", include_str!("../authentik/logs.rs")),
-            ("../netbird/mod.rs", include_str!("../netbird/mod.rs")),
-            ("../netbird/api.rs", include_str!("../netbird/api.rs")),
-            ("../netbird/crawler.rs", include_str!("../netbird/crawler.rs")),
-            ("../netbird/fixtures.rs", include_str!("../netbird/fixtures.rs")),
-            ("../netbird/logs.rs", include_str!("../netbird/logs.rs")),
-            ("../netbird/peers.rs", include_str!("../netbird/peers.rs")),
+            ("../entra/mod.rs", include_str!("../entra/mod.rs")),
+            ("../entra/api.rs", include_str!("../entra/api.rs")),
+            ("../entra/crawler.rs", include_str!("../entra/crawler.rs")),
+            ("../entra/fixtures.rs", include_str!("../entra/fixtures.rs")),
+            ("../entra/logs.rs", include_str!("../entra/logs.rs")),
+            ("../connectors/mod.rs", include_str!("../connectors/mod.rs")),
+            ("../connectors/assets.rs", include_str!("../connectors/assets.rs")),
+            ("../connectors/push.rs", include_str!("../connectors/push.rs")),
+            ("../connectors/native.rs", include_str!("../connectors/native.rs")),
+            ("../connectors/net.rs", include_str!("../connectors/net.rs")),
+            ("../connectors/runner.rs", include_str!("../connectors/runner.rs")),
+            ("../connectors/store.rs", include_str!("../connectors/store.rs")),
+            ("../connectors/sources/mod.rs", include_str!("../connectors/sources/mod.rs")),
+            ("../connectors/sources/crowdstrike_fdr.rs", include_str!("../connectors/sources/crowdstrike_fdr.rs")),
+            ("../connectors/sources/proofpoint_pod.rs", include_str!("../connectors/sources/proofpoint_pod.rs")),
             ("../fleetdm/mod.rs", include_str!("../fleetdm/mod.rs")),
             ("../fleetdm/api.rs", include_str!("../fleetdm/api.rs")),
             ("../fleetdm/crawler.rs", include_str!("../fleetdm/crawler.rs")),
@@ -2386,6 +2446,16 @@ mod tests {
             ("../gitlab/crawler.rs", include_str!("../gitlab/crawler.rs")),
             ("../gitlab/fixtures.rs", include_str!("../gitlab/fixtures.rs")),
             ("../gitlab/otlp.rs", include_str!("../gitlab/otlp.rs")),
+            ("../gitlab_audit/mod.rs", include_str!("../gitlab_audit/mod.rs")),
+            ("../gitlab_audit/api.rs", include_str!("../gitlab_audit/api.rs")),
+            ("../gitlab_audit/crawler.rs", include_str!("../gitlab_audit/crawler.rs")),
+            ("../gitlab_audit/fixtures.rs", include_str!("../gitlab_audit/fixtures.rs")),
+            ("../gitlab_audit/logs.rs", include_str!("../gitlab_audit/logs.rs")),
+            ("../google_workspace/mod.rs", include_str!("../google_workspace/mod.rs")),
+            ("../google_workspace/api.rs", include_str!("../google_workspace/api.rs")),
+            ("../google_workspace/crawler.rs", include_str!("../google_workspace/crawler.rs")),
+            ("../google_workspace/fixtures.rs", include_str!("../google_workspace/fixtures.rs")),
+            ("../google_workspace/logs.rs", include_str!("../google_workspace/logs.rs")),
             ("../azure/mod.rs", include_str!("../azure/mod.rs")),
             ("../azure/api.rs", include_str!("../azure/api.rs")),
             ("../azure/crawler.rs", include_str!("../azure/crawler.rs")),
@@ -2610,6 +2680,8 @@ mod tests {
             ("../pipelines/filter.rs", include_str!("../pipelines/filter.rs")),
             ("../pipelines/grok.rs", include_str!("../pipelines/grok.rs")),
             ("../pipelines/rubyhash.rs", include_str!("../pipelines/rubyhash.rs")),
+            ("../pipelines/samples.rs", include_str!("../pipelines/samples.rs")),
+            ("../pipelines/useragent.rs", include_str!("../pipelines/useragent.rs")),
             ("../pipelines/xml.rs", include_str!("../pipelines/xml.rs")),
             ("../pipelines/library.rs", include_str!("../pipelines/library.rs")),
             ("../pipelines/log.rs", include_str!("../pipelines/log.rs")),

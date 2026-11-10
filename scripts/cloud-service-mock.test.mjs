@@ -19,12 +19,49 @@ registerHooks({
 const engine = await import('../web/src/api/mock/metricsEngine.ts');
 const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/cloudServiceDashboards.generated.json', import.meta.url), 'utf8'));
 
-/** A dashboard's metric queries, template variables (`$region`) at their default `*`. */
-const queries = (d) => [...JSON.stringify(d.widgets).matchAll(/"query":"([^"]+)"/g)].map(([, q]) => q.replace(/\$[a-z_]+,?/g, '').replace(/,\}/, '}').replace(/\{\}/, '{*}'));
+/** A dashboard's metric queries (not its monitor summary's or log streams'), template variables (`$region`) at their default `*`. */
+const queries = (d) =>
+  [...JSON.stringify(d.widgets).matchAll(/"query":"([^"]+)"/g)]
+    .map(([, q]) => q)
+    .filter((q) => /^[a-z]+:[a-z][a-z0-9_.]*\{/.test(q))
+    .map((q) =>
+      q
+        .replace(/\$[a-z_]+,?/g, '')
+        .replace(/,\}/, '}')
+        .replace(/\{\}/, '{*}'),
+    );
 
-test('every chart of the CloudFront, ECS, Container Insights, RDS and WAF dashboards has data in mock mode', () => {
+test('every chart of the demo accounts’ AWS, Azure and Google Cloud service dashboards has data in mock mode', () => {
   const range = { from: Date.now() - 3_600_000, to: Date.now() };
-  for (const logo of ['tile:aws-cloudfront', 'tile:aws-ecs', 'tile:aws-ecs-containerinsights', 'tile:aws-rds', 'tile:aws-wafv2']) {
+  for (const logo of [
+    'tile:aws-cloudfront',
+    'tile:aws-ecs',
+    'tile:aws-ecs-containerinsights',
+    'tile:aws-rds',
+    'tile:aws-wafv2',
+    'tile:aws-ec2',
+    'tile:aws-s3',
+    'tile:aws-applicationelb',
+    'tile:aws-lambda',
+    'tile:aws-sqs',
+    'tile:aws-autoscaling',
+    'tile:aws-docdb',
+    'tile:azure-compute-virtualmachines',
+    'tile:azure-web-sites',
+    'tile:azure-functions',
+    'tile:azure-storage-storageaccounts',
+    'tile:azure-sql-servers-databases',
+    'tile:azure-keyvault-vaults',
+    'tile:azure-sql-servers-elasticpools',
+    'tile:azure-cdn-profiles',
+    'tile:gcp-gce',
+    'tile:gcp-run',
+    'tile:gcp-cloudsql',
+    'tile:gcp-gcs',
+    'tile:gcp-pubsub',
+    'tile:gcp-alloydb',
+    'tile:gcp-artifactregistry',
+  ]) {
     const d = mock.dashboards.find((x) => x.logo === logo);
     assert.ok(d, `${logo} is in the mock`);
     for (const q of queries(d)) {

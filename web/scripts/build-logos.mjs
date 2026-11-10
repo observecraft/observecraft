@@ -127,6 +127,10 @@ const MAP = {
   github: 'github-icon',
   githubactions: 'github-actions',
   gitlab: 'gitlab-icon',
+  // ObserveCraft's GitLab Audit Events integration (its page, tile and dashboard)
+  'gitlab-audit-events': 'gitlab-icon',
+  // ObserveCraft's Google Workspace integration (its page, tile and dashboard)
+  'google-workspace': 'google-icon',
   jira: 'jira',
   linear: 'linear-icon',
   bitbucket: 'bitbucket',
@@ -164,6 +168,10 @@ const MAP = {
   bamboo: 'bamboo',
   box: 'box',
   zoom: 'zoom-icon',
+  // Connector packages' own tiles (integrations/connectors/*/connector.yaml `logo`)
+  '1password': 'si:1password',
+  akamai: 'akamai',
+  'microsoft-365': 'microsoft-icon',
   // Simple Icons (one colour, in the brand's colour)
   authentik: 'si:authentik',
   backstage: 'si:backstage',

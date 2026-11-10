@@ -59,14 +59,17 @@ or SDK features.
   - metrics `/api/v1/series` and `/api/v2/series` (JSON and protobuf);
   - distributions `/api/beta/sketches`, stored as exponential histograms;
   - service checks `/api/v1/check_run` and `/api/v2/service_checks`, stored as the `service_check.status` gauge;
-  - logs `/api/v2/logs`;
+  - logs `/api/v2/logs` (its `ddsource`, `service`, `hostname` and `ddtags` query parameters apply to every log, for
+    vendors' webhooks, `log_query.rs`);
   - APM `/api/v0.2/traces` (legacy and idx payloads), plus `/api/v0.2/stats`, which is acknowledged;
   - profiles `/api/v2/profile`, forwarded to the server and stored in `otel.profiles` (APM → Profiles);
   - Code Security: the tracers' telemetry `/api/v2/apmtelemetry` (via the Agent; libraries services load) and
     `datadog-ci sarif upload` `/api/v2/cicodescan`, forwarded to the server (`code_security.rs`, Postgres `cs_*`);
     `datadog-ci sbom upload` goes to the management API (`/api/v2/static-analysis-sca/dependencies`); IAST findings
     are read from the spans' `_dd.iast.json`; advisories come from OSV.dev (`OC_OSV_URL`);
-  - events `/api/v1/events`, `/api/v2/events` and the events inside `/intake/`, stored in `otel.otel_events`;
+  - events `/api/v1/events`, `/api/v2/events` and the events inside `/intake/`, stored in `otel.otel_events`; vendors'
+    alert webhooks `/intake/webhook/<name>?api_key=` (SolarWinds, Alertmanager, Zabbix, else generic) become events
+    too (`datadog_webhooks.rs`);
   - RUM events of the browser and mobile SDKs `/api/v2/rum` (with the application's client token `pub…`, or through
     the SDK's `proxy` option as `?ddforward=`), stored in `otel.otel_rum` (`datadog_rum.rs`); applications are
     `datadog_rum_application` (`datadog_api/rum.rs`, `routes/rum.rs`); Product Analytics reads the same events
@@ -78,12 +81,19 @@ or SDK features.
     server and stored in Postgres `csm_sbom_entities` / `csm_packages` (Cloud Security, `cloud_security.rs`);
   - live processes and containers `/api/v1/collector` and `/api/v1/container`, stored as `process.*` / `container.*` metrics;
   - network connections and DNS stats `/api/v1/connections`, stored in `otel.otel_network` (Cloud Network Monitoring);
+  - Data Streams pathway checkpoints `/api/v0.1/pipeline_stats` (the tracers' gzip'd msgpack with DDSketches, via the
+    trace-agent; `datadog_dsm.rs`), stored as `oc.signal = dd.pathways` records in `otel.otel_pathways`; the Data Streams
+    map and Measure use their counts, edge and end-to-end latencies where they exist, the messaging spans elsewhere;
   - orchestrator manifests `/api/v2/orchmanif`, which feed the Kubernetes Explorer;
   - feature flag evaluation over OpenFeature's OFREP (`/ofrep/v1/evaluate/flags[/{key}]`, `oc-intake/src/ofrep.rs`,
     model in `oc-flags`), for any OpenFeature SDK with the OFREP provider; also takes the key as `X-API-Key`;
   - the Agent's runtime security events `/api/v2/secruntime` and `/api/v2/secinfo` (logs payloads,
     `source:runtime-security-agent`), stored as logs (Workload Protection); its inventory `/api/v1/metadata` in
     `datadog_hosts.agent_inventory`;
+  - connector packages' webhooks `/intake/webhook/<package>` and signed log drains `/api/v2/logs?ddsource=` (signature
+    checked with the org's saved secret, mapped by the package: `connector_push.rs`, `oc-connectors::push`);
+  - Splunk HEC-compatible logs `/services/collector[/event|/raw]` (`Authorization: Splunk <ingest key>`, GitHub's
+    audit log streaming, `splunk_hec.rs`) and Fastly's `/.well-known/fastly/logging/challenge`;
   - `/api/v1/validate`. The API key is also accepted as `?api_key=`.
 - **Management API (server, `server/crates/oc-api/src/routes/datadog_api`):** Datadog's configuration endpoints for
   its Terraform provider and API clients (ADR-0003, `docs/datadog-api.md`), with Datadog's `{"errors": [...]}` shape
@@ -120,7 +130,24 @@ or SDK features.
   `azure_accounts`, sealed client secrets) and `datadog_integration_gcp_sts` (`/api/v2/integration/gcp/accounts`,
   Postgres `gcp_accounts`, impersonated by `OC_GCP_PRINCIPAL_EMAIL`). Their crawlers (`oc-api/src/azure/`,
   `oc-api/src/gcp/`) share the AWS one's jobs and Kafka sink (`oc-api/src/cloud/`): a discovery job per account lists
-  its subscriptions or projects, each becoming a job; `OC_CLOUD_CRAWLERS` picks the clouds.
+  its subscriptions or projects, each becoming a job; `OC_CLOUD_CRAWLERS` picks the clouds. Azure metrics follow
+  Datadog's names: the bare name is the metric's primary aggregation, `.max` its maximum, `azure.<type>.count` the
+  resources (Resource Health `status`); coarse grains (hourly capacity) are published once per series and failed
+  reads retried through Postgres `azure_metric_state`; dimensions split per type in `azure/naming.rs` `splits`.
+  GCP metrics follow Datadog's too (`gcp/naming.rs` `stats`): `gcp.<domain>.*` (`gce`, `gae`, `gke` aside), cumulative
+  counters' total and `.delta`, distributions' `.avg` / `.samplecount` / `.sumsqdev` (`.p95` / `.p99` for the catalog's
+  `percentiles`), user labels as tags; late one-minute metrics are read over a window moved back by their ingest delay,
+  coarser ones re-read and published once per series and failed reads retried (Postgres `gcp_metric_state`);
+  `region_filter_configs` apply.
+- **Microsoft Entra ID** (the Azure page's "Entra ID Logs" tab per app registration, `routes/entra_logs.rs`; the
+  `azure-active-directory` tile opens it): the server reads the tenant's sign-ins, directory audits and Identity
+  Protection risk detections from Microsoft Graph (`oc-api/src/entra/`, `azure::api::Rest::graph_get`; AuditLog.Read.All,
+  Directory.Read.All, IdentityRiskEvent.Read.All; sign-ins need Entra ID P1, risk P2) on the cloud crawlers' jobs
+  (provider `entra`, scopes `signins`, `audits`, `risk`; Postgres `entra_log_settings`, `entra_log_state`) and sends
+  them to `oc.logs.json` shaped as Azure's diagnostic settings export them (`source:azure.activedirectory`, `category`
+  SignInLogs / AuditLogs / UserRiskEvents, the Graph object under `properties`), so integrations-core's pipeline reads
+  them unchanged. Graph lists sign-ins newest first only: a run reads a closed window whole before moving the cursor,
+  re-reads a 15-minute overlap and sends each id once. Its dashboard is ours (`scripts/entra-id-dashboard.mjs`).
 - **Cloud Cost → Recommendations** (`routes/cloud_cost_recommendations.rs`, `GET /api/v1/cloud-cost/recommendations`):
   our own rules over 14 days of the AWS / Azure crawlers' metrics (idle EC2 instances and Azure VMs, downsizing, RDS
   without connections, idle EBS volumes and managed disks, unused NAT gateways, idle load balancers, unused public IPs);
@@ -175,18 +202,57 @@ or SDK features.
   Unsupported SPL (eval, rex, join, OR across fields, numeric comparisons) is reported, not guessed.
 - **authentik** (Integrations → authentik, `oc-api/src/authentik/`, `routes/authentik_integration.rs`): the server polls an
   instance's events API (`/api/v3/events/events/`, token in Postgres `authentik_connections`, sealed) on the cloud
-  crawlers' jobs (provider `authentik`) and sends each event as a log (`source:authentik`) to `oc.logs.json`.
-- **NetBird** (Integrations → NetBird, `oc-api/src/netbird/`, `routes/netbird_integration.rs`; Datadog has no NetBird
-  integration): the server polls a NetBird Cloud or self-hosted management API (token in Postgres
-  `netbird_connections`, sealed) on the cloud crawlers' jobs (provider `netbird`, scopes `events` and `peers`): audit
-  events as logs (`source:netbird`) to `oc.logs.json`, peers as `netbird.peer.*` gauges to `oc.otlp-json.metrics`.
-  Its dashboard is ours (`scripts/netbird-dashboard.mjs` → `seeds/integrations/netbird/`), listed once connected.
+  crawlers' jobs (provider `authentik`; pages oldest first, from the cursor, so a backlog is read on by the next runs) and
+  sends each event as a log (`source:authentik`) to `oc.logs.json`. Saving the connection installs its library pipeline
+  (`seeds/pipelines/observecraft.json`, `authentik.category`); its dashboard is ours (`scripts/authentik-dashboard.mjs`
+  → `seeds/integrations/authentik/`), listed once connected.
+- **Connector packages** (ADR-0007, `docs/connectors.md`): integrations that call a vendor's API are packages in
+  `integrations/connectors/<id>/` (`connector.yaml`, validated against `integrations/connectors/connector.schema.json`,
+  generated from `server/crates/oc-connectors/src/manifest.rs`), run by the engine `server/crates/oc-connectors` (no
+  database or Kafka code; expression language, auth kinds, pagination, lossless time windows, outputs, replay harness,
+  `oc-connector` CLI). The server (`oc-api/src/connectors/`) compiles the bundled ones in (`build.rs`), loads the
+  operator's from `OC_CONNECTORS_DIR`, keeps connections in Postgres `connector_connections` (secrets sealed per field)
+  / `connector_stream_state`, runs every package's streams in one loop on `cloud_crawl_jobs` (provider = connector id,
+  scope = stream), publishes to Kafka before saving state, and serves `/api/v1/connectors…` (`routes/connectors.rs`)
+  and the generic page (`web/src/pages/integrations/connectors/`). Native connectors (authentik, FleetDM, GitLab Audit
+  Events, Google Workspace, Entra ID) implement the same `Connector` trait (`connectors/native.rs`) for the catalog,
+  installed state and dashboard gating. NetBird is a package (migration 0102 moved its connections); Have I Been Pwned
+  is the example package. Write a package, not code: `node scripts/connector.mjs new|build|test`. Vendors that aren't
+  request/response HTTP are packages with `native: <source>` (`connectors/sources/`): CrowdStrike FDR (SQS
+  notifications of gzip NDJSON files in S3; a notification is deleted only after Kafka acknowledged its events) and
+  Proofpoint On-Demand (a WebSocket per log type, resumed from the last stored event's `ts`), long sessions on the same
+  jobs (`sources::run`), mapped by the package's stream (`engine::Records`).
 - **FleetDM** (Integrations → FleetDM, `oc-api/src/fleetdm/`, `routes/fleetdm_integration.rs`; Datadog has no Fleet
   integration): the server polls a Fleet server's REST API (`/api/v1/fleet`, an API-only observer's token in Postgres
   `fleetdm_connections`, sealed) on the cloud crawlers' jobs (provider `fleetdm`, scopes `activities` and `hosts`):
-  activities as logs (`source:fleetdm`) to `oc.logs.json`; host counts, hosts and global policies as `fleetdm.*` gauges
-  to `oc.otlp-json.metrics` (hosts aren't `host`s). Its dashboard is ours (`scripts/fleetdm-dashboard.mjs` →
-  `seeds/integrations/fleetdm/`), listed once connected.
+  activities as logs (`source:fleetdm`, oldest first from the cursor, so a backlog is read on by the next runs; a
+  Fleet ignoring `start_created_at` is read newest first down to the cursor) to `oc.logs.json`; host counts, hosts,
+  global policies and the most widespread vulnerabilities as `fleetdm.*` gauges to `oc.otlp-json.metrics` (hosts
+  aren't `host`s). Saving the connection installs its library pipeline
+  (`fleetdm.category`); its dashboard is ours (`scripts/fleetdm-dashboard.mjs` → `seeds/integrations/fleetdm/`),
+  listed once connected.
+- **GitLab Audit Events** (Integrations → GitLab Audit Events, `oc-api/src/gitlab_audit/`,
+  `routes/gitlab_audit_integration.rs`; Datadog's tile is its own crawler): the server polls GitLab's audit events API
+  (Premium/Ultimate; `/audit_events` with an administrator's token, or a group's or project's; token in Postgres
+  `gitlab_audit_connections`, sealed) on the cloud crawlers' jobs (provider `gitlab_audit`, scope `events`): GitLab
+  answers newest first, so a run walks `created_before` back from the window's end (first pages only, no `Link`
+  header or offset pages) and a backlog past a run's pages is carried on by the next runs (`backlog_*_ms`); each event
+  is a log (`source:gitlab-audit-events`, `service:gitlab`, `gitlab.*`) to `oc.logs.json`. Saving the connection
+  installs its library pipeline (`gitlab.category`); its dashboard is ours (`scripts/gitlab-audit-events-dashboard.mjs`
+  → `seeds/integrations/gitlab-audit-events/`), listed once connected; Cloud SIEM pack `gitlab-audit-events`.
+- **Google Workspace** (Integrations → Google Workspace, `oc-api/src/google_workspace/`,
+  `routes/google_workspace_integration.rs`; Datadog's tile is its own crawler): the server reads the Admin SDK Reports
+  API's activities with a service account's JSON key (Postgres `google_workspace_connections`, sealed) acting as an
+  administrator (domain-wide delegation, scope `admin.reports.audit.readonly`; the JWT is signed with `gcp_auth`'s
+  signer and exchanged at Google's fixed token endpoint, never the key's `token_uri`), on the cloud crawlers' jobs
+  (provider `google_workspace`, one job per application, every 5 minutes). Google answers newest first: a backlog past
+  a run's pages is carried on by the next runs (`google_workspace_progress`); each run re-reads 10 minutes before the
+  cursor and every 30 minutes 4 hours (Google delivers some activities hours late), sending only activities not yet
+  sent (`google_workspace_seen`, by application, `id.uniqueQualifier` and `id.time`). Each event is a log as Datadog
+  sends them (`source:gsuite`, `service:` the application, `evt.name`, `usr.email`, `network.client.*`, `id.*`,
+  `actor.*`, `event.parameters.*`) to `oc.logs.json`. Saving the connection installs its library pipeline
+  (`google_workspace.category`); its dashboard is ours (`scripts/google-workspace-dashboard.mjs` →
+  `seeds/integrations/google-workspace/`), listed once connected; Cloud SIEM pack `google-workspace`.
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **Slack** (`routes/slack.rs`, `datadog_api/slack_integration.rs`, page `web/src/pages/integrations/slack/`): workspaces
@@ -284,9 +350,26 @@ or SDK features.
   integrations-core's, by metric prefix), `service-units.csv` and the mock subset `cloudServiceDashboards.generated.json`.
   CloudFront, ECS (+ `ECS/ContainerInsights` → `ecs.containerinsights.*`), RDS (+ Proxy → `aws.rds.proxy.*`) and WAF
   follow Datadog exactly (`scripts/aws-datadog-metrics.json`, merged into `aws-metrics.json` by `import-cloud-metrics.mjs
-  --aws-datadog`): the crawler publishes their bare names with Datadog's statistic (counts are sums), its names and
-  `aws.ecs.cluster.*` / `.service.*` variants, and collects the global services (CloudFront, CloudFront web ACLs) from
-  us-east-1 even when the account's regions leave it out (`aws/naming.rs`).
+  --aws-datadog`): the crawler publishes their Datadog names and `aws.ecs.cluster.*` / `.service.*` variants, and
+  collects the global services (CloudFront, CloudFront web ACLs) from us-east-1 even when the account's regions leave it
+  out (`aws/naming.rs`). In every namespace the bare name carries the metric's statistic (counts are sums), with
+  `.sum` / `.maximum` / `.minimum` and the `percentiles` and daily `period`s that file's `overrides` set.
+  The AWS services worth one (66: EC2, S3, RDS, the load balancers, Lambda, SQS, … down to Storage Gateway, FSx and Service Quotas) have a layout designed per service
+  in `scripts/aws-service-layouts.mjs` (Datadog's widget format: an Overview group with logo, note, monitor summary
+  `tag:(integration:amazon_<svc>) OR aws.<svc>.` and key numbers, then themed groups and the service's logs; our own
+  titles and notes); the generator fails on a name the crawler doesn't publish. Every Azure resource type with metrics (59:
+  VMs, AKS, App Service, SQL, Cosmos DB, Storage, Key Vault, Redis, the network services, Event Hubs, Service Bus,
+  Backup, OpenAI, … IoT Hub, Batch, NetApp Files) are designed the same way in `scripts/azure-service-layouts.mjs` (KPIs start with
+  `azure.<type>.count` by Resource Health `status`; monitors `tag:(integration:azure_<svc>) OR azure.<type>.`); the
+  generator also fails on a `by {tag}` that is neither a resource tag nor a dimension `azure/naming.rs` SPLITS (mirrored
+  as `AZURE_SPLITS`; the Rust test `every_azure_dashboard_charts_what_the_crawler_publishes` checks both). The Google
+  Cloud services worth one (58: Compute Engine, GKE, Cloud Run, Cloud SQL, Pub/Sub, Cloud Storage, Load Balancing, …
+  AlloyDB, Managed Kafka, Backup and DR, Firebase) are
+  designed in `scripts/gcp-service-layouts.mjs` (monitors `tag:(integration:google_<svc>) OR gcp.<svc>.`; cumulative
+  counters charted as `.delta`, distributions as `.avg` / `.p95` / `.p99`); the generator fails on an unpublished name, a
+  cumulative counter's running total, or a split or filter on a label outside the layout's `labels` (Cloud Monitoring's
+  resource and metric labels, which the crawler tags as they are). The other services get the generated
+  layout: key numbers, then their metrics grouped as errors / latency / saturation / throughput / capacity.
 - **Integration dashboards are listed once their integration is enabled** (`routes/dashboards.rs`, by the dashboard's
   `logo`): AWS / Azure / GCP with an account, synthetics with a test, Kubernetes / hosts / APM with data in the last
   day; other logos always. Cached 30 s per server (`EnabledChange` drops it when an account is added or removed);
@@ -295,11 +378,19 @@ or SDK features.
   installing an integration installs its library log pipelines (each names its catalog `integration` in
   `pipelines.json`) and its integrations-core dashboards. Integrations that send only logs (Supply Chain Firewall) have
   no metric prefix to detect, so this is how they get their dashboards. Uninstalling removes the pipelines; the
-  dashboards stay.
+  dashboards stay. Each catalog entry carries its `collection` (agent, logs, crawler, oauth, webhook, push-site, docs;
+  `collectionOf` in `import-integration-catalog.mjs`, README-only cases in its override table): what Datadog's own
+  service collects (crawler, oauth) or only documents is "Not available in ObserveCraft" (`web/src/api/integrations/collection.ts`)
+  and the server refuses to install it (`seeds/integrations/core/collected-by-datadog.json`, generated with the catalog);
+  webhooks get the intake URL to paste, push-site senders only when they take a custom URL (`customEndpoint`).
 - **Still missing:**
   - Cloud Network Monitoring's network paths;
+  - Entra ID's non-interactive, service principal and managed identity sign-ins (Graph v1.0 lists interactive ones),
+    its provisioning and Graph activity logs, and Okta (Datadog's Okta integration is its own crawler; only Okta
+    Workflows is in the catalog);
   - Logs: forwarding to Microsoft Sentinel (needs Azure credentials), Azure Blob archives, archive readers (roles), the
-    pipeline processors the engine doesn't run yet (array, decoder, schema, span id remapper: stored and skipped);
+    pipeline processors the engine doesn't run yet (decoder, span id remapper: stored and skipped), a GeoIP
+    database for the GeoIP parser (addresses get `{}`, as Datadog's unknown ones);
   - the profiler's Thread Timeline and Call Graph views, and Event Management's saved work item states, intelligent (learned) correlation, projects and event pipelines (correlators, maintenance windows and work item attributes exist);
   - Cloud Cost Management's Google Cloud billing export (`datadog_gcp_uc_config`), tag pipelines and custom allocation
     rules (budgets, custom forecasts, custom costs files, `datadog_api/cost.rs`, and the AWS and Azure bills exist; costs
@@ -315,8 +406,9 @@ or SDK features.
     WAF ruleset itself, DAST and its dashboards (attack summary, account takeover, OWASP);
   - Cloud SIEM's other detection methods (new value, anomaly, impossible travel, sequences), signal correlation rules,
     notification rules, threat intelligence enrichment and the investigator; rule case notifications aren't sent yet;
-  - Data Streams Monitoring's pathway checkpoints from the tracers (`/api/v0.1/pipeline_stats`, DDSketch in msgpack): its map,
-    pipelines and Kafka Console are built from messaging spans and Kafka metrics (`data_streams.rs`, `kafka_console.rs`);
+  - Data Streams Monitoring from the checkpoints: the node panel's rates, the `data_streams.latency` /
+    `data_streams.payload_size` metrics (the Kafka dashboards' message size widgets have no data live), the checkpoints'
+    Kafka backlogs as lag (stored, unused; lag comes from the Kafka metrics) and origin-bucketed points (dropped);
   - APM: applying retention filters and span pipelines to incoming spans (the Collector writes spans directly),
     adaptive sampling and remote Agent ingestion settings (Remote Configuration), service remapping and tag enrichment;
   - Kubernetes autoscaling's vertical values and cluster (Karpenter) recommendations delivered to the Cluster Agent

@@ -1,0 +1,49 @@
+{
+ "data": {
+  "rows": [
+   [
+    11,
+    "dashboard_11",
+    "dashboard",
+    "Orders overview",
+    "Daily orders, revenue and refunds of the storefront."
+   ],
+   [
+    120,
+    "card_120",
+    "question",
+    "Orders by day",
+    null
+   ]
+  ],
+  "cols": [
+   {
+    "name": "entity_id",
+    "display_name": "Entity Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "entity_qualified_id",
+    "display_name": "Entity Qualified Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "entity_type",
+    "display_name": "Entity Type",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "name",
+    "display_name": "Name",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "description",
+    "display_name": "Description",
+    "base_type": "type/Text"
+   }
+  ]
+ },
+ "row_count": 2,
+ "status": "completed"
+}

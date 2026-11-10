@@ -1,0 +1,11 @@
+{
+  "results": [
+    { "author": { "type": "user", "accountId": "5b10ac8d82e05b22cc7d4ef5", "displayName": "Jordan Patel", "operations": null },
+      "remoteAddress": "198.51.100.7", "creationDate": 1794309000000, "summary": "Space permissions changed", "description": "", "category": "Permissions", "sysAdmin": false,
+      "affectedObject": { "name": "ENG", "objectType": "Space" }, "changedValues": [ { "name": "Delete pages", "oldValue": "false", "newValue": "true" } ], "associatedObjects": [] },
+    { "author": { "type": "user", "accountId": "5b10ac8d82e05b22cc7d4ef7", "displayName": "Alex Morgan" },
+      "remoteAddress": "203.0.113.20", "creationDate": 1794301800000, "summary": "Space exported", "description": "", "category": "Import/Export", "sysAdmin": false,
+      "affectedObject": { "name": "Billing", "objectType": "Space" }, "changedValues": [], "associatedObjects": [] }
+  ],
+  "start": 0, "limit": 1000, "size": 2, "_links": { "base": "https://example.atlassian.net/wiki", "context": "/wiki" }
+}

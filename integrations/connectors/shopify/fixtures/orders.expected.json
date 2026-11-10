@@ -1,0 +1,177 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4c3-d1d0-70b6-91c8-d74945707e4c"
+      },
+      "billing_address": {
+        "city": "Portland",
+        "country": "United States",
+        "country_code": "US",
+        "province_code": "OR"
+      },
+      "buyer_accepts_marketing": true,
+      "client_details": {
+        "accept_language": "en-US",
+        "browser_ip": "203.0.113.24",
+        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+      },
+      "confirmation_number": "K7QX2PLMA",
+      "confirmed": true,
+      "created_at": "2026-11-10T04:20:41-05:00",
+      "currency": "USD",
+      "customer": {
+        "currency": "USD",
+        "email": "jane@example.com",
+        "first_name": "Jane",
+        "id": 7000000001,
+        "last_name": "Example",
+        "state": "enabled"
+      },
+      "date": "2026-11-10T04:22:10-05:00",
+      "ddsource": "shopify",
+      "financial_status": "paid",
+      "host": "example-shop.myshopify.com",
+      "id": 5500000000001,
+      "line_items": [
+        {
+          "fulfillment_service": "manual",
+          "gift_card": false,
+          "id": 13900000001,
+          "price": "98.00",
+          "quantity": 1,
+          "requires_shipping": true,
+          "sku": "TRS-BLK-42",
+          "title": "Trail Running Shoe",
+          "total_discount": "0.00",
+          "variant_title": "Black / 42",
+          "vendor": "Example Co"
+        },
+        {
+          "fulfillment_service": "manual",
+          "gift_card": false,
+          "id": 13900000002,
+          "price": "10.00",
+          "quantity": 2,
+          "requires_shipping": true,
+          "sku": "RS-M",
+          "title": "Running Socks",
+          "total_discount": "0.00",
+          "variant_title": "M",
+          "vendor": "Example Co"
+        }
+      ],
+      "message": "Order #1001: 127.44 USD, paid, unfulfilled",
+      "name": "#1001",
+      "order_number": 1001,
+      "presentment_currency": "USD",
+      "processed_at": "2026-11-10T04:20:40-05:00",
+      "refunds": [],
+      "service": "order",
+      "source_name": "web",
+      "status": "info",
+      "subtotal_price": "118.00",
+      "tax_exempt": false,
+      "taxes_included": false,
+      "total_discounts": "0.00",
+      "total_outstanding": "0.00",
+      "total_price": "127.44",
+      "total_tax": "9.44",
+      "updated_at": "2026-11-10T04:22:10-05:00"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c50c-7390-72b2-820f-4545aa81a0c0"
+      },
+      "billing_address": {
+        "city": "Berlin",
+        "country": "Germany",
+        "country_code": "DE",
+        "province_code": "BE"
+      },
+      "buyer_accepts_marketing": false,
+      "cancel_reason": "customer",
+      "cancelled_at": "2026-11-10T05:41:29-05:00",
+      "client_details": {
+        "accept_language": "de-DE",
+        "browser_ip": "198.51.100.23",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+      },
+      "closed_at": "2026-11-10T05:41:30-05:00",
+      "confirmation_number": "P2NV8RKQZ",
+      "confirmed": true,
+      "created_at": "2026-11-08T14:02:11-05:00",
+      "currency": "USD",
+      "customer": {
+        "currency": "USD",
+        "email": "sam@example.com",
+        "first_name": "Sam",
+        "id": 7000000002,
+        "last_name": "Example",
+        "state": "enabled"
+      },
+      "date": "2026-11-10T05:41:30-05:00",
+      "ddsource": "shopify",
+      "financial_status": "refunded",
+      "host": "example-shop.myshopify.com",
+      "id": 5499999999990,
+      "line_items": [
+        {
+          "fulfillment_service": "gift_card",
+          "gift_card": true,
+          "id": 13899999990,
+          "price": "45.00",
+          "quantity": 1,
+          "requires_shipping": false,
+          "sku": "",
+          "title": "Gift Card",
+          "total_discount": "5.00",
+          "variant_title": "$45",
+          "vendor": "Example Co"
+        }
+      ],
+      "message": "Order #0998: 43.60 USD, refunded, unfulfilled, cancelled",
+      "name": "#0998",
+      "order_number": 998,
+      "presentment_currency": "USD",
+      "processed_at": "2026-11-08T14:02:10-05:00",
+      "refunds": [
+        {
+          "created_at": "2026-11-10T05:41:29-05:00",
+          "id": 950000001,
+          "note": "Customer request",
+          "transactions": [
+            {
+              "amount": "43.60",
+              "gateway": "shopify_payments",
+              "id": 7400000001,
+              "kind": "refund",
+              "status": "success"
+            }
+          ]
+        }
+      ],
+      "service": "order",
+      "source_name": "web",
+      "status": "warn",
+      "subtotal_price": "45.00",
+      "tax_exempt": false,
+      "taxes_included": false,
+      "total_discounts": "5.00",
+      "total_outstanding": "0.00",
+      "total_price": "43.60",
+      "total_tax": "3.60",
+      "updated_at": "2026-11-10T05:41:30-05:00"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

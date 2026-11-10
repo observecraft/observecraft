@@ -1,0 +1,125 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1b874-6c00-7d71-9f5c-dfc389374caa"
+      },
+      "active": {
+        "copilotChat": 1,
+        "excel": 0,
+        "loop": 0,
+        "microsoftTeams": 1,
+        "oneNote": 0,
+        "outlook": 1,
+        "powerPoint": 0,
+        "word": 0
+      },
+      "date": "2026-11-08",
+      "ddsource": "microsoft-copilot",
+      "host": "11111111-2222-4333-8444-555555555555",
+      "message": "Jane Doe: last Copilot activity 2026-11-08 (report of 2026-11-08)",
+      "report": {
+        "copilotActivityUserDetailsByPeriod": [
+          {
+            "reportPeriod": 7
+          }
+        ],
+        "copilotChatLastActivityDate": "2026-11-08",
+        "displayName": "Jane Doe",
+        "lastActivityDate": "2026-11-08",
+        "microsoftTeamsCopilotLastActivityDate": "2026-11-05",
+        "outlookCopilotLastActivityDate": "2026-11-07",
+        "reportRefreshDate": "2026-11-08",
+        "userPrincipalName": "jane.doe@example.com",
+        "wordCopilotLastActivityDate": "2026-10-20"
+      },
+      "service": "user-detail-report",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1b874-6c00-7d9d-9166-327815563e9e"
+      },
+      "active": {
+        "copilotChat": 1,
+        "excel": 1,
+        "loop": 0,
+        "microsoftTeams": 0,
+        "oneNote": 0,
+        "outlook": 0,
+        "powerPoint": 0,
+        "word": 0
+      },
+      "date": "2026-11-08",
+      "ddsource": "microsoft-copilot",
+      "host": "11111111-2222-4333-8444-555555555555",
+      "message": "Sam Rivera: last Copilot activity 2026-11-02 (report of 2026-11-08)",
+      "report": {
+        "copilotActivityUserDetailsByPeriod": [
+          {
+            "reportPeriod": 7
+          }
+        ],
+        "copilotChatLastActivityDate": "2026-11-02",
+        "displayName": "Sam Rivera",
+        "excelCopilotLastActivityDate": "2026-11-02",
+        "lastActivityDate": "2026-11-02",
+        "reportRefreshDate": "2026-11-08",
+        "userPrincipalName": "sam.rivera@example.com"
+      },
+      "service": "user-detail-report",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1b874-6c00-7688-bb59-70f34a297301"
+      },
+      "active": {
+        "copilotChat": 0,
+        "excel": 0,
+        "loop": 0,
+        "microsoftTeams": 0,
+        "oneNote": 0,
+        "outlook": 0,
+        "powerPoint": 0,
+        "word": 0
+      },
+      "date": "2026-11-08",
+      "ddsource": "microsoft-copilot",
+      "host": "11111111-2222-4333-8444-555555555555",
+      "message": "Alex Kim: last Copilot activity never (report of 2026-11-08)",
+      "report": {
+        "copilotActivityUserDetailsByPeriod": [
+          {
+            "reportPeriod": 7
+          }
+        ],
+        "displayName": "Alex Kim",
+        "reportRefreshDate": "2026-11-08",
+        "userPrincipalName": "alex.kim@example.com"
+      },
+      "service": "user-detail-report",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "seen": [
+          {
+            "id": "52a297de0f3e7ba0"
+          },
+          {
+            "id": "bcbfefecfec42e00"
+          },
+          {
+            "id": "1e8b171acf66a40d"
+          }
+        ]
+      }
+    }
+  }
+}

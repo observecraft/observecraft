@@ -3,9 +3,21 @@ import { metricCatalog, queryTimeseries } from '../dashboards/client';
 import type { MetricSeries, TimeRange } from '../types';
 import { aggregateLogs } from '../client';
 import { searchSignals } from '../security/client';
-import { signalSeries, type SignalPanelQuery } from './signals';
+import { checkStatusQuery } from './checkStatus';
+import { signalFacet, signalSeries, type SignalPanelQuery } from './signals';
 import { logRequest, logSeries, throughputs, type LogPanelQuery } from './logs';
-import { aggregate, formula, normalizeRequest, preparePanelQuery, serverAggregator, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
+import {
+  aggregate,
+  canonicalMetricQuery,
+  formula,
+  formulaUnit,
+  normalizeRequest,
+  preparePanelQuery,
+  serverAggregator,
+  timeShifts,
+  type IntegrationWidgetDefinition,
+  type IntegrationFormula,
+} from './evaluate';
 
 export interface PanelSeries extends MetricSeries {
   column?: string;
@@ -16,6 +28,14 @@ export interface PanelSeries extends MetricSeries {
   palette?: string;
 }
 
+/** Formula functions of a series over time: a scalar panel evaluates them on the points, then reduces the result. */
+const OVER_TIME = /\b(?:derivative|rate|dt|diff|monotonic_diff|cumsum|autosmooth|ewma_\d+|per_second|per_minute|per_hour)\(/;
+
+/** Datadog's `percentile` aggregator of a percentile query (`p95:latency{*}`, read as `latency.p95`) is that percentile of its values. */
+function percentileOf(aggregator: string, query = ''): string {
+  return aggregator === 'percentile' ? (/\.(p\d+)\{/.exec(canonicalMetricQuery(query))?.[1] ?? 'max') : aggregator;
+}
+
 export async function queryIntegrationPanel(
   def: IntegrationWidgetDefinition,
   resolve: (query: string) => string,
@@ -23,9 +43,7 @@ export async function queryIntegrationPanel(
   source: PanelDataSource = { catalog: metricCatalog, timeseries: queryTimeseries },
 ): Promise<PanelSeries[]> {
   if (def.type === 'check_status') {
-    const tags = Array.isArray(def.tags) ? def.tags.filter((t): t is string => typeof t === 'string') : [];
-    const check = typeof def.check === 'string' ? def.check : '';
-    const query = resolve(`max:service_check.status{check:${check},${tags.join(',')}} by {host}`);
+    const query = checkStatusQuery(def, resolve);
     try {
       return (await source.timeseries({ queries: [query], range, points: 120 })).map((s) => ({ ...s, display: 'line', dashed: false }));
     } catch (error) {
@@ -53,6 +71,8 @@ export async function queryIntegrationPanel(
         const formulas: IntegrationFormula[] = (requestFormulas ?? queries.map((q) => ({ formula: q.name }))).map((f) => ({ ...f, formula: throughputs(timeShifts(f.formula).text).text }));
         const shifts = (requestFormulas ?? []).flatMap((f) => timeShifts(f.formula).shifts);
         const perSecond = [...new Set((requestFormulas ?? []).flatMap((f) => throughputs(f.formula).names))];
+        const overTime = scalar && formulas.some((f) => OVER_TIME.test(f.formula));
+        const aggregatorOf = (name: string) => queries.find((q) => q.name === name)?.aggregator ?? request.aggregator ?? 'avg';
         const inputs: Record<string, MetricSeries[]> = {};
         // A query over `range` moved back by `seconds`, its points moved onto `range` (time comparisons).
         // The dashboard's shared stream only has the current range, so earlier ranges are fetched directly.
@@ -64,7 +84,8 @@ export async function queryIntegrationPanel(
         const loadQuery = async (query: (typeof queries)[number], range: TimeRange, source: PanelDataSource): Promise<MetricSeries[]> => {
           if (query.data_source === 'security_signals') {
             const panelQuery = query as unknown as SignalPanelQuery;
-            const page = await searchSignals({ range, query: resolve(panelQuery.search?.query ?? ''), state: '', limit: 1, offset: 0, ascending: false });
+            const facet = signalFacet(panelQuery);
+            const page = await searchSignals({ range, query: resolve(panelQuery.search?.query ?? ''), state: '', limit: 1, offset: 0, ascending: false, facets: facet ? [facet] : [] });
             return signalSeries(page, panelQuery, range, !scalar);
           }
           if (query.data_source === 'logs') {
@@ -76,7 +97,7 @@ export async function queryIntegrationPanel(
           try {
             // A scalar panel's query arrives as one value per series from the dashboard stream (the
             // aggregate below leaves it as it is); other sources send the points.
-            const aggregator = scalar ? serverAggregator(plan.operations, query.aggregator ?? request.aggregator) : undefined;
+            const aggregator = scalar && !overTime ? serverAggregator(plan.operations, query.aggregator ?? request.aggregator) : undefined;
             series = await source.timeseries({ queries: [text], range, points, ...(aggregator ? { aggregator } : {}) });
           } catch (error) {
             if (error instanceof Error && error.message.startsWith('Unknown metric:')) series = [];
@@ -100,6 +121,8 @@ export async function queryIntegrationPanel(
             });
           }
           const fill = plan.operations.find((o) => o.name === 'fill');
+          // fill(0) is fill(zero).
+          if (fill?.args[0] === '0') fill.args[0] = 'zero';
           if (fill && !['null', 'zero', 'last'].includes(fill.args[0])) throw new Error(`Fill ${fill.args[0]} is not supported yet`);
           if (fill && fill.args[0] !== 'null') {
             series = series.map((s) => {
@@ -139,21 +162,36 @@ export async function queryIntegrationPanel(
           }));
         }
         // Scalar requests aggregate each named query before evaluating its formulas.
-        if (scalar) {
+        if (scalar && !overTime) {
           for (const [name, series] of Object.entries(inputs)) {
             const query = queries.find((q) => q.name === name.split('__')[0]);
             inputs[name] = series.flatMap((s) => {
               const value = aggregate(
                 s.points.map((p) => p[1]),
-                query?.aggregator ?? request.aggregator ?? 'avg',
+                percentileOf(query?.aggregator ?? request.aggregator ?? 'avg', query?.query),
               );
               return value === undefined ? [] : [{ ...s, name: s.name, points: [[range.to, value]] }];
             });
           }
         }
+        const evaluated = (f: IntegrationFormula) => {
+          const result = formula(f.formula, inputs);
+          if (!overTime) return result;
+          // Reduced with the aggregator of the formula's first query, as its scalar value.
+          const first = queries.find((q) => new RegExp(`\\b${q.name}\\b`).test(f.formula));
+          const method = percentileOf(aggregatorOf(first?.name ?? ''), first?.query);
+          return result.flatMap((s) => {
+            const value = aggregate(
+              s.points.map((p) => p[1]),
+              method,
+            );
+            return value === undefined ? [] : [{ ...s, points: [[range.to, value]] as [number, number][] }];
+          });
+        };
         return formulas.flatMap((f) =>
-          formula(f.formula, inputs).map((s) => ({
+          evaluated(f).map((s) => ({
             ...s,
+            unit: formulaUnit(f) ?? s.unit,
             column: f.alias ?? f.formula,
             group: s.name,
             name: f.alias ? `${f.alias}${s.name === '*' ? '' : ` · ${s.name}`}` : s.name === '*' ? f.formula : s.name,

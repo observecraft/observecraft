@@ -1,0 +1,170 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Microsoft 365 Copilot (https://learn.microsoft.com/en-us/graph/api/resources/copilotreportroot): the tenant's Copilot
+# usage reports from Microsoft Graph, as Datadog's integration sends them: one log a day per enabled user
+# (source:microsoft-copilot, service:user-detail-report, the report's row under `report` and whether the user was
+# active in each app over the last 7 days under `active`), and microsoft_copilot.<app>.users.active / .enabled gauges
+# (metadata.csv). The tile's pipeline and "Microsoft Copilot Usage" dashboard are installed from integrations-core.
+schema_version: 1
+id: microsoft-copilot
+name: Microsoft Copilot
+publisher: ObserveCraft
+vendor: Microsoft
+description: >-
+  Microsoft 365 Copilot adoption of a tenant: enabled and active users per app (Copilot Chat, Teams, Word, Excel,
+  PowerPoint, Outlook, OneNote, Loop) as metrics, and each enabled user's last activity per app as a daily log, read
+  from Microsoft Graph's Copilot usage reports.
+tiles: [microsoft-copilot]
+categories: [AI/ML, Collaboration, Log Collection]
+docs_url: https://learn.microsoft.com/en-us/graph/api/resources/copilotreportroot
+setup: |
+  1. In the Microsoft Entra admin center, open **App registrations → New registration** (single tenant), e.g.
+     `ObserveCraft Copilot reports`.
+  2. Under **API permissions**, add **Microsoft Graph → Application permissions → Reports.Read.All** and **Grant admin
+     consent**.
+  3. Under **Certificates & secrets**, create a client secret; copy it with the app's **Application (client) ID** and
+     the **Directory (tenant) ID**.
+  4. Microsoft conceals user names in usage reports by default (users appear as hashes, as in the reports in the
+     Microsoft 365 admin center). To see them, turn off **Display concealed user, group, and site names in all
+     reports** under **Settings → Org settings → Reports**.
+  5. Microsoft publishes the reports with a delay of about two days.
+links:
+  - { label: App registrations, url: "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" }
+instance: "{{ config.tenant_id }}"
+
+config:
+  - key: tenant_id
+    label: Directory (tenant) ID
+    type: string
+    required: true
+    pattern: "[0-9a-fA-F-]{36}|[a-zA-Z0-9.-]+"
+    placeholder: 00000000-0000-0000-0000-000000000000
+  - key: client_id
+    label: Application (client) ID
+    type: string
+    required: true
+    placeholder: 00000000-0000-0000-0000-000000000000
+  - key: client_secret
+    label: Client secret
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "https://login.microsoftonline.com/{{ config.tenant_id }}/oauth2/v2.0/token"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  scopes: [https://graph.microsoft.com/.default]
+  client_auth: body
+
+errors:
+  - status: [400, 401]
+    kind: auth
+    message: Microsoft Entra refused the app's credentials (check the tenant ID, client ID and secret)
+  - status: [403]
+    kind: access_denied
+    message: >-
+      The app can't read usage reports: give it Microsoft Graph's Reports.Read.All application permission with admin
+      consent
+
+# Copilot apps: the metric's name segment and the report's field prefix.
+tables:
+  apps:
+    - { key: anyapp, field: anyApp }
+    - { key: copilotchat, field: copilotChat }
+    - { key: teams, field: microsoftTeams }
+    - { key: word, field: word }
+    - { key: excel, field: excel }
+    - { key: powerpoint, field: powerPoint }
+    - { key: outlook, field: outlook }
+    - { key: onenote, field: oneNote }
+    - { key: loop, field: loop }
+
+streams:
+  - id: user_detail
+    name: Users' activity
+    description: >-
+      One log per enabled user and report day (service:user-detail-report): `report` is the user's row (last activity
+      date overall and per app, display name, user principal name), `active.<app>` 1 when the user used Copilot in
+      that app in the report's 7 days, else 0. Sent once per user and report date.
+    interval: 6h
+    request:
+      url: "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUsageUserDetail(period='D7')"
+      query: { $format: application/json }
+    records: "{{ response.value }}"
+    pagination: { kind: next_url, next: "{{ response['@odata.nextLink'] }}" }
+    max_pages: 200
+    record_id: "{{ record.userPrincipalName + ' ' + record.reportRefreshDate }}"
+    incremental: { kind: new_records, max_seen: 500000 }
+    vars:
+      refresh: "{{ record.reportRefreshDate | epoch_ms }}"
+    output:
+      logs:
+        service: user-detail-report
+        message: >-
+          {{ record.displayName ?? record.userPrincipalName }}: last Copilot activity {{ record.lastActivityDate | nonempty ?? 'never' }} (report of {{ record.reportRefreshDate }})
+        date: "{{ record.reportRefreshDate }}"
+        attributes:
+          report: "{{ record }}"
+          active:
+            copilotChat: "{{ vars.refresh - (record.copilotChatLastActivityDate | epoch_ms) < 7 * 86400000 ? 1 : 0 }}"
+            excel: "{{ vars.refresh - (record.excelCopilotLastActivityDate | epoch_ms) < 7 * 86400000 ? 1 : 0 }}"
+            loop: "{{ vars.refresh - (record.loopCopilotLastActivityDate | epoch_ms) < 7 * 86400000 ? 1 : 0 }}"
+            microsoftTeams: "{{ vars.refresh - (record.microsoftTeamsCopilotLastActivityDate | epoch_ms) < 7 * 86400000 ? 1 : 0 }}"
+            oneNote: "{{ vars.refresh - (record.oneNoteCopilotLastActivityDate | epoch_ms) < 7 * 86400000 ? 1 : 0 }}"
+            outlook: "{{ vars.refresh - (record.outlookCopilotLastActivityDate | epoch_ms) < 7 * 86400000 ? 1 : 0 }}"
+            powerPoint: "{{ vars.refresh - (record.powerPointCopilotLastActivityDate | epoch_ms) < 7 * 86400000 ? 1 : 0 }}"
+            word: "{{ vars.refresh - (record.wordCopilotLastActivityDate | epoch_ms) < 7 * 86400000 ? 1 : 0 }}"
+
+  - id: user_counts
+    name: Enabled and active users
+    description: >-
+      microsoft_copilot.<app>.users.enabled and .users.active gauges (anyapp, copilotchat, teams, word, excel,
+      powerpoint, outlook, onenote, loop) over the report's last 7 days.
+    interval: 6h
+    request:
+      url: "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUserCountSummary(period='D7')"
+      query: { $format: application/json }
+    records: "{{ response.value | pluck('adoptionByProduct') | flatten }}"
+    filter: "{{ record.reportPeriod == 7 }}"
+    output:
+      metrics:
+        - name: "{{ 'microsoft_copilot.' + entry.key + '.users.enabled' }}"
+          examples: [microsoft_copilot.anyapp.users.enabled, microsoft_copilot.copilotchat.users.enabled,
+            microsoft_copilot.excel.users.enabled, microsoft_copilot.loop.users.enabled,
+            microsoft_copilot.onenote.users.enabled, microsoft_copilot.outlook.users.enabled,
+            microsoft_copilot.powerpoint.users.enabled, microsoft_copilot.teams.users.enabled,
+            microsoft_copilot.word.users.enabled]
+          each: "{{ tables.apps }}"
+          value: "{{ record[entry.field + 'EnabledUsers'] }}"
+          description: Users with a Copilot license enabled for the app.
+        - name: "{{ 'microsoft_copilot.' + entry.key + '.users.active' }}"
+          examples: [microsoft_copilot.anyapp.users.active, microsoft_copilot.copilotchat.users.active,
+            microsoft_copilot.excel.users.active, microsoft_copilot.loop.users.active,
+            microsoft_copilot.onenote.users.active, microsoft_copilot.outlook.users.active,
+            microsoft_copilot.powerpoint.users.active, microsoft_copilot.teams.users.active,
+            microsoft_copilot.word.users.active]
+          each: "{{ tables.apps }}"
+          value: "{{ record[entry.field + 'ActiveUsers'] }}"
+          description: Users who used Copilot in the app in the last 7 days.
+
+test:
+  request:
+    url: "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUserCountSummary(period='D7')"
+    query: { $format: application/json }
+  message: >-
+    Connected: {{ (response.value[0].adoptionByProduct[0].anyAppEnabledUsers ?? 0) }} users enabled for Copilot (report of {{ response.value[0].reportRefreshDate ?? '?' }})
+
+mock:
+  config: { tenant_id: 11111111-2222-4333-8444-555555555555, client_id: 66666666-7777-4888-9999-000000000000 }
+  secrets: { client_secret: copilot-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://login.microsoftonline.com/11111111-2222-4333-8444-555555555555/oauth2/v2.0/token", body: { access_token: graph-test-token, token_type: Bearer, expires_in: 3599 } }
+    - { url: "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUsageUserDetail(period='D7')", query: { $skiptoken: MDoyOg }, file: fixtures/user-detail-2.json }
+    - { url: "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUsageUserDetail(period='D7')", file: fixtures/user-detail-1.json }
+    - { url: "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUserCountSummary(period='D7')", file: fixtures/user-count-summary.json }
+  expect:
+    user_detail: { records: 3, logs: 3, rerun: 0, golden: fixtures/user_detail.expected.json }
+    user_counts: { records: 1, metrics: 18, golden: fixtures/user_counts.expected.json }
+    test: { ok: true, message: "250 users enabled" }

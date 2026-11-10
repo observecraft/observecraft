@@ -1,0 +1,187 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Sophos Central (https://developer.sophos.com/docs/siem-v1/1/overview): the SIEM alerts and events of a Sophos
+# Central tenant, or of every tenant of a partner or organization, as the logs Datadog's integration sends
+# (source:sophos-central-cloud, service:alert and service:event, the SIEM item under `log_message` and the endpoint it
+# is about under `endpoint_details`). integrations-core's pipeline and its Alerts and Events dashboards read them as
+# they are, so this package ships none: saving a connection installs the tile's.
+#
+# whoami tells what the credential is (tenant, partner or organization) and the tenant's data region; partners and
+# organizations list their tenants (every page of them), each read on its own region with X-Tenant-ID. Endpoint
+# details come from each tenant's list of endpoints, read once an hour.
+schema_version: 1
+id: sophos-central-cloud
+name: Sophos Central Cloud
+publisher: ObserveCraft
+vendor: Sophos
+description: >-
+  Sophos Central's SIEM alerts and events (threats, malware, web control, device control, scans, updates) for a
+  tenant or every tenant of a partner or organization, as logs, optionally with the endpoint's details.
+tiles: [sophos-central-cloud]
+categories: [Log Collection, Security, SIEM]
+docs_url: https://developer.sophos.com/docs/siem-v1/1/overview
+setup: |
+  1. In Sophos Central, open **General Settings → API Credentials Management** (in Sophos Central Partner or
+     Enterprise: **Settings → API Credentials**) and **Add Credential**, e.g. `observecraft`, with the
+     **Service Principal Read-Only** role.
+  2. Copy the **Client ID** and the **Client Secret** (shown once).
+  3. Sophos keeps SIEM data for 24 hours: a connection paused longer misses what is older.
+links:
+  - { label: Sophos Central, url: "https://central.sophos.com/" }
+
+config:
+  - key: client_id
+    label: Client ID
+    type: string
+    required: true
+  - key: client_secret
+    label: Client secret
+    type: string
+    secret: true
+    required: true
+  - key: get_endpoint_details
+    label: Add endpoint details
+    type: boolean
+    default: true
+    help: Adds each endpoint's hostname, OS, health and tamper protection (endpoint_details) to its alerts and events.
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: https://id.sophos.com/api/v2/oauth2/token
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: body
+  scopes: [token]
+
+# Sophos Central allows about 10 requests a second and 1,000 an hour per credential.
+rate_limit: { requests_per_minute: 100 }
+budget: { requests: 900, per: hour }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Sophos Central refused the API credential
+  - status: [403]
+    kind: access_denied
+    message: The API credential's role can't read SIEM data (give it Service Principal Read-Only)
+
+discover:
+  - name: whoami
+    request: { url: "https://api.central.sophos.com/whoami/v1" }
+    ttl: 6h
+  # The tenants to read: the credential's own, or every one of a partner's / an organization's (100 a page).
+  - name: tenants
+    request:
+      url: >-
+        {{ discovery.whoami.idType == 'tenant' ? 'https://api.central.sophos.com/whoami/v1'
+           : 'https://api.central.sophos.com/' + discovery.whoami.idType + '/v1/tenants' }}
+      query:
+        page: "{{ discovery.whoami.idType == 'tenant' ? null : page.number }}"
+        pageSize: "{{ discovery.whoami.idType == 'tenant' ? null : 100 }}"
+        pageTotal: "{{ discovery.whoami.idType == 'tenant' ? null : true }}"
+      headers:
+        X-Partner-ID: "{{ discovery.whoami.idType == 'partner' ? discovery.whoami.id : null }}"
+        X-Organization-ID: "{{ discovery.whoami.idType == 'organization' ? discovery.whoami.id : null }}"
+    pagination: { kind: page, size: 100, total_pages: "{{ response.pages.total }}" }
+    records: >-
+      {{ discovery.whoami.idType == 'tenant'
+         ? [{id: discovery.whoami.id, apiHost: discovery.whoami.apiHosts.dataRegion, name: discovery.whoami.id}]
+         : response.items }}
+    value: "{{ records }}"
+    ttl: 6h
+
+streams:
+  - id: alerts
+    name: Alerts
+    description: >-
+      Every SIEM alert as a log (service:alert): log_message (type, severity, category, description, location,
+      data, customer_id) and endpoint_details (hostname, os, health, tamperProtectionEnabled).
+    interval: 5m
+    for_each: "{{ discovery.tenants | pluck('id') }}"
+    lookups: &endpoints
+      # The tenant's endpoints (per for_each item), read only with endpoint details on.
+      - name: endpoints
+        when: "{{ config.get_endpoint_details }}"
+        request:
+          url: "{{ (discovery.tenants | index_by('id'))[item].apiHost }}/endpoint/v1/endpoints"
+          query: { pageSize: 500, pageFromKey: "{{ page.cursor }}" }
+          headers: { X-Tenant-ID: "{{ item }}" }
+        records: "{{ response.items }}"
+        pagination: { kind: cursor, next: "{{ response.pages.nextKey }}" }
+        key: "{{ record.id }}"
+        ttl: 1h
+    request:
+      url: "{{ (discovery.tenants | index_by('id'))[item].apiHost }}/siem/v1/alerts"
+      headers: { X-Tenant-ID: "{{ item }}" }
+      query: &siem
+        limit: 1000
+        # The first read starts 23 hours back (Sophos keeps 24); later ones carry on from the saved cursor.
+        from_date: "{{ cursor.token || page.cursor ? null : ((now - 82800000) / 1000) | floor }}"
+        cursor: "{{ page.cursor ?? cursor.token }}"
+    records: "{{ response.items }}"
+    pagination: { kind: cursor, next: "{{ response.has_more ? response.next_cursor : null }}" }
+    max_pages: 50
+    record_id: "{{ record.id }}"
+    incremental: { kind: token, next: "{{ response.next_cursor }}" }
+    vars:
+      endpoint: "{{ lookups.endpoints[record.endpoint_id ?? record.data.endpoint_id] }}"
+    output:
+      logs:
+        service: alert
+        message: "{{ record.description ?? record.type }}"
+        status: &status "{{ record.severity == 'low' ? 'info' : record.severity == 'medium' ? 'warn' : 'critical' }}"
+        date: "{{ record.created_at }}"
+        attributes:
+          log_message: "{{ record }}"
+          endpoint_details: "{{ vars.endpoint }}"
+
+  - id: events
+    name: Events
+    description: >-
+      Every SIEM event as a log (service:event): log_message (type, name, severity, group, source, location,
+      endpoint_type, threat, ips_threat_data, user_id) and endpoint_details.
+    interval: 5m
+    for_each: "{{ discovery.tenants | pluck('id') }}"
+    lookups: *endpoints
+    request:
+      url: "{{ (discovery.tenants | index_by('id'))[item].apiHost }}/siem/v1/events"
+      headers: { X-Tenant-ID: "{{ item }}" }
+      query: *siem
+    records: "{{ response.items }}"
+    pagination: { kind: cursor, next: "{{ response.has_more ? response.next_cursor : null }}" }
+    max_pages: 50
+    record_id: "{{ record.id }}"
+    incremental: { kind: token, next: "{{ response.next_cursor }}" }
+    vars:
+      endpoint: "{{ lookups.endpoints[record.endpoint_id] }}"
+    output:
+      logs:
+        service: event
+        message: "{{ record.name ?? record.type }}"
+        status: *status
+        date: "{{ record.created_at }}"
+        attributes:
+          log_message: "{{ record }}"
+          endpoint_details: "{{ vars.endpoint }}"
+
+test:
+  request: { url: "https://api.central.sophos.com/whoami/v1" }
+  success: "{{ response.id }}"
+  message: "Connected as {{ response.idType }} {{ response.id }} ({{ response.apiHosts.dataRegion ?? response.apiHosts.global }})"
+
+mock:
+  config: { client_id: 7e7e7e7e-0000-4000-8000-0000000c0001, get_endpoint_details: true }
+  secrets: { client_secret: sophos-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://id.sophos.com/api/v2/oauth2/token", body_contains: client_credentials, body: { access_token: sophos-test-access-token, token_type: bearer, expires_in: 3600, errorCode: success } }
+    - { url: "https://api.central.sophos.com/whoami/v1", file: fixtures/whoami.json }
+    - { url: "https://api-eu01.central.sophos.com/endpoint/v1/endpoints", file: fixtures/endpoints.json }
+    - { url: "https://api-eu01.central.sophos.com/siem/v1/alerts", query: { cursor: "QUxFUlRTLTE3OTQzMTIwMDA=" }, body: { has_more: false, next_cursor: "QUxFUlRTLTE3OTQzMTIwMDA=", items: [] } }
+    - { url: "https://api-eu01.central.sophos.com/siem/v1/alerts", file: fixtures/alerts.json }
+    - { url: "https://api-eu01.central.sophos.com/siem/v1/events", query: { cursor: "RVZFTlRTLTI=" }, file: fixtures/events-2.json }
+    - { url: "https://api-eu01.central.sophos.com/siem/v1/events", query: { cursor: "RVZFTlRTLTM=" }, body: { has_more: false, next_cursor: "RVZFTlRTLTM=", items: [] } }
+    - { url: "https://api-eu01.central.sophos.com/siem/v1/events", file: fixtures/events-1.json }
+  expect:
+    alerts: { records: 2, logs: 2, rerun: 0, golden: fixtures/alerts.expected.json }
+    events: { records: 3, logs: 3, rerun: 0, golden: fixtures/events.expected.json }
+    test: { ok: true, message: "tenant 5b5b5b5b" }

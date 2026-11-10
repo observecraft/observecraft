@@ -1,0 +1,39 @@
+{
+  "status": { "statusCode": 0, "statusMessage": "Success", "detailMessage": "Records found" },
+  "nextUrl": "https://streaming-auth.vip.symantec.com/streaming/4815162?scrollKey=4959644139515036903501650644574422180314684442962768692",
+  "messages": [
+    {
+      "jurHash": "4815162",
+      "txnId": "vipus0A1B2C3D4E5F6071",
+      "ts": "2026-11-10 09:12:04.118 +0000",
+      "result.statusMessage": "Success",
+      "durationMillis": 3,
+      "requestId": "req-orders-0001",
+      "extUserId": "jane.doe",
+      "result.status": "0000",
+      "wsdlVersion": "1_1",
+      "operation": "createUser",
+      "_id": "vip-be-d1.179430000001.1000001"
+    },
+    {
+      "jurHash": "4815162",
+      "credId": "VSMT00001234",
+      "result.credType": "STANDARD_OTP",
+      "txnId": "vipus0A1B2C3D4E5F6072",
+      "ts": "2026-11-10 09:12:05.402 +0000",
+      "result.statusMessage": "Success",
+      "newBindStatus": "ENABLED",
+      "durationMillis": 61,
+      "requestId": "req-orders-0002",
+      "extUserId": "jane.doe",
+      "_nestedCalls": [
+        { "jurHash": "4815162", "credId": "VSMT00001234", "result.credType": "STANDARD_OTP", "result.statusMessage": "Success", "newBindStatus": "ENABLED", "extUserId": "jane.doe", "result.status": "0000", "operation": "addCredential" },
+        { "result.status": "0000", "result.detail": "0000", "operation": "activateToken", "result.detailMessage": "Success", "result.statusMessage": "Success" }
+      ],
+      "result.status": "0000",
+      "wsdlVersion": "1_1",
+      "operation": "addCredential",
+      "_id": "vip-be-d1.179430000002.1000002"
+    }
+  ]
+}

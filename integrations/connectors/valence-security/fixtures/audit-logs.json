@@ -1,0 +1,18 @@
+[
+  {
+    "timeEpoch": 1794308400,
+    "actor": "jane.doe@example.com",
+    "action": "User created",
+    "details": "Created user john.smith@example.com with role \"viewer\" with access to all platforms and permission sets None",
+    "ipAddress": "203.0.113.24",
+    "success": true
+  },
+  {
+    "timeEpoch": 1794309000,
+    "actor": "john.smith@example.com",
+    "action": "Login",
+    "details": "Login failed for john.smith@example.com",
+    "ipAddress": "198.51.100.12",
+    "success": false
+  }
+]

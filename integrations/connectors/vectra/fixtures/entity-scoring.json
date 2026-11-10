@@ -1,0 +1,42 @@
+{
+  "events": [
+    {
+      "id": 32739,
+      "entity_id": 1090,
+      "name": "O365:jane.doe@example.com",
+      "type": "account",
+      "category": "ACCOUNT SCORING",
+      "severity": "Medium",
+      "urgency_score": 55,
+      "attack_rating": 4,
+      "importance": 1,
+      "velocity_contrib": 1,
+      "breadth_contrib": 1,
+      "is_prioritized": false,
+      "active_detection_types": ["M365 Suspicious Mail Forwarding"],
+      "last_detection": { "id": 36230, "type": "M365 Suspicious Mail Forwarding", "url": "https://example.portal.vectra.ai/detections/36230" },
+      "url": "https://example.portal.vectra.ai/accounts/1090",
+      "event_timestamp": "2026-11-10T10:04:12Z"
+    },
+    {
+      "id": 32740,
+      "entity_id": 1083,
+      "name": "i-0a1b2c3d4e5f60003",
+      "type": "host",
+      "category": "HOST SCORING",
+      "severity": "High",
+      "urgency_score": 81,
+      "attack_rating": 7,
+      "importance": 2,
+      "velocity_contrib": 2,
+      "breadth_contrib": 1,
+      "is_prioritized": true,
+      "active_detection_types": ["Hidden HTTPS Tunnel"],
+      "last_detection": { "id": 36224, "type": "Hidden HTTPS Tunnel", "url": "https://example.portal.vectra.ai/detections/36224" },
+      "url": "https://example.portal.vectra.ai/hosts/1083",
+      "event_timestamp": "2026-11-10T10:05:40Z"
+    }
+  ],
+  "next_checkpoint": 32740,
+  "remaining_count": 0
+}

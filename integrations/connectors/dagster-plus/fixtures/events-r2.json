@@ -1,0 +1,51 @@
+{
+  "data": {
+    "logsForRun": {
+      "__typename": "EventConnection",
+      "cursor": "r2-c4",
+      "hasMore": false,
+      "events": [
+        {
+          "__typename": "RunStartEvent",
+          "runId": "ff550567-4f6f-4aa0-a7b1-548d97a99170",
+          "message": "Started execution of run for \"__ASSET_JOB\".",
+          "timestamp": "1794311300000",
+          "level": "DEBUG",
+          "stepKey": null,
+          "eventType": "RUN_START"
+        },
+        {
+          "__typename": "LogMessageEvent",
+          "runId": "ff550567-4f6f-4aa0-a7b1-548d97a99170",
+          "message": "Loading 1,284 rows from the inventory export",
+          "timestamp": "1794311301500",
+          "level": "INFO",
+          "stepKey": "inventory_snapshot",
+          "eventType": null
+        },
+        {
+          "__typename": "ExecutionStepFailureEvent",
+          "runId": "ff550567-4f6f-4aa0-a7b1-548d97a99170",
+          "message": "Execution of step \"inventory_snapshot\" failed.",
+          "timestamp": "1794311302700",
+          "level": "ERROR",
+          "stepKey": "inventory_snapshot",
+          "eventType": "STEP_FAILURE",
+          "error": {
+            "message": "ConnectionError: inventory-service timed out\n",
+            "className": "ConnectionError"
+          }
+        },
+        {
+          "__typename": "RunFailureEvent",
+          "runId": "ff550567-4f6f-4aa0-a7b1-548d97a99170",
+          "message": "Execution of run for \"__ASSET_JOB\" failed. Steps failed: ['inventory_snapshot'].",
+          "timestamp": "1794311303100",
+          "level": "ERROR",
+          "stepKey": null,
+          "eventType": "RUN_FAILURE"
+        }
+      ]
+    }
+  }
+}

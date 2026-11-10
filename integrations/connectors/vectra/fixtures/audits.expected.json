@@ -1,0 +1,75 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e1-e120-7f4c-8d29-44de0fb4c647"
+      },
+      "date": 1794304500000,
+      "ddsource": "vectra",
+      "event_action": "login",
+      "event_data": {
+        "city": "Bucharest",
+        "country": "Romania",
+        "device_name": "Firefox 140, macOS",
+        "user": "analyst@example.com"
+      },
+      "event_object": "user",
+      "event_timestamp": 1794304500000,
+      "host": "example.portal.vectra.ai",
+      "id": 34568,
+      "message": "Successful login",
+      "result_status": "success",
+      "service": "vectra",
+      "source_ip": "198.51.100.23",
+      "status": "ok",
+      "user_id": "2041",
+      "user_role": "Security Analyst",
+      "user_type": "JWT",
+      "username": "analyst@example.com",
+      "vendor": {
+        "endpoint": "audit-events"
+      },
+      "version": "202611.1.0"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4eb-08e0-70ff-b599-524d0b468784"
+      },
+      "date": 1794305100000,
+      "ddsource": "vectra",
+      "event_action": "update",
+      "event_data": {
+        "detection_id": 36224,
+        "field": "assigned_to",
+        "value": "analyst@example.com"
+      },
+      "event_object": "detection",
+      "event_timestamp": 1794305100000,
+      "host": "example.portal.vectra.ai",
+      "id": 34569,
+      "message": "Failed to assign detection 36224",
+      "result_status": "failure",
+      "service": "vectra",
+      "source_ip": "198.51.100.40",
+      "status": "warning",
+      "user_id": "2077",
+      "user_role": "Auditor",
+      "user_type": "API Client",
+      "username": "automation@example.com",
+      "vendor": {
+        "endpoint": "audit-events"
+      },
+      "version": "202611.1.0"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": 34569
+      }
+    }
+  }
+}

@@ -402,6 +402,7 @@ impl KubeResource {
         terms.iter().all(|t| match t {
             Term::Text { text, negate } => self.name.to_lowercase().contains(&text.to_lowercase()) != *negate,
             Term::Tag { key, values, negate } => self.values(key).iter().any(|v| values.iter().any(|p| glob(p, v))) != *negate,
+            Term::Any { alternatives, negate } => alternatives.iter().any(|a| self.matches(a)) != *negate,
         })
     }
 }

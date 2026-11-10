@@ -1,0 +1,125 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Greenhouse (https://docs.greenhouse.io/audit-log.html): the audit log of a Greenhouse Recruiting organization, as
+# the logs Datadog's integration sends (source:greenhouse, service:audit, the event as Greenhouse answers it:
+# event_time, organization_id, request, performer, event). integrations-core's log pipeline and its dashboard for the
+# tile read them as they are. Greenhouse keeps the audit log for 30 days.
+schema_version: 1
+id: greenhouse
+name: Greenhouse
+publisher: ObserveCraft
+vendor: Greenhouse Software
+description: >-
+  The audit log of a Greenhouse Recruiting organization (data changes to candidates, applications, jobs and users,
+  Harvest API and MCP access, sensitive pages viewed), one log per event, read from Greenhouse's Audit Log API.
+tiles: [greenhouse]
+categories: [Log Collection, Security, SIEM]
+source: greenhouse
+docs_url: https://docs.greenhouse.io/audit-log.html
+setup: |
+  1. The audit log is an Expert-plan feature; Greenhouse support can enable it.
+  2. In Greenhouse, open **Configure → Dev Center → API Credential Management** and **Create new API key** of type
+     **Harvest**; under permissions, enable **Audit Log → Audit Log V1** only. Copy the key.
+  3. The user id is the Greenhouse user the token acts for (a site admin's id, from **Configure → Users**).
+instance: "{{ config.region }}.greenhouse.io"
+
+config:
+  - key: region
+    label: Region
+    type: select
+    required: true
+    default: us
+    options:
+      - { value: us, label: United States (auditlog.us.greenhouse.io) }
+      - { value: anz, label: Australia and New Zealand (auditlog.anz.greenhouse.io) }
+  - key: user_id
+    label: User id (On-Behalf-Of)
+    type: string
+    required: true
+    pattern: "[0-9]+"
+  - key: api_key
+    label: Harvest API key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: token_exchange
+  request:
+    method: POST
+    url: https://harvest.greenhouse.io/auth/jwt_access_token
+    headers:
+      Authorization: "{{ 'Basic ' + ((secrets.api_key + ':') | base64) }}"
+      On-Behalf-Of: "{{ config.user_id }}"
+    body: {}
+  capture: { token: "{{ response.access_token }}" }
+  # Tokens last 24 hours.
+  ttl: 23h
+
+# Paginated requests: 3 every 30 seconds.
+rate_limit: { min_interval: 10s }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Greenhouse refused the Harvest API key (or the user id it acts for)
+  - status: [403]
+    kind: access_denied
+    message: "The Harvest API key lacks the Audit Log V1 permission, or the organization's audit log isn't enabled"
+  - status: [429]
+    kind: throttled
+    message: Rate limited by Greenhouse's audit log (3 paginated requests every 30 seconds)
+
+streams:
+  - id: audit
+    name: Audit log
+    description: >-
+      Every audit event as a log (service:audit): event.type (data_change_*, harvest_access, mcp_access, action),
+      event.target_type / target_id / meta, performer (id, type, ip_address, meta.username), request.
+    interval: 5m
+    request:
+      url: "https://auditlog.{{ config.region }}.greenhouse.io/events/"
+      query:
+        after_time: "{{ window.start | rfc3339 }}"
+        before_time: "{{ window.end | rfc3339 }}"
+        paging: "true"
+      headers:
+        Size: "500"
+        Pit-Id: "{{ page.cursor.pit }}"
+        Search-After: "{{ page.cursor.after }}"
+    records: "{{ response.results }}"
+    pagination:
+      kind: cursor
+      next: "{{ response.paging.next_search_after ? {pit: response.paging.pit_id, after: response.paging.next_search_after} : null }}"
+    # Events carry no id: the event's JSON is its identity.
+    incremental:
+      kind: time
+      record_time: "{{ record.event_time }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 5m
+      settle: 1m
+    output:
+      logs:
+        service: audit
+        message: "{{ record.event.type + (' ' + record.event.target_type ?? '') + (' by ' + (record.performer.meta.username ?? record.performer.type) ?? '') }}"
+        date: "{{ record.event_time }}"
+        attributes: "{{ record }}"
+
+test:
+  request:
+    url: "https://auditlog.{{ config.region }}.greenhouse.io/events/"
+    query: { magic_time: last1hours }
+  message: "Connected: {{ response.hits ?? (response.results | len) }} audit events in the last hour"
+
+mock:
+  config: { region: us, user_id: "4080001" }
+  secrets: { api_key: test-harvest-key }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://harvest.greenhouse.io/auth/jwt_access_token", body: { access_token: test-jwt, expires: "2026-11-11T12:00:00.000Z" } }
+    - { url: "https://auditlog.us.greenhouse.io/events/", query: { magic_time: last1hours }, body: { hits: 2, results: [] } }
+    - { url: "https://auditlog.us.greenhouse.io/events/", file: fixtures/events-1.json }
+    - { url: "https://auditlog.us.greenhouse.io/events/", file: fixtures/events-2.json }
+  expect:
+    audit: { records: 3, logs: 3, rerun: 0, golden: fixtures/audit.expected.json }
+    test: { ok: true, message: "2 audit events in the last hour" }

@@ -1,0 +1,7 @@
+{
+  "object": "list",
+  "data": [
+    { "object": "group", "id": "9d3a0000-0000-4000-8000-000000000201", "name": "Platform engineers", "accessAll": false, "externalId": null, "collections": [] }
+  ],
+  "continuationToken": null
+}

@@ -1,0 +1,92 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c530-5528-7641-a4bc-0e5fc937eb07"
+      },
+      "action": "project.datasets.delete",
+      "actorEmail": "alex@example.com",
+      "actorId": "pAlex0001",
+      "actorName": "Alex Example",
+      "correlationId": "4f1e0c2a9b8d7e6f5a4b3c2d1e0f0003",
+      "datasetName": "staging",
+      "date": "2026-11-10T11:20:41.512Z",
+      "ddsource": "sanity",
+      "description": "\"Alex Example\" deleted the dataset \"staging\"",
+      "host": "sanity",
+      "id": "ale-3exampleA0000000000000003",
+      "message": "\"Alex Example\" deleted the dataset \"staging\"",
+      "projectDisplayName": "Storefront content",
+      "projectId": "abcd1234",
+      "service": "activity-logs",
+      "status": "warn",
+      "timestamp": "2026-11-10T11:20:41.512Z",
+      "version": "v2021-02-01"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b1-8e0c-748e-9637-ff9afb42e350"
+      },
+      "action": "project.members.role.add",
+      "actorEmail": "alex@example.com",
+      "actorId": "pAlex0001",
+      "actorName": "Alex Example",
+      "correlationId": "4f1e0c2a9b8d7e6f5a4b3c2d1e0f0002",
+      "date": "2026-11-10T09:02:13.004Z",
+      "ddsource": "sanity",
+      "description": "\"Sam Example\" was given the role \"editor\" on the project",
+      "host": "sanity",
+      "id": "ale-3exampleA0000000000000002",
+      "message": "\"Sam Example\" was given the role \"editor\" on the project",
+      "metadata": {
+        "roleName": "editor",
+        "roleTitle": "Editor"
+      },
+      "projectDisplayName": "Storefront content",
+      "projectId": "abcd1234",
+      "service": "activity-logs",
+      "status": "info",
+      "timestamp": "2026-11-10T09:02:13.004Z",
+      "userEmail": "sam@example.com",
+      "userId": "pSam00002",
+      "userName": "Sam Example",
+      "version": "v2021-02-01"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c132-e2e0-72db-a286-597b72ccc171"
+      },
+      "action": "project.corsOrigin.create",
+      "actorEmail": "alex@example.com",
+      "actorId": "pAlex0001",
+      "actorName": "Alex Example",
+      "correlationId": "4f1e0c2a9b8d7e6f5a4b3c2d1e0f0001",
+      "date": "2026-11-09T16:45:00.000Z",
+      "ddsource": "sanity",
+      "description": "\"Alex Example\" added the CORS origin https://shop.example.com",
+      "host": "sanity",
+      "id": "ale-3exampleA0000000000000001",
+      "message": "\"Alex Example\" added the CORS origin https://shop.example.com",
+      "metadata": {
+        "allowCredentials": true,
+        "origin": "https://shop.example.com"
+      },
+      "projectDisplayName": "Storefront content",
+      "projectId": "abcd1234",
+      "service": "activity-logs",
+      "status": "info",
+      "timestamp": "2026-11-09T16:45:00.000Z",
+      "version": "v2021-02-01"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

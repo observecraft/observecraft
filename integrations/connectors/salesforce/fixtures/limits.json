@@ -1,0 +1,5 @@
+{
+  "DailyApiRequests": { "Max": 150000, "Remaining": 148221 },
+  "DataStorageMB": { "Max": 5120, "Remaining": 4800 },
+  "FileStorageMB": { "Max": 20480, "Remaining": 19950 }
+}

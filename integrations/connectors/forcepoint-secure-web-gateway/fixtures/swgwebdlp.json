@@ -1,0 +1,19 @@
+{
+  "status": "Success",
+  "nextpagetoken": "dlp-t1",
+  "response": {
+    "dataformat": "json",
+    "dataencoding": "utf-8",
+    "data": [
+      {
+        "time": "10 Nov 2026 09:14:06", "indexedtime": "2026-11-10 09:14:40", "setransactionid": "7C2F1B3D-0000-4B00-8000-000000000001",
+        "syslogheader": "<110>1 2026-11-10T09:14:06.000000Z api.bitglass.com NILVALUE NILVALUE swgwebdlp",
+        "email": "sam.lee@example.com", "firstname": "Sam", "lastname": "Lee", "usergroup": "['All Users', 'Billing']",
+        "devicehostname": "laptop-0107", "ipaddress": "203.0.113.57", "requestmethod": "POST", "requestdomain": "files.example.net",
+        "url": "files.example.net/upload", "application": "Example Files", "action": "block", "policyid": "100207",
+        "dlppattern": "Credit Card Numbers", "patterns": "Credit Card Numbers", "filename": "orders-2026-11.csv", "size": "48211",
+        "country": "Germany", "countrycode": "DE", "city": "Berlin"
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "messages": [
+    { "sid": "SM3c4d5e6f708192a3b4c5d6e7f8091a2b", "account_sid": "ACexample_account_sid", "messaging_service_sid": null,
+      "body": "STOP", "status": "received", "direction": "inbound", "from": "+15005550003", "to": "+15005550006",
+      "num_segments": "1", "num_media": "0", "price": "-0.00790", "price_unit": "USD", "error_code": null, "error_message": null,
+      "api_version": "2010-04-01", "date_created": "Tue, 10 Nov 2026 08:01:00 +0000", "date_sent": "Tue, 10 Nov 2026 08:01:00 +0000", "date_updated": "Tue, 10 Nov 2026 08:01:00 +0000" }
+  ],
+  "next_page_uri": null, "page": 1, "page_size": 1000
+}

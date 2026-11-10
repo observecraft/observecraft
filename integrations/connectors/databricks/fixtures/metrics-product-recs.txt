@@ -1,0 +1,23 @@
+# HELP cpu_usage_percentage Average CPU utilization used across all replicas during the last minute
+# TYPE cpu_usage_percentage gauge
+cpu_usage_percentage{served_entity_name="product-recs-7"} 23.5
+# HELP mem_usage_percentage Average memory used across all replicas during the last minute
+# TYPE mem_usage_percentage gauge
+mem_usage_percentage{served_entity_name="product-recs-7"} 41.2
+# TYPE provisioned_concurrent_requests_total gauge
+provisioned_concurrent_requests_total{served_entity_name="product-recs-7"} 8
+# TYPE request_count_total gauge
+request_count_total{served_entity_name="product-recs-7"} 1840
+# TYPE request_4xx_count_total gauge
+request_4xx_count_total{served_entity_name="product-recs-7"} 12
+# TYPE request_5xx_count_total gauge
+request_5xx_count_total{served_entity_name="product-recs-7"} 1
+# TYPE request_latency_ms histogram
+request_latency_ms_bucket{served_entity_name="product-recs-7",le="50"} 920
+request_latency_ms_bucket{served_entity_name="product-recs-7",le="100"} 1500
+request_latency_ms_bucket{served_entity_name="product-recs-7",le="250"} 1700
+request_latency_ms_bucket{served_entity_name="product-recs-7",le="500"} 1790
+request_latency_ms_bucket{served_entity_name="product-recs-7",le="1000"} 1830
+request_latency_ms_bucket{served_entity_name="product-recs-7",le="+Inf"} 1840
+request_latency_ms_sum{served_entity_name="product-recs-7"} 141230
+request_latency_ms_count{served_entity_name="product-recs-7"} 1840

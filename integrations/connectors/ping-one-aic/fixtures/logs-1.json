@@ -1,0 +1,126 @@
+{
+  "result": [
+    {
+      "payload": {
+        "runAs": "id=dsameuser,ou=user,ou=am-config",
+        "level": "INFO",
+        "source": "audit",
+        "userId": "id=2b2b2b2b-0000-4000-8000-000000000001,ou=user,ou=am-config",
+        "transactionId": "5d5d5d5d-0000-4000-8000-000000000001/0",
+        "eventName": "AM-CONFIG-CHANGE",
+        "topic": "config",
+        "realm": "/alpha",
+        "_id": "7b6d0000-0000-4000-8000-000000000001-101",
+        "trackingIds": [
+          "7b6d0000-0000-4000-8000-000000000001-100"
+        ],
+        "operation": "UPDATE",
+        "objectId": "ou=default,ou=OrganizationConfig,ou=1.0,ou=OAuth2Provider,ou=services,o=alpha,ou=services,ou=am-config",
+        "timestamp": "2026-11-10T08:12:40.118Z"
+      },
+      "source": "am-config",
+      "type": "application/json",
+      "timestamp": "2026-11-10T08:12:40.120531Z"
+    },
+    {
+      "payload": {
+        "realm": "/alpha",
+        "transactionId": "5d5d5d5d-0000-4000-8000-000000000002/0",
+        "component": "Authentication",
+        "eventName": "AM-TREE-LOGIN-COMPLETED",
+        "level": "INFO",
+        "source": "audit",
+        "topic": "authentication",
+        "result": "SUCCESSFUL",
+        "principal": [
+          "jane.doe@example.com"
+        ],
+        "userId": "id=4c4c4c4c-0000-4000-8000-000000000011,ou=user,o=alpha,ou=services,ou=am-config",
+        "trackingIds": [
+          "7b6d0000-0000-4000-8000-000000000002-200"
+        ],
+        "entries": [
+          {
+            "info": {
+              "treeName": "Login",
+              "authLevel": "0",
+              "ipAddress": "198.51.100.23"
+            }
+          }
+        ],
+        "_id": "7b6d0000-0000-4000-8000-000000000002-201",
+        "timestamp": "2026-11-10T09:30:02.441Z"
+      },
+      "source": "am-authentication",
+      "type": "application/json",
+      "timestamp": "2026-11-10T09:30:02.443902Z"
+    },
+    {
+      "payload": {
+        "component": "OAuth",
+        "level": "INFO",
+        "response": {
+          "elapsedTimeUnits": "MILLISECONDS",
+          "elapsedTime": 12,
+          "status": "SUCCESSFUL",
+          "statusCode": "302"
+        },
+        "client": {
+          "ip": "198.51.100.23"
+        },
+        "eventName": "AM-ACCESS-OUTCOME",
+        "http": {
+          "request": {
+            "path": "https://openam-example.forgeblocks.com/am/oauth2/alpha/authorize",
+            "method": "GET",
+            "secure": true
+          }
+        },
+        "topic": "access",
+        "realm": "/alpha",
+        "_id": "7b6d0000-0000-4000-8000-000000000003-301",
+        "source": "audit",
+        "transactionId": "5d5d5d5d-0000-4000-8000-000000000003/0",
+        "timestamp": "2026-11-10T09:30:03.010Z"
+      },
+      "source": "am-access",
+      "type": "application/json",
+      "timestamp": "2026-11-10T09:30:03.011477Z"
+    },
+    {
+      "payload": {
+        "component": "Config",
+        "level": "INFO",
+        "response": {
+          "status": "SUCCESSFUL",
+          "statusCode": "200"
+        },
+        "client": {
+          "ip": "10.0.4.12"
+        },
+        "eventName": "AM-ACCESS-OUTCOME",
+        "http": {
+          "request": {
+            "path": "https://openam-example.forgeblocks.com/am/json/health/ready",
+            "method": "GET",
+            "secure": true
+          }
+        },
+        "topic": "access",
+        "realm": "/",
+        "_id": "7b6d0000-0000-4000-8000-000000000004-401",
+        "source": "audit",
+        "transactionId": "5d5d5d5d-0000-4000-8000-000000000004/0",
+        "timestamp": "2026-11-10T09:30:05.000Z"
+      },
+      "source": "am-access",
+      "type": "application/json",
+      "timestamp": "2026-11-10T09:30:05.000812Z"
+    }
+  ],
+  "resultCount": 4,
+  "pagedResultsCookie": "eyJfc29ydEtleXMiOiIxIn0",
+  "totalPagedResultsPolicy": "NONE",
+  "totalPagedResults": -1,
+  "remainingPagedResults": -1
+}

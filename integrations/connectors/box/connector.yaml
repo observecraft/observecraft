@@ -1,0 +1,108 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Box (https://developer.box.com/reference/get-events/): the enterprise event log (admin_logs), as the logs Datadog's
+# integration sends (source:box, service:enterprise-events, the event as Box answers it: event_id, event_type,
+# created_by, source, ip_address, additional_details, Shield alerts included). integrations-core's log pipeline and
+# its four dashboards for the tile read them as they are.
+schema_version: 1
+id: box
+name: Box
+publisher: ObserveCraft
+vendor: Box
+description: >-
+  The enterprise events of a Box account (logins, uploads, downloads, shares, permission and user changes, Box
+  Shield alerts), one log per event, read every few minutes from Box's Events API with a Client Credentials app.
+tiles: [box]
+categories: [Collaboration, Log Collection, Security, SIEM]
+source: box
+docs_url: https://developer.box.com/guides/events/enterprise-events/for-enterprise/
+setup: |
+  1. In the [Developer Console](https://app.box.com/developers/console), create a **Custom App** with **Server
+     Authentication (Client Credentials Grant)**.
+  2. Under **Configuration**, set **App Access Level** to **App + Enterprise Access** and enable the application
+     scope **Manage enterprise properties**; save.
+  3. Submit the app for authorization (**Authorization** tab); a Box admin approves it in the Admin Console
+     (**Apps → Custom Apps Manager**).
+  4. Copy the client id and secret (**Configuration**) and the enterprise id (**General Settings**).
+instance: "{{ config.enterprise_id }}"
+
+config:
+  - key: enterprise_id
+    label: Enterprise id
+    type: string
+    required: true
+    pattern: "[0-9]+"
+  - key: client_id
+    label: Client id
+    type: string
+    required: true
+  - key: client_secret
+    label: Client secret
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: https://api.box.com/oauth2/token
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: body
+  params: { box_subject_type: enterprise, box_subject_id: "{{ config.enterprise_id }}" }
+
+errors:
+  - status: [400, 401]
+    kind: auth
+    message: Box refused the app's client id and secret, or the app isn't authorized in the enterprise's Admin Console
+  - status: [403]
+    kind: access_denied
+    message: The app can't read enterprise events; give it App + Enterprise Access and the Manage enterprise properties scope, then reauthorize it
+
+streams:
+  - id: enterprise_events
+    name: Enterprise events
+    description: >-
+      Every enterprise event (admin_logs) as a log (source:box, service:enterprise-events) with Box's fields as they
+      are; the tile's pipeline maps created_by to usr.*, ip_address to network.client.ip and the event type to its
+      category.
+    interval: 5m
+    request:
+      url: https://api.box.com/2.0/events
+      query:
+        stream_type: admin_logs
+        created_after: "{{ window.start | rfc3339_s }}"
+        created_before: "{{ window.end | rfc3339_s }}"
+        limit: 500
+        stream_position: "{{ page.cursor }}"
+    records: "{{ response.entries }}"
+    pagination: { kind: cursor, next: "{{ response.next_stream_position | str }}" }
+    record_id: "{{ record.event_id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.created_at }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+      settle: 2m
+    output:
+      logs:
+        service: enterprise-events
+        message: "{{ record.event_type + (' by ' + (record.created_by.login ?? record.created_by.name) ?? '') }}"
+        date: "{{ record.created_at }}"
+        attributes: "{{ record }}"
+
+test:
+  stream: enterprise_events
+  message: "Connected to enterprise {{ config.enterprise_id }}: enterprise events are readable"
+
+mock:
+  config: { enterprise_id: "900000001", client_id: boxclient0000000000000000000001 }
+  secrets: { client_secret: test-client-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://api.box.com/oauth2/token", body_contains: "box_subject_id=900000001", body: { access_token: test-access-token, expires_in: 3600, token_type: bearer } }
+    - { url: "https://api.box.com/2.0/events", query: { stream_position: "1152922976252290886" }, file: fixtures/events-2.json }
+    - { url: "https://api.box.com/2.0/events", query: { stream_position: "1152922976252290999" }, body: { chunk_size: 0, next_stream_position: "1152922976252290999", entries: [] } }
+    - { url: "https://api.box.com/2.0/events", file: fixtures/events-1.json }
+  expect:
+    enterprise_events: { records: 3, logs: 3, rerun: 0, golden: fixtures/enterprise_events.expected.json }
+    test: { ok: true, message: "enterprise events are readable" }

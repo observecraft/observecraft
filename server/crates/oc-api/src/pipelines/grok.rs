@@ -79,7 +79,8 @@ const INT: &str = r"[+-]?\d+";
 const INT_EXT: &str = r"[+-]?\d+(?:[eE][+-]?\d+)?";
 const NUM: &str = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)";
 const NUM_EXT: &str = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?";
-const IPV4: &str = r"(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)";
+/// Whole addresses only (no digit before or after), so a greedy `.*` before one can't take its first digits.
+const IPV4: &str = r"(?<![0-9])(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?![0-9])";
 const IPV6: &str = r"(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4}";
 const HOSTNAME: &str = r"[A-Za-z0-9][A-Za-z0-9_-]{0,62}(?:\.[A-Za-z0-9_-]{1,63})*\.?";
 const DOUBLE_QUOTED: &str = r#""(?:[^"\\]|\\.)*""#;
@@ -104,7 +105,9 @@ impl Grok {
         for (name, pattern) in &matching {
             let mut ex = Expander { defs: &defs, captures: Vec::new() };
             let body = ex.expand(pattern, 0).map_err(|e| format!("Rule '{name}': {e}"))?;
-            let regex = fancy_regex::RegexBuilder::new(&format!("^(?:{})$", java_regex(&body))).backtrack_limit(BACKTRACK_LIMIT).build().map_err(|e| format!("Rule '{name}': invalid pattern ({e})"))?;
+            // `.` matches line breaks, as in Datadog's parser (a multi-line log's stack trace rules rely on it), and
+            // the end is also before a final line break, as Java's `$` is.
+            let regex = fancy_regex::RegexBuilder::new(&format!("^(?s:{})(?:\\r?\\n)?$", java_regex(&body))).backtrack_limit(BACKTRACK_LIMIT).build().map_err(|e| format!("Rule '{name}': invalid pattern ({e})"))?;
             rules.push(Rule { name: name.clone(), regex, captures: ex.captures });
         }
         Ok(Grok { rules })
@@ -117,7 +120,8 @@ impl Grok {
             let mut values: Vec<(String, Value)> = Vec::new();
             let mut repeated: Vec<bool> = Vec::new();
             for cap in &rule.captures {
-                let Some(m) = c.name(&cap.group) else { continue };
+                // An empty match sets nothing, as in Datadog's parser.
+                let Some(m) = c.name(&cap.group).filter(|m| !m.as_str().is_empty()) else { continue };
                 let Some(v) = cap.kind.convert(m.as_str(), now_ms) else { continue };
                 let Some(v) = (match &cap.filter {
                     Some(f) => f.apply(v),
@@ -518,12 +522,26 @@ fn compile_filter(name: &str, args: &[String]) -> Result<Filter, String> {
     })
 }
 
-/// `key<sep>value` pairs: values are quoted (`"…"`, `'…'`, `<…>`) or runs of word characters,
-/// `.-_@` and the extra characters allowed.
+/// `key<sep>value` pairs: keys bare or double-quoted (klog's `"key"="value"`), values quoted (`"…"`, `'…'`,
+/// `<…>`) or runs of word characters, `.-_@` and the extra characters allowed.
 fn keyvalue_regex(sep: &str, allowed: &str) -> Result<Regex, String> {
     let extra: String = allowed.chars().map(|c| if matches!(c, '\\' | ']' | '[' | '^' | '-') { format!("\\{c}") } else { c.to_string() }).collect();
-    let re = format!(r#"([\w.\-@]+){}(?:"([^"]*)"|'([^']*)'|<([^>]*)>|([\w.\-@{extra}]+))"#, fancy_regex::escape(sep));
+    let re = format!(r#""?([\w.\-@]+)"?{}(?:"([^"]*)"|'([^']*)'|<([^>]*)>|([\w.\-@{extra}]+))"#, fancy_regex::escape(sep));
     Regex::new(&re).map_err(|e| format!("keyvalue: {e}"))
+}
+
+/// A key-value or CSV field as Datadog types it: a number when it is one (`42`, `-0.5`, not `0123`), else text.
+fn typed(s: &str) -> Value {
+    let numeric = {
+        let digits = s.strip_prefix('-').unwrap_or(s);
+        let (int, frac) = digits.split_once('.').map_or((digits, None), |(i, f)| (i, Some(f)));
+        !int.is_empty() && int.bytes().all(|b| b.is_ascii_digit()) && (int == "0" || !int.starts_with('0')) && frac.is_none_or(|f| !f.is_empty() && f.bytes().all(|b| b.is_ascii_digit()))
+    };
+    match numeric.then(|| s.parse::<f64>().ok()).flatten() {
+        Some(f) if !s.contains('.') && f.abs() < 9.0e15 => Value::from(f as i64),
+        Some(f) if s.contains('.') => serde_json::Number::from_f64(f).map_or_else(|| Value::from(s), Value::Number),
+        _ => Value::from(s),
+    }
 }
 
 /// A number as JSON: integral values as integers (so `200` doesn't read as `200.0`).
@@ -601,9 +619,10 @@ impl Filter {
                 let mut out = Map::new();
                 for c in re.captures_iter(&s).flatten() {
                     let key = c.get(1).map_or("", |m| m.as_str());
-                    let value = (2..=4).find_map(|i| c.get(i)).map(|m| m.as_str()).or_else(|| c.get(5).map(|m| m.as_str().trim_end_matches([',', ';'])));
-                    if let Some(value) = value.filter(|x| !x.is_empty()) {
-                        out.insert(key.to_string(), Value::from(value));
+                    // Quoted values are text; others numbers when they are.
+                    let value = (2..=4).find_map(|i| c.get(i)).map(|m| Value::from(m.as_str())).or_else(|| c.get(5).map(|m| typed(m.as_str().trim_end_matches([',', ';']))));
+                    if let Some(value) = value.filter(|x| x.as_str() != Some("")) {
+                        out.insert(key.to_string(), value);
                     }
                 }
                 Some(Value::Object(out))
@@ -614,7 +633,7 @@ impl Filter {
             Filter::RubyHash => super::rubyhash::to_json(&text(&v)),
             Filter::Csv { headers, sep, quote } => {
                 let fields = csv_fields(&text(&v), *sep, *quote);
-                Some(Value::Object(headers.iter().zip(fields).filter(|(_, f)| !f.is_empty()).map(|(h, f)| (h.clone(), Value::from(f))).collect()))
+                Some(Value::Object(headers.iter().zip(fields).filter(|(_, f)| !f.is_empty()).map(|(h, f)| (h.clone(), typed(&f))).collect()))
             }
         }
     }
@@ -685,6 +704,25 @@ mod tests {
     /// The extracted values of `rules` on `text` as one JSON object (paths as keys).
     fn parse(rules: &str, text: &str) -> Option<Value> {
         grok(rules).parse(text, NOW).map(|p| Value::Object(p.values.into_iter().collect::<Map<_, _>>()))
+    }
+
+    /// `.` matches line breaks too, as in Datadog's parser: a stack trace's first line is its message
+    /// (integrations-core's Java stack trace rule, `confluent_platform_tests.yaml`).
+    #[test]
+    fn dot_matches_line_breaks() {
+        let stack = "java.net.UnknownHostException: zookeeper: Name or service not known\n\tat java.net.Inet4AddressImpl.lookupAllHostAddr(Native Method)\n\tat org.apache.zookeeper.ClientCnxn$SendThread.run(ClientCnxn.java:1137)";
+        let parsed = parse(r"error_rule %{notSpace:error.kind}: %{data:error.message}(\n|\t).*", stack).unwrap();
+        assert_eq!(parsed, json!({"error.kind": "java.net.UnknownHostException", "error.message": "zookeeper: Name or service not known"}));
+        // A final line break isn't part of the last value.
+        assert_eq!(parse(r"rule %{word:a} %{data:b}", "x tail\n"), Some(json!({"a": "x", "b": "tail"})));
+    }
+
+    /// An empty match sets no attribute, as in Datadog's parser (PostgreSQL's `log_line_prefix` without a user or database,
+    /// `postgresql_tests.yaml`).
+    #[test]
+    fn empty_matches_set_nothing() {
+        assert_eq!(parse(r#"r <%{regex("\\S*"):user}@%{regex("\\S*"):db}> %{data:rest}"#, "<@orders> vacuum"), Some(json!({"db": "orders", "rest": "vacuum"})));
+        assert_eq!(parse(r"r %{word:a}:%{data:b}", "x:"), Some(json!({"a": "x"})));
     }
 
     #[test]
@@ -791,21 +829,32 @@ mod tests {
 
     #[test]
     fn csv_filter() {
-        assert_eq!(parse(r#"r %{data:f:csv("a,b,c")}"#, r#"1,"x, y",3"#), Some(json!({"f": {"a": "1", "b": "x, y", "c": "3"}})));
-        assert_eq!(parse(r#"r %{data::csv("a,b", ";")}"#, "1;2"), Some(json!({"": {"a": "1", "b": "2"}})));
+        // Numbers are numbers, as in Datadog.
+        assert_eq!(parse(r#"r %{data:f:csv("a,b,c")}"#, r#"1,"x, y",3.5"#), Some(json!({"f": {"a": 1, "b": "x, y", "c": 3.5}})));
+        assert_eq!(parse(r#"r %{data::csv("a,b", ";")}"#, "1;007"), Some(json!({"": {"a": 1, "b": "007"}})));
         // Missing values are left out, extra ones ignored; a custom quote character.
-        assert_eq!(parse(r#"r %{data:f:csv("a,b,c", ",", "'")}"#, "1,'2,3'"), Some(json!({"f": {"a": "1", "b": "2,3"}})));
-        assert_eq!(parse(r#"r %{data:f:csv("a")}"#, "1,2"), Some(json!({"f": {"a": "1"}})));
+        assert_eq!(parse(r#"r %{data:f:csv("a,b,c", ",", "'")}"#, "x,'2,3'"), Some(json!({"f": {"a": "x", "b": "2,3"}})));
+        assert_eq!(parse(r#"r %{data:f:csv("a")}"#, "1,2"), Some(json!({"f": {"a": 1}})));
     }
 
     #[test]
     fn keyvalue_filter() {
-        // Default: key=value, quoted values unquoted; an empty attribute merges at the top level.
-        assert_eq!(parse("r %{data::keyvalue}", r#"user=jane id=42 note="two words""#), Some(json!({"": {"user": "jane", "id": "42", "note": "two words"}})));
-        assert_eq!(parse("r %{data:kv:keyvalue(\":\")}", "a:1 b:2"), Some(json!({"kv": {"a": "1", "b": "2"}})));
+        // Default: key=value, quoted values unquoted, numbers as numbers; an empty attribute merges at the top level.
+        assert_eq!(parse("r %{data::keyvalue}", r#"user=jane id=42 t=-0.5 zip=0123 note="two words" code="7""#), Some(json!({"": {"user": "jane", "id": 42, "t": -0.5, "zip": "0123", "note": "two words", "code": "7"}})));
+        assert_eq!(parse("r %{data:kv:keyvalue(\":\")}", "a:1 b:x2"), Some(json!({"kv": {"a": 1, "b": "x2"}})));
         // Custom separator, with commas allowed in values (trailing delimiters are dropped).
         let v = parse(r#"r %{data::keyvalue(": ", ",")}"#, r#"client: 10.0.0.5, server: localhost, request: "GET / HTTP/1.1""#);
         assert_eq!(v, Some(json!({"": {"client": "10.0.0.5", "server": "localhost", "request": "GET / HTTP/1.1"}})));
+        // Quoted keys (klog's structured `"key"="value"`, KEDA's metrics adapter); unquoted numbers are numbers
+        // (Argo Workflows' `size=487`), quoted ones stay text, as integrations-core's samples expect.
+        let v = parse("r %{data::keyvalue}", r#""address"="keda-operator.keda.svc:9666" "logger"="adapter" size=487 ratio=0.5 code="200" v=1.2.3"#);
+        assert_eq!(v, Some(json!({"": {"address": "keda-operator.keda.svc:9666", "logger": "adapter", "size": 487, "ratio": 0.5, "code": "200", "v": "1.2.3"}})));
+    }
+
+    #[test]
+    fn an_ip_is_a_whole_address() {
+        // A greedy `.*` before it doesn't leave the IP its last digits (weave's `.*%{ip:network.client.ip} ->`).
+        assert_eq!(parse(r"r .*%{ip:a} -> %{ip:b}", "in 127.0.0.1 -> 10.0.0.25"), Some(json!({"a": "127.0.0.1", "b": "10.0.0.25"})));
     }
 
     #[test]

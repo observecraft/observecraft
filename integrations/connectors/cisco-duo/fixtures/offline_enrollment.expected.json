@@ -1,0 +1,31 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c478-e238-70c9-bedb-b1140de67115"
+      },
+      "action": "o2fa_user_provisioned",
+      "date": "2026-11-10T08:00:19+00:00",
+      "ddsource": "cisco-duo",
+      "description": "{\"user_agent\": \"DuoCredProv/5.0.0 (Windows NT 10.0.22631; x64; Workstation)\", \"hostname\": \"LAPTOP-JDOE\", \"factor\": \"duo_otp\"}",
+      "host": "api-0a1b2c3d.duosecurity.com",
+      "isotimestamp": "2026-11-10T08:00:19+00:00",
+      "message": "o2fa_user_provisioned by jdoe on Windows Logon - Staff",
+      "object": "Windows Logon - Staff",
+      "service": "offline_enrollment",
+      "status": "info",
+      "timestamp": 1794297619,
+      "username": "jdoe"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311880000
+      }
+    }
+  }
+}

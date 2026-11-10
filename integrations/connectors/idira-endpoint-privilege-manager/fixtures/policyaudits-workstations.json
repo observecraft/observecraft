@@ -1,0 +1,37 @@
+{
+  "nextCursor": null,
+  "events": [
+    {
+      "eventId": "7c7c7c7c-0000-4000-8000-00000000e003",
+      "eventType": "Launch",
+      "fileName": "regedit.exe",
+      "filePath": "C:\\Windows\\regedit.exe",
+      "displayName": "regedit.exe",
+      "agentId": "9dbcb1f8-0000-4000-8000-000000000001",
+      "agentEventCount": 1,
+      "eventCount": 1,
+      "computerName": "STORE-LT-0017",
+      "userName": "EXAMPLE\\sam",
+      "userIsAdmin": false,
+      "policyName": "Block registry editor",
+      "justification": "",
+      "justificationType": 0,
+      "accessTargetType": "Internet",
+      "operatingSystemType": "Windows",
+      "owner": "BUILTIN\\Administrators",
+      "firstEventDate": "2026-11-10T09:58:39.425Z",
+      "lastEventDate": "2026-11-10T09:58:39.425Z",
+      "arrivalTime": "2026-11-10T09:58:39.425Z",
+      "modificationTime": "2026-11-10T09:58:39.425Z",
+      "skippedCount": 0,
+      "winEventRecordId": 0,
+      "logonAttemptTypeId": 0,
+      "threatProtectionActionId": 0,
+      "policyAction": "Block",
+      "company": "Microsoft Corporation",
+      "productName": "Microsoft Windows Operating System",
+      "fileVersion": "10.0.22621.1",
+      "originalFileName": "REGEDIT.EXE"
+    }
+  ]
+}

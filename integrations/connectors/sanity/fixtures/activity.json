@@ -1,0 +1,23 @@
+[
+  {
+    "id": "ale-3exampleA0000000000000003", "version": "v2021-02-01", "action": "project.datasets.delete", "timestamp": "2026-11-10T11:20:41.512Z",
+    "actorId": "pAlex0001", "actorName": "Alex Example", "actorEmail": "alex@example.com",
+    "projectId": "abcd1234", "projectDisplayName": "Storefront content", "datasetName": "staging",
+    "description": "\"Alex Example\" deleted the dataset \"staging\"", "correlationId": "4f1e0c2a9b8d7e6f5a4b3c2d1e0f0003", "metadata": {}
+  },
+  {
+    "id": "ale-3exampleA0000000000000002", "version": "v2021-02-01", "action": "project.members.role.add", "timestamp": "2026-11-10T09:02:13.004Z",
+    "actorId": "pAlex0001", "actorName": "Alex Example", "actorEmail": "alex@example.com",
+    "userId": "pSam00002", "userName": "Sam Example", "userEmail": "sam@example.com",
+    "projectId": "abcd1234", "projectDisplayName": "Storefront content",
+    "description": "\"Sam Example\" was given the role \"editor\" on the project", "correlationId": "4f1e0c2a9b8d7e6f5a4b3c2d1e0f0002",
+    "metadata": { "roleName": "editor", "roleTitle": "Editor" }
+  },
+  {
+    "id": "ale-3exampleA0000000000000001", "version": "v2021-02-01", "action": "project.corsOrigin.create", "timestamp": "2026-11-09T16:45:00.000Z",
+    "actorId": "pAlex0001", "actorName": "Alex Example", "actorEmail": "alex@example.com",
+    "projectId": "abcd1234", "projectDisplayName": "Storefront content",
+    "description": "\"Alex Example\" added the CORS origin https://shop.example.com", "correlationId": "4f1e0c2a9b8d7e6f5a4b3c2d1e0f0001",
+    "metadata": { "origin": "https://shop.example.com", "allowCredentials": true }
+  }
+]

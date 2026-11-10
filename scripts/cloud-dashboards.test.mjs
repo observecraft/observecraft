@@ -51,7 +51,8 @@ test('the metrics are the ones our crawlers publish', () => {
           azure.some((p) => m.startsWith(`${p}.`)),
           `${d.id}: ${m} is a resource type we crawl`,
         );
-        assert.match(rest.join('.'), /^[a-z0-9_]+(\.(total|maximum))?$/, `${d.id}: ${m} has one of our aggregations`);
+        // The bare name is the primary aggregation, `.max` the maximum (azure/naming.rs aggregations).
+        assert.match(rest.join('.'), /^[a-z0-9_]+(\.max)?$/, `${d.id}: ${m} has one of our aggregations`);
       } else {
         assert.equal(provider, 'gcp', `${d.id}: ${m}`);
         assert.ok(gcp.has(service), `${d.id}: ${m} is a service we crawl`);

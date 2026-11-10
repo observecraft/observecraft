@@ -1,0 +1,135 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Cofense Triage (API v2, JSON:API): reports (user-reported emails) and threat indicators, as the logs Datadog's
+# integration sends (source:cofense-triage, service:reports or threat-indicators, the JSON:API resource as it is:
+# id, type, attributes, relationships, links). integrations-core's log pipeline and "Cofense Triage - Insights"
+# dashboard for the tile read them as they are.
+schema_version: 1
+id: cofense-triage
+name: Cofense Triage
+publisher: ObserveCraft
+vendor: Cofense
+description: >-
+  The emails users reported to Cofense Triage (sender, subject, risk score, location, categorization) and the threat
+  indicators analysts tagged, one log each time a record is created or updated, read from the Triage API v2.
+tiles: [cofense-triage]
+categories: [Cloud, Log Collection, SIEM, Security]
+source: cofense-triage
+setup: |
+  1. In Triage, open **Administration → API Management → Version 2 API → Applications** and create an application
+     with the **Read Only** role. The API reference is on your instance, at `/docs/api/v2`.
+  2. Copy its client id and secret.
+  3. Raise the application's request limit under **API Management** if the instance is busy, and allow this
+     server's outbound IP addresses if the instance restricts its API by address.
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: Triage URL
+    type: url
+    required: true
+    placeholder: https://triage.example.com
+    strip_suffix: [/api/public/v2, /api]
+  - key: client_id
+    label: Client id
+    type: string
+    required: true
+  - key: client_secret
+    label: Client secret
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "{{ config.base_url }}/oauth/token"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: body
+
+headers:
+  Accept: application/vnd.api+json
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Cofense Triage refused the application's client id and secret
+  - status: [403]
+    kind: access_denied
+    message: The Triage API application can't read reports or threat indicators; give it the Read Only role or higher
+  - status: [404]
+    kind: access_denied
+    message: "No Triage API v2 at {{ config.base_url }}"
+
+streams:
+  - id: reports
+    name: Reports
+    description: >-
+      Every reported email as a log (service:reports) when it is created and each time Triage updates it
+      (categorized, processed): attributes hold from_address, subject, risk_score, location, match_priority, tags.
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/api/public/v2/reports"
+      query:
+        "filter[updated_at_gteq]": "{{ window.start | rfc3339 }}"
+        sort: updated_at
+        "page[size]": 200
+        "page[number]": "{{ page.number }}"
+    records: "{{ response.data }}"
+    pagination: { kind: page, size: 200 }
+    # A report updated again is logged again.
+    record_id: "{{ record.id + ':' + record.attributes.updated_at }}"
+    incremental: &updated
+      kind: time
+      record_time: "{{ record.attributes.updated_at }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        service: reports
+        message: "{{ 'Report ' + record.id + ': ' + (record.attributes.subject ?? '(no subject)') + (' from ' + record.attributes.from_address ?? '') + (' (' + record.attributes.location + ')' ?? '') }}"
+        date: "{{ record.attributes.updated_at }}"
+        attributes: "{{ record }}"
+
+  - id: threat_indicators
+    name: Threat indicators
+    description: >-
+      Every threat indicator as a log (service:threat-indicators) when it is created or updated: threat_level,
+      threat_type, threat_value, threat_source.
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/api/public/v2/threat_indicators"
+      query:
+        "filter[updated_at_gteq]": "{{ window.start | rfc3339 }}"
+        sort: updated_at
+        "page[size]": 200
+        "page[number]": "{{ page.number }}"
+    records: "{{ response.data }}"
+    pagination: { kind: page, size: 200 }
+    record_id: "{{ record.id + ':' + record.attributes.updated_at }}"
+    incremental: *updated
+    output:
+      logs:
+        service: threat-indicators
+        message: "{{ record.attributes.threat_level + ' ' + record.attributes.threat_type + ': ' + record.attributes.threat_value }}"
+        date: "{{ record.attributes.updated_at }}"
+        attributes: "{{ record }}"
+
+test:
+  request:
+    url: "{{ config.base_url }}/api/public/v2/reports"
+    query: { "page[size]": 1 }
+  message: "Connected to {{ config.base_url | host }}"
+
+mock:
+  config: { base_url: "https://triage.example.com", client_id: 9b8a7c6d5e4f3a2b1c0d }
+  secrets: { client_secret: test-client-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://triage.example.com/oauth/token", body_contains: "grant_type=client_credentials", body: { access_token: test-access-token, token_type: Bearer, expires_in: 7200, created_at: 1794304800 } }
+    - { url: "https://triage.example.com/api/public/v2/reports", file: fixtures/reports.json }
+    - { url: "https://triage.example.com/api/public/v2/threat_indicators", file: fixtures/threat_indicators.json }
+  expect:
+    reports: { records: 2, logs: 2, rerun: 0, golden: fixtures/reports.expected.json }
+    threat_indicators: { records: 2, logs: 2, rerun: 0, golden: fixtures/threat_indicators.expected.json }
+    test: { ok: true, message: "Connected to triage.example.com" }

@@ -47,6 +47,17 @@ test('plain group colors import as pale headers, vivid ones as saturated', () =>
   assert.equal(none.light, undefined);
 });
 
+test('widgets side by side in a narrow group still fit its 12 columns, edge to edge', () => {
+  const widget = (x, width) => ({ definition: { type: 'timeseries', title: `w${x}`, requests: [] }, layout: { x, y: 0, width, height: 3 } });
+  // Vault's Token group: 8 columns wide upstream, a 3-column and a 5-column widget in a row.
+  const group = { definition: { type: 'group', title: 'Token', layout_type: 'ordered', widgets: [widget(0, 3), widget(3, 5)] }, layout: { x: 4, y: 0, width: 8, height: 4 } };
+  const [{ definition }] = convertDashboard({ title: 'T', layout_type: 'ordered', widgets: [group] }, 'vault', 'assets/dashboards/t.json', 'x').widgets;
+  const [left, right] = definition.widgets.map((w) => w.layout);
+  assert.equal(left.x + left.w, right.x, 'no gap or overlap');
+  assert.equal(right.x + right.w, 12, 'the row ends at the group’s edge');
+  assert.equal(left.y, right.y, 'one row');
+});
+
 test('a widget becomes a monitor query: plain arithmetic between its queries, else its first query', () => {
   const resolve = (q) => q.replace('$cluster', 'kube_cluster_name:shop-prod');
   const integration = (formula) => ({

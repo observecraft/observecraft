@@ -1,0 +1,185 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Vectra AI Platform (REST API v3.4, https://apidocs.vectra.ai/): detection events, entity scoring events, audit
+# events and detections, as the logs Datadog's integration sends (source:vectra, the record at the top with
+# vendor.endpoint naming the API it came from: detection-events, entity-scoring-events, audit-events, detections; times
+# in epoch ms). integrations-core's pipeline and the tile's four dashboards read them as they are, so this package
+# ships neither.
+schema_version: 1
+id: vectra
+name: Vectra
+publisher: ObserveCraft
+vendor: Vectra AI
+description: >-
+  The detection events, host and account scoring changes, platform audit events and detections of a Vectra AI
+  Platform (RUX) tenant as logs, read every 5 minutes from its v3.4 API with an API client.
+tiles: [vectra]
+categories: [Log Collection, Security, SIEM, Cloud]
+source: vectra
+docs_url: https://apidocs.vectra.ai/
+setup: |
+  1. In the Vectra AI Platform, open **Configuration → Access → API Clients** and select **Add API Client**.
+  2. Give it the **Auditor** role (read-only), then copy the **Client ID** and **Secret Key**; the secret is shown once.
+  3. The URL is your tenant's portal, such as `https://example.portal.vectra.ai`.
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: Portal URL
+    type: url
+    required: true
+    placeholder: https://example.portal.vectra.ai
+    strip_suffix: [/api/v3.4, /api]
+  - key: client_id
+    label: Client ID
+    type: string
+    required: true
+  - key: client_secret
+    label: Secret key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "{{ config.base_url }}/oauth2/token"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: basic
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Vectra refused the API client (check the client ID and secret key)
+  - status: [403]
+    kind: access_denied
+    message: The API client's role can't read events; give it the Auditor role or higher
+
+# Statuses as the tile's pipeline sets them.
+tables:
+  scoring: { High: critical, Medium: warning, Low: notice }
+  audit: { success: ok, failure: warning }
+
+streams:
+  - id: detection_events
+    name: Detection events
+    description: >-
+      Every detection created or updated on a host or account (vendor.endpoint:detection-events): detection_type,
+      category, threat, certainty, entity_name, mitre and the detection's details.
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/api/v3.4/events/detections"
+      query: &events
+        from: "{{ page.cursor ?? cursor.token }}"
+        limit: 500
+        event_timestamp_gte: "{{ (page.cursor ?? cursor.token) == null ? (now - 86400000) | rfc3339_s : null }}"
+    records: "{{ response.events }}"
+    pagination: &more { kind: cursor, next: "{{ response.remaining_count > 0 ? response.next_checkpoint : null }}" }
+    incremental: &checkpoint { kind: token, next: "{{ response.next_checkpoint }}" }
+    record_id: "{{ record.id | str }}"
+    output:
+      logs:
+        status: >-
+          {{ record.threat > 80 ? 'alert' : record.threat > 60 ? 'critical' : record.threat > 40 ? 'warning'
+             : record.threat > 20 ? 'notice' : 'info' }}
+        message: "{{ (record.d_type_vname ?? record.detection_type) + ' on ' + record.entity_name ?? record.detection_type }}"
+        date: "{{ record.event_timestamp }}"
+        attributes: "{{ record + {event_timestamp: record.event_timestamp | epoch_ms, vendor: {endpoint: 'detection-events'}} }}"
+
+  - id: entity_scoring
+    name: Entity scoring events
+    description: >-
+      Every change of a host's or account's urgency score (vendor.endpoint:entity-scoring-events): urgency_score,
+      attack_rating, importance, active detection types and the last detection.
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/api/v3.4/events/entity_scoring"
+      query: *events
+    records: "{{ response.events }}"
+    pagination: *more
+    incremental: *checkpoint
+    record_id: "{{ record.id | str }}"
+    output:
+      logs:
+        status: "{{ tables.scoring[record.severity] ?? 'info' }}"
+        message: "{{ record | json }}"
+        date: "{{ record.event_timestamp }}"
+        attributes: "{{ record + {event_timestamp: record.event_timestamp | epoch_ms, vendor: {endpoint: 'entity-scoring-events'}} }}"
+
+  - id: audits
+    name: Audit events
+    description: >-
+      What users and API clients did in the Vectra platform (vendor.endpoint:audit-events): logins, changes to
+      detections, entities and settings, with username, user_role, source_ip and result_status.
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/api/v3.4/events/audits"
+      query: *events
+    records: "{{ response.events }}"
+    pagination: *more
+    incremental: *checkpoint
+    record_id: "{{ record.id | str }}"
+    output:
+      logs:
+        status: "{{ tables.audit[record.result_status] ?? 'info' }}"
+        message: "{{ record.message ?? (record.event_action + ' ' + record.event_object) }}"
+        date: "{{ record.event_timestamp }}"
+        attributes: "{{ record + {event_timestamp: record.event_timestamp | epoch_ms, vendor: {endpoint: 'audit-events'}} }}"
+
+  - id: detections
+    name: Detections
+    description: >-
+      The detections whose last activity changed (vendor.endpoint:detections), once per change: state, threat,
+      certainty, src_ip, assigned_to, the source host or account, the summary.
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/api/v3.4/detections"
+      query:
+        last_timestamp_gte: "{{ window.start | rfc3339_s }}"
+        ordering: last_timestamp
+        page_size: 500
+    records: "{{ response.results }}"
+    pagination: { kind: next_url, next: "{{ response.next }}" }
+    # A detection seen again with newer activity is a new log.
+    record_id: "{{ (record.id | str) + ':' + record.last_timestamp }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.last_timestamp }}"
+      order: unordered
+      lookback: 1d
+      overlap: 10m
+    output:
+      logs:
+        status: >-
+          {{ record.threat > 80 ? 'alert' : record.threat > 60 ? 'critical' : record.threat > 40 ? 'warning'
+             : record.threat > 20 ? 'notice' : 'info' }}
+        message: "{{ record.summary.description ?? record.detection_type }}"
+        date: "{{ record.last_timestamp }}"
+        attributes: "{{ record + {last_timestamp: record.last_timestamp | epoch_ms, vendor: {endpoint: 'detections'}} }}"
+
+test:
+  request:
+    url: "{{ config.base_url }}/api/v3.4/events/audits"
+    query: { limit: 1 }
+  success: "{{ response.events != null }}"
+  message: "Connected: {{ response.remaining_count ?? 0 }} audit events to read"
+
+mock:
+  config: { base_url: "https://example.portal.vectra.ai", client_id: vectra-client-0001 }
+  secrets: { client_secret: vectra-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://example.portal.vectra.ai/oauth2/token", body: { access_token: vectra-test-token, token_type: Bearer, expires_in: 3600 } }
+    - { url: "https://example.portal.vectra.ai/api/v3.4/events/detections", query: { from: "146680" }, body: { events: [], next_checkpoint: 146680, remaining_count: 0 } }
+    - { url: "https://example.portal.vectra.ai/api/v3.4/events/detections", file: fixtures/detection-events.json }
+    - { url: "https://example.portal.vectra.ai/api/v3.4/events/entity_scoring", query: { from: "32740" }, body: { events: [], next_checkpoint: 32740, remaining_count: 0 } }
+    - { url: "https://example.portal.vectra.ai/api/v3.4/events/entity_scoring", file: fixtures/entity-scoring.json }
+    - { url: "https://example.portal.vectra.ai/api/v3.4/events/audits", query: { limit: "1" }, body: { events: [], next_checkpoint: 34567, remaining_count: 2 } }
+    - { url: "https://example.portal.vectra.ai/api/v3.4/events/audits", query: { from: "34569" }, body: { events: [], next_checkpoint: 34569, remaining_count: 0 } }
+    - { url: "https://example.portal.vectra.ai/api/v3.4/events/audits", file: fixtures/audits.json }
+    - { url: "https://example.portal.vectra.ai/api/v3.4/detections", file: fixtures/detections.json }
+  expect:
+    detection_events: { records: 2, logs: 2, rerun: 0, golden: fixtures/detection_events.expected.json }
+    entity_scoring: { records: 2, logs: 2, rerun: 0, golden: fixtures/entity_scoring.expected.json }
+    audits: { records: 2, logs: 2, rerun: 0, golden: fixtures/audits.expected.json }
+    detections: { records: 2, logs: 2, rerun: 0, golden: fixtures/detections.expected.json }
+    test: { ok: true, message: "2 audit events" }

@@ -1,0 +1,130 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.dns.query.count",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "query_type",
+          "A"
+        ],
+        [
+          "response_code",
+          "NOERROR"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 9123.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "cloudflare.dns.response_time.avg",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "query_type",
+          "A"
+        ],
+        [
+          "response_code",
+          "NOERROR"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 0.41
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "cloudflare.dns.query.count",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "query_type",
+          "AAAA"
+        ],
+        [
+          "response_code",
+          "NXDOMAIN"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 37.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "cloudflare.dns.response_time.avg",
+      "tags": [
+        [
+          "cloudflare_account",
+          "example-shop"
+        ],
+        [
+          "query_type",
+          "AAAA"
+        ],
+        [
+          "response_code",
+          "NXDOMAIN"
+        ],
+        [
+          "zone",
+          "shop.example.com"
+        ],
+        [
+          "zone_id",
+          "023e105f4ecef8ad9ca31a8372d0c353"
+        ]
+      ],
+      "time_ms": 1794311580000,
+      "value": 0.38
+    }
+  ],
+  "state": {
+    "partitions": {
+      "023e105f4ecef8ad9ca31a8372d0c353": {
+        "cursor": 1794311700000
+      }
+    }
+  }
+}

@@ -106,6 +106,10 @@ spec:
             {{- with .Values.selfMonitoring.heartbeatUrl }}
             - { name: OC_HEARTBEAT_URL, value: {{ . | quote }} }
             {{- end }}
+            {{- if or .Values.connectors.configMap .Values.connectors.volume }}
+            # The operator's connector packages (docs/connectors.md).
+            - { name: OC_CONNECTORS_DIR, value: /etc/observecraft/connectors }
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -128,11 +132,21 @@ spec:
             # Archive download cache and search scratch space.
             - { name: data, mountPath: /var/lib/observecraft }
             - { name: tmp, mountPath: /tmp }
+            {{- if or .Values.connectors.configMap .Values.connectors.volume }}
+            - { name: connectors, mountPath: /etc/observecraft/connectors, readOnly: true }
+            {{- end }}
       volumes:
         - name: data
           emptyDir: { sizeLimit: 10Gi }
         - name: tmp
           emptyDir: {}
+        {{- if .Values.connectors.configMap }}
+        - name: connectors
+          configMap: { name: {{ .Values.connectors.configMap | quote }} }
+        {{- else if .Values.connectors.volume }}
+        - name: connectors
+          {{- toYaml .Values.connectors.volume | nindent 10 }}
+        {{- end }}
 ---
 apiVersion: v1
 kind: Service

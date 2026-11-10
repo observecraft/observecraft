@@ -1,0 +1,1134 @@
+[
+  {
+    "id": "cloudflare-overview",
+    "title": "Cloudflare - Overview",
+    "description": "Cloudflare zones' traffic, cache, threats and DNS, Workers invocations and Logpush logs.",
+    "kind": "integration",
+    "logo": "cloudflare",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [],
+    "widgets": [
+      {
+        "id": "cloudflare-1",
+        "definition": {
+          "type": "group",
+          "title": "",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "cloudflare-2",
+              "definition": {
+                "type": "note",
+                "content": "**Cloudflare** serves and protects websites at its edge: CDN, WAF, DNS and Workers. This dashboard shows each zone's requests, cache hit ratio, bandwidth, threats and DNS queries per minute (`cloudflare.*`, from the GraphQL Analytics API), Workers invocations, and the HTTP request logs Logpush sends (source `cloudflare`).\n\nConnect an account in [Integrations → Cloudflare](/integrations/connectors/cloudflare) with an API token that reads zones and analytics.",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "id": "cloudflare-13",
+        "definition": {
+          "type": "group",
+          "title": "Traffic",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "cloudflare-3",
+              "definition": {
+                "type": "integration",
+                "title": "Requests",
+                "original": {
+                  "type": "query_value",
+                  "title": "Requests",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.requests.all{*}.as_count()",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "cloudflare-4",
+              "definition": {
+                "type": "integration",
+                "title": "Cached requests",
+                "original": {
+                  "type": "query_value",
+                  "title": "Cached requests",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.requests.cached{*}.as_count()",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "cloudflare-5",
+              "definition": {
+                "type": "integration",
+                "title": "Threats",
+                "original": {
+                  "type": "query_value",
+                  "title": "Threats",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.threats.all{*}.as_count()",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "cloudflare-6",
+              "definition": {
+                "type": "integration",
+                "title": "Bandwidth",
+                "original": {
+                  "type": "query_value",
+                  "title": "Bandwidth",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.bandwidth.all{*}.as_count()",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">=",
+                          "value": 0,
+                          "palette": "white_on_gray"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 4
+              }
+            },
+            {
+              "id": "cloudflare-7",
+              "definition": {
+                "type": "integration",
+                "title": "Requests by zone",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Requests by zone",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.requests.all{*} by {zone}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-8",
+              "definition": {
+                "type": "integration",
+                "title": "Requests sent to the origin",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Requests sent to the origin",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.requests.uncached{*} by {zone}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 4,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-9",
+              "definition": {
+                "type": "integration",
+                "title": "Bandwidth by zone",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Bandwidth by zone",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.bandwidth.all{*} by {zone}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "area"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 10,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-10",
+              "definition": {
+                "type": "integration",
+                "title": "Threats by zone",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Threats by zone",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.threats.all{*} by {zone}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 10,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-11",
+              "definition": {
+                "type": "integration",
+                "title": "Unique visitors",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Unique visitors",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.uniques.all{*} by {zone}"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 16,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-12",
+              "definition": {
+                "type": "integration",
+                "title": "Page views",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Page views",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.pageviews.all{*} by {zone}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 16,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 25
+        }
+      },
+      {
+        "id": "cloudflare-17",
+        "definition": {
+          "type": "group",
+          "title": "DNS",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "cloudflare-14",
+              "definition": {
+                "type": "integration",
+                "title": "DNS queries by type",
+                "original": {
+                  "type": "timeseries",
+                  "title": "DNS queries by type",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.dns.query.count{*} by {query_type}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-15",
+              "definition": {
+                "type": "integration",
+                "title": "DNS response codes",
+                "original": {
+                  "type": "timeseries",
+                  "title": "DNS response codes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.dns.query.count{*} by {response_code}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-16",
+              "definition": {
+                "type": "integration",
+                "title": "DNS processing time",
+                "original": {
+                  "type": "timeseries",
+                  "title": "DNS processing time",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:cloudflare.dns.response_time.avg{*} by {zone}"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 12,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 31,
+          "w": 12,
+          "h": 15
+        }
+      },
+      {
+        "id": "cloudflare-21",
+        "definition": {
+          "type": "group",
+          "title": "Workers",
+          "color": "green",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "cloudflare-18",
+              "definition": {
+                "type": "integration",
+                "title": "Invocations by Worker",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Invocations by Worker",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.workers.requests{*} by {worker}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-19",
+              "definition": {
+                "type": "integration",
+                "title": "Errors by Worker",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Errors by Worker",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:cloudflare.workers.errors{*} by {worker}.as_count()"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-20",
+              "definition": {
+                "type": "integration",
+                "title": "CPU time p99 (ms)",
+                "original": {
+                  "type": "toplist",
+                  "title": "CPU time p99 (ms)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:cloudflare.workers.cpu_time.p99{*} by {worker}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "dog_classic"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 12,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 46,
+          "w": 12,
+          "h": 15
+        }
+      },
+      {
+        "id": "cloudflare-26",
+        "definition": {
+          "type": "group",
+          "title": "Logpush logs",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "cloudflare-22",
+              "definition": {
+                "type": "integration",
+                "title": "Requests by status code",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Requests by status code",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:cloudflare"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@http.status_code",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-23",
+              "definition": {
+                "type": "integration",
+                "title": "Top paths with errors",
+                "original": {
+                  "type": "toplist",
+                  "title": "Top paths with errors",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:cloudflare status:error"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@http.url_details.path",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "warm"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-24",
+              "definition": {
+                "type": "integration",
+                "title": "Client countries",
+                "original": {
+                  "type": "toplist",
+                  "title": "Client countries",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:cloudflare"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.geoip.country.iso_code",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "dog_classic"
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "cloudflare-25",
+              "definition": {
+                "type": "integration",
+                "title": "Blocked client IPs",
+                "original": {
+                  "type": "toplist",
+                  "title": "Blocked client IPs",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "logs",
+                          "name": "query1",
+                          "search": {
+                            "query": "source:cloudflare @evt.outcome:blocked"
+                          },
+                          "indexes": [
+                            "*"
+                          ],
+                          "compute": {
+                            "aggregation": "count"
+                          },
+                          "group_by": [
+                            {
+                              "facet": "@network.client.ip",
+                              "limit": 10,
+                              "sort": {
+                                "aggregation": "count",
+                                "order": "desc"
+                              }
+                            }
+                          ],
+                          "storage": "hot"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "style": {
+                    "palette": "warm"
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 6,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 61,
+          "w": 12,
+          "h": 15
+        }
+      }
+    ],
+    "source": {
+      "repository": "connector:cloudflare",
+      "path": "assets/dashboards/overview.json",
+      "license": "MIT"
+    }
+  }
+]

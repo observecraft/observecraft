@@ -2,9 +2,22 @@
 // an org once the integration sends data.
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { registerHooks } from 'node:module';
 import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
 import { bannerFor, convertDashboard } from './import-integration-dashboards.mjs';
+
+// The web sources use extensionless relative imports (bundler resolution); resolve them to `.ts` here.
+registerHooks({
+  resolve(specifier, context, next) {
+    try {
+      return next(specifier, context);
+    } catch (err) {
+      if (specifier.startsWith('.')) return next(`${specifier}.ts`, context);
+      throw err;
+    }
+  },
+});
 
 const dir = new URL('../server/seeds/integrations/core/', import.meta.url);
 const bundle = () =>
@@ -157,8 +170,23 @@ test('the units of every integration’s metrics are seeded for the server', () 
 
 test('mock mode carries the dashboards of the integrations it shows installed, with their metrics’ units', () => {
   const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/coreDashboards.generated.json', import.meta.url), 'utf8'));
-  for (const title of ['Postgres - Overview', 'Traefik Mesh Overview', 'Bind9 - Overview', 'Gitea Overview', 'EMQX Overview']) assert.ok(mock.dashboards.some((d) => d.title === title), title);
-  assert.ok(mock.dashboards.length < 50, 'only a few, not the whole bundle');
+  for (const title of [
+    'Postgres - Overview',
+    'Traefik Mesh Overview',
+    'Bind9 - Overview',
+    'Gitea Overview',
+    'EMQX Overview',
+    'Vault - Overview (OpenMetricsV2)',
+    'Gatekeeper Overview',
+    'External Secrets Operator - Overview',
+    'Argo CD Overview',
+    'Cert Manager Overview',
+  ])
+    assert.ok(
+      mock.dashboards.some((d) => d.title === title),
+      title,
+    );
+  assert.ok(mock.dashboards.length < 100, 'only a few, not the whole bundle');
   assert.equal(mock.units['postgresql.replication_delay_bytes'], 'byte');
 });
 

@@ -1,0 +1,147 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Trend Micro Vision One XDR (https://automation.trendmicro.com/xdr/api-v3): Workbench alerts and Observed Attack
+# Techniques, as the logs Datadog's integration sends (source:trend-micro-vision-one-xdr, the record as it is with
+# vendor.endpoint = alerts or observed-attack-techniques). integrations-core's pipeline and the tile's two dashboards
+# read them as they are, so this package ships neither.
+schema_version: 1
+id: trend-micro-vision-one-xdr
+name: Trend Micro Vision One XDR
+publisher: ObserveCraft
+vendor: Trend Micro
+description: >-
+  The Workbench alerts of Trend Micro Vision One (each new alert and each change of its status or findings) and its
+  Observed Attack Techniques events (endpoint, email, network and cloud activity matched to MITRE ATT&CK) as logs,
+  read every 5 minutes from the Vision One API.
+tiles: [trend-micro-vision-one-xdr]
+categories: [Log Collection, Security, SIEM]
+source: trend-micro-vision-one-xdr
+docs_url: https://automation.trendmicro.com/xdr/api-v3
+setup: |
+  1. In Trend Micro Vision One, open **Administration → User Roles** and create a role with the **Workbench → View,
+     filter, and search** and **Observed Attack Techniques → View, filter, and search** permissions (the predefined
+     **SIEM** role has both).
+  2. Open **Administration → API Keys**, **Add API key** with that role, and copy the key; Vision One shows it once.
+  3. Choose the region your Vision One account is in.
+instance: "{{ config.region }}"
+
+config:
+  - key: region
+    label: Region
+    type: select
+    required: true
+    default: api.xdr.trendmicro.com
+    options:
+      - { value: api.xdr.trendmicro.com, label: United States }
+      - { value: api.eu.xdr.trendmicro.com, label: Europe }
+      - { value: api.in.xdr.trendmicro.com, label: India }
+      - { value: api.xdr.trendmicro.co.jp, label: Japan }
+      - { value: api.sg.xdr.trendmicro.com, label: Singapore }
+      - { value: api.au.xdr.trendmicro.com, label: Australia }
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: bearer
+  token: "{{ secrets.api_key }}"
+
+# Vision One limits each API key per minute and answers 429 above it.
+rate_limit: { requests_per_minute: 60 }
+
+# The tile's pipeline maps severities to the log's status the same way.
+tables:
+  severity: { critical: critical, high: warning, medium: notice, low: info, info: debug }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Vision One refused the API key (it may have expired or been disabled)
+  - status: [403]
+    kind: access_denied
+    message: "The API key's role can't read this: give it Workbench and Observed Attack Techniques view permissions"
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Vision One (retry after {{ headers['retry-after'] ?? '?' }}s)"
+
+streams:
+  - id: alerts
+    name: Workbench alerts
+    description: >-
+      One log per Workbench alert and update (vendor.endpoint:alerts): model, severity, score, investigationStatus,
+      investigationResult, impactScope, indicators, matchedRules and workbenchLink, the description as the message.
+    interval: 5m
+    request:
+      url: "https://{{ config.region }}/v3.0/workbench/alerts"
+      # Updated, not created: an alert's status and findings change after it is raised.
+      query:
+        startDateTime: "{{ window.start | rfc3339_s }}"
+        endDateTime: "{{ window.end | rfc3339_s }}"
+        dateTimeTarget: updatedDateTime
+        orderBy: updatedDateTime asc
+    records: "{{ response.items }}"
+    pagination: { kind: next_url, next: "{{ response.nextLink }}" }
+    record_id: "{{ record.id + ':' + record.updatedDateTime }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.updatedDateTime ?? record.createdDateTime }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        status: "{{ tables.severity[record.severity] ?? 'info' }}"
+        message: "{{ record.description ?? record.model }}"
+        date: "{{ record.updatedDateTime ?? record.createdDateTime }}"
+        attributes: "{{ record + {vendor: {endpoint: 'alerts'}} }}"
+
+  - id: observed_attack_techniques
+    name: Observed Attack Techniques
+    description: >-
+      One log per detection (vendor.endpoint:observed-attack-techniques): source, entityType, entityName, filters
+      (name, riskLevel, MITRE tactics and techniques) and detail (process, user, network fields).
+    interval: 5m
+    request:
+      url: "https://{{ config.region }}/v3.0/oat/detections"
+      # Ingested, not detected: endpoints upload their activity late.
+      query:
+        ingestedStartDateTime: "{{ window.start | rfc3339_s }}"
+        ingestedEndDateTime: "{{ window.end | rfc3339_s }}"
+        top: 200
+    records: "{{ response.items }}"
+    pagination: { kind: next_url, next: "{{ response.nextLink }}" }
+    record_id: "{{ record.uuid }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.ingestedDateTime ?? record.detectedDateTime }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+    output:
+      logs:
+        status: "{{ tables.severity[record.detail.filterRiskLevel ?? (record.filters | first).riskLevel] ?? 'info' }}"
+        message: "{{ record | json }}"
+        date: "{{ record.detectedDateTime }}"
+        attributes: "{{ record + {vendor: {endpoint: 'observed-attack-techniques'}} }}"
+
+test:
+  request:
+    url: "https://{{ config.region }}/v3.0/workbench/alerts"
+    query: { startDateTime: "{{ (now - 3600000) | rfc3339_s }}", endDateTime: "{{ now | rfc3339_s }}" }
+  success: "{{ response.items != null }}"
+  message: "Connected: {{ response.totalCount ?? (response.items | len) }} Workbench alerts in the last hour"
+
+mock:
+  config: { region: api.xdr.trendmicro.com }
+  secrets: { api_key: v1-test-key-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.xdr.trendmicro.com/v3.0/workbench/alerts", query: { skipToken: p2 }, file: fixtures/alerts-2.json }
+    - { url: "https://api.xdr.trendmicro.com/v3.0/workbench/alerts", query: { dateTimeTarget: updatedDateTime }, file: fixtures/alerts-1.json }
+    - { url: "https://api.xdr.trendmicro.com/v3.0/workbench/alerts", body: { totalCount: 0, count: 0, items: [] } }
+    - { url: "https://api.xdr.trendmicro.com/v3.0/oat/detections", file: fixtures/oat.json }
+  expect:
+    alerts: { records: 2, logs: 2, rerun: 0, golden: fixtures/alerts.expected.json }
+    observed_attack_techniques: { records: 2, logs: 2, rerun: 0, golden: fixtures/observed_attack_techniques.expected.json }
+    test: { ok: true, message: "0 Workbench alerts" }

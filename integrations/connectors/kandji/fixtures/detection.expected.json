@@ -1,0 +1,112 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c1ac-44c2-7e4a-b61d-c0a06f1a0c19"
+      },
+      "blueprint_id": "41b60000-0000-4000-8000-0000000000b1",
+      "blueprint_name": "Engineering Macs",
+      "bundle_id": "com.google.Chrome",
+      "cve_id": "CVE-2026-0001",
+      "cve_link": "https://nvd.nist.gov/vuln/detail/CVE-2026-0001",
+      "cve_modified_at": "2026-11-02T15:55:41.970000",
+      "cve_published_at": "2026-11-01T17:15:39.940000",
+      "cvss_score": 8.8,
+      "date": "2026-11-09T18:57:34.914031Z",
+      "ddsource": "kandji",
+      "description": "A heap overflow in the example rendering engine allows a crafted page to run code.",
+      "detection_datetime": "2026-11-09T18:57:34.914031Z",
+      "device_id": "1e5e0000-0000-4000-8000-000000000001",
+      "device_model": "MacBook Pro (14-inch, 2024)",
+      "device_name": "Jane's MacBook Pro",
+      "device_os_version": "15.6.1",
+      "device_serial_number": "C02EXAMPLE01",
+      "host": "example.api.kandji.io",
+      "message": "CVE-2026-0001 (High) in Google Chrome 140.0.7339.81 on Jane's MacBook Pro",
+      "name": "Google Chrome",
+      "path": "/Applications/Google Chrome.app",
+      "service": "detection",
+      "severity": "High",
+      "status": "warn",
+      "version": "140.0.7339.81"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1b9ff-ee00-75b0-880c-0372ec88350b"
+      },
+      "blueprint_id": "41b60000-0000-4000-8000-0000000000b1",
+      "blueprint_name": "Engineering Macs",
+      "cve_id": "CVE-2026-0002",
+      "cve_link": "https://nvd.nist.gov/vuln/detail/CVE-2026-0002",
+      "cve_modified_at": "2026-10-21T10:00:00.000000",
+      "cve_published_at": "2026-10-20T10:00:00.000000",
+      "cvss_score": 5.5,
+      "date": "2026-11-08T07:12:00.000000Z",
+      "ddsource": "kandji",
+      "description": "A logic issue lets an app read protected user data.",
+      "detection_datetime": "2026-11-08T07:12:00.000000Z",
+      "device_id": "1e5e0000-0000-4000-8000-000000000002",
+      "device_model": "MacBook Air (13-inch, M3, 2024)",
+      "device_name": "Sam's MacBook Air",
+      "device_os_version": "15.5",
+      "device_serial_number": "C02EXAMPLE02",
+      "host": "example.api.kandji.io",
+      "message": "CVE-2026-0002 (Medium) in macOS 15.5 on Sam's MacBook Air",
+      "name": "macOS",
+      "service": "detection",
+      "severity": "Medium",
+      "status": "info",
+      "version": "15.5"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c2f8-1280-7e24-8290-503a094dc14f"
+      },
+      "blueprint_id": "41b60000-0000-4000-8000-0000000000b1",
+      "blueprint_name": "Engineering Macs",
+      "bundle_id": "com.tinyspeck.slackmacgap",
+      "cve_id": "CVE-2026-0003",
+      "cve_link": "https://nvd.nist.gov/vuln/detail/CVE-2026-0003",
+      "cve_modified_at": "2026-11-06T09:00:00.000000",
+      "cve_published_at": "2026-11-05T09:00:00.000000",
+      "cvss_score": 9.8,
+      "date": "2026-11-10T01:00:00.000000Z",
+      "ddsource": "kandji",
+      "description": "An example remote code execution in a bundled framework.",
+      "detection_datetime": "2026-11-10T01:00:00.000000Z",
+      "device_id": "1e5e0000-0000-4000-8000-000000000002",
+      "device_model": "MacBook Air (13-inch, M3, 2024)",
+      "device_name": "Sam's MacBook Air",
+      "device_os_version": "15.5",
+      "device_serial_number": "C02EXAMPLE02",
+      "host": "example.api.kandji.io",
+      "message": "CVE-2026-0003 (Critical) in Slack 4.41.0 on Sam's MacBook Air",
+      "name": "Slack",
+      "path": "/Applications/Slack.app",
+      "service": "detection",
+      "severity": "Critical",
+      "status": "warn",
+      "version": "4.41.0"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "seen": [
+          {
+            "id": "9e6f948c88843ec9"
+          },
+          {
+            "id": "5cadb184726dc135"
+          },
+          {
+            "id": "b198da72dbe2d27d"
+          }
+        ]
+      }
+    }
+  }
+}

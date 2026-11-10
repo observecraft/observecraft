@@ -1,0 +1,12 @@
+{
+  "data": [
+    {
+      "type": "event", "id": "5g8j000003",
+      "attributes": { "timestamp": 1794309633, "datetime": "2026-11-10T11:20:33+00:00", "uuid": "1fff0000-0000-4000-8000-000000000003",
+        "event_properties": { "$value": 59.9, "OrderId": "ord-1001", "Currency": "USD", "Items": ["Ceramic mug", "Coffee beans 1kg"], "ItemNames": ["Ceramic mug", "Coffee beans 1kg"], "Discount Codes": ["AUTUMN10"], "$event_id": "ord-1001" } },
+      "relationships": { "profile": { "data": { "type": "profile", "id": "01JXEXAMPLEPROFILE00000001" } }, "metric": { "data": { "type": "metric", "id": "PlcOr3" } } },
+      "links": { "self": "https://a.klaviyo.com/api/events/5g8j000003/" }
+    }
+  ],
+  "links": { "self": "https://a.klaviyo.com/api/events/?page%5Bcursor%5D=bmV4dDo6aWQ6OjU", "next": null, "prev": null }
+}

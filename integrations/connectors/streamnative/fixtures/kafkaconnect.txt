@@ -1,0 +1,4 @@
+# TYPE kafka_connect_connector_task_running_ratio gauge
+kafka_connect_connector_task_running_ratio{kubernetes_namespace="example-org",cloud_streamnative_io_pulsar_instance="shop",cloud_streamnative_io_pulsar_cluster="shop-aws-use1",cloud_streamnative_io_pulsar_tenant="public",cloud_streamnative_io_pulsar_component="catalog-jdbc",connector="catalog-jdbc",task="0"} 1
+# TYPE kafka_connect_worker_connector_failed_task_count gauge
+kafka_connect_worker_connector_failed_task_count{kubernetes_namespace="example-org",cloud_streamnative_io_pulsar_instance="shop",cloud_streamnative_io_pulsar_cluster="shop-aws-use1",cloud_streamnative_io_pulsar_tenant="public",cloud_streamnative_io_pulsar_component="catalog-jdbc",connector="catalog-jdbc"} 0

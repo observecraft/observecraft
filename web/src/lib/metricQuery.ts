@@ -39,12 +39,79 @@ export function formulaQueries(q: string): ParsedMetricQuery[] | null {
   return depth === 0 && !expectOperand ? (queries as ParsedMetricQuery[]) : null;
 }
 
+/** Splits on `separator` outside parentheses. */
+function splitTop(text: string, separator: RegExp): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '(') depth++;
+    else if (text[i] === ')') depth--;
+    else if (depth === 0) {
+      const m = separator.exec(text.slice(i));
+      if (m && m.index === 0) {
+        out.push(text.slice(start, i));
+        start = i + m[0].length;
+        i = start - 1;
+      }
+    }
+  }
+  out.push(text.slice(start));
+  return out.map((t) => t.trim()).filter(Boolean);
+}
+
+/**
+ * Datadog's boolean tag filters (`$host AND code:4* OR code:5*`, `env IN (prod, qa)`, `NOT service:billing`) as our
+ * comma-separated filters: AND is a comma, and values one tag may take are `tag:(a OR b)`; OR binds the values of
+ * one tag (it never joins different tags here). Null when an OR joins different tags.
+ */
+function booleanFilters(text: string): string | null {
+  const normalized = text
+    .replace(
+      /([\w.@-]+)\s+NOT\s+IN\s*\(([^()]*)\)/g,
+      (_, k: string, list: string) =>
+        `!${k}:(${list
+          .split(',')
+          .map((v) => v.trim())
+          .filter(Boolean)
+          .join(' OR ')})`,
+    )
+    .replace(
+      /([\w.@-]+)\s+IN\s*\(([^()]*)\)/g,
+      (_, k: string, list: string) =>
+        `${k}:(${list
+          .split(',')
+          .map((v) => v.trim())
+          .filter(Boolean)
+          .join(' OR ')})`,
+    )
+    .replace(/(^|[\s(,])(?:NOT\s+|-)(?=[\w.@$-]+:)/g, '$1!');
+  const out: string[] = [];
+  for (const term of splitTop(normalized, /^(?:\s+AND\s+|\s*,\s*)/)) {
+    const inner = /^\((.*)\)$/.test(term) && !/^[\w.@-]+:\(/.test(term) ? term.slice(1, -1) : term;
+    const operands = splitTop(inner, /^\s+OR\s+/);
+    if (operands.length === 1) {
+      out.push(operands[0]);
+      continue;
+    }
+    // A bare tag in an OR (`status:400 OR s`): no series is tagged that way, so it adds nothing.
+    const pairs = operands.filter((o) => o.includes(':')).map((o) => [o.slice(0, o.indexOf(':')), o.slice(o.indexOf(':') + 1)]);
+    if (!pairs.length || pairs.some(([k]) => k !== pairs[0][0] || k.startsWith('!'))) return null;
+    out.push(`${pairs[0][0]}:(${pairs.map(([, v]) => v.replace(/^\((.*)\)$/, '$1')).join(' OR ')})`);
+  }
+  return out.join(',');
+}
+
+const BOOLEAN = /\s(?:AND|OR|IN)\s|(?:^|[\s,])NOT\s|^\(|[\s,]\(/;
+
 export function parseMetricQuery(q: string): ParsedMetricQuery | null {
   const m = RE.exec(q);
   if (!m) return null;
+  const text = BOOLEAN.test(m[3]) ? booleanFilters(m[3]) : m[3];
+  if (text === null) return null;
   const filters: ParsedMetricQuery['filters'] = [];
   const vars: string[] = [];
-  for (const raw of m[3]
+  for (const raw of text
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)) {
@@ -84,7 +151,7 @@ export function resolveTemplateVars(q: ParsedMetricQuery, values: TemplateVarVal
       if (prefixes[name] === '') {
         const parsed = parseMetricQuery(`avg:scope{${value}}`);
         if (parsed) filters.push(...parsed.filters);
-      } else filters.push({ key: prefixes[name] ?? name, value, negate: false });
+      } else filters.push({ key: (prefixes[name] ?? name).replace(/^@/, ''), value, negate: false });
     }
   }
   return { ...q, filters, vars: [] };
@@ -102,6 +169,58 @@ export function resolveQuery(query: string, tvs: TemplateVariable[], values: Tem
   const vals = Object.fromEntries(tvs.map((t) => [t.name, values[t.name] ?? t.default]));
   const expanded = query.replace(/\$([\w]+)\.value\b/g, (reference, name: string) => vals[name] ?? reference);
   const parsed = parseMetricQuery(expanded);
-  if (!parsed) return expanded;
+  // Not a metric query: a log, signal or event search of an integration panel.
+  if (!parsed) return resolveSearchQuery(expanded, tvs, values, false);
   return formatMetricQuery(resolveTemplateVars(parsed, vals, prefixes));
+}
+
+/**
+ * Applies template variables to a search (logs, signals, events, monitors) as Datadog does: each `$name` the query
+ * writes becomes `prefix:value` where it stands, and is dropped while the variable is `*`. Names may hold dots
+ * (`$logs.request.path`); the longest name that matches wins. Variables the query doesn't name don't apply, unless it
+ * names none and `appendUnnamed`: our own widgets' searches are written without references and take every variable
+ * that is set.
+ */
+export function resolveSearchQuery(query: string, tvs: TemplateVariable[], values: TemplateVarValues, appendUnnamed = true): string {
+  const byName = new Map(tvs.map((t) => [t.name, t]));
+  const names = [...byName.keys()].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  // searchQuery's `quoteValue` (`\` escaped before `"`), kept here: this module loads without runtime imports in node tests.
+  const quote = (v: string) => (/[\s:"()]/.test(v) ? `"${v.replace(/[\\"]/g, '\\$&')}"` : v);
+  const term = (tv: TemplateVariable) => {
+    const value = values[tv.name] ?? tv.default;
+    if (!value || value === '*') return '';
+    return tv.prefix ? `${tv.prefix}:${quote(value)}` : value;
+  };
+  // `$name.value`: the value alone (`host:$host.value`), `*` while unset.
+  const valueOf = names.length ? new RegExp(`\\$(${names.join('|')})\\.value\\b`, 'g') : null;
+  const byValue = !!valueOf?.test(query);
+  if (valueOf) query = query.replace(valueOf, (_, name: string) => quote(values[name] ?? byName.get(name)!.default ?? '*') || '*');
+  // `@$name` reads the variable as an attribute (`@prefix:value`); it goes with the variable while that is `*`.
+  const reference = names.length ? new RegExp(`(@?)\\$(${names.join('|')})(?![\\w.])`, 'g') : null;
+  const named = !!reference?.test(query) || byValue;
+  const resolved = named
+    ? query.replace(reference!, (_, at: string, name: string) => {
+        const t = term(byName.get(name)!);
+        return t && at && !t.startsWith('@') ? `@${t}` : t;
+      })
+    : appendUnnamed
+      ? [query, ...tvs.map(term)].join(' ')
+      : query;
+  return resolved.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * A widget title with the dashboard's variables it names, as Datadog shows them: `$name` as `prefix:value`,
+ * `$name.value` as the value alone, `*` while the variable is unset. Other `$` text stays as written.
+ */
+export function resolveTitle(title: string, tvs: TemplateVariable[], values: TemplateVarValues): string {
+  const byName = new Map(tvs.map((t) => [t.name, t]));
+  const names = [...byName.keys()].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (!names.length) return title;
+  return title.replace(new RegExp(`\\$(${names.join('|')})(\\.value)?(?![\\w.])`, 'g'), (_, name: string, dotValue?: string) => {
+    const tv = byName.get(name)!;
+    const value = values[name] ?? tv.default ?? '*';
+    if (!value || value === '*') return '*';
+    return dotValue || !tv.prefix ? value : `${tv.prefix}:${value}`;
+  });
 }

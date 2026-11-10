@@ -1,0 +1,232 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Cloudflare (https://developers.cloudflare.com/analytics/graphql-api/ and
+# https://developers.cloudflare.com/logs/logpush/logpush-job/enable-destinations/http/): zones' HTTP and DNS
+# analytics (and, with an account id, Workers invocations) read from the GraphQL Analytics API as cloudflare.*
+# metrics, one point per minute, with the names Datadog's Cloudflare integration publishes; logs come only by
+# Logpush, which the page can set up (push below: an HTTP destination on the intake's logs endpoint, source
+# cloudflare, parsed by this package's pipeline). Datadog has no integrations-core tile for it, so the package adds
+# its own tile and dashboard. Metric names follow Datadog's public list and weren't checked against its metadata.
+schema_version: 1
+id: cloudflare
+name: Cloudflare
+publisher: ObserveCraft
+vendor: Cloudflare
+description: >-
+  Cloudflare zones' requests, cached requests, bandwidth, threats, page views, unique visitors and DNS queries per
+  minute, and Workers invocations, read from Cloudflare's GraphQL Analytics API; HTTP request and firewall logs
+  pushed by Logpush.
+logo: cloudflare
+categories: [Network, Caching, Security, Log Collection]
+docs_url: https://developers.cloudflare.com/analytics/graphql-api/
+setup: |
+  1. In the Cloudflare dashboard, open **My Profile → API Tokens → Create Token → Custom token**, e.g.
+     `observecraft`, with **Zone → Zone: Read**, **Zone → Analytics: Read** and, for Workers,
+     **Account → Account Analytics: Read**. To let ObserveCraft create a Logpush job, add **Zone → Logs: Edit**.
+  2. Leave **Zones** empty to read every active zone the token sees.
+links:
+  - { label: API tokens, url: "https://dash.cloudflare.com/profile/api-tokens" }
+instance: "{{ config.account_name }}"
+
+config:
+  - { key: account_name, label: Account name, type: string, required: true, placeholder: example-shop, help: A name for the Cloudflare account (the metrics' cloudflare_account tag). }
+  - { key: api_token, label: API token, type: string, secret: true, required: true }
+  - { key: zones, label: Zones, type: list, pattern: "[0-9a-f]{32}", help: Zone ids to read (default every active zone). }
+  - { key: account_id, label: Account id, type: string, pattern: "[0-9a-f]{32}", help: For Workers analytics. }
+  - { key: logpush_zone_id, label: Logpush zone id, type: string, pattern: "[0-9a-f]{32}", help: The zone whose logs a Logpush job sends (push only). }
+  - key: logpush_dataset
+    label: Logpush dataset
+    type: select
+    default: http_requests
+    options:
+      - { value: http_requests, label: HTTP requests }
+      - { value: firewall_events, label: Firewall events }
+      - { value: dns_logs, label: DNS logs }
+      - { value: nel_reports, label: NEL reports }
+
+auth:
+  kind: bearer
+  token: "{{ secrets.api_token }}"
+
+# 1,200 REST requests per 5 minutes per user; GraphQL 300 queries per 5 minutes.
+rate_limit: { requests_per_minute: 50 }
+
+errors:
+  - status: [400, 401, 403]
+    when: "{{ (response.errors | first).code in [1000, 6003, 9106, 9109, 10000] }}"
+    kind: auth
+    message: "Cloudflare refused the API token ({{ (response.errors | first).message }})"
+  - status: [403]
+    kind: access_denied
+    message: "The token lacks a permission: Zone Read and Analytics Read are needed ({{ (response.errors | first).message ?? 'forbidden' }})"
+  - status: [429]
+    kind: throttled
+    message: Rate limited by Cloudflare
+  # The GraphQL Analytics API answers its errors with HTTP 200 (extensions.code: authz, quota or rate limits).
+  - status: [200]
+    when: >-
+      {{ response.errors | len > 0 && (((response.errors | first).extensions.code ?? '') + ' ' + (response.errors | first).message) | lower | matches('rate.?limit|limit (reached|exceeded)|budget|quota') }}
+    kind: throttled
+    message: "Cloudflare's GraphQL query limit was reached ({{ (response.errors | first).message }})"
+  - status: [200]
+    when: >-
+      {{ response.errors | len > 0 && ((response.errors | first).extensions.code == 'authz' || (response.errors | first).message | lower | contains('does not have access')) }}
+    kind: access_denied
+    message: "Cloudflare refused the analytics query ({{ (response.errors | first).message }}): the token needs Analytics Read, the dataset a plan that includes it"
+  - status: [200]
+    when: "{{ response.errors | len > 0 }}"
+    kind: other
+    message: "Cloudflare's GraphQL API answered: {{ (response.errors | first).message }}"
+
+discover:
+  - name: zones
+    request: { url: "https://api.cloudflare.com/client/v4/zones", query: { status: active, per_page: 50 } }
+    value: "{{ response.result | pluck('id') }}"
+    ttl: 1h
+
+streams:
+  - id: http
+    name: Zone HTTP traffic
+    description: >-
+      Each zone's requests, cached requests, bytes, cached bytes, threats, page views and unique visitors per
+      minute (cloudflare.requests.*, cloudflare.bandwidth.*, cloudflare.threats.all, cloudflare.pageviews.all,
+      cloudflare.uniques.all), tagged zone; read five minutes behind, as Cloudflare settles them.
+    for_each: "{{ config.zones ?? discovery.zones }}"
+    interval: 5m
+    lookups: &zones
+      - { name: zones, request: { url: "https://api.cloudflare.com/client/v4/zones", query: { per_page: 50 } }, records: "{{ response.result }}", key: "{{ record.id }}", value: "{{ record.name }}", ttl: 1h }
+    request:
+      method: POST
+      url: https://api.cloudflare.com/client/v4/graphql
+      body:
+        query: >-
+          query ($zoneTag: string, $from: Time, $to: Time) { viewer { zones(filter: {zoneTag: $zoneTag}) {
+          httpRequests1mGroups(limit: 1000, filter: {datetime_geq: $from, datetime_lt: $to}, orderBy: [datetimeMinute_ASC]) {
+          dimensions { datetimeMinute } sum { requests cachedRequests bytes cachedBytes encryptedRequests threats pageViews } uniq { uniques } } } } }
+        variables: { zoneTag: "{{ item }}", from: "{{ window.start | rfc3339_s }}", to: "{{ window.end | rfc3339_s }}" }
+    records: "{{ (response.data.viewer.zones | first).httpRequests1mGroups }}"
+    record_id: "{{ record.dimensions.datetimeMinute }}"
+    incremental: &minutes { kind: time, record_time: "{{ record.dimensions.datetimeMinute }}", order: oldest_first, lookback: 1h, settle: 5m, max_window: 12h }
+    output:
+      metrics:
+        - { name: cloudflare.requests.all, type: count, value: "{{ record.sum.requests }}", time: "{{ record.dimensions.datetimeMinute }}", unit: request, description: Requests served by the zone., tags: &zone { zone: "{{ lookups.zones[item] ?? item }}", zone_id: "{{ item }}", cloudflare_account: "{{ config.account_name }}" } }
+        - { name: cloudflare.requests.cached, type: count, value: "{{ record.sum.cachedRequests }}", time: "{{ record.dimensions.datetimeMinute }}", unit: request, description: Requests served from Cloudflare's cache., tags: *zone }
+        - { name: cloudflare.requests.uncached, type: count, value: "{{ record.sum.requests - record.sum.cachedRequests }}", time: "{{ record.dimensions.datetimeMinute }}", unit: request, description: Requests sent to the origin., tags: *zone }
+        - { name: cloudflare.requests.encrypted, type: count, value: "{{ record.sum.encryptedRequests }}", time: "{{ record.dimensions.datetimeMinute }}", unit: request, description: Requests over TLS., tags: *zone }
+        - { name: cloudflare.bandwidth.all, type: count, value: "{{ record.sum.bytes }}", time: "{{ record.dimensions.datetimeMinute }}", unit: byte, description: Bytes served by the zone., tags: *zone }
+        - { name: cloudflare.bandwidth.cached, type: count, value: "{{ record.sum.cachedBytes }}", time: "{{ record.dimensions.datetimeMinute }}", unit: byte, description: Bytes served from cache., tags: *zone }
+        - { name: cloudflare.bandwidth.uncached, type: count, value: "{{ record.sum.bytes - record.sum.cachedBytes }}", time: "{{ record.dimensions.datetimeMinute }}", unit: byte, description: Bytes fetched from the origin., tags: *zone }
+        - { name: cloudflare.threats.all, type: count, value: "{{ record.sum.threats }}", time: "{{ record.dimensions.datetimeMinute }}", unit: request, description: Requests Cloudflare classed as threats., tags: *zone }
+        - { name: cloudflare.pageviews.all, type: count, value: "{{ record.sum.pageViews }}", time: "{{ record.dimensions.datetimeMinute }}", unit: page, description: Page views., tags: *zone }
+        - { name: cloudflare.uniques.all, value: "{{ record.uniq.uniques }}", time: "{{ record.dimensions.datetimeMinute }}", unit: visitor, description: Unique visitor IPs in the minute., tags: *zone }
+
+  - id: dns
+    name: Zone DNS queries
+    description: >-
+      Each zone's DNS queries per minute by query type and response code (cloudflare.dns.query.count) and their
+      average processing time (cloudflare.dns.response_time.avg), for zones whose DNS Cloudflare serves.
+    for_each: "{{ config.zones ?? discovery.zones }}"
+    interval: 5m
+    lookups: *zones
+    request:
+      method: POST
+      url: https://api.cloudflare.com/client/v4/graphql
+      body:
+        query: >-
+          query ($zoneTag: string, $from: Time, $to: Time) { viewer { zones(filter: {zoneTag: $zoneTag}) {
+          dnsAnalyticsAdaptiveGroups(limit: 5000, filter: {datetime_geq: $from, datetime_lt: $to}, orderBy: [datetimeMinute_ASC]) {
+          count dimensions { datetimeMinute queryType responseCode } avg { processingTimeUs } } } } }
+        variables: { zoneTag: "{{ item }}", from: "{{ window.start | rfc3339_s }}", to: "{{ window.end | rfc3339_s }}" }
+    records: "{{ (response.data.viewer.zones | first).dnsAnalyticsAdaptiveGroups }}"
+    record_id: "{{ record.dimensions.datetimeMinute + '|' + record.dimensions.queryType + '|' + record.dimensions.responseCode }}"
+    incremental: *minutes
+    output:
+      metrics:
+        - name: cloudflare.dns.query.count
+          type: count
+          value: "{{ record.count }}"
+          time: "{{ record.dimensions.datetimeMinute }}"
+          unit: query
+          description: DNS queries answered.
+          tags: &dns { zone: "{{ lookups.zones[item] ?? item }}", zone_id: "{{ item }}", cloudflare_account: "{{ config.account_name }}", query_type: "{{ record.dimensions.queryType }}", response_code: "{{ record.dimensions.responseCode }}" }
+        - { name: cloudflare.dns.response_time.avg, value: "{{ record.avg.processingTimeUs / 1000 }}", time: "{{ record.dimensions.datetimeMinute }}", unit: millisecond, description: Average time to answer a query., tags: *dns }
+
+  - id: workers
+    name: Workers invocations
+    description: >-
+      The account's Workers' requests, errors and subrequests per minute and script (cloudflare.workers.*) and their
+      CPU time percentiles. Needs the account id and Account Analytics Read.
+    default_enabled: false
+    interval: 5m
+    request:
+      method: POST
+      url: https://api.cloudflare.com/client/v4/graphql
+      body:
+        query: >-
+          query ($accountTag: string, $from: Time, $to: Time) { viewer { accounts(filter: {accountTag: $accountTag}) {
+          workersInvocationsAdaptive(limit: 5000, filter: {datetime_geq: $from, datetime_lt: $to}, orderBy: [datetimeMinute_ASC]) {
+          sum { requests errors subrequests } quantiles { cpuTimeP50 cpuTimeP99 } dimensions { scriptName datetimeMinute } } } } }
+        variables: { accountTag: "{{ config.account_id }}", from: "{{ window.start | rfc3339_s }}", to: "{{ window.end | rfc3339_s }}" }
+    records: "{{ (response.data.viewer.accounts | first).workersInvocationsAdaptive }}"
+    record_id: "{{ record.dimensions.datetimeMinute + '|' + record.dimensions.scriptName }}"
+    incremental: *minutes
+    output:
+      metrics:
+        - { name: cloudflare.workers.requests, type: count, value: "{{ record.sum.requests }}", time: "{{ record.dimensions.datetimeMinute }}", unit: request, description: Worker invocations., tags: &worker { worker: "{{ record.dimensions.scriptName }}", cloudflare_account: "{{ config.account_name }}" } }
+        - { name: cloudflare.workers.errors, type: count, value: "{{ record.sum.errors }}", time: "{{ record.dimensions.datetimeMinute }}", unit: error, description: Invocations that threw., tags: *worker }
+        - { name: cloudflare.workers.subrequests, type: count, value: "{{ record.sum.subrequests }}", time: "{{ record.dimensions.datetimeMinute }}", unit: request, description: Fetches made by the Workers., tags: *worker }
+        - { name: cloudflare.workers.cpu_time.p50, value: "{{ record.quantiles.cpuTimeP50 / 1000 }}", time: "{{ record.dimensions.datetimeMinute }}", unit: millisecond, description: Median CPU time of an invocation., tags: *worker }
+        - { name: cloudflare.workers.cpu_time.p99, value: "{{ record.quantiles.cpuTimeP99 / 1000 }}", time: "{{ record.dimensions.datetimeMinute }}", unit: millisecond, description: 99th percentile CPU time., tags: *worker }
+
+test:
+  request: { url: "https://api.cloudflare.com/client/v4/user/tokens/verify" }
+  success: "{{ response.result.status == 'active' }}"
+  message: "Connected: the token is active{{ ' until ' + response.result.expires_on ?? '' }}"
+  failure: "The token is {{ response.result.status }}"
+
+push:
+  kind: logs
+  instructions: |
+    Cloudflare's logs come by **Logpush** (Enterprise zones for HTTP requests and firewall events). In the Cloudflare
+    dashboard, open the zone's **Analytics & Logs → Logpush → Create a Logpush job**, choose **HTTP destination** and
+    the dataset, and set the destination to
+    `{{ intake }}/api/v2/logs?ddsource={{ source }}&service=cloudflare&header_DD-API-KEY={{ api_key }}`; pick JSON
+    output with RFC 3339 timestamps, sent as a JSON array per batch (output options `batch_prefix` `[`,
+    `record_delimiter` `,`, `batch_suffix` `]`). Or let ObserveCraft create the job, set up that way: enter the zone
+    id and dataset with a token allowed **Logs: Edit**.
+  url: "{{ intake }}/api/v2/logs?ddsource={{ source }}&service=cloudflare&header_DD-API-KEY={{ api_key }}"
+  create:
+    request:
+      method: POST
+      url: "https://api.cloudflare.com/client/v4/zones/{{ config.logpush_zone_id }}/logpush/jobs"
+      body:
+        name: observecraft
+        enabled: true
+        dataset: "{{ config.logpush_dataset }}"
+        destination_conf: "{{ push_url }}"
+        # Each batch as a JSON array (the logs API takes arrays, not newline-delimited lines).
+        output_options: { output_type: ndjson, timestamp_format: rfc3339, field_names: [], batch_prefix: "[", batch_suffix: "]", record_delimiter: "," }
+    message: "Logpush job {{ response.result.id }} created for the {{ response.result.dataset }} dataset"
+    errors:
+      - status: [400, 403]
+        kind: access_denied
+        message: "Cloudflare refused the Logpush job ({{ (response.errors | first).message }}): the token needs Logs Edit on the zone, the dataset an eligible plan"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+  pipeline: assets/logs/pipeline.json
+
+mock:
+  config: { account_name: example-shop, account_id: 0123456789abcdef0123456789abcdef }
+  secrets: { api_token: cf-test-token-0000000000000000000000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.cloudflare.com/client/v4/zones", file: fixtures/zones.json }
+    - { method: POST, url: "https://api.cloudflare.com/client/v4/graphql", body_contains: "httpRequests1mGroups", file: fixtures/http.json }
+    - { method: POST, url: "https://api.cloudflare.com/client/v4/graphql", body_contains: "dnsAnalyticsAdaptiveGroups", file: fixtures/dns.json }
+    - { method: POST, url: "https://api.cloudflare.com/client/v4/graphql", body_contains: "workersInvocationsAdaptive", file: fixtures/workers.json }
+    - { url: "https://api.cloudflare.com/client/v4/user/tokens/verify", body: { success: true, errors: [], messages: [ { code: 10000, message: "This API Token is valid and active" } ], result: { id: ed17574386854bf78a67040be0a770b0, status: active, expires_on: "2027-06-01T00:00:00Z" } } }
+  expect:
+    http: { records: 2, metrics: 20, rerun: 0, golden: fixtures/http.expected.json }
+    dns: { records: 2, metrics: 4, rerun: 0, golden: fixtures/dns.expected.json }
+    workers: { records: 1, metrics: 5, rerun: 0, golden: fixtures/workers.expected.json }
+    test: { ok: true, message: "Connected: the token is active until 2027-06-01T00:00:00Z" }

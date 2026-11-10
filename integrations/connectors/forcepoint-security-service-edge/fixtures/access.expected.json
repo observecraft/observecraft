@@ -1,0 +1,74 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c442-baf0-7043-8752-544aa7ab55c7"
+      },
+      "action": "2FA",
+      "activity": "Login",
+      "application": "Salesforce",
+      "date": 1794294070000,
+      "ddsource": "forcepoint-security-service-edge",
+      "device": "Mac",
+      "deviceguid": "0A1B2C3D-0000-4000-8000-000000000042",
+      "email": "jane.doe@example.com",
+      "host": "portal.bitglass.com",
+      "instancename": "example-shop",
+      "ipaddress": "203.0.113.24",
+      "location": "Berlin, DE",
+      "message": "Salesforce: Login by jane.doe@example.com (2FA)",
+      "orgid": "00D000000000001",
+      "policyid": "300101",
+      "service": "forcepoint-sse-access",
+      "status": "info",
+      "syslogheader": "<110>1 2026-11-10T07:01:10.000000Z api.bitglass.com NILVALUE NILVALUE access",
+      "time": "10 Nov 2026 07:01:10",
+      "transactionid": "c48a0000aa01 [10 Nov 2026 07:01:10]",
+      "url": "example-shop.my.salesforce.com/",
+      "user": "Jane Doe",
+      "useragent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+      "usergroup": "['All Users', 'Storefront']"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c446-1a38-7bd6-964c-2eead6cd9fb6"
+      },
+      "action": "Deny",
+      "activity": "Download",
+      "application": "Salesforce",
+      "date": 1794294291000,
+      "ddsource": "forcepoint-security-service-edge",
+      "device": "Unmanaged",
+      "deviceguid": "0A1B2C3D-0000-4000-8000-000000000042",
+      "dlppattern": "Credit Card Numbers",
+      "email": "sam.lee@example.com",
+      "filename": "orders.csv",
+      "host": "portal.bitglass.com",
+      "instancename": "example-shop",
+      "ipaddress": "198.51.100.77",
+      "location": "Lisbon, PT",
+      "message": "Salesforce: Download by sam.lee@example.com (Deny)",
+      "orgid": "00D000000000001",
+      "policyid": "300101",
+      "service": "forcepoint-sse-access",
+      "status": "warn",
+      "syslogheader": "<110>1 2026-11-10T07:04:51.000000Z api.bitglass.com NILVALUE NILVALUE access",
+      "time": "10 Nov 2026 07:04:51",
+      "transactionid": "c48a0000aa02 [10 Nov 2026 07:04:51]",
+      "url": "example-shop.my.salesforce.com/export/orders.csv",
+      "user": "Sam Lee",
+      "useragent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+      "usergroup": "['All Users', 'Storefront']"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "access-t1"
+      }
+    }
+  }
+}

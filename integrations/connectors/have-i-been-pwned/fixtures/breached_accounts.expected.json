@@ -1,0 +1,193 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "AddedDate": "2026-10-15T10:00:00Z",
+      "BreachDate": "2026-09-01",
+      "DataClasses": [
+        "Email addresses",
+        "Passwords"
+      ],
+      "Description": "In September 2026, the online store Example Shop suffered a data breach that exposed customer email addresses and passwords.",
+      "Domain": "exampleshop.example",
+      "IsFabricated": false,
+      "IsMalware": false,
+      "IsRetired": false,
+      "IsSensitive": false,
+      "IsSpamList": false,
+      "IsStealerLog": false,
+      "IsSubscriptionFree": false,
+      "IsVerified": true,
+      "LogoPath": "https://logos.haveibeenpwned.com/ExampleShop.png",
+      "ModifiedDate": "2026-10-15T10:00:00Z",
+      "Name": "ExampleShop",
+      "PwnCount": 120000,
+      "Title": "Example Shop",
+      "_oc_ingest": {
+        "id": "01a1c554-5200-7fc8-9d33-119bc28759a8"
+      },
+      "date": "2026-11-10T12:00:00.000Z",
+      "ddsource": "have-i-been-pwned",
+      "host": "have-i-been-pwned",
+      "message": "In September 2026, the online store Example Shop suffered a data breach that exposed customer email addresses and passwords.",
+      "service": "breach",
+      "status": "warn",
+      "user_details": {
+        "email_domain": "example.com",
+        "user_name": "jane.doe"
+      },
+      "usr": {
+        "email": "jane.doe@example.com",
+        "name": "jane.doe"
+      }
+    },
+    {
+      "AddedDate": "2026-11-09T08:00:00Z",
+      "BreachDate": "2026-11-01",
+      "DataClasses": [
+        "Email addresses",
+        "IP addresses",
+        "Usernames"
+      ],
+      "Description": "In November 2026, the Example Forum community leaked usernames, email addresses and IP addresses.",
+      "Domain": "forum.example",
+      "IsFabricated": false,
+      "IsMalware": false,
+      "IsRetired": false,
+      "IsSensitive": false,
+      "IsSpamList": false,
+      "IsStealerLog": false,
+      "IsSubscriptionFree": false,
+      "IsVerified": true,
+      "LogoPath": "https://logos.haveibeenpwned.com/ExampleForum.png",
+      "ModifiedDate": "2026-11-09T08:00:00Z",
+      "Name": "ExampleForum",
+      "PwnCount": 5000,
+      "Title": "Example Forum",
+      "_oc_ingest": {
+        "id": "01a1c554-5200-7b95-a9ed-4b39312c6a13"
+      },
+      "date": "2026-11-10T12:00:00.000Z",
+      "ddsource": "have-i-been-pwned",
+      "host": "have-i-been-pwned",
+      "message": "In November 2026, the Example Forum community leaked usernames, email addresses and IP addresses.",
+      "service": "breach",
+      "status": "warn",
+      "user_details": {
+        "email_domain": "example.com",
+        "user_name": "jane.doe"
+      },
+      "usr": {
+        "email": "jane.doe@example.com",
+        "name": "jane.doe"
+      }
+    },
+    {
+      "AddedDate": "2026-10-15T10:00:00Z",
+      "BreachDate": "2026-09-01",
+      "DataClasses": [
+        "Email addresses",
+        "Passwords"
+      ],
+      "Description": "In September 2026, the online store Example Shop suffered a data breach that exposed customer email addresses and passwords.",
+      "Domain": "exampleshop.example",
+      "IsFabricated": false,
+      "IsMalware": false,
+      "IsRetired": false,
+      "IsSensitive": false,
+      "IsSpamList": false,
+      "IsStealerLog": false,
+      "IsSubscriptionFree": false,
+      "IsVerified": true,
+      "LogoPath": "https://logos.haveibeenpwned.com/ExampleShop.png",
+      "ModifiedDate": "2026-10-15T10:00:00Z",
+      "Name": "ExampleShop",
+      "PwnCount": 120000,
+      "Title": "Example Shop",
+      "_oc_ingest": {
+        "id": "01a1c554-5200-7a55-8642-55cb6b0fbb53"
+      },
+      "date": "2026-11-10T12:00:00.000Z",
+      "ddsource": "have-i-been-pwned",
+      "host": "have-i-been-pwned",
+      "message": "In September 2026, the online store Example Shop suffered a data breach that exposed customer email addresses and passwords.",
+      "service": "breach",
+      "status": "warn",
+      "user_details": {
+        "email_domain": "example.com",
+        "user_name": "sam.lee"
+      },
+      "usr": {
+        "email": "sam.lee@example.com",
+        "name": "sam.lee"
+      }
+    },
+    {
+      "AddedDate": "2026-11-09T08:00:00Z",
+      "BreachDate": "2026-11-01",
+      "DataClasses": [
+        "Email addresses",
+        "IP addresses",
+        "Usernames"
+      ],
+      "Description": "In November 2026, the Example Forum community leaked usernames, email addresses and IP addresses.",
+      "Domain": "forum.example",
+      "IsFabricated": false,
+      "IsMalware": false,
+      "IsRetired": false,
+      "IsSensitive": false,
+      "IsSpamList": false,
+      "IsStealerLog": false,
+      "IsSubscriptionFree": false,
+      "IsVerified": true,
+      "LogoPath": "https://logos.haveibeenpwned.com/ExampleForum.png",
+      "ModifiedDate": "2026-11-09T08:00:00Z",
+      "Name": "ExampleForum",
+      "PwnCount": 5000,
+      "Title": "Example Forum",
+      "_oc_ingest": {
+        "id": "01a1c554-5200-755c-ae51-28f42e101eb4"
+      },
+      "date": "2026-11-10T12:00:00.000Z",
+      "ddsource": "have-i-been-pwned",
+      "host": "have-i-been-pwned",
+      "message": "In November 2026, the Example Forum community leaked usernames, email addresses and IP addresses.",
+      "service": "breach",
+      "status": "warn",
+      "user_details": {
+        "email_domain": "shop.example.com",
+        "user_name": "orders"
+      },
+      "usr": {
+        "email": "orders@shop.example.com",
+        "name": "orders"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "example.com": {
+        "seen": [
+          {
+            "id": "128e8a156892e9f6"
+          },
+          {
+            "id": "fa05b2d91de07e7b"
+          },
+          {
+            "id": "6507466ba0a0053f"
+          }
+        ]
+      },
+      "shop.example.com": {
+        "seen": [
+          {
+            "id": "31f06693f17846ba"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4d5-42a8-72ec-8d7e-73890e7ce073"
+      },
+      "attributes": {
+        "datetime": "2026-11-10T09:41:13+00:00",
+        "event_properties": {
+          "$event_id": "1794303673",
+          "$message": "01JXEXAMPLEMSG0001",
+          "Campaign Name": "Autumn catalog 2026",
+          "Email Domain": "example.com",
+          "Subject": "Our autumn catalog is here",
+          "_ip": "203.0.113.80"
+        },
+        "timestamp": 1794303673,
+        "uuid": "1fff0000-0000-4000-8000-000000000001"
+      },
+      "date": "2026-11-10T09:41:13+00:00",
+      "ddsource": "klaviyo",
+      "host": "example-store",
+      "id": "5g8j000001",
+      "links": {
+        "self": "https://a.klaviyo.com/api/events/5g8j000001/"
+      },
+      "message": "Received Email (Autumn catalog 2026)",
+      "metric_name": "Received Email",
+      "profile_id": "01JXEXAMPLEPROFILE00000001",
+      "service": "klaviyo",
+      "status": "info",
+      "type": "event"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e6-7500-7805-aa2b-eaea043c5100"
+      },
+      "attributes": {
+        "datetime": "2026-11-10T10:00:00+00:00",
+        "event_properties": {
+          "$event_id": "1794304800",
+          "Campaign Name": "Autumn catalog 2026",
+          "Client Name": "Apple Mail",
+          "Email Domain": "example.com",
+          "Subject": "Our autumn catalog is here",
+          "_ip": "203.0.113.80"
+        },
+        "timestamp": 1794304800,
+        "uuid": "1fff0000-0000-4000-8000-000000000002"
+      },
+      "date": "2026-11-10T10:00:00+00:00",
+      "ddsource": "klaviyo",
+      "host": "example-store",
+      "id": "5g8j000002",
+      "links": {
+        "self": "https://a.klaviyo.com/api/events/5g8j000002/"
+      },
+      "message": "Opened Email (Autumn catalog 2026)",
+      "metric_name": "Opened Email",
+      "profile_id": "01JXEXAMPLEPROFILE00000001",
+      "service": "klaviyo",
+      "status": "info",
+      "type": "event"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c530-33e8-7652-b87d-913bf57d27d1"
+      },
+      "attributes": {
+        "datetime": "2026-11-10T11:20:33+00:00",
+        "event_properties": {
+          "$event_id": "ord-1001",
+          "$value": 59.9,
+          "Currency": "USD",
+          "Discount Codes": [
+            "AUTUMN10"
+          ],
+          "ItemNames": [
+            "Ceramic mug",
+            "Coffee beans 1kg"
+          ],
+          "Items": [
+            "Ceramic mug",
+            "Coffee beans 1kg"
+          ],
+          "OrderId": "ord-1001"
+        },
+        "timestamp": 1794309633,
+        "uuid": "1fff0000-0000-4000-8000-000000000003"
+      },
+      "date": "2026-11-10T11:20:33+00:00",
+      "ddsource": "klaviyo",
+      "host": "example-store",
+      "id": "5g8j000003",
+      "links": {
+        "self": "https://a.klaviyo.com/api/events/5g8j000003/"
+      },
+      "message": "Placed Order",
+      "metric_name": "Placed Order",
+      "profile_id": "01JXEXAMPLEPROFILE00000001",
+      "service": "klaviyo",
+      "status": "info",
+      "type": "event"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000,
+        "seen": [
+          {
+            "id": "6812c42933ec7ec2",
+            "t": 1794309633000
+          }
+        ]
+      }
+    }
+  }
+}

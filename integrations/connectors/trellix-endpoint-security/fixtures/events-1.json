@@ -1,0 +1,62 @@
+{
+  "data": [
+    {
+      "type": "MVEvents",
+      "id": "7d1e0000-0000-4000-8000-000000000001",
+      "links": { "self": "/epo/v2/events/7d1e0000-0000-4000-8000-000000000001" },
+      "attributes": {
+        "timestamp": "2026-11-10T08:12:40.118Z",
+        "detectedutc": "1794298300000",
+        "receivedutc": "1794298360118",
+        "threateventid": 1278,
+        "threatname": "EICAR test file",
+        "threattype": "test",
+        "threatcategory": "av.detect",
+        "threatseverity": "2",
+        "threatactiontaken": "deleted",
+        "threathandled": true,
+        "analyzer": "ENDP_AM_1070",
+        "analyzername": "Trellix Endpoint Security",
+        "analyzerversion": "10.7.0.6711",
+        "analyzerdetectionmethod": "On-Access Scan",
+        "analyzerhostname": "i-0a1b2c3d4e5f60001",
+        "analyzeripv4": "10.0.11.20",
+        "targethostname": "i-0a1b2c3d4e5f60001",
+        "targetusername": "svc-orders",
+        "targetfilename": "C:\\Users\\svc-orders\\Downloads\\eicar.com",
+        "sourceprocessname": "msedge.exe",
+        "sourceipv4": "10.0.11.20",
+        "agentguid": "b1c2d3e4-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "type": "MVEvents",
+      "id": "7d1e0000-0000-4000-8000-000000000002",
+      "links": { "self": "/epo/v2/events/7d1e0000-0000-4000-8000-000000000002" },
+      "attributes": {
+        "timestamp": "2026-11-10T09:45:10.512Z",
+        "detectedutc": "1794303850000",
+        "receivedutc": "1794303910512",
+        "threateventid": 18602,
+        "threatname": "Blocked connection to known malicious site",
+        "threattype": "IDS_THREAT_TYPE_VALUE_FW",
+        "threatcategory": "fw.detect",
+        "threatseverity": "3",
+        "threatactiontaken": "blocked",
+        "threathandled": true,
+        "analyzer": "ENDP_FW_1070",
+        "analyzername": "Trellix Endpoint Security",
+        "analyzerversion": "10.7.0.6711",
+        "analyzerdetectionmethod": "Firewall",
+        "analyzerhostname": "i-0a1b2c3d4e5f60002",
+        "analyzeripv4": "10.0.12.34",
+        "sourceipv4": "10.0.12.34",
+        "targetipv4": "198.51.100.77",
+        "targetport": "443",
+        "targetusername": "build-agent",
+        "agentguid": "b1c2d3e4-0000-4000-8000-000000000002"
+      }
+    }
+  ],
+  "links": { "next": "/epo/v2/events?page[limit]=1000&page[cursor]=7d1e0000-0000-4000-8000-000000000002_:_2026-11-10T09:45:10.512Z&sort=timestamp" }
+}

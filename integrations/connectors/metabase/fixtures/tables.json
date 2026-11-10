@@ -1,0 +1,48 @@
+{
+ "data": {
+  "rows": [
+   [
+    5,
+    "table_5",
+    "orders",
+    "Orders",
+    "One row per order placed on the storefront.",
+    1
+   ]
+  ],
+  "cols": [
+   {
+    "name": "entity_id",
+    "display_name": "Entity Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "entity_qualified_id",
+    "display_name": "Entity Qualified Id",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "name",
+    "display_name": "Name",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "display_name",
+    "display_name": "Display Name",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "description",
+    "display_name": "Description",
+    "base_type": "type/Text"
+   },
+   {
+    "name": "database_id",
+    "display_name": "Database Id",
+    "base_type": "type/Text"
+   }
+  ]
+ },
+ "row_count": 1,
+ "status": "completed"
+}

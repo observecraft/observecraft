@@ -1,0 +1,7 @@
+{
+  "results": [
+    { "id": "3959685975", "loginAt": "2026-11-09T18:20:00.000Z", "userId": 70700061, "email": "jane@example.com", "loginSucceeded": true, "ipAddress": "203.0.113.24", "location": "berlin, germany", "countryCode": "de", "regionCode": "be", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36" },
+    { "id": "3959685974", "loginAt": "2026-11-08T09:00:00.000Z", "userId": 70700058, "email": "sam@example.com", "loginSucceeded": true, "ipAddress": "198.51.100.23", "location": "lisbon, portugal", "countryCode": "pt", "regionCode": "11", "userAgent": "Mozilla/5.0" }
+  ],
+  "paging": { "next": { "after": "MjAyNi0xMS0wOA", "link": "https://api.hubapi.com/account-info/v3/activity/login?after=MjAyNi0xMS0wOA" } }
+}

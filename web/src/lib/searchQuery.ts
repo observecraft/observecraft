@@ -5,20 +5,25 @@
 //   @http.status_code:5*          event attribute (dotted path)
 //   -status:info                  negation
 //   "bad response"  timeout       free text on the message
+//   (@a:x OR @b:y)                any of several searches (log searches: `parseSearch`)
 // Terms are ANDed. This module only parses/edits queries; evaluation is the backend's job
 // (see api/mock/match.ts for the mock's evaluator).
 
-export type Term =
-  | { kind: 'tag'; key: string; values: string[]; negate: boolean }
-  | { kind: 'text'; text: string; negate: boolean };
+export type Term = { kind: 'tag'; key: string; values: string[]; negate: boolean } | { kind: 'text'; text: string; negate: boolean };
 
-/** Splits on whitespace, keeping quoted strings and parenthesised groups intact. */
+/** Splits on whitespace, keeping quoted strings (with their escaped `\"` and `\\`) and parenthesised groups intact. */
 export function tokenize(q: string): string[] {
   const out: string[] = [];
   let cur = '';
   let depth = 0;
   let quoted = false;
-  for (const ch of q) {
+  const chars = [...q];
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i];
+    if (quoted && ch === '\\' && i + 1 < chars.length) {
+      cur += ch + chars[++i];
+      continue;
+    }
     if (ch === '"') quoted = !quoted;
     else if (!quoted && ch === '(') depth++;
     else if (!quoted && ch === ')') depth = Math.max(0, depth - 1);
@@ -33,8 +38,15 @@ export function tokenize(q: string): string[] {
   return out;
 }
 
+/** A value's inside between quotes: its `\` and `"` escaped (Datadog's syntax). */
+export const escapeQuoted = (v: string): string => v.replace(/[\\"]/g, '\\$&');
+
+/** A search value: quoted (see [`escapeQuoted`]) when it holds spaces, colons, quotes or parentheses. */
+export const quoteValue = (v: string): string => (/[\s:"()]/.test(v) ? `"${escapeQuoted(v)}"` : v);
+
+/** A value as written: without its quotes, `\"` and `\\` inside them decoded (Datadog's escapes). */
 function unquote(s: string): string {
-  return s.length >= 2 && s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1) : s;
+  return s.length >= 2 && s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1).replace(/\\(["\\])/g, '$1') : s;
 }
 
 export function parseTerm(token: string): Term {
@@ -66,8 +78,32 @@ export function parseQuery(q: string): Term[] {
     .map(parseTerm);
 }
 
+/** A term of a log search: also `(a OR b)` groups, any of whose searches matches (each one's terms ANDed). */
+export type SearchTerm = Term | { kind: 'any'; alternatives: SearchTerm[][]; negate: boolean };
+
+/** [`parseQuery`] with groups across attributes (`(@warning:true OR @warned:true)`), as the server's log search reads them. */
+export function parseSearch(q: string): SearchTerm[] {
+  return tokenize(q)
+    .filter((t) => t !== 'AND')
+    .map((token): SearchTerm => {
+      const negate = token.length > 1 && token.startsWith('-');
+      const s = negate ? token.slice(1) : token;
+      if (s.length > 2 && s.startsWith('(') && s.endsWith(')')) {
+        // The group's inside, split on its top-level ORs (tokens keep nested groups and quotes whole).
+        const parts: string[][] = [[]];
+        for (const tok of tokenize(s.slice(1, -1))) {
+          if (/^or$/i.test(tok)) parts.push([]);
+          else parts[parts.length - 1].push(tok);
+        }
+        const alternatives = parts.map((p) => parseSearch(p.join(' '))).filter((a) => a.length > 0);
+        if (alternatives.length > 0) return { kind: 'any', alternatives, negate };
+      }
+      return parseTerm(token);
+    });
+}
+
 function formatValue(v: string): string {
-  return /[\s()"]/.test(v) ? `"${v}"` : v;
+  return /[\s()"]/.test(v) ? `"${escapeQuoted(v)}"` : v;
 }
 
 export function formatTerm(t: Term): string {

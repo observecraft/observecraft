@@ -1,0 +1,47 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c529-5230-7342-8717-f142d742c941"
+      },
+      "action": "hold",
+      "date": 1794309182000,
+      "ddsource": "mimecast",
+      "definition": "Impersonation Hold",
+      "eventTime": "2026-11-10T11:13:02+0000",
+      "hits": 2,
+      "host": "0a1b2c3d-0000-4000-8000-000000000001",
+      "id": "MTOKEN:eNqrVkouLS7Jz00tSs5PSVWyUnIODXY0tnA0MjJX0lHKTFGyMjUyNLSwMNJRKkstKs7Mz1OyMtRRKskDKz0001",
+      "identifiers": [
+        "similar_internal_domain",
+        "newly_observed_domain"
+      ],
+      "impersonationResults": [
+        {
+          "impersonationDomainSource": "similar_internal_domain",
+          "stringSimilarToDomain": "example.com"
+        }
+      ],
+      "message": "Impersonation hold: ceo@examp1e.com to finance@example.com (similar_internal_domain, newly_observed_domain)",
+      "messageId": "<20261110111302.0001@examp1e.com>",
+      "recipientAddress": "finance@example.com",
+      "senderAddress": "ceo@examp1e.com",
+      "senderIpAddress": "192.0.2.77",
+      "service": "ttp-impersonation",
+      "status": "warn",
+      "subject": "Urgent wire transfer",
+      "taggedExternal": true,
+      "taggedMalicious": true
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311880000
+      }
+    }
+  }
+}

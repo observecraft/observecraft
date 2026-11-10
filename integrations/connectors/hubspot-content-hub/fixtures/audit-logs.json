@@ -1,0 +1,6 @@
+{
+  "results": [
+    { "id": "Ij8+eTA9MV8ZVkZUAfREhSRV1EGVhdSlFIQBtYMDc3bDUwIERFGkFQWkVVRxpdXUx2", "category": "CONTENT", "subCategory": "BLOG", "action": "UPDATE", "targetObjectId": "178046197799", "occurredAt": "2026-11-10T10:41:07.311Z", "actingUser": { "userId": 70700061, "userEmail": "jane@example.com" } },
+    { "id": "LT83ZDteVkseUUdWEQUSg1", "category": "LOGIN", "subCategory": "LOGIN_SUCCEEDED", "action": "PERFORM", "targetObjectId": "1", "occurredAt": "2026-11-10T08:12:47.868Z", "actingUser": { "userId": 70700058, "userEmail": "sam@example.com" } }
+  ]
+}

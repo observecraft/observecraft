@@ -1,0 +1,8 @@
+{
+  "offset": 0, "total": 2,
+  "totals": { "visits": 1530 },
+  "breakdowns": [
+    { "breakdown": "us", "visits": 1100, "visitors": 870, "rawViews": 2600, "bounces": 470, "bounceRate": 0.4273, "time": 70011, "timePerSession": 63.65, "pageviewsPerSession": 2.36, "newVisitorSessionRate": 0.76 },
+    { "breakdown": "de", "visits": 430, "visitors": 334, "rawViews": 998, "bounces": 219, "bounceRate": 0.5093, "time": 21146, "timePerSession": 49.18, "pageviewsPerSession": 2.32, "newVisitorSessionRate": 0.77 }
+  ]
+}

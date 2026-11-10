@@ -1,0 +1,8 @@
+# TYPE pulsar_source_received_total counter
+pulsar_source_received_total{kubernetes_namespace="example-org",cloud_streamnative_io_pulsar_instance="shop",pulsar_component="inventory-cdc"} 98231
+# TYPE pulsar_source_written_total counter
+pulsar_source_written_total{kubernetes_namespace="example-org",cloud_streamnative_io_pulsar_instance="shop",pulsar_component="inventory-cdc"} 98230
+# TYPE pulsar_source_source_exceptions_total counter
+pulsar_source_source_exceptions_total{kubernetes_namespace="example-org",cloud_streamnative_io_pulsar_instance="shop",pulsar_component="inventory-cdc"} 1
+# TYPE pulsar_source_received_total_created gauge
+pulsar_source_received_created{kubernetes_namespace="example-org",cloud_streamnative_io_pulsar_instance="shop",pulsar_component="inventory-cdc"} 1794000000

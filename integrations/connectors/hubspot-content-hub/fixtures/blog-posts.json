@@ -1,0 +1,7 @@
+{
+  "offset": 0, "total": 1,
+  "totals": { "rawViews": 455 },
+  "breakdowns": [
+    { "breakdown": "178046197799", "title": "Choosing the right running shoes", "rawViews": 455, "standardViews": 441, "entrances": 390, "exits": 360, "exitsPerPageview": 0.7912, "pageBounces": 280, "pageBounceRate": 0.7179, "pageTime": 61210, "timePerPageview": 134.53, "newVisitorRawViews": 402 }
+  ]
+}

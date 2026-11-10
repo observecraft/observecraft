@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Modal (https://modal.com/docs/guide/otel-integration): push-only. Modal has no API to read logs or metrics back; its
+# OpenTelemetry integration pushes a workspace's Function logs, audit logs and container metrics over OTLP/HTTP
+# (protobuf) to a provider's base URL with headers from a Modal Secret (`OTEL_HEADER_<name>`). The metric names it
+# lists are the modal.* ones of Datadog's Modal integration (metadata.csv), so the tile's dashboard reads them.
+# Modal takes only a base URL (it appends /v1/logs itself), so `?ddsource=modal` can't be carried; the secret's
+# `OTEL_HEADER_X-OC-Source` / `OTEL_HEADER_X-OC-Service` headers name them instead, which the intake applies to every
+# record without its own, so integrations-extras' Modal pipeline (filter source:modal) and facets match.
+schema_version: 1
+id: modal
+name: Modal
+publisher: ObserveCraft
+vendor: Modal Labs
+description: >-
+  A Modal workspace's Function logs, audit logs and container metrics (CPU, memory, GPUs, containers, inputs), pushed
+  by Modal's OpenTelemetry integration.
+tiles: [modal]
+categories: [Cloud, AI/ML, Metrics, Log Collection]
+source: modal
+docs_url: https://modal.com/docs/guide/otel-integration
+
+push:
+  kind: otlp
+  url: "{{ intake }}"
+  headers: { DD-API-KEY: "{{ api_key }}", X-OC-Source: "{{ source }}", X-OC-Service: modal }
+  instructions: |
+    1. In Modal, open **Secrets → Create new secret → Custom** and add three keys: `OTEL_HEADER_DD-API-KEY` with the
+       value `{{ api_key }}`, `OTEL_HEADER_X-OC-Source` with `{{ source }}` and `OTEL_HEADER_X-OC-Service` with `modal`
+       (the logs' source and service, so the Modal pipeline reads them). Name the secret, e.g. `observecraft-otel`.
+    2. Open [Settings → Metrics](https://modal.com/settings/metrics), choose **OpenTelemetry**, enter the push URL
+       `{{ intake }}` (the base URL: Modal adds `/v1/logs` and `/v1/metrics`) and pick the secret from step 1.
+    3. **Test** the connection: a test log appears in Logs, then Function logs, audit logs and the `modal.*` metrics
+       (tagged app_name, function_name, environment_name, workspace_name, container_id) every minute.

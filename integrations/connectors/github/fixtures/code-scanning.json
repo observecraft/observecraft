@@ -1,0 +1,9 @@
+[
+  { "number": 42, "state": "open", "created_at": "2026-11-01T10:00:00Z", "updated_at": "2026-11-09T10:12:00Z", "html_url": "https://github.com/example-org/order-service/security/code-scanning/42",
+    "rule": { "id": "js/sql-injection", "severity": "error", "security_severity_level": "high", "description": "Database query built from user-controlled sources" },
+    "tool": { "name": "CodeQL", "version": "2.23.0" }, "most_recent_instance": { "ref": "refs/heads/main", "state": "open" },
+    "repository": { "id": 70002, "name": "order-service", "full_name": "example-org/order-service" } },
+  { "number": 7, "state": "open", "created_at": "2026-10-20T08:00:00Z", "updated_at": "2026-10-20T08:00:00Z", "html_url": "https://github.com/example-org/storefront-api/security/code-scanning/7",
+    "rule": { "id": "js/missing-rate-limiting", "severity": "warning", "security_severity_level": "medium" }, "tool": { "name": "CodeQL" },
+    "repository": { "id": 70003, "name": "storefront-api", "full_name": "example-org/storefront-api" } }
+]

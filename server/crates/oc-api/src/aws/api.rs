@@ -14,6 +14,8 @@ use aws_sdk_cloudwatch::primitives::DateTime;
 use aws_sdk_cloudwatch::types::{Dimension, Metric, MetricDataQuery, MetricStat, RecentlyActive, ScanBy};
 use tokio::sync::Mutex;
 
+use super::naming;
+
 /// Who to call and how: the account (its partition and id), the region and the credentials.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Target {
@@ -40,7 +42,7 @@ pub struct MetricId {
 /// The values of one metric and statistic.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Series {
-    /// Index into the metrics asked for.
+    /// Index into the queries asked for.
     pub metric: usize,
     pub points: Vec<(i64, f64)>,
 }
@@ -91,10 +93,16 @@ pub fn classify(code: Option<&str>, message: &str) -> AwsError {
 pub trait AwsApi: Send + Sync {
     /// Metrics with data in the last 3 hours.
     async fn list_metrics(&self, target: &Target) -> Result<Vec<MetricId>, AwsError>;
-    /// One statistic of `metrics` (at most 500) over `[start_ms, end_ms)`, `period` seconds apart.
-    async fn get_metric_data(&self, target: &Target, metrics: &[MetricId], stat: &str, start_ms: i64, end_ms: i64, period: i32) -> Result<Vec<Series>, AwsError>;
+    /// Every metric of a namespace, recently active or not (daily metrics may have no point in the last 3 hours).
+    async fn list_namespace_metrics(&self, target: &Target, namespace: &str) -> Result<Vec<MetricId>, AwsError>;
+    /// Each query's metric and statistic (`Average`, `Sum`, …, or an extended statistic such as `p95`; at most 500
+    /// queries) over `[start_ms, end_ms)`, `period` seconds apart. [`Series::metric`] indexes the queries.
+    async fn get_metric_data(&self, target: &Target, queries: &[(MetricId, String)], start_ms: i64, end_ms: i64, period: i32) -> Result<Vec<Series>, AwsError>;
     /// Every tagged resource of the region: ARN → `key:value` tags.
     async fn resource_tags(&self, target: &Target) -> Result<HashMap<String, Vec<String>>, AwsError>;
+    /// One of [`super::naming::LOOKUPS`] in the region: REST APIs' ids by name, RDS proxies' and DMS replication
+    /// instances' ARNs by name, WAF Classic web ACLs' ARNs by metric name (`webacls`: CloudFront's, global).
+    async fn resource_ids(&self, target: &Target, lookup: &str) -> Result<HashMap<String, String>, AwsError>;
 }
 
 /// The AWS SDK. Clients are kept per account and region (their credentials are cached and renewed
@@ -109,6 +117,12 @@ struct Clients {
     cloudwatch: aws_sdk_cloudwatch::Client,
     tagging: aws_sdk_resourcegroupstagging::Client,
     s3: aws_sdk_s3::Client,
+    apigateway: aws_sdk_apigateway::Client,
+    rds: aws_sdk_rds::Client,
+    dms: aws_sdk_databasemigration::Client,
+    /// WAF Classic: CloudFront's web ACLs (global, us-east-1) and the region's.
+    waf: aws_sdk_waf::Client,
+    waf_regional: aws_sdk_wafregional::Client,
 }
 
 const CLIENT_TTL: Duration = Duration::from_secs(3600);
@@ -149,7 +163,16 @@ impl Sdk {
                 builder.credentials_provider(aws_sdk_cloudwatch::config::SharedCredentialsProvider::new(creds)).build()
             }
         };
-        let clients = Clients { cloudwatch: aws_sdk_cloudwatch::Client::new(&config), tagging: aws_sdk_resourcegroupstagging::Client::new(&config), s3: aws_sdk_s3::Client::new(&config) };
+        let clients = Clients {
+            cloudwatch: aws_sdk_cloudwatch::Client::new(&config),
+            tagging: aws_sdk_resourcegroupstagging::Client::new(&config),
+            s3: aws_sdk_s3::Client::new(&config),
+            apigateway: aws_sdk_apigateway::Client::new(&config),
+            rds: aws_sdk_rds::Client::new(&config),
+            dms: aws_sdk_databasemigration::Client::new(&config),
+            waf: aws_sdk_waf::Client::from_conf(aws_sdk_waf::config::Builder::from(&config).region(Region::new("us-east-1")).build()),
+            waf_regional: aws_sdk_wafregional::Client::new(&config),
+        };
         cache.insert(target.clone(), (clients.clone(), Instant::now()));
         clients
     }
@@ -179,30 +202,40 @@ fn dimensions(m: &MetricId) -> Vec<Dimension> {
     m.dimensions.iter().map(|(k, v)| Dimension::builder().name(k).value(v).build()).collect()
 }
 
+/// Every page of a ListMetrics call.
+async fn listed(request: aws_sdk_cloudwatch::operation::list_metrics::builders::ListMetricsFluentBuilder) -> Result<Vec<MetricId>, AwsError> {
+    let mut pages = request.into_paginator().send();
+    let mut out = vec![];
+    while let Some(page) = pages.next().await {
+        for m in page.map_err(sdk_error)?.metrics() {
+            let (Some(namespace), Some(name)) = (m.namespace(), m.metric_name()) else { continue };
+            let mut dimensions: Vec<(String, String)> = m.dimensions().iter().filter_map(|d| Some((d.name()?.to_string(), d.value()?.to_string()))).collect();
+            dimensions.sort();
+            out.push(MetricId { namespace: namespace.to_string(), name: name.to_string(), dimensions });
+        }
+    }
+    Ok(out)
+}
+
 #[async_trait::async_trait]
 impl AwsApi for Sdk {
     async fn list_metrics(&self, target: &Target) -> Result<Vec<MetricId>, AwsError> {
         let client = self.clients(target).await.cloudwatch;
-        let mut pages = client.list_metrics().recently_active(RecentlyActive::Pt3H).into_paginator().send();
-        let mut out = vec![];
-        while let Some(page) = pages.next().await {
-            for m in page.map_err(sdk_error)?.metrics() {
-                let (Some(namespace), Some(name)) = (m.namespace(), m.metric_name()) else { continue };
-                let mut dimensions: Vec<(String, String)> = m.dimensions().iter().filter_map(|d| Some((d.name()?.to_string(), d.value()?.to_string()))).collect();
-                dimensions.sort();
-                out.push(MetricId { namespace: namespace.to_string(), name: name.to_string(), dimensions });
-            }
-        }
-        Ok(out)
+        listed(client.list_metrics().recently_active(RecentlyActive::Pt3H)).await
     }
 
-    async fn get_metric_data(&self, target: &Target, metrics: &[MetricId], stat: &str, start_ms: i64, end_ms: i64, period: i32) -> Result<Vec<Series>, AwsError> {
+    async fn list_namespace_metrics(&self, target: &Target, namespace: &str) -> Result<Vec<MetricId>, AwsError> {
         let client = self.clients(target).await.cloudwatch;
-        let queries: Vec<MetricDataQuery> = metrics
+        listed(client.list_metrics().namespace(namespace)).await
+    }
+
+    async fn get_metric_data(&self, target: &Target, queries: &[(MetricId, String)], start_ms: i64, end_ms: i64, period: i32) -> Result<Vec<Series>, AwsError> {
+        let client = self.clients(target).await.cloudwatch;
+        let queries: Vec<MetricDataQuery> = queries
             .iter()
             .enumerate()
-            .map(|(i, m)| {
-                let metric = Metric::builder().namespace(&m.namespace).metric_name(&m.name).set_dimensions(Some(dimensions(m))).build();
+            .map(|(i, (m, stat))| {
+                let metric = Metric::builder().namespace(naming::cloudwatch_namespace(&m.namespace)).metric_name(&m.name).set_dimensions(Some(dimensions(m))).build();
                 MetricDataQuery::builder().id(format!("m{i}")).metric_stat(MetricStat::builder().metric(metric).period(period).stat(stat).build()).return_data(true).build()
             })
             .collect();
@@ -245,6 +278,66 @@ impl AwsApi for Sdk {
                 let Some(arn) = r.resource_arn() else { continue };
                 out.insert(arn.to_string(), r.tags().iter().map(|t| format!("{}:{}", t.key(), t.value())).collect());
             }
+        }
+        Ok(out)
+    }
+
+    async fn resource_ids(&self, target: &Target, lookup: &str) -> Result<HashMap<String, String>, AwsError> {
+        self.lookup(target, lookup).await
+    }
+}
+
+/// A WAF Classic client's web ACLs (`waf` or `waf-regional`): metric name → ARN, from ListWebACLs and GetWebACL.
+macro_rules! web_acls {
+    ($client:expr, $out:expr) => {{
+        let mut marker: Option<String> = None;
+        loop {
+            let page = $client.list_web_acls().limit(100).set_next_marker(marker.take()).send().await.map_err(sdk_error)?;
+            for summary in page.web_acls() {
+                let acl = $client.get_web_acl().web_acl_id(summary.web_acl_id()).send().await.map_err(sdk_error)?;
+                if let Some((metric, arn)) = acl.web_acl().and_then(|a| Some((a.metric_name()?, a.web_acl_arn()?))) {
+                    $out.insert(metric.to_string(), arn.to_string());
+                }
+            }
+            match page.next_marker() {
+                Some(next) if !page.web_acls().is_empty() => marker = Some(next.to_string()),
+                _ => break,
+            }
+        }
+    }};
+}
+
+impl Sdk {
+    async fn lookup(&self, target: &Target, lookup: &str) -> Result<HashMap<String, String>, AwsError> {
+        let c = self.clients(target).await;
+        let mut out = HashMap::new();
+        let mut keep = |name: Option<&str>, id: Option<&str>| {
+            if let (Some(name), Some(id)) = (name, id) {
+                out.entry(name.to_string()).or_insert_with(|| id.to_string());
+            }
+        };
+        match lookup {
+            "restapis" => {
+                let mut pages = c.apigateway.get_rest_apis().limit(500).into_paginator().send();
+                while let Some(page) = pages.next().await {
+                    page.map_err(sdk_error)?.items().iter().for_each(|a| keep(a.name(), a.id()));
+                }
+            }
+            "dbproxies" => {
+                let mut pages = c.rds.describe_db_proxies().into_paginator().send();
+                while let Some(page) = pages.next().await {
+                    page.map_err(sdk_error)?.db_proxies().iter().for_each(|p| keep(p.db_proxy_name(), p.db_proxy_arn()));
+                }
+            }
+            "replicationinstances" => {
+                let mut pages = c.dms.describe_replication_instances().into_paginator().send();
+                while let Some(page) = pages.next().await {
+                    page.map_err(sdk_error)?.replication_instances().iter().for_each(|r| keep(r.replication_instance_identifier(), r.replication_instance_arn()));
+                }
+            }
+            "webacls" => web_acls!(c.waf, out),
+            "regionalwebacls" => web_acls!(c.waf_regional, out),
+            other => return Err(AwsError::Other(format!("unknown resource lookup {other}"))),
         }
         Ok(out)
     }
@@ -375,7 +468,9 @@ mod tests {
             let mine: Vec<MetricId> = metrics.into_iter().filter(|m| m.dimensions == [("InstanceId".to_string(), instance.clone())]).collect();
             assert_eq!(mine.len(), 1, "{target:?}");
             assert_eq!((mine[0].namespace.as_str(), mine[0].name.as_str()), ("AWS/EC2", "CPUUtilization"));
-            let series = sdk.get_metric_data(&target, &mine, "Average", now - 10 * 60_000, now + 60_000, 60).await.unwrap();
+            let queries: Vec<(MetricId, String)> = mine.iter().map(|m| (m.clone(), "Average".to_string())).collect();
+            let series = sdk.get_metric_data(&target, &queries, now - 10 * 60_000, now + 60_000, 60).await.unwrap();
+            assert!(sdk.list_namespace_metrics(&target, "AWS/EC2").await.unwrap().iter().any(|m| m.dimensions == [("InstanceId".to_string(), instance.clone())]));
             let mut points = series[0].points.clone();
             points.sort_by_key(|p| p.0);
             assert_eq!(points, [(now - 120_000, 41.0), (now - 60_000, 43.0)]);

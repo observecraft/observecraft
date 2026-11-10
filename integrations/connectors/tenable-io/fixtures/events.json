@@ -1,0 +1,50 @@
+{
+  "events": [
+    {
+      "id": "22cc0a1b2c3d4e5f60718293a4b5c601",
+      "action": "session.create",
+      "crud": "c",
+      "is_failure": false,
+      "received": "2026-11-10T08:15:03.126Z",
+      "description": null,
+      "is_anonymous": null,
+      "actor": { "id": "68ac0000-0000-4000-8000-000000000001", "name": "jane.doe@example.com" },
+      "target": { "id": "c0ffee01", "type": "Session" },
+      "fields": [
+        { "key": "X-Access-Type", "value": "session" },
+        { "key": "X-Forwarded-For", "value": "203.0.113.24, 10.0.20.47" },
+        { "key": "X-Request-Uuid", "value": "f13c572a7254d3192a667afe3bbb2567:0001" }
+      ]
+    },
+    {
+      "id": "22cc0a1b2c3d4e5f60718293a4b5c602",
+      "action": "user.impersonation.start",
+      "crud": "c",
+      "is_failure": false,
+      "received": "2026-11-10T08:20:41.502Z",
+      "description": null,
+      "is_anonymous": null,
+      "actor": { "id": "68ac0000-0000-4000-8000-000000000001", "name": "jane.doe@example.com" },
+      "target": { "id": "68ac0000-0000-4000-8000-000000000002", "type": "User", "name": "john.smith@example.com" },
+      "fields": [
+        { "key": "X-Access-Type", "value": "session" },
+        { "key": "X-Forwarded-For", "value": "203.0.113.24, 10.0.20.47" }
+      ]
+    },
+    {
+      "id": "22cc0a1b2c3d4e5f60718293a4b5c603",
+      "action": "session.create",
+      "crud": "c",
+      "is_failure": true,
+      "received": "2026-11-10T09:02:11.877Z",
+      "description": null,
+      "is_anonymous": true,
+      "actor": { "id": null, "name": "unknown@example.com" },
+      "target": { "id": null, "type": "Session" },
+      "fields": [
+        { "key": "X-Access-Type", "value": "session" },
+        { "key": "X-Forwarded-For", "value": "198.51.100.7" }
+      ]
+    }
+  ]
+}

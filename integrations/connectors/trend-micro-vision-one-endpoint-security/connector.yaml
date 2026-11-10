@@ -1,0 +1,157 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Trend Micro Vision One Endpoint Security (Standard Endpoint Protection, the Apex Central SaaS console): its 15 log
+# types read from the Apex Central Automation API (https://automation.trendmicro.com/apex-central/api/) in CEF, as the
+# logs Datadog's integration sends (source:trend-micro-vision-one-endpoint-security, the CEF line as the message,
+# tagged vendor_endpoint:<log type>). integrations-core's pipeline parses the CEF and the tile's four dashboards read
+# it, so this package ships neither. Every request carries a JWT with the request's checksum (signer
+# trend_micro_apex_central).
+schema_version: 1
+id: trend-micro-vision-one-endpoint-security
+name: Trend Micro Vision One Endpoint Security
+publisher: ObserveCraft
+vendor: Trend Micro
+description: >-
+  The detections and policy events of Vision One Endpoint Security (Standard Endpoint Protection): virus and malware,
+  spyware, behavior monitoring, predictive machine learning, web, content and DLP violations, device and application
+  control, intrusion prevention, C&C callbacks, Virtual Analyzer and Attack Discovery detections, as logs read every
+  5 minutes from the Apex Central Automation API.
+tiles: [trend-micro-vision-one-endpoint-security]
+categories: [Log Collection, Security, SIEM]
+source: trend-micro-vision-one-endpoint-security
+docs_url: https://automation.trendmicro.com/apex-central/api/
+setup: |
+  1. In Trend Micro Vision One, open **Endpoint Security → Standard Endpoint Protection** and, in its console,
+     **Administration → Settings → Automation API Access Settings**.
+  2. **Add** an application, enable it, and copy its **Application ID** and **API key**.
+  3. Copy the console's API URL (the host it runs on, `<id>.manage.trendmicro.com`).
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: API URL
+    type: url
+    required: true
+    placeholder: https://a1b2c3.manage.trendmicro.com
+    strip_suffix: [/WebApp/api/v1, /WebApp]
+    help: The Standard Endpoint Protection console's URL.
+  - key: application_id
+    label: Application ID
+    type: string
+    required: true
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+  - key: log_types
+    label: Log types
+    type: multiselect
+    help: Leave empty to read every log type.
+    options:
+      - { value: officescan_virus, label: Virus/Malware }
+      - { value: spyware, label: Spyware/Grayware }
+      - { value: behaviormonitor_rule, label: Behavior Monitoring }
+      - { value: Predictive_Machine_Learning, label: Predictive Machine Learning }
+      - { value: web_security, label: Web Violation }
+      - { value: security, label: Content Violation }
+      - { value: data_loss_prevention, label: Data Loss Prevention }
+      - { value: device_access_control, label: Device Access Control }
+      - { value: EACV_Information, label: Application Control }
+      - { value: intrusion_prevention, label: Intrusion Prevention }
+      - { value: ncie, label: Network Content Inspection }
+      - { value: cncdetection, label: C&C Callback }
+      - { value: filehashdetection, label: Suspicious File Information }
+      - { value: Sandbox_Detection_Log, label: Virtual Analyzer Detections }
+      - { value: Attack_Discovery_Detections, label: Attack Discovery Detections }
+
+auth:
+  kind: signer
+  signer: trend_micro_apex_central
+  params:
+    application_id: "{{ config.application_id }}"
+    api_key: "{{ secrets.api_key }}"
+
+# Apex Central publishes no rate; one request every second keeps well under its throttling.
+rate_limit: { min_interval: 1s }
+
+# The API's log types and the vendor_endpoint tag the tile's pipeline and dashboards branch on.
+tables:
+  endpoints:
+    officescan_virus: virus-malware
+    spyware: spyware-grayware
+    behaviormonitor_rule: behavior-monitoring
+    Predictive_Machine_Learning: predictive-machine-learning
+    web_security: web-violation
+    security: content-violation
+    data_loss_prevention: data-loss-prevention
+    device_access_control: device-access-control
+    EACV_Information: application-control
+    intrusion_prevention: intrusion-prevention
+    ncie: network-content-inspection
+    cncdetection: cnc-callback
+    filehashdetection: suspicious-file-information
+    Sandbox_Detection_Log: virtual-analyzer-detections
+    Attack_Discovery_Detections: attack-discovery-detections
+
+  months: { Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06", Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12" }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Apex Central refused the request's token (check the application ID and API key, and that the application is enabled)
+  - status: [403]
+    kind: access_denied
+    message: The Automation API application can't read logs; enable it in Automation API Access Settings
+
+streams:
+  - id: logs
+    name: Logs
+    description: >-
+      Every log of each log type as its CEF line (tag vendor_endpoint:virus-malware, behavior-monitoring,
+      data-loss-prevention, …), parsed by the tile's pipeline. Each log type keeps its own page token, so nothing is
+      read twice.
+    interval: 5m
+    for_each: "{{ config.log_types ?? (tables.endpoints | keys) }}"
+    request:
+      url: "{{ config.base_url + '/WebApp/api/v1/Logs/' + item }}"
+      query:
+        output_format: CEF
+        # The first run reads the last day; later ones carry on from the page token Apex Central gave.
+        page_token: "{{ page.cursor.PageToken ?? cursor.token.PageToken ?? 0 }}"
+        since_time: "{{ page.cursor.SinceTime ?? cursor.token.SinceTime ?? ((now / 1000 - 86400) | floor) }}"
+    records: "{{ response.Data.Logs }}"
+    pagination: { kind: cursor, next: "{{ response.Data.NextPage }}" }
+    record_id: "{{ item + ':' + (record | sha256) }}"
+    incremental:
+      kind: token
+      next: "{{ response.Data.NextPage }}"
+    vars:
+      # CEF's rt (`Nov 10 2026 09:30:05 GMT+00:00`, UTC) as RFC 3339; the pipeline reads it again.
+      rt: "{{ ((record | split(' rt='))[1] ?? '') | slice(0, 20) | split(' ') }}"
+    output:
+      logs:
+        # As Datadog sends it: the CEF line as a JSON string (the pipeline's grok expects the quotes).
+        message: "{{ record | json }}"
+        date: "{{ (vars.rt | len) == 4 ? vars.rt[2] + '-' + tables.months[vars.rt[0]] + '-' + vars.rt[1] + 'T' + vars.rt[3] + 'Z' : null }}"
+        tags: { vendor_endpoint: "{{ tables.endpoints[item] }}" }
+
+test:
+  request:
+    url: "{{ config.base_url }}/WebApp/api/v1/Logs/officescan_virus"
+    query: { output_format: CEF, page_token: 0, since_time: "{{ (now / 1000 - 300) | floor }}" }
+  success: "{{ response.Data.Logs != null }}"
+  message: "Connected: {{ response.Data.Logs | len }} virus/malware logs in the last 5 minutes"
+
+mock:
+  config: { base_url: "https://a1b2c3.manage.trendmicro.com", application_id: 6f1e2d3c-0000-4000-8000-0a1b2c3d4e5f, log_types: [officescan_virus, Attack_Discovery_Detections] }
+  secrets: { api_key: apex-test-key-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://a1b2c3.manage.trendmicro.com/WebApp/api/v1/Logs/officescan_virus", query: { page_token: "0", since_time: "1794225600" }, file: fixtures/virus-1.json }
+    - { url: "https://a1b2c3.manage.trendmicro.com/WebApp/api/v1/Logs/officescan_virus", query: { page_token: "1993" }, file: fixtures/virus-2.json }
+    - { url: "https://a1b2c3.manage.trendmicro.com/WebApp/api/v1/Logs/officescan_virus", query: { page_token: "0" }, file: fixtures/virus-2.json }
+    - { url: "https://a1b2c3.manage.trendmicro.com/WebApp/api/v1/Logs/Attack_Discovery_Detections", query: { page_token: "0" }, file: fixtures/attack-discovery-1.json }
+    - { url: "https://a1b2c3.manage.trendmicro.com/WebApp/api/v1/Logs/Attack_Discovery_Detections", query: { page_token: "42" }, file: fixtures/attack-discovery-2.json }
+  expect:
+    logs: { records: 3, logs: 3, rerun: 0, golden: fixtures/logs.expected.json }
+    test: { ok: true, message: "virus/malware logs" }

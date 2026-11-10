@@ -1,0 +1,80 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "CLIENT_IP": "198.51.100.7",
+      "EVENT_ID": "1234567890123",
+      "EVENT_TIMESTAMP": "2026-11-10T08:12:00.000+00:00",
+      "EVENT_TYPE": "LOGIN",
+      "FIRST_AUTHENTICATION_FACTOR": "PASSWORD",
+      "IS_SUCCESS": "YES",
+      "REPORTED_CLIENT_TYPE": "SNOWFLAKE_UI",
+      "SECOND_AUTHENTICATION_FACTOR": "OKTA_VERIFY",
+      "USER_NAME": "JORDAN_PATEL",
+      "_oc_ingest": {
+        "id": "01a1c483-9480-7b1f-8a50-f219411c7d3d"
+      },
+      "date": "2026-11-10T08:12:00.000+00:00",
+      "ddsource": "snowflake",
+      "evt": {
+        "name": "LOGIN",
+        "outcome": "success"
+      },
+      "host": "exampleorg-analytics",
+      "message": "Login succeeded for JORDAN_PATEL from 198.51.100.7",
+      "network": {
+        "client": {
+          "ip": "198.51.100.7"
+        }
+      },
+      "service": "login_history",
+      "status": "info",
+      "usr": {
+        "name": "JORDAN_PATEL"
+      }
+    },
+    {
+      "CLIENT_IP": "203.0.113.77",
+      "ERROR_CODE": "390100",
+      "ERROR_MESSAGE": "INCORRECT_USERNAME_PASSWORD",
+      "EVENT_ID": "1234567890124",
+      "EVENT_TIMESTAMP": "2026-11-10T09:01:30.000+00:00",
+      "EVENT_TYPE": "LOGIN",
+      "FIRST_AUTHENTICATION_FACTOR": "PASSWORD",
+      "IS_SUCCESS": "NO",
+      "REPORTED_CLIENT_TYPE": "PYTHON_DRIVER",
+      "REPORTED_CLIENT_VERSION": "3.12.2",
+      "USER_NAME": "SAM_LEE",
+      "_oc_ingest": {
+        "id": "01a1c4b0-e610-7606-a832-12e666258546"
+      },
+      "date": "2026-11-10T09:01:30.000+00:00",
+      "ddsource": "snowflake",
+      "evt": {
+        "name": "LOGIN",
+        "outcome": "failure"
+      },
+      "host": "exampleorg-analytics",
+      "message": "Login failed for SAM_LEE from 203.0.113.77 (INCORRECT_USERNAME_PASSWORD)",
+      "network": {
+        "client": {
+          "ip": "203.0.113.77"
+        }
+      },
+      "service": "login_history",
+      "status": "warn",
+      "usr": {
+        "name": "SAM_LEE"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794304800000
+      }
+    }
+  }
+}

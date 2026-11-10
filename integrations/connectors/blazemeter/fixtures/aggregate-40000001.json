@@ -1,0 +1,8 @@
+{
+  "api_version": 4,
+  "error": null,
+  "result": [
+    { "labelId": "ALL", "labelName": "ALL", "samples": 120000, "avgResponseTime": 210.5, "90line": 380, "95line": 450, "99line": 900, "minResponseTime": 18, "maxResponseTime": 4210, "medianResponseTime": 170, "avgLatency": 45, "stDev": 95.25, "duration": 1800, "avgThroughput": 66.7, "avgBytes": 816.6, "errorsCount": 240, "errorsRate": 0.2, "concurrency": 500 },
+    { "labelId": "3b6d1bf0989a1c2d", "labelName": "POST /api/checkout", "samples": 30000, "avgResponseTime": 412.75, "90line": 720, "95line": 880, "99line": 1600, "minResponseTime": 95, "maxResponseTime": 4210, "medianResponseTime": 350, "avgLatency": 88, "stDev": 160.5, "duration": 1800, "avgThroughput": 16.7, "avgBytes": 1240.2, "errorsCount": 200, "errorsRate": 0.67, "concurrency": 500 }
+  ]
+}

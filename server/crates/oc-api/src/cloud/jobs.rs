@@ -166,6 +166,23 @@ pub async fn claim(st: &AppState, provider: &str, limit: i64) -> Result<Vec<JobK
     Ok(rows.into_iter().map(|(org_id, account_id, scope, collected_until)| JobKey { provider: provider.to_string(), org_id, account_id, scope, collected_until }).collect())
 }
 
+/// Claims up to `limit` due jobs of any of `providers` (the connector packages, served by one loop).
+pub async fn claim_any(st: &AppState, providers: &[String], limit: i64) -> Result<Vec<JobKey>, sqlx::Error> {
+    let rows: Vec<(String, String, String, String, Option<i64>)> = sqlx::query_as(
+        "WITH due AS (SELECT j.provider, j.org_id, j.account_id, j.scope FROM cloud_crawl_jobs j JOIN orgs o ON o.id = j.org_id AND o.status = 'active' \
+           WHERE j.provider = ANY($1) AND j.next_run_at <= now() AND (j.claimed_until IS NULL OR j.claimed_until < now()) ORDER BY j.next_run_at LIMIT $2 FOR UPDATE OF j SKIP LOCKED) \
+         UPDATE cloud_crawl_jobs j SET claimed_until = now() + make_interval(secs => $3), last_run_at = now() FROM due \
+         WHERE j.provider = due.provider AND j.org_id = due.org_id AND j.account_id = due.account_id AND j.scope = due.scope \
+         RETURNING j.provider, j.org_id, j.account_id::text, j.scope, (extract(epoch FROM j.collected_until) * 1000)::bigint",
+    )
+    .bind(providers)
+    .bind(limit)
+    .bind(LEASE_SECS)
+    .fetch_all(&st.postgres)
+    .await?;
+    Ok(rows.into_iter().map(|(provider, org_id, account_id, scope, collected_until)| JobKey { provider, org_id, account_id, scope, collected_until }).collect())
+}
+
 fn retry_secs(backoff: Backoff, failures: i32, interval_secs: i64) -> i64 {
     match backoff {
         Backoff::Day => 86_400,
@@ -248,6 +265,19 @@ pub async fn record(st: &AppState, job: &JobKey, outcome: &Outcome, interval_sec
             .await?;
         }
     }
+    Ok(())
+}
+
+/// Holds a running job for another lease (a native connector's session, which lasts minutes).
+pub async fn extend(st: &AppState, job: &JobKey) -> Result<(), sqlx::Error> {
+    sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE cloud_crawl_jobs SET claimed_until = now() + make_interval(secs => $5) {KEY}")))
+        .bind(&job.provider)
+        .bind(&job.org_id)
+        .bind(&job.account_id)
+        .bind(&job.scope)
+        .bind(LEASE_SECS)
+        .execute(&st.postgres)
+        .await?;
     Ok(())
 }
 

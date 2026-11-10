@@ -171,6 +171,30 @@ export const BRANDS = {
   postfix: { ...site('www.postfix.org'), ids: ['postfix'] },
   iboss: { ...site('www.iboss.com'), ids: ['iboss'] },
   chatsworth: { ...site('www.chatsworth.com'), ids: ['snmp-chatsworth-products'] },
+  // Names shared with other brands in the icon sets (AMBIGUOUS in integration-logos.mjs): the product's own mark.
+  puma: { ...site('puma.io'), ids: ['puma'] },
+  // The site's logo (its icons are white, drawn for dark browser tabs).
+  vespa: {
+    url: 'https://vespa.ai/vespa-content/uploads/2025/09/vespa-logo-green-rgb.svg',
+    source: 'vespa.ai (site logo)',
+    terms: 'Trademark and copyright of its owner; shown only to identify the integration',
+    ids: ['vespa'],
+  },
+  obsidiansecurity: { ...site('www.obsidiansecurity.com'), ids: ['obsidian-security'] },
+  hpe: { ...commons('Hewlett Packard Enterprise logo.svg'), ids: ['snmp-hewlett-packard-enterprise'] },
+  streamnative: { ...site('streamnative.io'), ids: ['streamnative'] },
+  confluent: { ...site('www.confluent.io'), ids: ['confluent-platform'] },
+  // The project's logo as its repository ships it (Apache-2.0); its site icons are white, for dark browser tabs.
+  karpenter: {
+    url: 'https://raw.githubusercontent.com/aws/karpenter-provider-aws/main/website/static/full_logo.svg',
+    source: 'aws/karpenter-provider-aws repository, website/static/full_logo.svg',
+    terms: 'Apache-2.0 repository; trademark of its owner, shown only to identify the integration',
+    ids: ['karpenter'],
+  },
+  strimzi: { ...cncf('strimzi'), ids: ['strimzi'] },
+  'cert-manager': { ...cncf('cert-manager'), ids: ['cert-manager'] },
+  crio: { ...cncf('crio'), ids: ['cri-o'] },
+  kubevirt: { ...cncf('kubevirt'), ids: ['kubevirt-api', 'kubevirt-controller', 'kubevirt-handler'] },
 };
 
 export const OUT = new URL('../src/assets/brand-icons/', import.meta.url);

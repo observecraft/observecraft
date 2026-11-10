@@ -1,73 +1,11 @@
-// In-browser stand-in for Integrations → NetBird (routes/netbird_integration.rs). The connection lives in memory for
-// the session; any token of 20 characters or more is accepted. Once saved, the last syncs follow the poller's
-// minute. `netbirdLogs` is the mock audit log (`source:netbird`), shaped as crate::netbird::logs makes it.
-import type { components } from '../generated/schema';
+// The mock NetBird audit log (`source:netbird`), shaped as the NetBird connector package maps it
+// (integrations/connectors/netbird/connector.yaml): its dashboard and Logs → source:netbird in mock mode. The connection
+// itself is the generic connectors mock (mock/connectors.ts).
 import type { JsonValue, LogEvent, LogStatus } from '../types';
 import type { Rand } from './generator';
 
-type S = components['schemas'];
-type Input = S['NetbirdInput'];
-type Status = S['NetbirdStatus'];
-type Test = S['NetbirdTest'];
-
-const MIN = 60_000;
-const HOUR = 60 * MIN;
+const HOUR = 3_600_000;
 const HOST = 'netbird.example.com';
-
-let saved: { baseUrl: string; at: number } | null = null;
-let syncedAt = 0;
-
-const delay = <T>(value: T, ms = 150) => new Promise<T>((r) => setTimeout(() => r(structuredClone(value)), ms));
-
-function fail(message: string): never {
-  throw new Error(message);
-}
-
-function checkedUrl(input: Input): string {
-  const baseUrl = (input.baseUrl ?? '')
-    .trim()
-    .replace(/\/+$/, '')
-    .replace(/\/api$/, '');
-  if (!baseUrl) fail('NetBird needs its management URL (https://api.netbird.io for NetBird Cloud)');
-  if (!/^https:\/\/[^\s/@]+/.test(baseUrl)) fail('The base URL must use https');
-  return baseUrl;
-}
-
-function status(): Status {
-  if (!saved) return { connection: null, lastSyncAt: null, syncedUntil: null, eventsLastSync: 0, peersSyncedAt: null, peers: 0, error: null };
-  const now = Date.now();
-  const lastSync = Math.max(syncedAt, now - ((now - saved.at) % MIN));
-  return { connection: { baseUrl: saved.baseUrl, updatedAt: saved.at }, lastSyncAt: lastSync, syncedUntil: lastSync - 20_000, eventsLastSync: 4, peersSyncedAt: lastSync, peers: 12, error: null };
-}
-
-export const netbirdStatus = (): Promise<Status> => delay(status());
-
-export function testNetbird(input: Input): Promise<Test> {
-  const baseUrl = checkedUrl(input);
-  const token = input.token?.trim() || (saved?.baseUrl === baseUrl ? 'saved-token-of-the-mock-0000' : '');
-  if (!token) fail('NetBird needs a personal access token');
-  if (token.length < 20) return delay({ ok: false, message: 'NetBird refused the token: token invalid', user: null, role: null, events: null, peers: null }, 400);
-  return delay({ ok: true, message: 'Connected as observecraft-reader (auditor): 12 peers, 318 audit events to read', user: 'observecraft-reader', role: 'auditor', events: 318, peers: 12 }, 400);
-}
-
-export function saveNetbird(input: Input): Promise<Status> {
-  const baseUrl = checkedUrl(input);
-  if (!input.token?.trim() && saved?.baseUrl !== baseUrl) fail(saved ? 'Enter the token again: the NetBird URL changed' : 'NetBird needs a personal access token');
-  saved = { baseUrl, at: Date.now() };
-  return delay(status(), 250);
-}
-
-export function deleteNetbird(): Promise<void> {
-  if (!saved) fail('NetBird is not connected');
-  saved = null;
-  return delay(undefined);
-}
-
-export function syncNetbird(): Promise<void> {
-  if (!saved) fail('NetBird is not connected');
-  syncedAt = Date.now();
-  return delay(undefined);
-}
 
 // ---------------------------------------------------------------- the audit log
 

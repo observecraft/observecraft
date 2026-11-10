@@ -1,0 +1,164 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Dagster+ (https://docs.dagster.io/api/graphql): the event logs of a deployment's runs, read from its GraphQL API and
+# shaped as the logs Dagster+'s own Datadog integration sends (source:dagster-plus, service:dagster-plus; run_id,
+# job_name, event_type, deployment, step_key, asset_key, partition_key), so integrations-extras' Dagster+ pipeline and
+# "Dagster+ Overview" dashboard read them unchanged. Runs are a lookup (those in progress, and those updated in the last
+# hour); each run is its own partition reading `logsForRun` from where it stopped (Dagster's event cursor).
+schema_version: 1
+id: dagster-plus
+name: Dagster+
+publisher: ObserveCraft
+vendor: Dagster Labs
+description: >-
+  The event logs of a Dagster+ deployment's runs (runs started, steps succeeded and failed, assets materialized,
+  engine and user log messages) as logs, read every two minutes from the deployment's GraphQL API.
+tiles: [dagster-plus]
+categories: [Orchestration, Log Collection, Cloud]
+source: dagster-plus
+docs_url: https://docs.dagster.io/api/graphql
+setup: |
+  1. In Dagster+, open **Organization Settings → Tokens** and **Create user token** (a token of a user with the
+     **Viewer** role on the deployment is enough). Copy it.
+  2. Enter your organization (the `<organization>` of `https://<organization>.dagster.cloud`) and the deployment
+     (`prod` by default, or a branch deployment's name).
+links:
+  - { label: Tokens, url: "{{ 'https://' + config.organization + '.dagster.cloud/' + (config.deployment ?? 'prod') + '/settings/tokens' }}" }
+instance: "{{ config.organization + '/' + (config.deployment ?? 'prod') }}"
+
+config:
+  - key: organization
+    label: Organization
+    type: string
+    required: true
+    pattern: "[a-z0-9-]+"
+    placeholder: example-org
+  - key: deployment
+    label: Deployment
+    type: string
+    default: prod
+    pattern: "[A-Za-z0-9_-]+"
+  - key: token
+    label: User token
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: api_key
+  name: Dagster-Cloud-Api-Token
+  value: "{{ secrets.token }}"
+
+errors:
+  - status: [401, 403]
+    kind: auth
+    message: Dagster+ refused the user token, or its user can't view the deployment
+  - status: [404]
+    kind: access_denied
+    message: "No Dagster+ deployment {{ config.deployment ?? 'prod' }} in organization {{ config.organization }}"
+  # GraphQL answers its errors with HTTP 200: a request error, or a PythonError in place of the runs or events.
+  - status: [200]
+    when: "{{ response.errors | len > 0 }}"
+    kind: other
+    message: "Dagster+'s GraphQL API answered: {{ response.errors[0].message }}"
+  - status: [200]
+    when: "{{ (response.data.runsOrError ?? response.data.logsForRun).__typename == 'PythonError' }}"
+    kind: other
+    message: "Dagster+ failed to answer: {{ (response.data.runsOrError ?? response.data.logsForRun).message }}"
+
+streams:
+  - id: run_events
+    name: Run events
+    description: >-
+      Every event of every run as a log (source:dagster-plus, service:dagster-plus): event_type is Dagster's event type
+      (RUN_START, STEP_SUCCESS, STEP_FAILURE, ASSET_MATERIALIZATION, …; absent for plain log messages), level its log
+      level; failures and cancellations get their status in the pipeline.
+    interval: 2m
+    lookups:
+      - name: active
+        request:
+          method: POST
+          url: "{{ 'https://' + config.organization + '.dagster.cloud/' + (config.deployment ?? 'prod') + '/graphql' }}"
+          body:
+            query: >-
+              query Runs($filter: RunsFilter, $limit: Int) { runsOrError(filter: $filter, limit: $limit) {
+              __typename ... on Runs { results { runId jobName status updateTime } } ... on PythonError { message } } }
+            variables: { filter: { statuses: [STARTING, STARTED, CANCELING] }, limit: 100 }
+        records: "{{ response.data.runsOrError.results }}"
+        key: "{{ record.runId }}"
+        ttl: 1m
+      - name: recent
+        request:
+          method: POST
+          url: "{{ 'https://' + config.organization + '.dagster.cloud/' + (config.deployment ?? 'prod') + '/graphql' }}"
+          body:
+            query: >-
+              query Runs($filter: RunsFilter, $limit: Int) { runsOrError(filter: $filter, limit: $limit) {
+              __typename ... on Runs { results { runId jobName status updateTime } } ... on PythonError { message } } }
+            variables: { filter: { updatedAfter: "{{ (now - 3600000) / 1000 }}" }, limit: 100 }
+        records: "{{ response.data.runsOrError.results }}"
+        key: "{{ record.runId }}"
+        ttl: 1m
+    for_each: "{{ ((lookups.active | keys) + (lookups.recent | keys)) | unique }}"
+    request:
+      method: POST
+      url: "{{ 'https://' + config.organization + '.dagster.cloud/' + (config.deployment ?? 'prod') + '/graphql' }}"
+      body:
+        query: >-
+          query RunEvents($runId: ID!, $after: String) { logsForRun(runId: $runId, afterCursor: $after, limit: 1000) {
+          __typename ... on PythonError { message } ... on EventConnection { cursor hasMore events { __typename
+          ... on MessageEvent { runId message timestamp level stepKey eventType }
+          ... on MaterializationEvent { assetKey { path } partition }
+          ... on ObservationEvent { assetKey { path } partition }
+          ... on ExecutionStepFailureEvent { error { message className } } } } } }
+        variables: { runId: "{{ item }}", after: "{{ page.cursor ?? cursor.token }}" }
+    records: "{{ response.data.logsForRun.events }}"
+    pagination:
+      kind: cursor
+      next: "{{ response.data.logsForRun.hasMore ? response.data.logsForRun.cursor : null }}"
+    record_id: "{{ item + ':' + record.timestamp + ':' + ((record | json) | sha256 | slice(0, 16)) }}"
+    incremental:
+      kind: token
+      next: "{{ response.data.logsForRun.cursor }}"
+    vars:
+      run: "{{ lookups.active[item] ?? lookups.recent[item] }}"
+    output:
+      logs:
+        service: dagster-plus
+        message: "{{ record.message }}"
+        date: "{{ record.timestamp | epoch_ms | rfc3339 }}"
+        attributes:
+          run_id: "{{ item }}"
+          job_name: "{{ vars.run.jobName }}"
+          deployment: "{{ config.deployment ?? 'prod' }}"
+          event_type: "{{ record.eventType }}"
+          level: "{{ record.level }}"
+          step_key: "{{ record.stepKey }}"
+          asset_key: "{{ record.assetKey.path | join('/') }}"
+          partition_key: "{{ record.partition }}"
+          error: { message: "{{ record.error.message }}", kind: "{{ record.error.className }}" }
+
+test:
+  request:
+    method: POST
+    url: "{{ 'https://' + config.organization + '.dagster.cloud/' + (config.deployment ?? 'prod') + '/graphql' }}"
+    body: { query: "{ version }" }
+  success: "{{ response.data.version }}"
+  message: "Connected to {{ config.organization }}/{{ config.deployment ?? 'prod' }} (Dagster {{ response.data.version }})"
+  failure: "{{ response.errors[0].message ?? 'Dagster+ answered no version' }}"
+
+mock:
+  config: { organization: example-org, deployment: prod }
+  secrets: { token: user:test-token }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://example-org.dagster.cloud/prod/graphql", body_contains: "{ version }", body: { data: { version: "1.12.1" } } }
+    - { method: POST, url: "https://example-org.dagster.cloud/prod/graphql", body_contains: "statuses", file: fixtures/runs-active.json }
+    - { method: POST, url: "https://example-org.dagster.cloud/prod/graphql", body_contains: "updatedAfter", file: fixtures/runs-recent.json }
+    - { method: POST, url: "https://example-org.dagster.cloud/prod/graphql", body_contains: '"after":"r1-c2"', file: fixtures/events-r1-2.json }
+    - { method: POST, url: "https://example-org.dagster.cloud/prod/graphql", body_contains: '"after":"r1-c3"', body: { data: { logsForRun: { cursor: r1-c3, hasMore: false, events: [] } } } }
+    - { method: POST, url: "https://example-org.dagster.cloud/prod/graphql", body_contains: '"after":"r2-c4"', body: { data: { logsForRun: { cursor: r2-c4, hasMore: false, events: [] } } } }
+    - { method: POST, url: "https://example-org.dagster.cloud/prod/graphql", body_contains: '"runId":"a3bcb088-1640-40dc-9701-4b554c0b9cac"', file: fixtures/events-r1-1.json }
+    - { method: POST, url: "https://example-org.dagster.cloud/prod/graphql", body_contains: '"runId":"ff550567-4f6f-4aa0-a7b1-548d97a99170"', file: fixtures/events-r2.json }
+  expect:
+    run_events: { records: 7, logs: 7, rerun: 0, golden: fixtures/run_events.expected.json }
+    test: { ok: true, message: "Dagster 1.12.1" }

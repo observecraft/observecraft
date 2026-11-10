@@ -1,0 +1,142 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Zoom (https://developers.zoom.us/docs/api/): an account's sign-in / sign-out activity and admin operation logs from
+# the Reports API, as the logs Datadog's Zoom Activity Logs integration sends (source:zoom,
+# service:zoom-activity-logs). Datadog has no integrations-core tile for it, so the package adds its own tile and
+# dashboard. Zoom's report filters are dates and its records have no ids: windows are read by day and records are
+# identified by a hash of their fields.
+schema_version: 1
+id: zoom-activity-logs
+name: Zoom Activity Logs
+publisher: ObserveCraft
+vendor: Zoom
+description: >-
+  A Zoom account's sign-in and sign-out activity and its admin operation logs (users, settings, recordings, roles
+  changed) as logs, read every five minutes from Zoom's Reports API with a Server-to-Server OAuth app.
+logo: zoom
+categories: [Collaboration, Security, SIEM, Log Collection]
+docs_url: https://developers.zoom.us/docs/api/
+setup: |
+  1. Reports need a Pro, Business, Education or Enterprise account. In the [Zoom App Marketplace](https://marketplace.zoom.us/),
+     **Develop → Build App → Server-to-Server OAuth App**, named e.g. `ObserveCraft`.
+  2. Add the scopes `report:read:user_activities:admin` and `report:read:operation_logs:admin` (classic scopes:
+     `report:read:admin`), then **Activate** the app.
+  3. Copy the app's **Account ID**, **Client ID** and **Client secret**.
+links:
+  - { label: Zoom App Marketplace, url: "https://marketplace.zoom.us/user/build" }
+instance: "{{ config.account_id }}"
+
+config:
+  - { key: account_id, label: Account ID, type: string, required: true, pattern: "[A-Za-z0-9_-]+" }
+  - { key: client_id, label: Client ID, type: string, required: true }
+  - { key: client_secret, label: Client secret, type: string, secret: true, required: true }
+
+# Server-to-Server OAuth: the account_credentials grant, an hour-long token.
+auth:
+  kind: token_exchange
+  request:
+    method: POST
+    url: https://zoom.us/oauth/token
+    headers:
+      Authorization: "Basic {{ (config.client_id + ':' + secrets.client_secret) | base64 }}"
+    form: { grant_type: account_credentials, account_id: "{{ config.account_id }}" }
+  capture: { token: "{{ response.access_token }}" }
+  expires_in: "{{ response.expires_in }}"
+
+# Report APIs are Zoom's "Heavy" requests (from 1 a second on Pro, with a daily cap shared by the account's apps).
+rate_limit: { requests_per_minute: 20 }
+
+errors:
+  - status: [400, 401]
+    when: "{{ response.reason == 'invalid_client' || response.error == 'invalid_client' || response.code == 124 }}"
+    kind: auth
+    message: Zoom refused the app's credentials (wrong client id or secret, or the app isn't activated)
+  - status: [400]
+    when: "{{ response.code == 200 || (response.message ?? '') | contains('permission') }}"
+    kind: access_denied
+    message: "Zoom refused the report: the app needs the report:read scopes and the account a paid plan ({{ response.message }})"
+  - status: [429]
+    kind: throttled
+    message: "Rate limited by Zoom ({{ headers['x-ratelimit-type'] ?? 'Heavy' }} requests)"
+
+streams:
+  - id: activities
+    name: Sign-in and sign-out activity
+    description: >-
+      Every sign in and sign out of the account's users as a log (service:zoom-activity-logs): evt.name is the
+      activity type, usr.email the user, network.client.ip the client's IP, with the client type, version and login
+      type.
+    interval: 5m
+    request:
+      url: https://api.zoom.us/v2/report/activities
+      query:
+        from: "{{ window.start | strftime('%Y-%m-%d') }}"
+        to: "{{ window.end | strftime('%Y-%m-%d') }}"
+        page_size: 300
+        next_page_token: "{{ page.cursor }}"
+    records: "{{ response.activity_logs }}"
+    pagination: { kind: cursor, next: "{{ response.next_page_token }}" }
+    record_id: "{{ (record.email + '|' + record.time + '|' + record.type + '|' + (record.ip_address ?? '')) | sha256 }}"
+    incremental: { kind: time, record_time: "{{ record.time }}", order: newest_first, lookback: 1d, overlap: 30m, max_window: 30d }
+    output:
+      logs:
+        service: zoom-activity-logs
+        message: "{{ record.type }}: {{ record.email }}"
+        date: "{{ record.time }}"
+        attributes: >-
+          {{ record + {
+               evt: {name: record.type, category: 'activity'},
+               usr: {email: record.email},
+               network: {client: {ip: record.ip_address}}
+             } }}
+
+  - id: operation_logs
+    name: Admin operation logs
+    description: >-
+      Every operation of the account's admins and users (adding users, changing settings, deleting recordings, …)
+      as a log (service:zoom-activity-logs): evt.name is the category and action, usr.email the operator.
+      Deletions are warnings.
+    interval: 5m
+    request:
+      url: https://api.zoom.us/v2/report/operationlogs
+      query:
+        from: "{{ window.start | strftime('%Y-%m-%d') }}"
+        to: "{{ window.end | strftime('%Y-%m-%d') }}"
+        page_size: 300
+        category_type: all
+        next_page_token: "{{ page.cursor }}"
+    records: "{{ response.operation_logs }}"
+    pagination: { kind: cursor, next: "{{ response.next_page_token }}" }
+    record_id: "{{ (record.time + '|' + record.operator + '|' + record.category_type + '|' + record.action + '|' + (record.operation_detail ?? '')) | sha256 }}"
+    incremental: { kind: time, record_time: "{{ record.time }}", order: newest_first, lookback: 1d, overlap: 30m, max_window: 30d }
+    output:
+      logs:
+        service: zoom-activity-logs
+        message: "{{ record.operator }}: {{ record.action }} {{ record.category_type }}{{ ': ' + record.operation_detail ?? '' }}"
+        status: "{{ (record.action | lower) in ['delete', 'remove', 'deactivate'] ? 'warn' : 'info' }}"
+        date: "{{ record.time }}"
+        attributes: >-
+          {{ record + {
+               evt: {name: record.category_type + ' ' + record.action, category: 'operation'},
+               usr: {email: record.operator}
+             } }}
+
+test:
+  stream: activities
+  message: "Connected to Zoom account {{ config.account_id }}: {{ records | len }} sign-in activities to read"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { account_id: aBcDeFgHiJkLmNoPqRsT01, client_id: oc0ClientId0Example }
+  secrets: { client_secret: zoom-test-client-secret-000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://zoom.us/oauth/token", body_contains: "account_credentials", body: { access_token: zoom-test-access-token, token_type: bearer, expires_in: 3599, scope: "report:read:user_activities:admin report:read:operation_logs:admin" } }
+    - { url: "https://api.zoom.us/v2/report/activities", query: { next_page_token: "tok-page-2" }, file: fixtures/activities-2.json }
+    - { url: "https://api.zoom.us/v2/report/activities", file: fixtures/activities-1.json }
+    - { url: "https://api.zoom.us/v2/report/operationlogs", file: fixtures/operationlogs.json }
+  expect:
+    activities: { records: 3, logs: 3, rerun: 0, golden: fixtures/activities.expected.json }
+    operation_logs: { records: 2, logs: 2, rerun: 0, golden: fixtures/operation_logs.expected.json }
+    test: { ok: true, message: "Connected to Zoom account aBcDeFgHiJkLmNoPqRsT01" }

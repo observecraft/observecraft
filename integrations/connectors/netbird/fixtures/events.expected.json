@@ -1,0 +1,137 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1b0b9-f7a0-7239-845d-b6905a3068ef"
+      },
+      "date": "2026-11-06T11:59:00Z",
+      "ddsource": "netbird",
+      "evt": {
+        "name": "peer.user.add",
+        "outcome": "success"
+      },
+      "host": "netbird.example.com",
+      "message": "Peer added: laptop-jordan (by Jordan Patel)",
+      "netbird": {
+        "activity": "Peer added",
+        "category": "peer",
+        "event_id": "3",
+        "meta": {
+          "created_at": "2026-11-06T11:59:00Z",
+          "fqdn": "laptop-jordan.netbird.cloud",
+          "ip": "100.64.0.12",
+          "name": "laptop-jordan"
+        },
+        "target": "laptop-jordan",
+        "target_id": "cs1tnh0hhcjnqoiuebf0"
+      },
+      "service": "netbird",
+      "status": "info",
+      "usr": {
+        "email": "jordan.patel@example.com",
+        "id": "google-oauth2|1001",
+        "name": "Jordan Patel"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1b0b9-0dbb-759f-b701-f0aa6e75913d"
+      },
+      "date": "2026-11-06T11:58:00.123456Z",
+      "ddsource": "netbird",
+      "evt": {
+        "name": "peer.login.expire",
+        "outcome": "success"
+      },
+      "host": "netbird.example.com",
+      "message": "Peer login expired",
+      "netbird": {
+        "activity": "Peer login expired",
+        "category": "peer",
+        "event_id": "5",
+        "target_id": "cs1tnh0hhcjnqoiuebf1"
+      },
+      "service": "netbird",
+      "status": "warn"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1b0b1-ba40-73ec-a679-5dd0cba6f62c"
+      },
+      "date": "2026-11-06T11:50:00Z",
+      "ddsource": "netbird",
+      "evt": {
+        "name": "setupkey.overuse",
+        "outcome": "failure"
+      },
+      "host": "netbird.example.com",
+      "message": "Setup key overused: ci-runners (by sam.lee@example.com)",
+      "netbird": {
+        "activity": "Setup key overused",
+        "category": "setupkey",
+        "event_id": "4",
+        "meta": {
+          "name": "ci-runners"
+        },
+        "target": "ci-runners",
+        "target_id": "ck2b8k0hhcjnqoiuebg0"
+      },
+      "service": "netbird",
+      "status": "error",
+      "usr": {
+        "email": "sam.lee@example.com",
+        "id": "google-oauth2|1002"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1b016-1680-7086-a9c6-74fb1410485e"
+      },
+      "date": "2026-11-06T09:00:00Z",
+      "ddsource": "netbird",
+      "evt": {
+        "name": "user.block",
+        "outcome": "success"
+      },
+      "host": "netbird.example.com",
+      "message": "User blocked: alex.morgan@example.com (by Jordan Patel)",
+      "netbird": {
+        "activity": "User blocked",
+        "category": "user",
+        "event_id": "2",
+        "meta": {
+          "email": "alex.morgan@example.com"
+        },
+        "target": "alex.morgan@example.com",
+        "target_id": "google-oauth2|1003"
+      },
+      "service": "netbird",
+      "status": "warn",
+      "usr": {
+        "email": "jordan.patel@example.com",
+        "id": "google-oauth2|1001",
+        "name": "Jordan Patel"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1793966340000,
+        "seen": [
+          {
+            "id": "af63ae4c86019e62",
+            "t": 1793966340000
+          },
+          {
+            "id": "af63a84c86019430",
+            "t": 1793966280123
+          }
+        ]
+      }
+    }
+  }
+}

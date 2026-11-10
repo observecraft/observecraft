@@ -1,0 +1,120 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "pagerduty.incidents.open",
+      "tags": [
+        [
+          "incident_number",
+          "4822"
+        ],
+        [
+          "priority",
+          "P1"
+        ],
+        [
+          "service",
+          "order-service"
+        ],
+        [
+          "status",
+          "triggered"
+        ],
+        [
+          "urgency",
+          "high"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "pagerduty.incidents.open_age",
+      "tags": [
+        [
+          "incident_number",
+          "4822"
+        ],
+        [
+          "priority",
+          "P1"
+        ],
+        [
+          "service",
+          "order-service"
+        ],
+        [
+          "status",
+          "triggered"
+        ],
+        [
+          "urgency",
+          "high"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 600.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "pagerduty.incidents.open",
+      "tags": [
+        [
+          "incident_number",
+          "4819"
+        ],
+        [
+          "service",
+          "inventory-service"
+        ],
+        [
+          "status",
+          "acknowledged"
+        ],
+        [
+          "urgency",
+          "low"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "pagerduty.incidents.open_age",
+      "tags": [
+        [
+          "incident_number",
+          "4819"
+        ],
+        [
+          "service",
+          "inventory-service"
+        ],
+        [
+          "status",
+          "acknowledged"
+        ],
+        [
+          "urgency",
+          "low"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 10800.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

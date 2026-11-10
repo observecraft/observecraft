@@ -1,0 +1,95 @@
+# yaml-language-server: $schema=../connector.schema.json
+# CrowdStrike Falcon Data Replicator (FDR): Falcon's raw sensor telemetry, written by CrowdStrike as gzip NDJSON files
+# to an S3 bucket and announced on an SQS queue. Not an HTTP API, so the native connector `crowdstrike-fdr`
+# (server/crates/oc-api/src/connectors/sources/crowdstrike_fdr.rs) reads it: it long-polls the queue, streams each
+# announced file from S3 and deletes a notification only once every event of its files is in Kafka. The logs are what
+# the tile's integrations-core pipeline and dashboards read (source:crowdstrike-fdr, the event's fields at the top,
+# `s3_key` naming the file the event came in), so this package ships none: saving a connection installs the tile's.
+schema_version: 1
+id: crowdstrike-fdr
+name: CrowdStrike FDR
+publisher: ObserveCraft
+vendor: CrowdStrike
+description: >-
+  Falcon sensor telemetry (processes, network connections, DNS requests, logons, file writes, detections) and the
+  host and user inventory of a Falcon Data Replicator feed, read from its SQS queue and S3 bucket as logs.
+tiles: [crowdstrike-fdr]
+source: crowdstrike-fdr
+categories: [Log Collection, Security, SIEM]
+native: crowdstrike-fdr
+docs_url: https://www.crowdstrike.com/en-us/resources/data-sheets/falcon-data-replicator/
+setup: |
+  1. FDR is a paid Falcon add-on: ask CrowdStrike Support to enable it for your CID if the Falcon console has no
+     **Falcon data replicator** page.
+  2. In the Falcon console, open **Support and resources → Resources → Falcon data replicator** and create a feed.
+  3. Copy the feed's **access key id**, **secret key** and **SQS queue URL**, and its **S3 path**
+     (`s3://<bucket>/<prefix>/`): the bucket is the part between `s3://` and the next `/`.
+  4. With a feed replicated into your own AWS account, use your queue's URL and bucket and an IAM user allowed
+     `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:ChangeMessageVisibility`, `sqs:GetQueueAttributes` on the queue
+     and `s3:GetObject` on the bucket.
+
+  The queue is read continuously: a notification is deleted only once every event of its files is stored, so nothing
+  is lost when the server restarts (CrowdStrike keeps notifications for 7 days). FDR feeds are large: list event types
+  to keep only those (other files are still downloaded).
+instance: "{{ config.sqs_queue_url | split('/') | last }}"
+
+config:
+  - key: sqs_queue_url
+    label: SQS queue URL
+    type: string
+    required: true
+    placeholder: https://sqs.us-west-1.amazonaws.com/123456789012/cs-prod-cannon-queue
+    pattern: "https://sqs\\.[a-z]{2}(-[a-z]+)+-[0-9]{1,2}\\.amazonaws\\.com/[0-9]{12}/[A-Za-z0-9_-]{1,80}(\\.fifo)?"
+    help: The feed's queue; its region is read from the URL.
+  - key: s3_bucket
+    label: S3 bucket
+    type: string
+    required: true
+    placeholder: cs-prod-cannon-0a1b2c3d-s3alias
+    pattern: "[a-z0-9]([a-z0-9.-]{1,61}[a-z0-9])?"
+    help: The bucket (or access point alias) of the feed's S3 path, without s3:// or the prefix. Files are only read from it.
+  - key: aws_access_key_id
+    label: AWS access key id
+    type: string
+    secret: true
+    required: true
+    pattern: "[A-Z0-9]{16,128}"
+  - key: aws_secret_key
+    label: AWS secret key
+    type: string
+    secret: true
+    required: true
+  - key: event_types
+    label: Event types
+    type: list
+    pattern: "[A-Za-z0-9_]+"
+    help: >-
+      event_simpleName values to keep (ProcessRollup2, NetworkConnectIP4, DnsRequest, UserLogon, …); empty keeps every
+      event. Inventory and detection records, which have none, are always kept.
+
+streams:
+  - id: events
+    name: Telemetry and inventory
+    description: >-
+      One log per event of the feed's files: sensor telemetry under data/ (event_simpleName, aid, ComputerName,
+      CommandLine, hashes, network and DNS fields) and the inventory under fdrv2/ (userinfo, aidmaster), with s3_key and
+      s3_bucket naming the file.
+    record_id: "{{ record.id ?? (parent.key + ':' + parent.line) }}"
+    filter: "{{ ((config.event_types ?? []) | len) == 0 || record.event_simpleName == null || record.event_simpleName in config.event_types }}"
+    output:
+      logs:
+        message: >-
+          {{ (record.event_simpleName ?? record.name ?? record.ExternalApiType ?? 'FDR record') + (record.ComputerName ? ' on ' + record.ComputerName : '')
+             + (record.CommandLine ? ': ' + record.CommandLine : record.DomainName ? ': ' + record.DomainName : record.UserName ? ': ' + record.UserName : '') }}
+        host: "{{ record.ComputerName ?? connection.instance }}"
+        date: "{{ record.ContextTimeStamp ?? record.UTCTimestamp ?? record.timestamp }}"
+        attributes: "{{ record + {s3_key: parent.key, s3_bucket: parent.bucket} }}"
+
+# The web's mock mode (the native source's own tests read fixtures/: the notification, the files' NDJSON).
+mock:
+  config: { sqs_queue_url: "https://sqs.us-west-1.amazonaws.com/123456789012/cs-prod-cannon-queue", s3_bucket: cs-prod-cannon-0a1b2c3d-s3alias }
+  secrets: { aws_access_key_id: AKIAEXAMPLE000000001, aws_secret_key: fdr-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses: []
+  expect:
+    test: { ok: true, message: "the queue cs-prod-cannon-queue: about 1 notifications waiting" }

@@ -1,0 +1,8 @@
+{
+  "offset": 0, "total": 2,
+  "totals": { "visits": 1530, "visitors": 1204 },
+  "breakdowns": [
+    { "breakdown": "ORGANIC", "visits": 920, "visitors": 731, "rawViews": 2410, "standardViews": 2290, "bounces": 388, "bounceRate": 0.4217, "returningVisits": 210, "time": 61042, "timePerSession": 66.35, "pageviewsPerSession": 2.62, "newVisitorSessionRate": 0.7717, "leads": 3, "contacts": 5 },
+    { "breakdown": "DIRECT_TRAFFIC", "visits": 610, "visitors": 473, "rawViews": 1188, "standardViews": 1120, "bounces": 301, "bounceRate": 0.4934, "returningVisits": 158, "time": 30115, "timePerSession": 49.37, "pageviewsPerSession": 1.95, "newVisitorSessionRate": 0.741, "leads": 1, "contacts": 2 }
+  ]
+}

@@ -1,0 +1,202 @@
+{
+  "_links": {
+    "self": {
+      "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/activities"
+    }
+  },
+  "_embedded": {
+    "activities": [
+      {
+        "id": "9f0c0000-0000-4000-8000-00000000a001",
+        "recordedAt": "2026-11-10T09:14:02.511Z",
+        "createdAt": "2026-11-10T09:14:02.511Z",
+        "action": {
+          "type": "PASSWORD.CHECK_SUCCEEDED",
+          "description": "Password Check Succeeded"
+        },
+        "result": {
+          "status": "SUCCESS",
+          "description": "Password Check Succeeded"
+        },
+        "actors": {
+          "client": {
+            "environment": {
+              "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+            },
+            "name": "PingOne Admin Console",
+            "id": "5a6b7c8d-0000-4000-8000-0000000c2002",
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/applications/5a6b7c8d-0000-4000-8000-0000000c2002",
+            "type": "CLIENT"
+          },
+          "user": {
+            "environment": {
+              "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+            },
+            "name": "jane.doe@example.com",
+            "id": "9c6a0000-0000-4000-8000-000000000101",
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000101",
+            "type": "USER",
+            "population": {
+              "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+            }
+          }
+        },
+        "resources": [
+          {
+            "environment": {
+              "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+            },
+            "name": "jane.doe@example.com",
+            "id": "9c6a0000-0000-4000-8000-000000000101",
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000101",
+            "type": "USER",
+            "population": {
+              "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+            }
+          }
+        ],
+        "correlationId": "c0c0c0c0-0000-4000-8000-000000000001",
+        "internalCorrelation": {
+          "transactionId": "7a7a7a7a-0000-4000-8000-000000000001"
+        },
+        "source": {
+          "ipAddress": "198.51.100.23",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+        },
+        "_links": {
+          "self": {
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/activities/9f0c0000-0000-4000-8000-00000000a001"
+          }
+        }
+      },
+      {
+        "id": "9f0c0000-0000-4000-8000-00000000a002",
+        "recordedAt": "2026-11-10T10:41:37.020Z",
+        "createdAt": "2026-11-10T10:41:37.020Z",
+        "action": {
+          "type": "PASSWORD.CHECK_FAILED",
+          "description": "Password Check Failed"
+        },
+        "result": {
+          "status": "FAILED",
+          "description": "Invalid password"
+        },
+        "actors": {
+          "client": {
+            "environment": {
+              "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+            },
+            "name": "PingOne Admin Console",
+            "id": "5a6b7c8d-0000-4000-8000-0000000c2002",
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/applications/5a6b7c8d-0000-4000-8000-0000000c2002",
+            "type": "CLIENT"
+          },
+          "user": {
+            "environment": {
+              "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+            },
+            "name": "sam.lee@example.com",
+            "id": "9c6a0000-0000-4000-8000-000000000102",
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000102",
+            "type": "USER",
+            "population": {
+              "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+            }
+          }
+        },
+        "resources": [
+          {
+            "environment": {
+              "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+            },
+            "name": "sam.lee@example.com",
+            "id": "9c6a0000-0000-4000-8000-000000000102",
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000102",
+            "type": "USER",
+            "population": {
+              "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+            }
+          }
+        ],
+        "correlationId": "c0c0c0c0-0000-4000-8000-000000000002",
+        "internalCorrelation": {
+          "transactionId": "7a7a7a7a-0000-4000-8000-000000000002"
+        },
+        "source": {
+          "ipAddress": "203.0.113.77",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+        },
+        "_links": {
+          "self": {
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/activities/9f0c0000-0000-4000-8000-00000000a002"
+          }
+        }
+      },
+      {
+        "id": "9f0c0000-0000-4000-8000-00000000a003",
+        "recordedAt": "2026-11-10T11:30:55.904Z",
+        "createdAt": "2026-11-10T11:30:55.904Z",
+        "action": {
+          "type": "USER.ACCESS_ALLOWED",
+          "description": "User Access Allowed"
+        },
+        "result": {
+          "status": "SUCCESS",
+          "description": "Passed role access control"
+        },
+        "actors": {
+          "client": {
+            "environment": {
+              "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+            },
+            "name": "PingOne Admin Console",
+            "id": "5a6b7c8d-0000-4000-8000-0000000c2002",
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/applications/5a6b7c8d-0000-4000-8000-0000000c2002",
+            "type": "CLIENT"
+          },
+          "user": {
+            "environment": {
+              "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+            },
+            "name": "jane.doe@example.com",
+            "id": "9c6a0000-0000-4000-8000-000000000101",
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000101",
+            "type": "USER",
+            "population": {
+              "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+            }
+          }
+        },
+        "resources": [
+          {
+            "environment": {
+              "id": "0e1f2a3b-0000-4000-8000-00000000e001"
+            },
+            "name": "jane.doe@example.com",
+            "id": "9c6a0000-0000-4000-8000-000000000101",
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/users/9c6a0000-0000-4000-8000-000000000101",
+            "type": "USER",
+            "population": {
+              "id": "3d4e5f60-0000-4000-8000-0000000d0001"
+            }
+          }
+        ],
+        "correlationId": "c0c0c0c0-0000-4000-8000-000000000003",
+        "internalCorrelation": {
+          "transactionId": "7a7a7a7a-0000-4000-8000-000000000003"
+        },
+        "source": {
+          "ipAddress": "198.51.100.23",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+        },
+        "_links": {
+          "self": {
+            "href": "https://api.pingone.com/v1/environments/0e1f2a3b-0000-4000-8000-00000000e001/activities/9f0c0000-0000-4000-8000-00000000a003"
+          }
+        }
+      }
+    ]
+  },
+  "count": 3,
+  "size": 3
+}

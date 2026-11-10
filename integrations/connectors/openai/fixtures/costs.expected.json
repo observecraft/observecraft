@@ -1,0 +1,76 @@
+{
+  "costs": [
+    {
+      "account": "storefront-assistant",
+      "cost": 4.21,
+      "currency": "USD",
+      "date": "2026-11-08",
+      "line": 1132380328,
+      "provider": "openai",
+      "service": "gpt-4o-mini-2024-07-18",
+      "tags": {
+        "ai_vendor": "OpenAI",
+        "project_id": "proj_storefront01",
+        "project_name": "storefront-assistant"
+      },
+      "usage_amount": 0.0,
+      "usage_type": "gpt-4o-mini-2024-07-18, input"
+    },
+    {
+      "account": "storefront-assistant",
+      "cost": 3.05,
+      "currency": "USD",
+      "date": "2026-11-08",
+      "line": 2707423213,
+      "provider": "openai",
+      "service": "gpt-4o-mini-2024-07-18",
+      "tags": {
+        "ai_vendor": "OpenAI",
+        "project_id": "proj_storefront01",
+        "project_name": "storefront-assistant"
+      },
+      "usage_amount": 0.0,
+      "usage_type": "gpt-4o-mini-2024-07-18, output"
+    },
+    {
+      "account": "catalog-enrichment",
+      "cost": 1.88,
+      "currency": "USD",
+      "date": "2026-11-09",
+      "line": 2639943293,
+      "provider": "openai",
+      "service": "text-embedding-3-small",
+      "tags": {
+        "ai_vendor": "OpenAI",
+        "project_id": "proj_catalog02",
+        "project_name": "catalog-enrichment"
+      },
+      "usage_amount": 0.0,
+      "usage_type": "text-embedding-3-small"
+    },
+    {
+      "account": "catalog-enrichment",
+      "cost": 0.96,
+      "currency": "USD",
+      "date": "2026-11-10",
+      "line": 2822618747,
+      "provider": "openai",
+      "service": "gpt-image-1",
+      "tags": {
+        "ai_vendor": "OpenAI",
+        "project_id": "proj_catalog02",
+        "project_name": "catalog-enrichment"
+      },
+      "usage_amount": 0.0,
+      "usage_type": "gpt-image-1, image"
+    }
+  ],
+  "events": [],
+  "logs": [],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

@@ -1,0 +1,138 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Salesforce (https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_eventlogfile.htm
+# and https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_limits.htm): an org's
+# Event Monitoring log files (an EventLogFile index queried with SOQL, then each hourly CSV downloaded, one log per
+# row) as the logs Datadog's Salesforce integration sends (source:salesforce, the CSV's columns at the top level),
+# and the org's limits as salesforce.limits.* gauges. Real-time event objects (LoginEvent, ApiEvent, …) and Pub/Sub
+# platform events aren't read. Datadog has no integrations-core tile for it, so the package adds its own tile and
+# dashboard.
+schema_version: 1
+id: salesforce
+name: Salesforce
+publisher: ObserveCraft
+vendor: Salesforce
+description: >-
+  A Salesforce org's Event Monitoring log files (logins, API calls, reports, exports, Lightning pages, Apex) as
+  logs, one per event, and its limits (API requests, storage, …) as metrics, read with an External Client App.
+logo: salesforce
+categories: [Security, SIEM, Log Collection, Cost Management]
+docs_url: https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/
+setup: |
+  1. In Setup, create an **External Client App** (or a connected app) named e.g. `ObserveCraft` with OAuth, the
+     scope **Manage user data via APIs (api)**, and **Enable Client Credentials Flow**; pick a run-as user with
+     **API Enabled**, **View Setup and Configuration** and **View Event Log Files**.
+  2. Copy the app's consumer key and secret, and your **My Domain** URL (`https://example.my.salesforce.com`).
+  3. Hourly event log files need Event Monitoring (Salesforce Shield); without it, orgs get a few event types daily.
+links:
+  - { label: External Client App Manager, url: "{{ config.base_url }}/lightning/setup/ManageExternalClientApplication/home" }
+instance: "{{ config.base_url | host }}"
+
+config:
+  - { key: base_url, label: My Domain URL, type: url, required: true, placeholder: "https://example.my.salesforce.com" }
+  - { key: client_id, label: Consumer key, type: string, required: true }
+  - { key: client_secret, label: Consumer secret, type: string, secret: true, required: true }
+  - { key: api_version, label: API version, type: string, required: true, default: "64.0", pattern: "[0-9]{2}\\.0" }
+  - key: interval
+    label: Log files
+    type: select
+    default: Hourly
+    options:
+      - { value: Hourly, label: Hourly (Event Monitoring) }
+      - { value: Daily, label: Daily }
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "{{ config.base_url }}/services/oauth2/token"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+  client_auth: body
+
+# Every request counts against the org's daily API allocation.
+rate_limit: { requests_per_minute: 30 }
+
+errors:
+  - status: [400, 401]
+    when: "{{ response.error in ['invalid_client', 'invalid_client_id', 'invalid_grant', 'unauthorized_client'] || (response | first).errorCode == 'INVALID_SESSION_ID' }}"
+    kind: auth
+    message: "Salesforce refused the app ({{ response.error_description ?? (response | first).message ?? response.error }}): check the consumer key and secret and that the client credentials flow has a run-as user"
+  - status: [403]
+    when: "{{ (response | first).errorCode == 'REQUEST_LIMIT_EXCEEDED' }}"
+    kind: throttled
+    message: "The org's daily API requests are used up ({{ (response | first).message }})"
+  - status: [400, 403]
+    kind: access_denied
+    message: "Salesforce refused ({{ (response | first).message ?? 'forbidden' }}): the run-as user needs View Event Log Files and API Enabled"
+
+streams:
+  - id: event_log_files
+    name: Event log files
+    description: >-
+      Every row of the org's event log files as a log (source:salesforce, service:salesforce): evt.name is the
+      event type (Login, API, Report, URI, LightningPageView, …), usr.id the user, network.client.ip the client's
+      IP; the columns as Salesforce writes them. Files are listed by their creation, hours after their events.
+    interval: 15m
+    request:
+      url: "{{ config.base_url }}/services/data/v{{ config.api_version }}/query"
+      query:
+        q: >-
+          SELECT Id, EventType, LogDate, Interval, Sequence, LogFileLength, CreatedDate FROM EventLogFile
+          WHERE Interval = '{{ config.interval }}' AND CreatedDate >= {{ window.start | rfc3339_s }} AND CreatedDate < {{ window.end | rfc3339_s }}
+          ORDER BY CreatedDate
+    records: "{{ response.records }}"
+    pagination: { kind: next_url, next: "{{ response.done ? null : response.nextRecordsUrl }}" }
+    expand:
+      request:
+        url: "{{ config.base_url }}/services/data/v{{ config.api_version }}/sobjects/EventLogFile/{{ parent.Id }}/LogFile"
+        format: csv
+    record_id: "{{ parent.Id + ':' + (record.REQUEST_ID ?? '') + ':' + (record.TIMESTAMP_DERIVED ?? record.TIMESTAMP) }}"
+    incremental: { kind: time, record_time: "{{ parent.CreatedDate }}", order: oldest_first, lookback: 1d, overlap: 10m }
+    output:
+      logs:
+        service: salesforce
+        message: "{{ record.EVENT_TYPE }}{{ ' ' + (record.URI ?? record.METHOD_NAME ?? record.ENTITY_NAME) ?? '' }}{{ ' by ' + (record.USER_NAME ?? record.USER_ID_DERIVED ?? record.USER_ID) ?? '' }}"
+        status: "{{ (record.LOGIN_STATUS ?? 'LOGIN_NO_ERROR') != 'LOGIN_NO_ERROR' || (record.STATUS_CODE | int) >= 400 ? 'warn' : 'info' }}"
+        date: "{{ record.TIMESTAMP_DERIVED ?? parent.LogDate }}"
+        tags: { event_type: "{{ record.EVENT_TYPE ?? parent.EventType }}" }
+        attributes: >-
+          {{ record + {
+               event_log_file: {id: parent.Id, log_date: parent.LogDate, interval: parent.Interval, sequence: parent.Sequence},
+               evt: {name: record.EVENT_TYPE ?? parent.EventType},
+               usr: {id: record.USER_ID_DERIVED ?? record.USER_ID, name: record.USER_NAME},
+               network: {client: {ip: record.CLIENT_IP ?? record.SOURCE_IP}}
+             } }}
+
+  - id: limits
+    name: Org limits
+    description: >-
+      Every org limit (DailyApiRequests, DataStorageMB, FileStorageMB, DailyAsyncApexExecutions, …) as gauges:
+      salesforce.limits.max and salesforce.limits.remaining, tagged limit_name.
+    interval: 5m
+    request:
+      url: "{{ config.base_url }}/services/data/v{{ config.api_version }}/limits"
+    records: "{{ response | entries }}"
+    output:
+      metrics:
+        - { name: salesforce.limits.max, value: "{{ record.value.Max }}", description: The limit., tags: &limit { limit_name: "{{ record.key }}", salesforce_org: "{{ connection.instance }}" } }
+        - { name: salesforce.limits.remaining, value: "{{ record.value.Remaining }}", description: What remains of the limit., tags: *limit }
+
+test:
+  request: { url: "{{ config.base_url }}/services/data/v{{ config.api_version }}/limits" }
+  message: "Connected to {{ config.base_url | host }}: {{ response.DailyApiRequests.Remaining }} of {{ response.DailyApiRequests.Max }} daily API requests left"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { base_url: "https://example.my.salesforce.com", client_id: 3MVG9OcTestConsumerKey0000 }
+  secrets: { client_secret: sf-test-consumer-secret-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://example.my.salesforce.com/services/oauth2/token", body_contains: "client_credentials", body: { access_token: "00D000000000001!AQ0AQTestToken", instance_url: "https://example.my.salesforce.com", token_type: Bearer, issued_at: "1794311000000" } }
+    - { url: "https://example.my.salesforce.com/services/data/v64.0/query", file: fixtures/eventlogfile.json }
+    - { url: "https://example.my.salesforce.com/services/data/v64.0/sobjects/EventLogFile/0AT5e00000AbCdEFG/LogFile", file: fixtures/login.csv }
+    - { url: "https://example.my.salesforce.com/services/data/v64.0/sobjects/EventLogFile/0AT5e00000AbCdEFH/LogFile", file: fixtures/report.csv }
+    - { url: "https://example.my.salesforce.com/services/data/v64.0/limits", file: fixtures/limits.json }
+  expect:
+    event_log_files: { records: 3, logs: 3, rerun: 0, golden: fixtures/event_log_files.expected.json }
+    limits: { records: 3, metrics: 6, golden: fixtures/limits.expected.json }
+    test: { ok: true, message: "148221 of 150000 daily API requests left" }

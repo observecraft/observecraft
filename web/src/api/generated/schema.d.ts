@@ -2375,6 +2375,153 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/connectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every connector of this server: bundled and operator packages, native connectors. */
+        get: operations["list_connectors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A connector and the org's connections of it, with their streams' status. */
+        get: operations["get_connector"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's connections of a connector. */
+        get: operations["list_connector_connections"];
+        put?: never;
+        /** Creates a connection (admins): its secrets are sealed, its streams start within a minute. */
+        post: operations["create_connector_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/connections/{connection}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes a connection (admins); secrets left out are kept while its URLs stay the same. */
+        put: operations["update_connector_connection"];
+        post?: never;
+        /** Removes a connection, its secrets, state and polling (admins). Stored logs and metrics stay. */
+        delete: operations["delete_connector_connection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/connections/{connection}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Runs a connection's streams now instead of at their next interval (admins); native connectors' too. */
+        post: operations["sync_connector_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/oauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Starts "Connect" (admins): checks what was entered (`connectionId` reconnects a saved connection) and answers the
+         *     vendor's consent page.
+         */
+        post: operations["start_connector_oauth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * For a push-only package: creates the push job or webhook on the vendor's side with the config entered
+         *     (`push.create`, admins). Nothing is stored.
+         */
+        post: operations["create_connector_push"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests a connection before or after saving it (admins): the package's test request, with the secrets entered or
+         *     (`connectionId`) the saved ones.
+         */
+        post: operations["test_connector_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard": {
         parameters: {
             query?: never;
@@ -4323,6 +4470,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/azure/accounts/{id}/entra-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The app registration's Entra ID logs and their polling status. */
+        get: operations["azure_entra_logs"];
+        /**
+         * Turns the app registration's Entra ID logs on or off, by stream (admins). On, the Microsoft Entra ID tile counts
+         *     as installed and its log pipeline is installed; off, the polling stops (stored logs stay).
+         */
+        put: operations["azure_entra_logs_save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/azure/accounts/{id}/entra-logs/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests what the app registration may read from Microsoft Graph, stream by stream (admins): the permissions and
+         *     licenses each needs are named when Graph refuses.
+         */
+        post: operations["azure_entra_logs_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/azure/accounts/{id}/status": {
         parameters: {
             query?: never;
@@ -4484,6 +4672,124 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/gitlab-audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The GitLab Audit Events connection and its sync's status (no token). */
+        get: operations["gitlab_audit_status"];
+        /**
+         * Saves the GitLab Audit Events connection (admins). The token is sealed; leave it out to keep the saved one (only
+         *     while the URL stays the same). A new URL or scope reads from the first sync's lookback again.
+         */
+        put: operations["gitlab_audit_save"];
+        post?: never;
+        /** Removes the GitLab Audit Events connection, its token and its polling (admins). Stored logs stay. */
+        delete: operations["gitlab_audit_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/gitlab-audit-events/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Polls GitLab now instead of within the minute (admins). */
+        post: operations["gitlab_audit_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/gitlab-audit-events/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests a connection before or after saving it (admins): the token's user and whether it can read the scope's audit
+         *     events.
+         */
+        post: operations["gitlab_audit_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/google-workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Google Workspace connection and its applications' syncs (no key). */
+        get: operations["google_workspace_status"];
+        /**
+         * Saves the Google Workspace connection (admins). The key is sealed; leave it out to keep the saved one. Another
+         *     service account or administrator reads from the first sync's lookback again; applications no longer selected stop.
+         */
+        put: operations["google_workspace_save"];
+        post?: never;
+        /** Removes the Google Workspace connection, its key and its polling (admins). Stored logs stay. */
+        delete: operations["google_workspace_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/google-workspace/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Polls Google now instead of within five minutes (admins). */
+        post: operations["google_workspace_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/google-workspace/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests a connection before or after saving it (admins): a token for the administrator and each application's
+         *     activities.
+         */
+        post: operations["google_workspace_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/installed": {
         parameters: {
             query?: never;
@@ -4495,65 +4801,6 @@ export interface paths {
         get: operations["list_installed_integrations"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/netbird": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The NetBird connection and its syncs' status (no token). */
-        get: operations["netbird_status"];
-        /**
-         * Saves the NetBird connection (admins). The token is sealed; leave it out to keep the saved one (only while the
-         *     URL stays the same).
-         */
-        put: operations["netbird_save"];
-        post?: never;
-        /** Removes the NetBird connection, its token and its polling (admins). Stored logs and metrics stay. */
-        delete: operations["netbird_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/netbird/sync": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Polls NetBird now instead of within the minute (admins). */
-        post: operations["netbird_sync"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/netbird/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Tests a connection before or after saving it (admins): the token's user and role, and whether it can read the
-         *     audit log and the peers.
-         */
-        post: operations["netbird_test"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7636,6 +7883,26 @@ export interface paths {
         put?: never;
         /** Profiles in the range, newest first (Profile List). */
         post: operations["search_profiles"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/connectors/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The vendor sends the browser back here after its consent page; the state names the org, the admin and the
+         *     connection.
+         */
+        get: operations["connector_oauth_callback"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -13360,6 +13627,216 @@ export interface components {
             /** Format: int64 */
             azure: number;
         };
+        /** @description What an admin enters. */
+        ConnectionInput: {
+            /**
+             * @description The package's non-secret fields.
+             * @default {}
+             */
+            config: {
+                [key: string]: unknown;
+            };
+            /**
+             * @description For a test: the saved connection whose secrets fill the ones left out.
+             * @default null
+             */
+            connectionId: string | null;
+            /** @default null */
+            enabled: boolean | null;
+            /**
+             * @description Defaults to the connected account (`connection.instance`).
+             * @default
+             */
+            name: string;
+            /**
+             * @description For a push-only package's `push.create`: the URL the vendor is to send to (as the page shows it).
+             * @default null
+             */
+            pushUrl: string | null;
+            /**
+             * @description Secret fields entered; left out or empty keeps the saved one.
+             * @default {}
+             */
+            secrets: {
+                [key: string]: string;
+            };
+            /**
+             * @description The streams to collect (default: those enabled by default).
+             * @default null
+             */
+            streams: string[] | null;
+        };
+        /** @description A connection as answered: its configuration and which secrets are saved, never their values. */
+        ConnectionView: {
+            config: {
+                [key: string]: unknown;
+            };
+            enabled: boolean;
+            id: string;
+            name: string;
+            /** @description The secret fields saved. */
+            secrets: string[];
+            streams: components["schemas"]["StreamStatus"][];
+            /**
+             * Format: int64
+             * @description Epoch ms; None for native connectors.
+             */
+            updatedAt?: number | null;
+        };
+        /** @description Every connector of this server. */
+        ConnectorCatalog: {
+            connectors: components["schemas"]["ConnectorEntry"][];
+            /** @description The operator's packages that couldn't be loaded (admins only). */
+            invalid: components["schemas"]["InvalidPackage"][];
+        };
+        /** @description A connector and the org's connections of it. */
+        ConnectorDetail: {
+            connections: components["schemas"]["ConnectionView"][];
+            connector: components["schemas"]["ConnectorEntry"];
+        };
+        /** @description A connector: its package's catalog entry, or a native connector's. */
+        ConnectorEntry: {
+            categories: string[];
+            config: components["schemas"]["ConnectorField"][];
+            /** @description Titles of the dashboards it brings (listed once connected). */
+            dashboards: string[];
+            description: string;
+            docsUrl?: string | null;
+            id: string;
+            kind: components["schemas"]["ConnectorKind"];
+            links: components["schemas"]["ConnectorLink"][];
+            logo: string;
+            /** @description Names of its recommended monitors. */
+            monitors: string[];
+            name: string;
+            oauth?: components["schemas"]["ConnectorOAuth"] | null;
+            /** @description A native connector's own page. */
+            page?: string | null;
+            /** @description The log pipeline installed with a connection. */
+            pipeline?: string | null;
+            publisher: string;
+            push?: components["schemas"]["ConnectorPush"] | null;
+            /** @description Markdown. */
+            setup?: string | null;
+            /** @description Logs' `source`. */
+            source: string;
+            streams: components["schemas"]["ConnectorStream"][];
+            /** @description Whether it has a connection test. */
+            testable: boolean;
+            /** @description Shipped with ObserveCraft, or the operator's (`OC_CONNECTORS_DIR`): community, third-party or private. */
+            thirdParty: boolean;
+            /** @description Catalog tiles it makes available. */
+            tiles: string[];
+            vendor: string;
+            version: string;
+        };
+        ConnectorField: {
+            default: unknown;
+            help?: string | null;
+            key: string;
+            label: string;
+            options: components["schemas"]["ConnectorOption"][];
+            pattern?: string | null;
+            placeholder?: string | null;
+            required: boolean;
+            secret: boolean;
+            /** @description string | text | url | number | boolean | select | multiselect | list */
+            type: string;
+        };
+        /**
+         * @description How a connector is set up.
+         * @enum {string}
+         */
+        ConnectorKind: "package" | "native" | "push";
+        ConnectorLink: {
+            label: string;
+            /** @description May hold `{{ config.<key> }}` parts. */
+            url: string;
+        };
+        /** @description A metric a stream writes. */
+        ConnectorMetric: {
+            description?: string | null;
+            /** @description The name (a template for families: `streamnative.{{ record.name }}`). */
+            name: string;
+            tags: string[];
+            /** @description gauge | count */
+            type: string;
+            unit?: string | null;
+        };
+        /** @description A package connected with the vendor's consent page (OAuth authorization code). */
+        ConnectorOAuth: {
+            /** @description The operator registered this install's app (`OC_OAUTH_<ID>_CLIENT_ID`), filled in by the server. */
+            appConfigured: boolean;
+            /** @description The connection brings its own OAuth app (client id and secret fields); else the operator's. */
+            ownApp: boolean;
+        };
+        /** @description The vendor's consent page. */
+        ConnectorOAuthStart: {
+            /** @description Open it in the browser: the vendor sends it back to ObserveCraft. */
+            url: string;
+        };
+        ConnectorOption: {
+            label: string;
+            value: string;
+        };
+        /** @description Where a push-only vendor sends. */
+        ConnectorPush: {
+            /** @description Whether the page can create the push on the vendor's side (`POST /api/v1/connectors/{id}/push`). */
+            canCreate: boolean;
+            /** @description More endpoints (a trace drain beside a log drain). */
+            endpoints: components["schemas"]["ConnectorPushEndpoint"][];
+            /** @description Headers the vendor must send. */
+            headers: {
+                [key: string]: string;
+            };
+            /** @description Markdown with `{{ intake }}` and `{{ source }}`. */
+            instructions: string;
+            /** @description logs | otlp | webhook */
+            kind: string;
+            /** @description The header carrying the vendor's signature, when the intake checks it. */
+            signatureHeader?: string | null;
+            /** @description The secret config field holding the signing secret, saved as a connection of the org. */
+            signatureSecret?: string | null;
+            /** @description The URL to paste (`{{ intake }}`, `{{ source }}`, `{{ api_key }}`, `{{ config.x }}` parts). */
+            url?: string | null;
+            webhook?: string | null;
+        };
+        /** @description Another endpoint of a push package. */
+        ConnectorPushEndpoint: {
+            headers: {
+                [key: string]: string;
+            };
+            instructions?: string | null;
+            /** @description logs | otlp | webhook | splunk_hec */
+            kind: string;
+            label: string;
+            url?: string | null;
+        };
+        ConnectorStream: {
+            costs: boolean;
+            defaultEnabled: boolean;
+            description: string;
+            events: boolean;
+            id: string;
+            /** @description none | new_records | time | token */
+            incremental: string;
+            /**
+             * Format: int64
+             * @description Seconds between runs.
+             */
+            intervalSecs: number;
+            /** @description Its records become logs (with the connector's source). */
+            logs: boolean;
+            metrics: components["schemas"]["ConnectorMetric"][];
+            name: string;
+        };
+        /** @description A connection test's result. */
+        ConnectorTest: {
+            message: string;
+            ok: boolean;
+            /** @description Records the test read. */
+            records?: number | null;
+        };
         ContainerRecommendation: {
             /** Format: double */
             cpuAvg?: number | null;
@@ -14859,6 +15336,42 @@ export interface components {
             name: string;
             type?: string | null;
         };
+        /** @description An app registration's Entra ID logs. */
+        EntraLogs: {
+            audits: boolean;
+            enabled: boolean;
+            risk: boolean;
+            signIns: boolean;
+            /** @description One per stream on: scope `signins`, `audits` or `risk`. */
+            streams: components["schemas"]["ScopeStatus"][];
+        };
+        /** @description What an admin turns on. */
+        EntraLogsInput: {
+            /** @default true */
+            audits: boolean;
+            /** @default true */
+            enabled: boolean;
+            /** @default false */
+            risk: boolean;
+            /** @default true */
+            signIns: boolean;
+        };
+        EntraLogsTest: {
+            /** @description Every stream readable. */
+            ok: boolean;
+            streams: components["schemas"]["EntraStreamTest"][];
+        };
+        /** @description One stream's test. */
+        EntraStreamTest: {
+            /** @description The license it needs, when one does. */
+            license?: string | null;
+            message: string;
+            ok: boolean;
+            /** @description The Microsoft Graph application permission it needs. */
+            permission: string;
+            /** @description `signins`, `audits` or `risk`. */
+            stream: string;
+        };
         /** @description JSON error body returned by every endpoint. */
         ErrorBody: {
             error: string;
@@ -15850,6 +16363,72 @@ export interface components {
             template: string;
         };
         /** @description The connection as saved; the token is never answered. */
+        GitlabAuditConnection: {
+            baseUrl: string;
+            /** @description The group or project path; empty for the instance. */
+            path: string;
+            /** @description `instance`, `group` or `project`. */
+            scope: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+        };
+        /** @description What an admin enters. */
+        GitlabAuditInput: {
+            /**
+             * @description https://gitlab.com or the self-managed instance's URL.
+             * @default
+             */
+            baseUrl: string;
+            /**
+             * @description The group or project path (`example-org`, `example-org/storefront-api`), for those scopes.
+             * @default
+             */
+            path: string;
+            /**
+             * @description `instance` (an administrator's token), `group` or `project`.
+             * @default
+             */
+            scope: string;
+            /**
+             * @description A personal, group or project access token with `read_api`; leave it out to keep the saved one.
+             * @default null
+             */
+            token: string | null;
+        };
+        GitlabAuditStatus: {
+            /** @description Whether a backlog (more events than a poll reads) is being read over several polls. */
+            catchingUp: boolean;
+            connection?: components["schemas"]["GitlabAuditConnection"] | null;
+            error?: components["schemas"]["CrawlIssue"] | null;
+            /**
+             * Format: int32
+             * @description Events sent by the last poll.
+             */
+            eventsLastSync: number;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful poll.
+             */
+            lastSyncAt?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms: events created up to here were read.
+             */
+            syncedUntil?: number | null;
+        };
+        /** @description A connection test's result. */
+        GitlabAuditTest: {
+            /** @description Whether the user is an instance administrator. */
+            admin?: boolean | null;
+            message: string;
+            ok: boolean;
+            /** @description The token's user. */
+            user?: string | null;
+        };
+        /** @description The connection as saved; the token is never answered. */
         GitlabCiConnection: {
             allProjects: boolean;
             baseUrl: string;
@@ -15948,6 +16527,80 @@ export interface components {
             scopes: string[];
             /** @description The token's user. */
             user?: string | null;
+        };
+        /** @description A Reports API application the integration can read. */
+        GoogleWorkspaceApplication: {
+            /** @description Read when an admin picks none. */
+            default: boolean;
+            /** @description The Reports API's `applicationName` (the logs' `service`). */
+            id: string;
+            name: string;
+        };
+        /** @description The connection as saved; the key is never answered. */
+        GoogleWorkspaceConnection: {
+            applications: string[];
+            /** @description The service account (the key's `client_email`). */
+            clientEmail: string;
+            subject: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+        };
+        /** @description What an admin enters. */
+        GoogleWorkspaceInput: {
+            /**
+             * @description Reports API applications to read (`login`, `admin`, `drive`, …); empty: the defaults.
+             * @default []
+             */
+            applications: string[];
+            /**
+             * @description The service account's JSON key file; leave it out to keep the saved one.
+             * @default null
+             */
+            serviceAccountKey: string | null;
+            /**
+             * @description The administrator the service account acts as (domain-wide delegation).
+             * @default
+             */
+            subject: string;
+        };
+        GoogleWorkspaceStatus: {
+            /** @description The applications that can be read. */
+            available: components["schemas"]["GoogleWorkspaceApplication"][];
+            connection?: components["schemas"]["GoogleWorkspaceConnection"] | null;
+            /** @description Each selected application's sync. */
+            syncs: components["schemas"]["GoogleWorkspaceSync"][];
+        };
+        /** @description An application's sync. */
+        GoogleWorkspaceSync: {
+            application: string;
+            /** @description Whether a backlog (more activities than a poll reads) is being read over several polls. */
+            catchingUp: boolean;
+            error?: components["schemas"]["CrawlIssue"] | null;
+            /**
+             * Format: int32
+             * @description Events sent by the last poll.
+             */
+            eventsLastSync: number;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful poll.
+             */
+            lastSyncAt?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms: activities up to here were read.
+             */
+            syncedUntil?: number | null;
+        };
+        /** @description A connection test's result. */
+        GoogleWorkspaceTest: {
+            /** @description The service account the key belongs to. */
+            clientEmail?: string | null;
+            message: string;
+            ok: boolean;
         };
         GpuDevice: {
             cluster?: string | null;
@@ -16726,6 +17379,11 @@ export interface components {
             integration: string;
             /** @description Names of its library log pipelines. */
             pipelines: string[];
+        };
+        /** @description A package that couldn't be loaded, for instance admins. */
+        InvalidPackage: {
+            dir: string;
+            problems: string[];
         };
         InventoryLibrary: {
             direct?: boolean | null;
@@ -18635,76 +19293,6 @@ export interface components {
             /** Format: int64 */
             count: number;
             name: string;
-        };
-        /** @description The connection as saved; the token is never answered. */
-        NetbirdConnection: {
-            baseUrl: string;
-            /**
-             * Format: int64
-             * @description Epoch ms.
-             */
-            updatedAt: number;
-        };
-        /** @description What an admin enters. */
-        NetbirdInput: {
-            /**
-             * @description The management API's URL: `https://api.netbird.io` for NetBird Cloud, the server's for self-hosted NetBird.
-             * @default
-             */
-            baseUrl: string;
-            /**
-             * @description A personal access token of a service user allowed to read the audit log; leave it out to keep the saved one.
-             * @default null
-             */
-            token: string | null;
-        };
-        NetbirdStatus: {
-            connection?: components["schemas"]["NetbirdConnection"] | null;
-            error?: components["schemas"]["CrawlIssue"] | null;
-            /**
-             * Format: int32
-             * @description Events sent by the last poll.
-             */
-            eventsLastSync: number;
-            /**
-             * Format: int64
-             * @description Epoch ms of the last successful poll of the audit events.
-             */
-            lastSyncAt?: number | null;
-            /**
-             * Format: int32
-             * @description Peers read by the last poll.
-             */
-            peers: number;
-            /**
-             * Format: int64
-             * @description Epoch ms of the last successful poll of the peers.
-             */
-            peersSyncedAt?: number | null;
-            /**
-             * Format: int64
-             * @description Epoch ms: events recorded up to here were read.
-             */
-            syncedUntil?: number | null;
-        };
-        /** @description A connection test's result. */
-        NetbirdTest: {
-            /**
-             * Format: int64
-             * @description Audit events the token can read.
-             */
-            events?: number | null;
-            message: string;
-            ok: boolean;
-            /**
-             * Format: int64
-             * @description Peers of the account.
-             */
-            peers?: number | null;
-            /** @description Its role (owner, admin, auditor, …). */
-            role?: string | null;
-            /** @description The token's user (name or email). */
-            user?: string | null;
         };
         NetworkFacet: {
             /** @description `client_service`, `server_port`, … */
@@ -22088,6 +22676,8 @@ export interface components {
         SignalSearchRequest: {
             /** @description Oldest first (default newest first). */
             ascending?: boolean;
+            /** @description Facets to count besides the standard ones (a dashboard widget's group-by, `@evt.name`). */
+            facets?: string[];
             limit?: number | null;
             offset?: number | null;
             query?: string;
@@ -23215,6 +23805,33 @@ export interface components {
              * @description Messages per second reaching the last consumer.
              */
             throughput: number;
+        };
+        /** @description A stream's collection, from its job. */
+        StreamStatus: {
+            /**
+             * Format: int64
+             * @description Epoch ms: records up to here were read (time windows), or the last run's minute.
+             */
+            collectedUntil?: number | null;
+            enabled: boolean;
+            error?: components["schemas"]["CrawlIssue"] | null;
+            id: string;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful run.
+             */
+            lastSuccessAt?: number | null;
+            name: string;
+            /**
+             * Format: int32
+             * @description Records read by the last run.
+             */
+            records: number;
+            /**
+             * Format: int32
+             * @description Logs, points, events and costs it wrote.
+             */
+            written: number;
         };
         SuggestRequest: {
             /** @description The term being typed, e.g. `serv`, `service:`, `service:pho`, `-env:`. */
@@ -29396,6 +30013,321 @@ export interface operations {
             };
         };
     };
+    list_connectors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorCatalog"];
+                };
+            };
+        };
+    };
+    get_connector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_connector_connections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionView"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_connector_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionView"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_connector_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                connection: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionView"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_connector_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                connection: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    sync_connector_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                connection: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    start_connector_oauth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorOAuthStart"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_connector_push: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    test_connector_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     datadog_list_dashboards: {
         parameters: {
             query?: {
@@ -33931,6 +34863,113 @@ export interface operations {
             };
         };
     };
+    azure_entra_logs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntraLogs"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    azure_entra_logs_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntraLogsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntraLogs"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    azure_entra_logs_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntraLogsTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     azure_account_status: {
         parameters: {
             query?: never;
@@ -34272,6 +35311,268 @@ export interface operations {
             };
         };
     };
+    gitlab_audit_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitlabAuditStatus"];
+                };
+            };
+        };
+    };
+    gitlab_audit_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitlabAuditInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitlabAuditStatus"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    gitlab_audit_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    gitlab_audit_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    gitlab_audit_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitlabAuditInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitlabAuditTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    google_workspace_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleWorkspaceStatus"];
+                };
+            };
+        };
+    };
+    google_workspace_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleWorkspaceInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleWorkspaceStatus"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    google_workspace_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    google_workspace_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    google_workspace_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleWorkspaceInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleWorkspaceTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_installed_integrations: {
         parameters: {
             query?: never;
@@ -34287,137 +35588,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": string[];
-                };
-            };
-        };
-    };
-    netbird_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NetbirdStatus"];
-                };
-            };
-        };
-    };
-    netbird_save: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NetbirdInput"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NetbirdStatus"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    netbird_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    netbird_sync: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    netbird_test: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NetbirdInput"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NetbirdTest"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -40581,6 +41751,27 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProfileList"];
                 };
+            };
+        };
+    };
+    connector_oauth_callback: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

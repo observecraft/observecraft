@@ -1,0 +1,19 @@
+{
+  "data": [
+    {
+      "type": "event", "id": "5g8j000001",
+      "attributes": { "timestamp": 1794303673, "datetime": "2026-11-10T09:41:13+00:00", "uuid": "1fff0000-0000-4000-8000-000000000001",
+        "event_properties": { "_ip": "203.0.113.80", "$event_id": "1794303673", "Email Domain": "example.com", "Subject": "Our autumn catalog is here", "Campaign Name": "Autumn catalog 2026", "$message": "01JXEXAMPLEMSG0001" } },
+      "relationships": { "profile": { "data": { "type": "profile", "id": "01JXEXAMPLEPROFILE00000001" } }, "metric": { "data": { "type": "metric", "id": "RcvEm1" } } },
+      "links": { "self": "https://a.klaviyo.com/api/events/5g8j000001/" }
+    },
+    {
+      "type": "event", "id": "5g8j000002",
+      "attributes": { "timestamp": 1794304800, "datetime": "2026-11-10T10:00:00+00:00", "uuid": "1fff0000-0000-4000-8000-000000000002",
+        "event_properties": { "_ip": "203.0.113.80", "$event_id": "1794304800", "Email Domain": "example.com", "Subject": "Our autumn catalog is here", "Campaign Name": "Autumn catalog 2026", "Client Name": "Apple Mail" } },
+      "relationships": { "profile": { "data": { "type": "profile", "id": "01JXEXAMPLEPROFILE00000001" } }, "metric": { "data": { "type": "metric", "id": "OpnEm2" } } },
+      "links": { "self": "https://a.klaviyo.com/api/events/5g8j000002/" }
+    }
+  ],
+  "links": { "self": "https://a.klaviyo.com/api/events/", "next": "https://a.klaviyo.com/api/events/?page%5Bcursor%5D=bmV4dDo6aWQ6OjU", "prev": null }
+}

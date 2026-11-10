@@ -1,5 +1,6 @@
 // Shared bits of the Cloud Cost pages: money formatting, calendar ranges, providers and filters.
 import { useQuery } from '@tanstack/react-query';
+import { quoteValue } from '../../lib/searchQuery';
 import { costTags, queryCosts, type CostQueryRequest, type CostTag, type CostType } from '../../api/cloudCost/client';
 
 export const DAY = 86_400_000;
@@ -107,14 +108,12 @@ export const isCloud = (p: string) => CLOUDS.includes(p);
 /** Selected filter values by tag; empty = all. */
 export type Filters = Record<string, string[]>;
 
-const quote = (v: string) => (/[\s():"]/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : v);
-
 /** Filters (and a base scope) as cost search syntax: `providername:aws team:(ml OR data)`. */
 export function filterQuery(filters: Filters, base = ''): string {
   const parts = base ? [base] : [];
   for (const [k, vs] of Object.entries(filters)) {
     if (!vs.length) continue;
-    parts.push(vs.length === 1 ? `${k}:${quote(vs[0])}` : `${k}:(${vs.map(quote).join(' OR ')})`);
+    parts.push(vs.length === 1 ? `${k}:${quoteValue(vs[0])}` : `${k}:(${vs.map(quoteValue).join(' OR ')})`);
   }
   return parts.join(' ');
 }

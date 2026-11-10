@@ -1,0 +1,138 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c545-103b-7d61-845e-68e62d070ffa"
+      },
+      "date": "2026-11-10T11:43:20.123Z",
+      "ddsource": "dagster-plus",
+      "deployment": "prod",
+      "event_type": "RUN_START",
+      "host": "example-org/prod",
+      "job_name": "orders_daily_job",
+      "level": "DEBUG",
+      "message": "Started execution of run for \"orders_daily_job\".",
+      "run_id": "a3bcb088-1640-40dc-9701-4b554c0b9cac",
+      "service": "dagster-plus",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c545-192a-7331-83f6-b82e2b33ba4a"
+      },
+      "date": "2026-11-10T11:43:22.410Z",
+      "ddsource": "dagster-plus",
+      "deployment": "prod",
+      "event_type": "STEP_START",
+      "host": "example-org/prod",
+      "job_name": "orders_daily_job",
+      "level": "DEBUG",
+      "message": "Started execution of step \"orders_raw\".",
+      "run_id": "a3bcb088-1640-40dc-9701-4b554c0b9cac",
+      "service": "dagster-plus",
+      "status": "info",
+      "step_key": "orders_raw"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c545-4dc8-708b-9c73-972a4fe602cc"
+      },
+      "asset_key": "shop/orders_raw",
+      "date": "2026-11-10T11:43:35.880Z",
+      "ddsource": "dagster-plus",
+      "deployment": "prod",
+      "event_type": "ASSET_MATERIALIZATION",
+      "host": "example-org/prod",
+      "job_name": "orders_daily_job",
+      "level": "DEBUG",
+      "message": "Materialized value orders_raw.",
+      "partition_key": "2026-11-09",
+      "run_id": "a3bcb088-1640-40dc-9701-4b554c0b9cac",
+      "service": "dagster-plus",
+      "status": "info",
+      "step_key": "orders_raw"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c549-a3a0-7957-9ea2-f83cac12da50"
+      },
+      "date": "2026-11-10T11:48:20.000Z",
+      "ddsource": "dagster-plus",
+      "deployment": "prod",
+      "event_type": "RUN_START",
+      "host": "example-org/prod",
+      "job_name": "__ASSET_JOB",
+      "level": "DEBUG",
+      "message": "Started execution of run for \"__ASSET_JOB\".",
+      "run_id": "ff550567-4f6f-4aa0-a7b1-548d97a99170",
+      "service": "dagster-plus",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c549-a97c-76ba-a959-46807b2f2811"
+      },
+      "date": "2026-11-10T11:48:21.500Z",
+      "ddsource": "dagster-plus",
+      "deployment": "prod",
+      "host": "example-org/prod",
+      "job_name": "__ASSET_JOB",
+      "level": "INFO",
+      "message": "Loading 1,284 rows from the inventory export",
+      "run_id": "ff550567-4f6f-4aa0-a7b1-548d97a99170",
+      "service": "dagster-plus",
+      "status": "info",
+      "step_key": "inventory_snapshot"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c549-ae2c-7d8d-b2a9-cacd5238101e"
+      },
+      "date": "2026-11-10T11:48:22.700Z",
+      "ddsource": "dagster-plus",
+      "deployment": "prod",
+      "error": {
+        "kind": "ConnectionError",
+        "message": "ConnectionError: inventory-service timed out\n"
+      },
+      "event_type": "STEP_FAILURE",
+      "host": "example-org/prod",
+      "job_name": "__ASSET_JOB",
+      "level": "ERROR",
+      "message": "Execution of step \"inventory_snapshot\" failed.",
+      "run_id": "ff550567-4f6f-4aa0-a7b1-548d97a99170",
+      "service": "dagster-plus",
+      "status": "info",
+      "step_key": "inventory_snapshot"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c549-afbc-789e-91b0-8805a97c0d3d"
+      },
+      "date": "2026-11-10T11:48:23.100Z",
+      "ddsource": "dagster-plus",
+      "deployment": "prod",
+      "event_type": "RUN_FAILURE",
+      "host": "example-org/prod",
+      "job_name": "__ASSET_JOB",
+      "level": "ERROR",
+      "message": "Execution of run for \"__ASSET_JOB\" failed. Steps failed: ['inventory_snapshot'].",
+      "run_id": "ff550567-4f6f-4aa0-a7b1-548d97a99170",
+      "service": "dagster-plus",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "a3bcb088-1640-40dc-9701-4b554c0b9cac": {
+        "token": "r1-c3"
+      },
+      "ff550567-4f6f-4aa0-a7b1-548d97a99170": {
+        "token": "r2-c4"
+      }
+    }
+  }
+}

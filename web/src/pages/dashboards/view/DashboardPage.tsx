@@ -11,7 +11,7 @@ import { TimeProvider, useTime } from '../../../components/shell/TimeContext';
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { Menu } from '../../../components/ui/Dropdown';
 import { Modal } from '../../../components/ui/Modal';
-import { resolveQuery } from '../../../lib/metricQuery';
+import { resolveQuery, resolveSearchQuery, resolveTitle } from '../../../lib/metricQuery';
 import { snapRange } from '../../../lib/time';
 import { IntegrationLogo } from '../../integrations/IntegrationLogo';
 import { AddWidgetsDrawer } from '../editor/AddWidgetsDrawer';
@@ -163,7 +163,8 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
       metrics,
       overlays,
       resolve,
-      resolveSearch: (query) => [query, ...d.templateVariables.filter((tv) => values[tv.name] && values[tv.name] !== '*').map((tv) => `${tv.prefix}:${values[tv.name]}`)].filter(Boolean).join(' '),
+      resolveSearch: (query) => resolveSearchQuery(query, d.templateVariables, values),
+      resolveTitle: (title) => resolveTitle(title, d.templateVariables, values),
       canEdit,
       onEdit: (w) => setEditing({ widget: w, isNew: false }),
       onClone: (wid) => saveWidgets(cloneWidget(d.widgets, wid)),

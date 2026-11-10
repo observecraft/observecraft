@@ -10,3 +10,8 @@ export function filterCatalog(entries: IntegrationSummary[], req: CatalogRequest
     .filter((s) => !q || s.name.toLowerCase().includes(q) || s.categories.some((c) => c.toLowerCase().includes(q)))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
+
+/** Integrations ObserveCraft can't collect stay out of the default listing; a search or their status filter finds them. */
+export function showsUnavailable(req: Pick<CatalogRequest, 'query' | 'status'>): boolean {
+  return req.status === 'unavailable' || req.query.trim() !== '';
+}

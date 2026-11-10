@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::dashboards::EnabledChange;
+use super::integration_installs::install_pipelines;
 use super::portal_sources::check_site_url;
 use crate::auth::Admin;
 use crate::cloud::jobs::{self, CrawlIssue};
@@ -121,7 +122,7 @@ pub async fn check(api: &dyn FleetApi, conn: &Connection) -> FleetdmTest {
         Ok(s) => s["totals_hosts_count"].as_u64().unwrap_or(0),
         Err(e) => return failed(format!("{user} can't read the hosts: {}", e.message()), Some(user), role),
     };
-    match api.get(&conn.base_url, &conn.token, &fleet::activities_path(0)).await {
+    match api.get(&conn.base_url, &conn.token, fleet::LATEST_ACTIVITY).await {
         Ok(_) => {
             let who = role.as_deref().map_or_else(|| user.clone(), |r| format!("{user} ({r})"));
             FleetdmTest { ok: true, message: format!("Connected as {who}: {hosts} hosts"), user: Some(user), role, hosts: Some(hosts) }
@@ -202,6 +203,8 @@ pub async fn put_fleetdm(State(st): State<AppState>, Admin(ctx): Admin, Json(inp
         .execute(&mut *tx)
         .await?;
     tx.commit().await?;
+    // Its library log pipeline (categories, failures as errors), as installing it from its tile would.
+    install_pipelines(&st, &ctx.org_id, PROVIDER).await?;
     poll_now(&st, &ctx.org_id).await?;
     let detail = format!("{}{}", conn.base_url, if input.token.as_deref().is_some_and(|t| !t.trim().is_empty()) { ", token replaced" } else { "" });
     ctx.audit(&st, "integrations.fleetdm_saved", "fleetdm", &detail).await;
@@ -277,7 +280,7 @@ mod tests {
         let api = FakeFleet::default();
         api.answer(fleet::ME, json!({"user": {"name": "ObserveCraft", "email": "observecraft@example.com", "global_role": "observer", "api_only": true}}));
         api.answer(fleet::HOST_SUMMARY, fixtures::host_summary());
-        api.answer(fleet::activities_path(0), fixtures::page(vec![], false));
+        api.answer(fleet::LATEST_ACTIVITY, fixtures::page(vec![], false));
         let t = check(&api, &conn()).await;
         assert_eq!(t, FleetdmTest { ok: true, message: "Connected as ObserveCraft (observer): 3 hosts".into(), user: Some("ObserveCraft".into()), role: Some("observer".into()), hosts: Some(3) });
     }
@@ -308,8 +311,10 @@ mod tests {
         let mut scopes: Vec<String> = sqlx::query_scalar("SELECT scope FROM cloud_crawl_jobs WHERE provider = $1 AND org_id = $2 AND next_run_at <= now()").bind(PROVIDER).bind(&a.org_id).fetch_all(&st.postgres).await.unwrap();
         scopes.sort();
         assert_eq!(scopes, [ACTIVITIES, HOSTS]);
-        // Its dashboard is listed.
+        // Its dashboard is listed and its log pipeline installed.
         assert!(super::super::dashboards::enabled_integrations(st, &a.org_id).await.unwrap().contains("fleetdm"));
+        let pipelines: Vec<String> = sqlx::query_scalar("SELECT source FROM log_pipelines WHERE org_id = $1").bind(&a.org_id).fetch_all(&st.postgres).await.unwrap();
+        assert_eq!(pipelines, ["integration:fleetdm"]);
 
         // Org B sees nothing of A's, can't delete or sync it, and its first save needs a token.
         assert!(get_fleetdm(State(st.clone()), OrgId(b.org_id.clone())).await.unwrap().0.connection.is_none());

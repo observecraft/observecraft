@@ -1,0 +1,173 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4c3-6cb8-763b-8807-d9d77d18af73"
+      },
+      "date": "2026-11-10T09:21:44.120Z",
+      "ddsource": "sophos-central-cloud",
+      "endpoint_details": {
+        "health": {
+          "overall": "suspicious",
+          "services": {
+            "serviceDetails": [
+              {
+                "name": "Sophos Endpoint Defense",
+                "status": "running"
+              },
+              {
+                "name": "Sophos File Scanner",
+                "status": "running"
+              }
+            ],
+            "status": "good"
+          },
+          "threats": {
+            "status": "suspicious"
+          }
+        },
+        "hostname": "storefront-laptop-07",
+        "id": "63e20000-0000-4000-8000-000000000002",
+        "ipv4Addresses": [
+          "10.0.1.21"
+        ],
+        "lastSeenAt": "2026-11-10T11:58:00.000Z",
+        "lockdown": {
+          "status": "notInstalled",
+          "updateStatus": "notInstalled"
+        },
+        "os": {
+          "build": 20348,
+          "isServer": false,
+          "majorVersion": 10,
+          "minorVersion": 0,
+          "name": "Windows 11 Pro",
+          "platform": "windows"
+        },
+        "tamperProtectionEnabled": true,
+        "tenant": {
+          "id": "5b5b5b5b-0000-4000-8000-0000000a0001"
+        },
+        "type": "computer"
+      },
+      "host": "sophos-central-cloud",
+      "log_message": {
+        "actionable": true,
+        "category": "malware",
+        "created_at": "2026-11-10T09:21:44.120Z",
+        "customer_id": "5b5b5b5b-0000-4000-8000-0000000a0001",
+        "data": {
+          "endpoint_id": "63e20000-0000-4000-8000-000000000002",
+          "endpoint_platform": "windows",
+          "endpoint_type": "computer",
+          "inserted_at": 1794302504120,
+          "source_info": {
+            "ip": "10.0.1.37"
+          },
+          "threat_status": "CLEANUPABLE"
+        },
+        "description": "Malware detected: 'EICAR-AV-Test' at 'C:\\Users\\jdoe\\Downloads\\eicar.com'",
+        "id": "a1c00000-0000-4000-8000-000000000001",
+        "location": "storefront-laptop-07",
+        "product": "endpoint",
+        "severity": "high",
+        "source": "EXAMPLE\\jdoe",
+        "threat": "EICAR-AV-Test",
+        "threat_cleanable": true,
+        "type": "Event::Endpoint::Threat::Detected",
+        "when": "2026-11-10T09:21:40.000Z"
+      },
+      "message": "Malware detected: 'EICAR-AV-Test' at 'C:\\Users\\jdoe\\Downloads\\eicar.com'",
+      "service": "alert",
+      "status": "critical"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e8-7c8c-77ee-aff1-49abb23ff73e"
+      },
+      "date": "2026-11-10T10:02:13.004Z",
+      "ddsource": "sophos-central-cloud",
+      "endpoint_details": {
+        "health": {
+          "overall": "good",
+          "services": {
+            "serviceDetails": [
+              {
+                "name": "Sophos Endpoint Defense",
+                "status": "running"
+              },
+              {
+                "name": "Sophos File Scanner",
+                "status": "running"
+              }
+            ],
+            "status": "good"
+          },
+          "threats": {
+            "status": "good"
+          }
+        },
+        "hostname": "i-0a1b2c3d4e5f60001",
+        "id": "63e20000-0000-4000-8000-000000000001",
+        "ipv4Addresses": [
+          "10.0.1.21"
+        ],
+        "lastSeenAt": "2026-11-10T11:58:00.000Z",
+        "lockdown": {
+          "status": "notInstalled",
+          "updateStatus": "notInstalled"
+        },
+        "os": {
+          "build": 20348,
+          "isServer": true,
+          "majorVersion": 10,
+          "minorVersion": 0,
+          "name": "Windows Server 2022 Datacenter",
+          "platform": "windows"
+        },
+        "tamperProtectionEnabled": true,
+        "tenant": {
+          "id": "5b5b5b5b-0000-4000-8000-0000000a0001"
+        },
+        "type": "server"
+      },
+      "host": "sophos-central-cloud",
+      "log_message": {
+        "actionable": false,
+        "category": "updating",
+        "created_at": "2026-11-10T10:02:13.004Z",
+        "customer_id": "5b5b5b5b-0000-4000-8000-0000000a0001",
+        "data": {
+          "endpoint_id": "63e20000-0000-4000-8000-000000000001",
+          "endpoint_platform": "windows",
+          "endpoint_type": "server",
+          "inserted_at": 1794304933004,
+          "source_info": {
+            "ip": "10.0.1.21"
+          }
+        },
+        "description": "Failed to protect computer: 'i-0a1b2c3d4e5f60001'",
+        "id": "a1c00000-0000-4000-8000-000000000002",
+        "location": "i-0a1b2c3d4e5f60001",
+        "product": "server",
+        "severity": "medium",
+        "source": "n/a",
+        "type": "Event::Endpoint::UpdateFailure",
+        "when": "2026-11-10T10:02:10.000Z"
+      },
+      "message": "Failed to protect computer: 'i-0a1b2c3d4e5f60001'",
+      "service": "alert",
+      "status": "warn"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "5b5b5b5b-0000-4000-8000-0000000a0001": {
+        "token": "QUxFUlRTLTE3OTQzMTIwMDA="
+      }
+    }
+  }
+}

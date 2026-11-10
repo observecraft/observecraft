@@ -1,0 +1,54 @@
+{
+ "resultSetMetaData": {
+  "numRows": 2,
+  "format": "jsonv2",
+  "partitionInfo": [
+   {
+    "rowCount": 2
+   }
+  ],
+  "rowType": [
+   {
+    "name": "WAREHOUSE_NAME",
+    "type": "text"
+   },
+   {
+    "name": "START_TIME",
+    "type": "text"
+   },
+   {
+    "name": "CREDITS_USED",
+    "type": "text"
+   },
+   {
+    "name": "CREDITS_USED_COMPUTE",
+    "type": "text"
+   },
+   {
+    "name": "CREDITS_USED_CLOUD_SERVICES",
+    "type": "text"
+   }
+  ]
+ },
+ "data": [
+  [
+   "ANALYTICS_WH",
+   "2026-11-10T06:00:00.000+00:00",
+   "1.250000000",
+   "1.200000000",
+   "0.050000000"
+  ],
+  [
+   "ETL_WH",
+   "2026-11-10T06:00:00.000+00:00",
+   "4.010000000",
+   "3.980000000",
+   "0.030000000"
+  ]
+ ],
+ "code": "090001",
+ "statementStatusUrl": "/api/v2/statements/01b8a2c4-0000-1a2b-0000-00000000abcd",
+ "statementHandle": "01b8a2c4-0000-1a2b-0000-00000000abcd",
+ "message": "Statement executed successfully.",
+ "createdOn": 1794312000000
+}

@@ -1,0 +1,13 @@
+{
+  "version": "v1.2.0",
+  "metadata": { "links": { "self": "https://api.amp.cisco.com/v1/events?limit=500&offset=2" }, "results": { "total": 3, "current_item_count": 1, "index": 2, "items_per_page": 2 } },
+  "data": [
+    {
+      "id": 6400000000000000001, "timestamp": 1794297600, "timestamp_nanoseconds": 0, "date": "2026-11-10T08:00:00+00:00",
+      "event_type": "Scan Completed, No Detections", "event_type_id": 554696714, "severity": "Low",
+      "connector_guid": "4c1e0000-0000-4000-8000-000000000002", "group_guids": ["7a2b0000-0000-4000-8000-000000000011"],
+      "computer": { "connector_guid": "4c1e0000-0000-4000-8000-000000000002", "hostname": "build-01.example.com", "external_ip": "203.0.113.51", "active": true },
+      "scan": { "description": "Flash Scan", "clean": true, "scanned_files": 21470, "scanned_processes": 312, "scanned_paths": 0, "malicious_detections": 0 }
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{ "shop": { "id": 60123456789, "name": "Example Shop", "email": "owner@example.com", "domain": "shop.example.com", "myshopify_domain": "example-shop.myshopify.com", "currency": "USD", "iana_timezone": "America/New_York", "plan_name": "basic" } }

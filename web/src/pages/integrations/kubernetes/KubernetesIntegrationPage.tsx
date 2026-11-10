@@ -10,13 +10,13 @@ import { CodeBlock } from '../../../components/code/CodeBlock';
 import { Empty, ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { formatBytes, timeAgo } from '../../../lib/format';
 import { IntegrationLogo } from '../IntegrationLogo';
-import { datadogValues, helmCommands, otelValues, type KubeChart, type KubeInstallOptions } from './kubernetesSetup';
+import { EXAMPLE_OPTIONS, datadogOperatorManifest, datadogValues, helmCommands, otelValues, type KubeChart, type KubeInstallOptions } from './kubernetesSetup';
 import '../../settings/settings.css';
 import '../integrations.css';
 import '../aws/aws.css';
 
 const DESCRIPTION =
-  'Kubernetes runs containerized workloads across a cluster of nodes. Install the Datadog Agent with its Helm chart (or the OpenTelemetry Collector) to collect metrics, logs, traces, live containers and every Kubernetes object, and to autoscale workloads with the Cluster Agent.';
+  'Kubernetes runs containerized workloads across a cluster of nodes. Install the Datadog Agent with its Helm chart or the Datadog Operator (or the OpenTelemetry Collector) to collect metrics, logs, traces, live containers and every Kubernetes object, and to autoscale workloads with the Cluster Agent.';
 
 const SOURCES: Record<KubeObjectSource, string> = { datadog_cluster_agent: 'Datadog Cluster Agent', opentelemetry: 'OpenTelemetry Collector' };
 
@@ -124,19 +124,33 @@ const defaultIntake = () => `${window.location.protocol}//${window.location.host
 
 function Install() {
   const [chart, setChart] = useState<KubeChart>('datadog');
-  const [opts, setOpts] = useState<KubeInstallOptions>({ clusterName: 'my-cluster', intakeUrl: defaultIntake(), logs: true, apm: true, autoscaling: true });
+  const [opts, setOpts] = useState<KubeInstallOptions>({ ...EXAMPLE_OPTIONS, intakeUrl: defaultIntake(), autoscaling: true });
   const set = <K extends keyof KubeInstallOptions>(k: K, v: KubeInstallOptions[K]) => setOpts((o) => ({ ...o, [k]: v }));
-  const values = useMemo(() => (chart === 'datadog' ? datadogValues(opts) : otelValues(opts)), [chart, opts]);
+  const agent = chart !== 'opentelemetry';
+  const values = useMemo(() => (chart === 'datadog' ? datadogValues(opts) : chart === 'datadog-operator' ? datadogOperatorManifest(opts) : otelValues(opts)), [chart, opts]);
+  /** The Datadog Agent's optional products, with what each feeds here. */
+  const agentOptions: [keyof KubeInstallOptions, string][] = [
+    ['containers', 'Live containers'],
+    ['processes', 'Live processes'],
+    ['sbom', 'SBOMs (Cloud Security vulnerabilities)'],
+    ['workloadProtection', 'Workload Protection'],
+    ['networkMonitoring', 'Cloud Network Monitoring'],
+    ['autoscaling', 'Workload autoscaling (Cluster Agent)'],
+  ];
   return (
     <section className="aws-form">
       <p>
-        Use Datadog’s official Helm chart, unchanged: the Agent on every node and the Cluster Agent, sending to this install. For clusters without the Datadog Agent, the observecraft-agent chart runs
-        the OpenTelemetry Collector instead. Create the key secret with an ingest key from <Link to="/organization-settings/api-keys">API Keys</Link>.
+        Use Datadog’s official Helm chart or the Datadog Operator, unchanged: the Agent on every node and the Cluster Agent, sending to this install. For clusters without the Datadog Agent, the
+        observecraft-agent chart runs the OpenTelemetry Collector instead. Create the key secret with an ingest key from <Link to="/organization-settings/api-keys">API Keys</Link>.
       </p>
       <div className="aws-inline">
         <label className="aws-toggle">
           <input type="radio" checked={chart === 'datadog'} onChange={() => setChart('datadog')} />
           <span>Datadog Helm chart</span>
+        </label>
+        <label className="aws-toggle">
+          <input type="radio" checked={chart === 'datadog-operator'} onChange={() => setChart('datadog-operator')} />
+          <span>Datadog Operator</span>
         </label>
         <label className="aws-toggle">
           <input type="radio" checked={chart === 'opentelemetry'} onChange={() => setChart('opentelemetry')} />
@@ -160,14 +174,21 @@ function Install() {
           <input type="checkbox" checked={opts.apm} onChange={(e) => set('apm', e.target.checked)} />
           <span>APM traces</span>
         </label>
-        {chart === 'datadog' && (
-          <label className="aws-toggle">
-            <input type="checkbox" checked={opts.autoscaling} onChange={(e) => set('autoscaling', e.target.checked)} />
-            <span>Workload autoscaling (Cluster Agent)</span>
-          </label>
-        )}
+        {agent &&
+          agentOptions.map(([key, label]) => (
+            <label key={key} className="aws-toggle">
+              <input type="checkbox" checked={opts[key] as boolean} onChange={(e) => set(key, e.target.checked)} />
+              <span>{label}</span>
+            </label>
+          ))}
       </div>
-      {chart === 'datadog' && opts.autoscaling && (
+      {agent && opts.networkMonitoring && (
+        <div className="aws-note">
+          <Info size={16} />
+          <span>Cloud Network Monitoring runs system-probe (eBPF) on every node: it needs a kernel the Agent supports (Linux 4.4+) and privileged Agent pods.</span>
+        </div>
+      )}
+      {agent && opts.autoscaling && (
         <div className="aws-note">
           <Info size={16} />
           <span>
@@ -176,7 +197,7 @@ function Install() {
           </span>
         </div>
       )}
-      <CodeBlock code={values} filename="values.yaml" />
+      <CodeBlock code={values} filename={chart === 'datadog-operator' ? 'datadog-agent.yaml' : 'values.yaml'} />
       <CodeBlock code={helmCommands(chart).join('\n')} filename="install.sh" />
     </section>
   );

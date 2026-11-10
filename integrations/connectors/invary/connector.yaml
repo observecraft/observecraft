@@ -1,0 +1,107 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Invary Runtime Integrity (https://developers.invary.com, OpenAPI `invary-1_0-openapi.yml`): the appraisals of an
+# organization's endpoints, read from Invary's API and shaped as the Appraisal Reports Invary's own Datadog
+# integration sends (source:invary; node, kernel, distribution, measurement, checks, passed, failed, status, created),
+# so integrations-extras' Invary pipeline and "Invary Runtime Integrity" dashboard read them unchanged. The list
+# answers appraisals; each new one's report (`checks` with their failure details, `node.uptime`,
+# `measurement.modules`) is read once (`expand`), the appraisals sent before are never requested again.
+schema_version: 1
+id: invary
+name: Invary
+publisher: ObserveCraft
+vendor: Invary
+description: >-
+  The Runtime Integrity appraisals of an Invary organization's endpoints (kernel checks passed and failed, kernel,
+  distribution, processor, measurement size) as logs, read every five minutes from Invary's API.
+tiles: [invary]
+categories: [Security, OS & System, Log Collection]
+docs_url: https://developers.invary.com/
+setup: |
+  1. In the Invary console, open **Account Settings** and create an API token; copy it.
+  2. Copy your organization's id (shown in Account Settings, and in the console's URLs).
+links:
+  - { label: Invary console, url: "https://console.invary.com" }
+instance: "{{ config.org_id }}"
+
+config:
+  - key: org_id
+    label: Organization ID
+    type: string
+    required: true
+    pattern: "[a-z0-9]+"
+    placeholder: 8z2xfqppx4xfa0fnm40ee063d
+  - key: token
+    label: API token
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: bearer
+  token: "{{ secrets.token }}"
+
+tables:
+  level: { SUCCESSFUL: ok, ERRORED: error, FAILED: emergency }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Invary refused the API token
+  - status: [403, 404]
+    kind: access_denied
+    message: "The token can't read organization {{ config.org_id }}: check the id and the token's organization"
+
+streams:
+  - id: appraisals
+    name: Appraisals
+    description: >-
+      Every appraisal's report as a log (source:invary, host the endpoint's hostname): status SUCCESSFUL, FAILED or
+      ERRORED, checks with their failure details, passed and failed the kernel checks, node / kernel / distribution /
+      measurement what was appraised.
+    interval: 5m
+    # Newest first with no time filter: pages stop at the first appraisal older than the window.
+    request:
+      url: "{{ 'https://api.invary.com/api/org/' + config.org_id + '/appraisal' }}"
+      query: { page_size: 100, sort: -created, offset: "{{ page.cursor }}" }
+    records: "{{ response.data }}"
+    pagination: { kind: cursor, next: "{{ response.offset }}" }
+    # One report per appraisal; the id and time read only the listed appraisal, so a report is downloaded once.
+    expand:
+      request:
+        url: "{{ 'https://api.invary.com/api/org/' + config.org_id + '/appraisal/' + parent.id }}"
+    record_id: "{{ parent.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ parent.created }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 10m
+    output:
+      logs:
+        message: >-
+          {{ 'Runtime integrity of ' + (record.node.name ?? record.endpoint) + ': ' + record.status + (' (failed: ' + ((record.failed | nonempty) | join(', ')) + ')' ?? '') }}
+        # The tile's pipeline: SUCCESSFUL OK, ERRORED Error, FAILED Emergency.
+        status: "{{ tables.level[record.status] ?? 'info' }}"
+        date: "{{ record.created }}"
+        host: "{{ record.node.name }}"
+        attributes: "{{ record }}"
+
+test:
+  request:
+    url: "{{ 'https://api.invary.com/api/org/' + config.org_id + '/appraisal' }}"
+    query: { page_size: 1 }
+  message: "Connected to organization {{ config.org_id }}"
+
+mock:
+  config: { org_id: 8z2xfqppx4xfa0fnm40ee063d }
+  secrets: { token: invary-test-token }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.invary.com/api/org/8z2xfqppx4xfa0fnm40ee063d/appraisal", query: { page_size: "1" }, body: { data: [] } }
+    - { url: "https://api.invary.com/api/org/8z2xfqppx4xfa0fnm40ee063d/appraisal", file: fixtures/appraisals.json }
+    - { url: "https://api.invary.com/api/org/8z2xfqppx4xfa0fnm40ee063d/appraisal/apr1x7k2m9q4w8e1r5t3y6u0p", file: fixtures/report-1.json }
+    - { url: "https://api.invary.com/api/org/8z2xfqppx4xfa0fnm40ee063d/appraisal/apr2x7k2m9q4w8e1r5t3y6u0p", file: fixtures/report-2.json }
+    - { url: "https://api.invary.com/api/org/8z2xfqppx4xfa0fnm40ee063d/appraisal/apr3x7k2m9q4w8e1r5t3y6u0p", file: fixtures/report-3.json }
+  expect:
+    appraisals: { records: 3, logs: 3, rerun: 0, golden: fixtures/appraisals.expected.json }
+    test: { ok: true, message: "organization 8z2xfqppx4xfa0fnm40ee063d" }

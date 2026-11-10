@@ -1,0 +1,65 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "Administrator": "it.admin@example.com",
+      "Description": "Policy 'Restrict scripting tools' updated",
+      "EventTime": "2026-11-10T09:00:04.21Z",
+      "Feature": "Policies",
+      "InternalSessionId": 3100201,
+      "LoggedAt": "2026-11-10T09:00:04.31Z",
+      "LoggedFrom": "198.51.100.40",
+      "PermissionDescription": "Manage policies",
+      "Role": "SetAdmin",
+      "SetName": "Servers",
+      "_oc_ingest": {
+        "id": "01a1c4af-96f2-73f8-b550-136a389df401"
+      },
+      "date": "2026-11-10T09:00:04.21Z",
+      "ddsource": "idira-endpoint-privilege-manager",
+      "host": "observecraft@example.com",
+      "message": "Policy 'Restrict scripting tools' updated",
+      "service": "idira-endpoint-privilege-manager",
+      "status": "info",
+      "vendor": {
+        "endpoint": "set-admin-audit-events"
+      }
+    },
+    {
+      "Administrator": "it.admin@example.com",
+      "Description": "Computer 'i-0a1b2c3d4e5f60003' moved to group 'Payment hosts'",
+      "EventTime": "2026-11-10T09:12:47.02Z",
+      "Feature": "Computers",
+      "InternalSessionId": 3100201,
+      "LoggedAt": "2026-11-10T09:12:47.10Z",
+      "LoggedFrom": "198.51.100.40",
+      "PermissionDescription": "Manage computers",
+      "Role": "SetAdmin",
+      "SetName": "Servers",
+      "_oc_ingest": {
+        "id": "01a1c4bb-3aac-762e-b2e3-5e37ce7019c7"
+      },
+      "date": "2026-11-10T09:12:47.02Z",
+      "ddsource": "idira-endpoint-privilege-manager",
+      "host": "observecraft@example.com",
+      "message": "Computer 'i-0a1b2c3d4e5f60003' moved to group 'Payment hosts'",
+      "service": "idira-endpoint-privilege-manager",
+      "status": "info",
+      "vendor": {
+        "endpoint": "set-admin-audit-events"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "8f1d0000-0000-4000-8000-000000000001": {
+        "cursor": 1794312000000
+      },
+      "8f1d0000-0000-4000-8000-000000000002": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

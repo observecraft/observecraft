@@ -1,0 +1,36 @@
+{
+  "costs": [],
+  "events": [
+    {
+      "aggregation_key": "6730ab00bb22cc33dd44ee66",
+      "alert_type": "error",
+      "host": "",
+      "priority": "normal",
+      "source_type_name": "mongodb_atlas",
+      "tags": [
+        "alert_status:open",
+        "cluster_name:orders-prod",
+        "event_type:OUTSIDE_METRIC_THRESHOLD",
+        "metric_name:CONNECTIONS_PERCENT",
+        "project_id:5f1a2b3c4d5e6f7a8b9c0d1e",
+        "source:mongodb_atlas"
+      ],
+      "text": "OUTSIDE_METRIC_THRESHOLD: CONNECTIONS_PERCENT = 82.5 RAW",
+      "time_ms": 1794311400000,
+      "title": "MongoDB Atlas alert: CONNECTIONS_PERCENT on orders-prod"
+    }
+  ],
+  "logs": [],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "seen": [
+          {
+            "id": "2309cbb27c859514"
+          }
+        ]
+      }
+    }
+  }
+}

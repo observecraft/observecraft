@@ -1,0 +1,49 @@
+{
+  "total": 2,
+  "data": [
+    {
+      "id": "1201",
+      "name": "Phishing report from jane.doe@example.com",
+      "type": "Phishing",
+      "severity": 2,
+      "status": 1,
+      "owner": "sam.lee@example.com",
+      "created": "2026-11-10T08:15:00.000Z",
+      "modified": "2026-11-10T08:20:00.000Z",
+      "occurred": "2026-11-10T08:14:30.000Z",
+      "closed": "0001-01-01T00:00:00Z",
+      "playbookId": "Phishing - Generic v3",
+      "phase": "Triage",
+      "details": "Reported message 'Your invoice is ready' from billing@example.net",
+      "sourceInstance": "Mail_Listener_1",
+      "sourceBrand": "Mail Listener v2",
+      "labels": [{ "type": "Email/from", "value": "billing@example.net" }],
+      "investigationId": "1201",
+      "parent": "",
+      "closeReason": "",
+      "sla": 0
+    },
+    {
+      "id": "1202",
+      "name": "Suspicious login for svc-orders",
+      "type": "Access",
+      "severity": 3,
+      "status": 0,
+      "owner": "",
+      "created": "2026-11-10T09:40:12.500Z",
+      "modified": "2026-11-10T09:40:12.500Z",
+      "occurred": "2026-11-10T09:39:58.000Z",
+      "closed": "0001-01-01T00:00:00Z",
+      "playbookId": "Access Investigation - Generic",
+      "phase": "",
+      "details": "",
+      "sourceInstance": "Okta_instance_1",
+      "sourceBrand": "Okta v2",
+      "labels": [{ "type": "Brand", "value": "Okta v2" }],
+      "investigationId": "1202",
+      "parent": "",
+      "closeReason": "",
+      "sla": 0
+    }
+  ]
+}

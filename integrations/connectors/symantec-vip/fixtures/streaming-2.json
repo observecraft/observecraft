@@ -1,0 +1,20 @@
+{
+  "status": { "statusCode": 0, "statusMessage": "Success", "detailMessage": "Records found" },
+  "nextUrl": "https://streaming-auth.vip.symantec.com/streaming/4815162?scrollKey=4959644139515036903501650644574422180314684442962768693",
+  "messages": [
+    {
+      "jurHash": "4815162",
+      "credId": "VSMT00001234",
+      "txnId": "vipus0A1B2C3D4E5F6073",
+      "ts": "2026-11-10 10:40:51.007 +0000",
+      "result.statusMessage": "Security code is invalid.",
+      "durationMillis": 12,
+      "requestId": "req-storefront-0003",
+      "extUserId": "sam.lee",
+      "result.status": "6009",
+      "wsdlVersion": "1_1",
+      "operation": "authenticateUser",
+      "_id": "vip-be-d2.179430000003.1000003"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "data": [
+    { "id": "apikey_01ExampleCatalog", "type": "api_key", "name": "catalog-service", "workspace_id": "wrkspc_01ExampleStorefront", "status": "active", "created_at": "2026-02-01T10:05:00Z", "partial_key_hint": "sk-ant-api03-R2D...igAA", "created_by": { "id": "user_01ExampleJane", "type": "user" } },
+    { "id": "apikey_01ExampleSupport", "type": "api_key", "name": "support-bot-prod", "workspace_id": "wrkspc_01ExampleSupportBot", "status": "active", "created_at": "2026-04-12T09:35:00Z", "partial_key_hint": "sk-ant-api03-K9x...wwAA", "created_by": { "id": "user_01ExampleSam", "type": "user" } }
+  ],
+  "has_more": false, "first_id": "apikey_01ExampleCatalog", "last_id": "apikey_01ExampleSupport"
+}

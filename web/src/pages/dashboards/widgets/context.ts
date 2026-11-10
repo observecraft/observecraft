@@ -14,6 +14,8 @@ export interface DashboardContextValue {
   resolve: (query: string) => string;
   /** Applies the dashboard's `$var` values to a log/monitor search query. */
   resolveSearch: (query: string) => string;
+  /** Shows the dashboard's `$var` values in a widget title; titles stay as written when absent. */
+  resolveTitle?: (title: string) => string;
   canEdit: boolean;
   onEdit: (w: Widget) => void;
   onClone: (id: string) => void;

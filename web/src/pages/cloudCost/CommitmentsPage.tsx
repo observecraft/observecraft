@@ -10,6 +10,7 @@ import { Select } from '../../components/ui/Dropdown';
 import { palette, token } from '../../theme/chartTheme';
 import { DAY, RANGES, money, moneyAxis, rangeLabel, shortDate, tagValues, today, useCostTags } from './costModel';
 import { ProviderIcon, ShareBar } from './widgets';
+import { escapeQuoted } from '../../lib/searchQuery';
 
 type Range = { from: number; to: number };
 
@@ -334,7 +335,7 @@ export function CommitmentsPage() {
   const [account, setAccount] = useState('');
   const { range, control } = useRange();
   const accounts = useCostTags(range as Range, `providername:${provider.id}`);
-  const query = account ? `subaccountname:"${account}"` : '';
+  const query = account ? `subaccountname:"${escapeQuoted(account)}"` : '';
   const q = useQuery({
     queryKey: ['cloud-cost', 'commitments', provider.id, query, range.from, range.to],
     queryFn: ({ signal }) => commitments({ provider: provider.id, query, range }, signal),

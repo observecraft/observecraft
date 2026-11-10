@@ -44,3 +44,19 @@ test('Vector acknowledges durable log sinks after delivery and keeps live tail b
   assert.equal(vector.sinks.live.acknowledgements.enabled, false);
   assert.equal(vector.sinks.live.buffer.when_full, 'drop_newest');
 });
+
+test('every signal the intake carries as OTLP logs (oc.signal) is routed to its own table, as the log ingester expects', () => {
+  const source = readFileSync(new URL('../server/crates/oc-api/src/log_records.rs', import.meta.url), 'utf8');
+  const signals = [...source.match(/const OTHER_SIGNALS: &\[&str\] = &\[([^\]]*)\]/)[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(signals.includes('dd.pathways'), 'Data Streams pathway checkpoints');
+  const routes = Object.values(config.connectors).flatMap((c) => c.table ?? []);
+  for (const signal of signals) {
+    const route = routes.find((r) => r.statement.includes(`attributes["oc.signal"] == "${signal}"`));
+    assert.ok(route, `${signal} is routed`);
+    for (const pipeline of route.pipelines)
+      assert.ok(
+        config.service.pipelines[pipeline]?.exporters.some((e) => e.startsWith('clickhouse/')),
+        `${signal}: ${pipeline} stores it`,
+      );
+  }
+});

@@ -1,0 +1,5 @@
+{
+  "success": true, "errors": [], "messages": [],
+  "result": [ { "id": "023e105f4ecef8ad9ca31a8372d0c353", "name": "shop.example.com", "status": "active", "paused": false, "type": "full", "plan": { "id": "94f3b7b768b0458b56d2cac4fe5ec0f9", "name": "Enterprise Website" }, "account": { "id": "0123456789abcdef0123456789abcdef", "name": "Example Shop" } } ],
+  "result_info": { "page": 1, "per_page": 50, "count": 1, "total_count": 1, "total_pages": 1 }
+}

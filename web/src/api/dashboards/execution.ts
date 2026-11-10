@@ -1,5 +1,6 @@
 import type { Widget, MetricSeries, TimeAggregator } from './types';
 import { normalizeRequest, preparePanelQuery, serverAggregator } from '../integrations/evaluate';
+import { checkStatusQuery } from '../integrations/checkStatus';
 import type { TimeRange } from '../types';
 
 export interface DashboardMetricQuery {
@@ -60,8 +61,7 @@ export function collectDashboardQueries(widgets: Widget[], resolve: (query: stri
       const def = d.original;
       try {
         if (def.type === 'check_status') {
-          const tags = Array.isArray(def.tags) ? def.tags.filter((t): t is string => typeof t === 'string') : [];
-          add(resolve(`max:service_check.status{check:${typeof def.check === 'string' ? def.check : ''},${tags.join(',')}} by {host}`));
+          add(checkStatusQuery(def, resolve));
         } else if (def.type !== 'list_stream') {
           // Panels other than timeseries show one value per series (panels.ts aggregates them).
           const scalar = def.type !== 'timeseries';

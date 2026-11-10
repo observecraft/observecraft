@@ -1,0 +1,37 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c519-d940-7528-afd4-894ae74ed257"
+      },
+      "created": "2026-11-10T10:56:08+0000",
+      "date": 1794308168000,
+      "ddsource": "mimecast",
+      "description": "Virus Signature Detection",
+      "fromAddress": "promo@spam-sender.example",
+      "host": "0a1b2c3d-0000-4000-8000-000000000001",
+      "id": "eNpVT1tPwjAU_i99hSW7dh1RE5iK0SGwOQ28LNCeDcwurF03wPjf7SRqfDv57ucDCaCSw56hEQonbDVYkO7ID2HmU0ocvLKEjOZ1OrmF2kzt0001",
+      "info": "[clam.Eicar-Test-Signature]",
+      "ipAddress": "192.0.2.99",
+      "manageRecipient": "false",
+      "message": "Rejected promo@spam-sender.example to jane.doe@example.com: Virus Signature Detection",
+      "remoteEhlo": "mail.spam-sender.example",
+      "remoteName": "spam-sender.example",
+      "service": "rejection",
+      "status": "warn",
+      "toAddress": "jane.doe@example.com",
+      "toAddressPreCheck": "jane.doe@example.com",
+      "type": 14030
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311880000
+      }
+    }
+  }
+}

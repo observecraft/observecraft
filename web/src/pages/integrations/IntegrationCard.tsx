@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Check, Clock, Plus, Settings, TriangleAlert } from 'lucide-react';
+import { Check, Clock, Info, Plus, Settings, TriangleAlert } from 'lucide-react';
 import type { IntegrationSummary } from '../../api/integrations/types';
 import { IntegrationLogo } from './IntegrationLogo';
 import { cardHover } from './cardHover';
@@ -17,9 +17,16 @@ export const IntegrationCard = memo(function IntegrationCard({ item, onOpen }: {
     <button
       className={`int-card edge-${item.status}${waiting ? ' edge-waiting' : ''}`}
       onClick={() => onOpen(item.id)}
-      title={waiting ? 'Installed, but no data has arrived yet: configure its Agent check' : item.warning}
+      title={
+        waiting
+          ? 'Installed, but no data has arrived yet: configure its Agent check'
+          : item.status === 'unavailable'
+            ? 'Not available in ObserveCraft: Datadog collects it with its own service'
+            : item.warning
+      }
     >
       {item.status === 'detected' && <span className="edge-label">DETECTED</span>}
+      {item.status === 'unavailable' && <span className="edge-label edge-label-muted">NOT AVAILABLE</span>}
       {item.status === 'warning' && (
         <span className="edge-label edge-warn">
           <TriangleAlert size={13} fill="currentColor" stroke="var(--bg)" />
@@ -48,8 +55,8 @@ export const IntegrationCard = memo(function IntegrationCard({ item, onOpen }: {
         </span>
         <span className="int-card-desc">{item.description}</span>
         <span className="int-card-action">
-          {hover.action === 'install' ? <Plus size={15} strokeWidth={2.5} /> : <Settings size={15} />}
-          {hover.action === 'install' ? 'Install' : 'Configure'}
+          {hover.action === 'install' ? <Plus size={15} strokeWidth={2.5} /> : hover.action === 'details' ? <Info size={15} /> : <Settings size={15} />}
+          {hover.action === 'install' ? 'Install' : hover.action === 'details' ? 'Details' : 'Configure'}
         </span>
       </span>
     </button>
