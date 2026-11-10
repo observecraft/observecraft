@@ -13,6 +13,8 @@ const CLUSTER = ['shop-prod-eks', 'shop-prod-eks', 'shop-prod-eks', 'shop-qa-eks
 const between = (lo: number, hi: number, noise = 0.15, integer = false): Override => ({ base: (_e, r) => lo + r() * (hi - lo), noise, ...(integer ? { integer } : {}) });
 /** Always `v` (versions, info gauges, configured limits). */
 const fixed = (v: number): Override => ({ base: () => v, noise: 0, integer: Number.isInteger(v) });
+/** A typical value per value of a tag (response codes, phases), 0 for the others. */
+const byTag = (tag: string, values: Record<string, number>, noise = 0.2, integer = false): Override => ({ base: (e) => values[e[tag]] ?? 0, noise, ...(integer ? { integer } : {}) });
 /** Usually 0, sometimes up to `hi` (errors, retries, restarts). */
 const rare = (hi: number, share = 0.25): Override => ({ base: (_e, r) => (r() < share ? 1 + r() * (hi - 1) : 0), noise: 0.6, integer: true });
 
@@ -65,6 +67,16 @@ export const INFRA_VALUES: Record<string, Record<string, string[]>> = {
     queue: ['deployment', 'replicaset', 'endpoint_slice', 'horizontalpodautoscaler'],
     limiter: ['node_lifecycle_controller', 'endpoint_slice_controller', 'job_controller', 'cronjob_controller'],
   },
+  coredns: {
+    kube_cluster_name: CLUSTER,
+    kube_deployment: ['coredns', 'coredns', 'coredns', 'coredns'],
+    kube_service: ['kube-dns', 'kube-dns', 'kube-dns', 'kube-dns'],
+    kube_namespace: ['kube-system', 'kube-system', 'kube-system', 'kube-system'],
+    node: ['ip-10-0-1-23.ec2.internal', 'ip-10-0-2-41.ec2.internal', 'ip-10-0-3-17.ec2.internal', 'ip-10-1-1-12.ec2.internal'],
+    label: ['kube-dns', 'kube-dns', 'kube-dns', 'kube-dns'],
+    type: ['success', 'denial', 'success', 'denial'],
+    rcode: ['NOERROR', 'NXDOMAIN', 'NOERROR', 'SERVFAIL'],
+  },
 };
 
 export const INFRA_OVERRIDES: Record<string, Override> = {
@@ -103,6 +115,25 @@ export const INFRA_OVERRIDES: Record<string, Override> = {
   'kube_controller_manager.max_fds': fixed(1048576),
   'kube_controller_manager.open_fds': between(18, 40, 0.05, true),
   'kube_controller_manager.goroutines': between(900, 1800, 0.05, true),
+  // Most answers come from the cache; most of the rest are the search domains' NXDOMAINs.
+  'coredns.cache_hits_count': { base: (e, r) => (e.type === 'denial' ? 60 : 420) * (0.7 + r() * 0.6), noise: 0.2 },
+  'coredns.cache_hits_count.count': { base: (e, r) => (e.type === 'denial' ? 60 : 420) * (0.7 + r() * 0.6), noise: 0.2 },
+  'coredns.cache_misses_count': between(20, 70, 0.3),
+  'coredns.cache_misses_count.count': between(20, 70, 0.3),
+  'coredns.cache_size.count': { base: (e, r) => (e.type === 'denial' ? 40 + r() * 120 : 300 + r() * 1200), noise: 0.05, integer: true },
+  'coredns.process.cpu_seconds_total': between(0.05, 0.3, 0.3),
+  'coredns.process.max_fds': fixed(1048576),
+  'coredns.process.open_fds': between(14, 28, 0.05, true),
+  'coredns.go.memstats.alloc_bytes': between(9e6, 22e6, 0.15),
+  'coredns.go.memstats.heap_alloc_bytes': between(9e6, 22e6, 0.15),
+  'coredns.request_duration.seconds.sum': between(0.6, 2.4, 0.3),
+  'coredns.request_duration.seconds.count': between(500, 1400, 0.2),
+  'coredns.forward_request_duration.seconds.sum': between(0.6, 2.8, 0.3),
+  'coredns.forward_request_duration.seconds.count': between(60, 200, 0.2),
+  'coredns.forward_response_rcode_count': byTag('rcode', { NOERROR: 120, NXDOMAIN: 30, SERVFAIL: 1 }, 0.3),
+  'coredns.forward_response_rcode_count.count': byTag('rcode', { NOERROR: 120, NXDOMAIN: 30, SERVFAIL: 1 }, 0.3),
+  'coredns.response_code_count': byTag('rcode', { NOERROR: 700, NXDOMAIN: 260, SERVFAIL: 2 }, 0.25),
+  'coredns.response_code_count.count': byTag('rcode', { NOERROR: 700, NXDOMAIN: 260, SERVFAIL: 2 }, 0.25),
   'kube_apiserver.registered_watchers': between(5, 180, 0.05, true),
   'kube_apiserver.process_virtual_memory_bytes': between(1.6e9, 2.1e9, 0.01),
   'kube_apiserver.process_resident_memory_bytes': between(650e6, 1.2e9, 0.03),

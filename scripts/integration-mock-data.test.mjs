@@ -82,6 +82,8 @@ for (const title of [
   'Kubernetes API Server Overview',
   'Kubernetes Scheduler Overview',
   'Kubernetes Controller Manager Overview',
+  'CoreDNS',
+  'CoreDNS [V2]',
 ]) {
   test(`every widget of ${title} has data in mock mode`, async () => {
     const d = mock.dashboards.find((x) => x.title === title);

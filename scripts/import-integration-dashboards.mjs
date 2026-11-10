@@ -342,6 +342,7 @@ const MOCK_INTEGRATIONS = [
   'kube-apiserver-metrics',
   'kube-scheduler',
   'kube-controller-manager',
+  'coredns',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */

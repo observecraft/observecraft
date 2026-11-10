@@ -459,6 +459,15 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
       },
     ],
   },
+  {
+    check: 'coredns',
+    variants: [
+      {
+        label: 'Managed CoreDNS (AKS, EKS) or the CoreDNS Helm chart',
+        text: 'Nothing to annotate: the Agent recognizes CoreDNS containers by their image (`coredns`) and runs the check by itself against their metrics port (9153), tagging each pod `dns-pod`. Their logs keep the `coredns` source the integration’s pipeline reads. CoreDNS logs only errors unless its `log` plugin is on: on AKS, add `log.override: | log` to the `coredns-custom` ConfigMap in `kube-system`; with the Helm chart, add the `log` plugin to `servers[].plugins`.',
+      },
+    ],
+  },
   ...(
     [
       ['kube_scheduler', 'scheduler', 'ksh', 'kube-scheduler'],

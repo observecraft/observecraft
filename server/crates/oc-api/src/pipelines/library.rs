@@ -334,6 +334,18 @@ mod tests {
         assert_eq!((log.status.as_str(), log.get("logger.thread_id")), ("info", Some(json!(1))));
     }
 
+    /// CoreDNS's query log (its `log` plugin), as integrations-core's `coredns_tests.yaml` expects: the question,
+    /// the answer's rcode and the duration (OCSF's mapping is a schema processor, not run here yet).
+    #[test]
+    fn coredns_query_log() {
+        use serde_json::json;
+        let line = r#"[INFO] 10.0.12.34:53111 - 4521 "AAAA IN orders-db.checkout.svc.cluster.local.storefront.svc.cluster.local. udp 92 false 1232" NXDOMAIN qr,aa,rd 185 0.000094523s"#;
+        let log = agent_log("coredns", json!({"message": line, "hostname": "i-0a1b2c3d4e5f60002", "service": "coredns", "ddsource": "coredns"}));
+        assert_eq!((log.get("dns.question.type"), log.get("dns.question.name")), (Some(json!("AAAA")), Some(json!("orders-db.checkout.svc.cluster.local.storefront.svc.cluster.local."))));
+        assert_eq!((log.get("dns.flags.rcode"), log.get("dns.id"), log.get("network.client.ip")), (Some(json!("NXDOMAIN")), Some(json!(4521)), Some(json!("10.0.12.34"))));
+        assert_eq!((log.get("duration"), log.get("dns.flags.list"), log.status.as_str()), (Some(json!(94523)), Some(json!(["qr", "aa", "rd"])), "info"));
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};
