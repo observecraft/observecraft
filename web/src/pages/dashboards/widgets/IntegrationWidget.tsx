@@ -10,6 +10,7 @@ import { palette, seriesPalette, token } from '../../../theme/chartTheme';
 import { overlaySeries, overlayStatusToken } from '../../../lib/overlays';
 import { changeRows, type ChangeRow } from '../../../api/integrations/change';
 import { useDashboardContext } from './context';
+import { seriesDisplay } from '../../../api/integrations/widgetData';
 import { checkStatusTiles, type CheckStatusTile } from '../../../api/integrations/checkStatus';
 import { WidgetState } from './MetricWidgets';
 import { groupTags, IntegrationTable } from './IntegrationTable';
@@ -338,7 +339,7 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
         for (const [t, value] of s.points) {
           const v = value * presentationUnit(s.unit).scale;
           max = Math.max(max, v);
-          if (s.display === 'area') totals.set(t, (totals.get(t) ?? 0) + v);
+          if (s.display === 'area' || s.display === 'bars') totals.set(t, (totals.get(t) ?? 0) + v);
         }
       }
       return Math.max(max, ...totals.values());
@@ -372,10 +373,9 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
           data: s.points.map(([t, value]) => [t, value * presentationUnit(s.unit).scale]),
           yAxisIndex: axisUnits.indexOf(presentationUnit(s.unit).unit),
           tooltip: { valueFormatter: (value: unknown) => formatUnitValue(Number(value), presentationUnit(s.unit).unit) },
-          type: s.display === 'bars' ? 'bar' : 'line',
           showSymbol: false,
           lineStyle: { type: s.dashed ? 'dashed' : 'solid' },
-          ...(s.display === 'area' ? { areaStyle: { opacity: 0.4 }, stack: 'total' } : {}),
+          ...seriesDisplay(s.display),
         })) as SeriesOption[]),
         ...(overlays?.length ? [overlaySeries(overlays, (status) => token(overlayStatusToken(status)))] : []),
       ],

@@ -111,3 +111,10 @@ export function sunburstTree(values: { name: string; value: number }[]): { total
   const nodes = sort(root.children);
   return { total: root.value, nodes, legend: nodes.map((n) => ({ name: n.name, value: n.value, percent: root.value ? (n.value / root.value) * 100 : 0 })) };
 }
+
+/** How a timeseries draws a request's `display_type`: bars and areas stacked per type, as Datadog draws them. */
+export function seriesDisplay(display: string | undefined): { type: 'bar' | 'line'; stack?: string; areaStyle?: { opacity: number } } {
+  if (display === 'bars') return { type: 'bar', stack: 'bars' };
+  if (display === 'area') return { type: 'line', stack: 'total', areaStyle: { opacity: 0.4 } };
+  return { type: 'line' };
+}
