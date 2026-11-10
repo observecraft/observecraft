@@ -79,7 +79,8 @@ const INT: &str = r"[+-]?\d+";
 const INT_EXT: &str = r"[+-]?\d+(?:[eE][+-]?\d+)?";
 const NUM: &str = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)";
 const NUM_EXT: &str = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?";
-const IPV4: &str = r"(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)";
+/// Whole addresses only (no digit before or after), so a greedy `.*` before one can't take its first digits.
+const IPV4: &str = r"(?<![0-9])(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?![0-9])";
 const IPV6: &str = r"(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4}";
 const HOSTNAME: &str = r"[A-Za-z0-9][A-Za-z0-9_-]{0,62}(?:\.[A-Za-z0-9_-]{1,63})*\.?";
 const DOUBLE_QUOTED: &str = r#""(?:[^"\\]|\\.)*""#;
@@ -521,11 +522,11 @@ fn compile_filter(name: &str, args: &[String]) -> Result<Filter, String> {
     })
 }
 
-/// `key<sep>value` pairs: values are quoted (`"…"`, `'…'`, `<…>`) or runs of word characters,
-/// `.-_@` and the extra characters allowed.
+/// `key<sep>value` pairs: keys bare or double-quoted (klog's `"key"="value"`), values quoted (`"…"`, `'…'`,
+/// `<…>`) or runs of word characters, `.-_@` and the extra characters allowed.
 fn keyvalue_regex(sep: &str, allowed: &str) -> Result<Regex, String> {
     let extra: String = allowed.chars().map(|c| if matches!(c, '\\' | ']' | '[' | '^' | '-') { format!("\\{c}") } else { c.to_string() }).collect();
-    let re = format!(r#"([\w.\-@]+){}(?:"([^"]*)"|'([^']*)'|<([^>]*)>|([\w.\-@{extra}]+))"#, fancy_regex::escape(sep));
+    let re = format!(r#""?([\w.\-@]+)"?{}(?:"([^"]*)"|'([^']*)'|<([^>]*)>|([\w.\-@{extra}]+))"#, fancy_regex::escape(sep));
     Regex::new(&re).map_err(|e| format!("keyvalue: {e}"))
 }
 
@@ -844,6 +845,16 @@ mod tests {
         // Custom separator, with commas allowed in values (trailing delimiters are dropped).
         let v = parse(r#"r %{data::keyvalue(": ", ",")}"#, r#"client: 10.0.0.5, server: localhost, request: "GET / HTTP/1.1""#);
         assert_eq!(v, Some(json!({"": {"client": "10.0.0.5", "server": "localhost", "request": "GET / HTTP/1.1"}})));
+        // Quoted keys (klog's structured `"key"="value"`, KEDA's metrics adapter); unquoted numbers are numbers
+        // (Argo Workflows' `size=487`), quoted ones stay text, as integrations-core's samples expect.
+        let v = parse("r %{data::keyvalue}", r#""address"="keda-operator.keda.svc:9666" "logger"="adapter" size=487 ratio=0.5 code="200" v=1.2.3"#);
+        assert_eq!(v, Some(json!({"": {"address": "keda-operator.keda.svc:9666", "logger": "adapter", "size": 487, "ratio": 0.5, "code": "200", "v": "1.2.3"}})));
+    }
+
+    #[test]
+    fn an_ip_is_a_whole_address() {
+        // A greedy `.*` before it doesn't leave the IP its last digits (weave's `.*%{ip:network.client.ip} ->`).
+        assert_eq!(parse(r"r .*%{ip:a} -> %{ip:b}", "in 127.0.0.1 -> 10.0.0.25"), Some(json!({"a": "127.0.0.1", "b": "10.0.0.25"})));
     }
 
     #[test]
