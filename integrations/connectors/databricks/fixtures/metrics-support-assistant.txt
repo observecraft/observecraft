@@ -4,5 +4,7 @@ cpu_usage_percentage{served_entity_name="support-assistant-2"} 8.25
 mem_usage_percentage{served_entity_name="support-assistant-2"} 62
 # TYPE gpu_usage_percentage gauge
 gpu_usage_percentage{served_entity_name="support-assistant-2",gpu="gpu0"} 71.5
+gpu_usage_percentage{served_entity_name="support-assistant-2",gpu="gpu1"} 64.5
 # TYPE gpu_memory_usage_percentage gauge
 gpu_memory_usage_percentage{served_entity_name="support-assistant-2",gpu="gpu0"} 80.25
+gpu_memory_usage_percentage{served_entity_name="support-assistant-2",gpu="gpu1"} 72.75

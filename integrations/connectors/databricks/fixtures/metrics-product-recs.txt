@@ -13,7 +13,11 @@ request_4xx_count_total{served_entity_name="product-recs-7"} 12
 # TYPE request_5xx_count_total gauge
 request_5xx_count_total{served_entity_name="product-recs-7"} 1
 # TYPE request_latency_ms histogram
+request_latency_ms_bucket{served_entity_name="product-recs-7",le="50"} 920
 request_latency_ms_bucket{served_entity_name="product-recs-7",le="100"} 1500
+request_latency_ms_bucket{served_entity_name="product-recs-7",le="250"} 1700
+request_latency_ms_bucket{served_entity_name="product-recs-7",le="500"} 1790
+request_latency_ms_bucket{served_entity_name="product-recs-7",le="1000"} 1830
 request_latency_ms_bucket{served_entity_name="product-recs-7",le="+Inf"} 1840
 request_latency_ms_sum{served_entity_name="product-recs-7"} 141230
 request_latency_ms_count{served_entity_name="product-recs-7"} 1840
