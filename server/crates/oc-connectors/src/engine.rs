@@ -355,6 +355,8 @@ struct Cx<'a> {
     requests: u32,
     secrets: Vec<String>,
     rotated: Vec<(String, String)>,
+    /// An error rule with `reset` matched: the partition's position is dropped.
+    reset: std::sync::atomic::AtomicBool,
 }
 
 fn default_message(status: u16, name: &str) -> (IssueKind, String) {
@@ -412,6 +414,7 @@ impl<'a> Cx<'a> {
             requests: 0,
             secrets: Vec::new(),
             rotated: Vec::new(),
+            reset: std::sync::atomic::AtomicBool::new(false),
         };
         let (auth, key): (&Auth, String) = match stream.and_then(|s| s.auth.as_ref()) {
             Some(a) => (a, format!("{}\0{}", conn.id, stream.map(|s| s.id.as_str()).unwrap_or_default())),
@@ -580,6 +583,9 @@ impl<'a> Cx<'a> {
                 }
             }
             let message = Template::parse(&rule.message).map(|t| t.text(&s)).unwrap_or_default();
+            if rule.reset {
+                self.reset.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
             return Issue { kind: rule.kind, message: self.scrub(&message) };
         }
         let (kind, mut message) = default_message(resp.status, &self.m.name);
@@ -711,11 +717,12 @@ fn prepare_record(f: &RecordFns, scope: &Map<String, Value>, record: Value) -> O
     if f.filter.as_ref().is_some_and(|t| !truthy(&t.render(&s))) {
         return None;
     }
-    let time = f.time.as_ref().and_then(|t| to_ms(&t.render(&s)));
     if !f.vars.is_empty() {
         let vars: Map<String, Value> = f.vars.iter().map(|(k, t)| (k.clone(), t.render(&s))).collect();
         s.insert("vars".into(), Value::Object(vars));
     }
+    // After the vars: a record's time may be one of them.
+    let time = f.time.as_ref().and_then(|t| to_ms(&t.render(&s)));
     Some(Rec { scope: s, id, time })
 }
 
@@ -820,9 +827,22 @@ pub async fn run(m: &Manifest, stream: &Stream, conn: &Connection, state: Stream
             Ok(()) => partition(&mut cx, stream, &emit, scope, part.clone(), &mut out).await,
             Err(issue) => Err(issue),
         };
+        let reset = |mut p: Partition| {
+            p.token = None;
+            p.backlog = None;
+            p.export = None;
+            p
+        };
         match result {
+            Ok(p) if cx.reset.swap(false, std::sync::atomic::Ordering::Relaxed) => {
+                out.state.partitions.insert(key, reset(p));
+            }
             Ok(p) => {
                 out.state.partitions.insert(key, p);
+            }
+            Err(issue) if cx.reset.swap(false, std::sync::atomic::Ordering::Relaxed) => {
+                out.state.partitions.insert(key, reset(part));
+                keep(&mut out, Issue { kind: issue.kind, message: format!("{} (the stream starts again from its start)", issue.message) });
             }
             Err(issue) => {
                 out.state.partitions.insert(key, part);

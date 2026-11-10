@@ -355,9 +355,15 @@ impl Expr {
                 b.roots(out);
                 c.roots(out);
             }
-            Expr::Filter(a, _, args) => {
+            Expr::Filter(a, name, args) => {
                 a.roots(out);
-                args.iter().for_each(|e| e.roots(out));
+                let mut inner = BTreeSet::new();
+                args.iter().for_each(|e| e.roots(&mut inner));
+                // `map(…)` reads each element as `it`.
+                if name == "map" {
+                    inner.remove("it");
+                }
+                out.extend(inner);
             }
         }
     }
@@ -386,9 +392,11 @@ impl Expr {
                 b.paths(out);
                 c.paths(out);
             }
-            Expr::Filter(a, _, args) => {
+            Expr::Filter(a, name, args) => {
                 a.paths(out);
-                args.iter().for_each(|e| e.paths(out));
+                let mut inner = Vec::new();
+                args.iter().for_each(|e| e.paths(&mut inner));
+                out.extend(inner.into_iter().filter(|(root, _)| name != "map" || root != "it"));
             }
         }
     }
@@ -411,6 +419,22 @@ impl Expr {
                 }
             }
             Expr::Bin(op, a, b) => binary(*op, a, b, scope),
+            // `list | map(it.x)`: the expression for each element (`it`).
+            Expr::Filter(base, name, args) if name == "map" => match base.eval(scope) {
+                Value::Array(items) => {
+                    let mut s = scope.clone();
+                    Value::Array(
+                        items
+                            .into_iter()
+                            .map(|it| {
+                                s.insert("it".into(), it);
+                                args[0].eval(&s)
+                            })
+                            .collect(),
+                    )
+                }
+                _ => Value::Null,
+            },
             Expr::Filter(base, name, args) => {
                 let args: Vec<Value> = args.iter().map(|e| e.eval(scope)).collect();
                 filter(name, base.eval(scope), &args)
@@ -558,6 +582,7 @@ fn add(left: Value, right: Value) -> Value {
 
 /// Every filter, with its number of arguments (min, max).
 pub const FILTERS: &[(&str, usize, usize)] = &[
+    ("map", 1, 1),
     ("abs", 0, 0),
     ("base64", 0, 0),
     ("base64_decode", 0, 0),

@@ -149,6 +149,7 @@ value's type (a list, a number, an object, `null`); any other string renders as 
 | `host` | a URL's host |
 | `urlencode` `base64` `base64_decode` `json` `parse_json` `sha256` | encodings (`sha256` is hex) |
 | `to_objects(columns)` | a list of arrays → objects by column names (strings, or objects with `name`) |
+| `map(expr)` | each element of a list through an expression reading it as `it` (`rules \| map(it.data \| base64_decode)`) |
 
 New filters are added over time; an unknown filter or a wrong number of arguments is a validation error.
 
@@ -179,6 +180,7 @@ New filters are added over time; an unknown filter or a wrong number of argument
 | `headers` | `headers: {name: template}` | several headers |
 | `oauth2_client_credentials` | `token_url`, `client_id`, `client_secret`, `scopes`, `client_auth: basic\|body` (default basic), `params` | fetches a token (`grant_type=client_credentials`), caches it until a minute before `expires_in`, sends it as a bearer token |
 | `oauth2_refresh_token` | `token_url`, `client_id`, `client_secret?`, `refresh_token`, `scopes`, `client_auth`, `params`, `rotate` | refresh grant; a new refresh token in the answer is saved into the secret named by `rotate` |
+| `oauth2_client_assertion` | `token_url`, `client_id`, `private_key`, `key_id?`, `audience?`, `scopes`, `params`, `lifetime` (5m) | client credentials with a signed client assertion (`private_key_jwt`: an RS256 JWT, `iss` = `sub` = the client id, `aud` the token URL, a random `jti`) instead of a secret: Okta service apps, Entra certificate credentials; the token is cached |
 | `oauth2_authorization_code` | `authorize_url`, `token_url`, `scopes`, `scope_separator?`, `authorize_params`, `params`, `client_auth`, `pkce` (true), `client_id?`, `client_secret?` | "Connect with <vendor>" on the page: the admin consents on the vendor's page (PKCE S256, a single-use state), ObserveCraft's callback (`<OC_PUBLIC_URL>/api/v1/public/connectors/oauth/callback`) exchanges the code and saves the connection with its refresh token (else its access token) sealed; runs refresh it like `oauth2_refresh_token` (rotated tokens saved). The client is the operator's OAuth app for the package (`OC_OAUTH_<ID>_CLIENT_ID` / `_CLIENT_SECRET`, `<ID>` upper-cased with `_` for `-` and `.`), or the connection's own when `client_id` / `client_secret` name its fields (`{{ config.client_id }}`, `{{ secrets.client_secret }}`). For the `oauth` tiles and user-authorized apps (Zoom, Atlassian, Slack) |
 | `jwt` | `private_key`, `claims`, `key_id`, `lifetime`, `headers` | a JWT signed with the connection's key (RS256), renewed before it expires, sent as `Authorization: Bearer` or in `headers` (templates over `auth.jwt`). Claims may read `key.fingerprint` (`SHA256:` + base64 SHA-256 of the public key: Snowflake key-pair auth, `iss: "{{ config.account + '.' + config.user + '.' + key.fingerprint }}"`) |
 | `jwt_bearer` | `service_account` (a Google JSON key) or `private_key` (PEM, PKCS#8 or PKCS#1) + `token_url`, `key_id`, `claims`, `scopes`, `lifetime` (default 1h), `params` | an RS256 assertion (`iat`, `exp` added; with a service account `iss` and `aud` too) exchanged at `token_url` (`grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer`); covers Google service accounts with domain-wide delegation (`claims: {sub: '{{ config.admin_email }}'}`) and customer-registered OAuth apps (DocuSign: `claims: {iss: integration key, sub: user id, aud: account host}`; show the consent URL in `links`) |
@@ -236,7 +238,7 @@ warning. A run reads at most `max_pages` pages (default 20) per partition.
 |---|---|---|
 | `none` | | snapshots (state as gauges): everything every run |
 | `new_records` | `max_seen` (100 000), `order?` | lists without times: only records whose `record_id` wasn't sent before (breached accounts, findings, finished test runs). `order: newest_first`: a page with a record sent before ends the paging |
-| `time` | `record_time`, `order`, `lookback` (1d), `overlap` (0s), `settle` (0s), `slice?`, `max_window?`, `cursor: window_end\|last_record` | event logs |
+| `time` | `record_time` (may read `vars`), `order`, `lookback` (1d), `overlap` (0s), `settle` (0s), `slice?`, `max_window?`, `cursor: window_end\|last_record` | event logs |
 | `token` | `next`, `initial?` | APIs that hand out a checkpoint (`since` tokens, `nextpagetoken` kept across runs): `cursor.token` |
 
 **Time windows.** A run reads the window `window.start` = cursor − `overlap` (the first run: now − `lookback`, and never
@@ -370,6 +372,9 @@ budget: { requests: 10000, per: day }          # hour, day, month; the manifest'
 pages than `max_pages`, and an answer the stream's `truncated` template says was cut short (`truncated: "{{ records |
 len >= 10000 }}"` for an API answering its newest 10,000 records) that doesn't reach back past the window. Time
 windows out of pages aren't truncated: they carry on next run.
+
+A rule with `reset: true` drops the stream's saved position (its token, backlog, export) when it matches: an offset
+the API no longer has (HTTP 416) starts again from the initial token or the cursor's window, with a warning.
 
 A rule naming a 2xx status (`status: [200]`) with a `when` reads successful answers too: GraphQL APIs answering
 errors with 200 (`when: "{{ response.errors | len > 0 }}"`).

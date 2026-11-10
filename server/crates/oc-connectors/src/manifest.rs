@@ -225,6 +225,10 @@ pub enum Auth {
     /// refresh the access token like `oauth2_refresh_token`. The client is the operator's OAuth app for this
     /// package (`OC_OAUTH_<ID>_CLIENT_ID` / `_CLIENT_SECRET`) unless `client_id` names the connection's own.
     Oauth2AuthorizationCode(OAuthCode),
+    /// OAuth 2.0 client credentials with a signed client assertion (`private_key_jwt`: Okta service apps, Microsoft
+    /// Entra certificate credentials): an RS256 JWT (`iss` = `sub` = the client id, `aud` the token URL) instead of a
+    /// client secret.
+    Oauth2ClientAssertion(ClientAssertion),
     /// An RS256 JWT assertion exchanged for a token (Google service accounts, customer-registered OAuth apps).
     JwtBearer(JwtBearer),
     /// A JWT signed with the connection's key and sent as the bearer token, renewed before it expires (Snowflake key
@@ -336,6 +340,31 @@ pub struct OAuthRefresh {
     /// The secret field a rotated refresh token is saved into.
     #[serde(default)]
     pub rotate: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct ClientAssertion {
+    /// Template.
+    pub token_url: String,
+    /// Template.
+    pub client_id: String,
+    /// An RSA private key in PEM, PKCS#8 or PKCS#1 (template).
+    pub private_key: String,
+    /// The JWT header's `kid` (template).
+    #[serde(default)]
+    pub key_id: Option<String>,
+    /// The assertion's `aud` (template; default the token URL).
+    #[serde(default)]
+    pub audience: Option<String>,
+    #[serde(default)]
+    pub scopes: Vec<String>,
+    /// More form parameters of the token request (templates).
+    #[serde(default)]
+    pub params: BTreeMap<String, String>,
+    /// How long an assertion is valid. Duration, default 5m.
+    #[serde(default)]
+    pub lifetime: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
@@ -866,6 +895,10 @@ pub struct ErrorRule {
     pub kind: IssueKind,
     /// Template over `response`, `status`, `config`: what the page shows.
     pub message: String,
+    /// The stream's saved position is stale (an offset the API no longer has, HTTP 416): its token, backlog and
+    /// export are dropped, so the next run starts again from its initial token or its cursor's window.
+    #[serde(default)]
+    pub reset: bool,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Copy, Debug, PartialEq, Eq)]

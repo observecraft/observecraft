@@ -205,6 +205,15 @@ impl<'a> Checker<'a> {
                 }
                 self.map(&format!("{at}.params"), params, x);
             }
+            Auth::Oauth2ClientAssertion(c) => {
+                for (k, t) in [("token_url", &c.token_url), ("client_id", &c.client_id), ("private_key", &c.private_key)] {
+                    self.template(&format!("{at}.{k}"), t, x);
+                }
+                self.opt(&format!("{at}.key_id"), &c.key_id, x);
+                self.opt(&format!("{at}.audience"), &c.audience, x);
+                self.map(&format!("{at}.params"), &c.params, x);
+                self.duration(&format!("{at}.lifetime"), &c.lifetime);
+            }
             Auth::Oauth2AuthorizationCode(c) => {
                 self.template(&format!("{at}.authorize_url"), &c.authorize_url, &[]);
                 self.template(&format!("{at}.token_url"), &c.token_url, &[]);
@@ -338,7 +347,8 @@ impl<'a> Checker<'a> {
             Incremental::NewRecords { .. } if s.record_id.is_none() => self.problem(&format!("{at}.incremental"), "new_records needs the stream's record_id"),
             Incremental::Time(t) => {
                 let iat = format!("{at}.incremental");
-                self.template(&format!("{iat}.record_time"), &t.record_time, &record);
+                let with_vars: Vec<&str> = record.iter().copied().chain(["vars"]).collect();
+                self.template(&format!("{iat}.record_time"), &t.record_time, &with_vars);
                 for (name, d) in [("lookback", &t.lookback), ("overlap", &t.overlap), ("settle", &t.settle), ("slice", &t.slice), ("max_window", &t.max_window)] {
                     if self.duration(&format!("{iat}.{name}"), d) == Some(0) && (name == "slice" || name == "max_window") {
                         self.problem(&format!("{iat}.{name}"), "must be more than 0");

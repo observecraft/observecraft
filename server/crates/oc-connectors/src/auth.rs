@@ -214,6 +214,46 @@ pub async fn prepare(auth: &Auth, scope: &Map<String, Value>, cache_key: &str, t
             };
             out.headers = bearer(&token);
         }
+        Auth::Oauth2ClientAssertion(c) => {
+            let (url, id) = (render(&c.token_url, scope)?, render(&c.client_id, scope)?);
+            let key = format!("{cache_key}\0assertion\0{url}\0{id}");
+            let token = match cache.get(&key, now_ms) {
+                Some(t) => text(&t),
+                None => {
+                    let now_s = now_ms / 1000;
+                    let lifetime = c.lifetime.as_deref().map(duration_ms).transpose()?.unwrap_or(300_000) / 1000;
+                    let mut jti = [0u8; 16];
+                    ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut jti).map_err(|_| "no randomness".to_string())?;
+                    let aud = match &c.audience {
+                        Some(a) => render(a, scope)?,
+                        None => url.clone(),
+                    };
+                    let claims = json!({ "iss": id, "sub": id, "aud": aud, "jti": hex(&jti), "iat": now_s, "exp": now_s + lifetime });
+                    let mut header = json!({ "alg": "RS256", "typ": "JWT" });
+                    if let Some(k) = &c.key_id {
+                        let kid = render(k, scope)?;
+                        if !kid.is_empty() {
+                            header["kid"] = Value::String(kid);
+                        }
+                    }
+                    let assertion = rs256(&header, &claims, &render(&c.private_key, scope)?)?;
+                    let mut pairs = vec![("grant_type".to_string(), "client_credentials".to_string())];
+                    if !c.scopes.is_empty() {
+                        pairs.push(("scope".into(), c.scopes.join(" ")));
+                    }
+                    pairs.push(("client_assertion_type".into(), "urn:ietf:params:oauth:client-assertion-type:jwt-bearer".into()));
+                    pairs.push(("client_assertion".into(), assertion));
+                    for (k, v) in &c.params {
+                        pairs.push((k.clone(), render(v, scope)?));
+                    }
+                    let body = token_answer(&post_form(transport, &url, &pairs, None).await?, "the token request")?;
+                    let token = text(&body["access_token"]);
+                    cache.put(&key, Value::String(token.clone()), expiry(&body, now_ms));
+                    token
+                }
+            };
+            out.headers = bearer(&token);
+        }
         Auth::JwtBearer(j) => {
             let account: Option<Value> = match &j.service_account {
                 Some(t) => Some(serde_json::from_str(render(t, scope)?.trim()).map_err(|_| "the service account key is not JSON".to_string())?),

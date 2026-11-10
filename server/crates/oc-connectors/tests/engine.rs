@@ -864,3 +864,62 @@ async fn a_snapshot_with_more_pages_than_it_reads_warns() {
     assert_eq!(ids(&run), ["p1", "p2"]);
     assert!(run.warning.is_some_and(|w| w.message.contains("max_pages")));
 }
+
+// ---------------------------------------------------------------- package batch 5
+
+#[tokio::test]
+async fn client_assertions_sign_in_without_a_client_secret() {
+    let pem = std::fs::read_to_string(format!("{}/tests/fixtures/test-rsa-pkcs8.pem", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    let yaml = format!(
+        "{HEAD}config:\n  - {{ key: base_url, label: URL, type: url }}\n  - {{ key: client_id, label: Client ID, type: string }}\n  - {{ key: private_key, label: Key, type: text, secret: true }}\n\
+         auth: {{ kind: oauth2_client_assertion, token_url: 'https://acme.okta.example.com/oauth2/v1/token', client_id: '{{{{ config.client_id }}}}', private_key: '{{{{ secrets.private_key }}}}', key_id: k1, scopes: [okta.logs.read] }}\n\
+         {}mock:\n  config: {{ base_url: 'https://api.example.com', client_id: svc-1 }}\n  secrets: {{ private_key: {} }}\n  now: '2026-11-10T12:00:00Z'\n  responses:\n    - {{ method: POST, url: 'https://acme.okta.example.com/oauth2/v1/token', body: {{ access_token: at-9, expires_in: 3600 }} }}\n    - {{ url: 'https://api.example.com/v1/events', body: [{{ id: a }}] }}\n{TEST}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events' }\n"),
+        serde_json::to_string(&pem).unwrap()
+    );
+    let pkg = Package::from_files([("connector.yaml".to_string(), yaml)].into(), Origin::Bundled).unwrap_or_else(|e| panic!("{e:#?}"));
+    let transport = Arc::new(MockTransport::new(&pkg, pkg.manifest.mock.as_ref().unwrap()));
+    let rt = Runtime::new(transport.clone(), false);
+    engine::run(&pkg.manifest, &pkg.manifest.streams[0], &conn(&pkg), StreamState::default(), NOW, &rt, None).await.unwrap();
+    engine::run(&pkg.manifest, &pkg.manifest.streams[0], &conn(&pkg), StreamState::default(), NOW + MIN, &rt, None).await.unwrap();
+    let reqs = transport.requests.lock().unwrap();
+    assert_eq!(reqs.iter().filter(|r| r.url.contains("/token")).count(), 1, "cached");
+    let form: std::collections::BTreeMap<String, String> = url::form_urlencoded::parse(reqs[0].body.as_ref().unwrap()).into_owned().collect();
+    assert_eq!((form["grant_type"].as_str(), form["scope"].as_str(), form["client_assertion_type"].as_str()), ("client_credentials", "okta.logs.read", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"));
+    let parts: Vec<&str> = form["client_assertion"].split('.').collect();
+    let header: Value = serde_json::from_slice(&base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[0]).unwrap()).unwrap();
+    let claims: Value = serde_json::from_slice(&base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[1]).unwrap()).unwrap();
+    assert_eq!((header["kid"].as_str(), claims["iss"].as_str(), claims["sub"].as_str(), claims["aud"].as_str()), (Some("k1"), Some("svc-1"), Some("svc-1"), Some("https://acme.okta.example.com/oauth2/v1/token")));
+    assert_eq!((claims["exp"].as_i64().unwrap() - claims["iat"].as_i64().unwrap(), claims["jti"].as_str().map(str::len)), (300, Some(32)));
+    assert!(reqs[0].header("authorization").is_none(), "no client secret");
+    assert_eq!(reqs[1].header("authorization"), Some("Bearer at-9"));
+}
+
+#[tokio::test]
+async fn lists_map_an_expression_and_record_times_read_vars() {
+    let f = fixture(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/rules' }\n    vars: { seen: '{{ record.meta.seen_at }}' }\n    incremental: { kind: time, record_time: '{{ vars.seen }}', lookback: 1h }\n")
+            .replace("'{{ record.id }}'", "\"{{ record.rules | map(it.name | base64_decode) | join(',') }}\""),
+        mock(&format!("    - {{ url: 'https://api.example.com/v1/rules', body: [{{ rules: [{{ name: YmxvY2s= }}, {{ name: YWxsb3c= }}], meta: {{ seen_at: {} }} }}, {{ rules: [], meta: {{ seen_at: {} }} }}] }}", NOW - MIN, NOW - 2 * HOUR))
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&run), ["block,allow"], "the record outside the window (by its var) is skipped");
+    assert!(invalid("streams:\n  - id: s\n    name: S\n    description: S.\n    request: { url: 'https://api.example.com' }\n    output:\n      logs: { message: \"{{ record.a | map(other.x) }}\" }\n").join("\n").contains("unknown variable \"other\""));
+}
+
+#[tokio::test]
+async fn an_error_rule_can_reset_a_stale_position() {
+    let f = fixture(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/stream', query: { offset: '{{ cursor.token }}' } }\n    records: '{{ response.events }}'\n    incremental: { kind: token, initial: 'start', next: '{{ response.offset }}' }\n    errors:\n      - { status: [416], kind: other, reset: true, message: 'The saved offset expired' }\n"),
+        mock("    - { url: 'https://api.example.com/v1/stream', query: { offset: stale }, status: 416, body: {} }\n    - { url: 'https://api.example.com/v1/stream', query: { offset: start }, body: { events: [{ id: a }], offset: o2 } }")
+    ));
+    let mut state = StreamState::default();
+    state.partitions.insert(String::new(), serde_json::from_value(json!({ "token": "stale" })).unwrap());
+    let run = f.run(state, NOW).await.unwrap();
+    assert!(run.warning.as_ref().is_some_and(|w| w.message.contains("starts again")), "{:?}", run.warning);
+    assert_eq!(run.state.partitions[""].token, None, "dropped: the next run starts from its initial token");
+    let next = f.run(run.state, NOW + MIN).await.unwrap();
+    assert_eq!((ids(&next), next.state.partitions[""].token.clone()), (vec!["a".to_string()], Some(json!("o2"))));
+}
