@@ -1137,7 +1137,13 @@ export async function searchSignals(req: SignalSearchRequest): Promise<SignalSea
     if (b) b[s.severity as 'info']++;
   }
   const offset = req.offset ?? 0;
-  return delay({ total: shown.length, states, signals: shown.slice(offset, offset + (req.limit ?? 100)), facets: FACETS.map((k) => facet(k, shown)), histogram });
+  return delay({
+    total: shown.length,
+    states,
+    signals: shown.slice(offset, offset + (req.limit ?? 100)),
+    facets: [...new Set([...FACETS, ...(req.facets ?? []).slice(0, 5)])].map((k) => facet(k, shown)),
+    histogram,
+  });
 }
 
 function findSignal(id: string): SecuritySignal {

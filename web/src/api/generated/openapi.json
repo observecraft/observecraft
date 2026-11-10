@@ -67856,6 +67856,13 @@
             "type": "boolean",
             "description": "Oldest first (default newest first)."
           },
+          "facets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Facets to count besides the standard ones (a dashboard widget's group-by, `@evt.name`)."
+          },
           "limit": {
             "type": [
               "integer",

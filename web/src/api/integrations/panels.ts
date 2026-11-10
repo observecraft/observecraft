@@ -4,7 +4,7 @@ import type { MetricSeries, TimeRange } from '../types';
 import { aggregateLogs } from '../client';
 import { searchSignals } from '../security/client';
 import { checkStatusQuery } from './checkStatus';
-import { signalSeries, type SignalPanelQuery } from './signals';
+import { signalFacet, signalSeries, type SignalPanelQuery } from './signals';
 import { logRequest, logSeries, throughputs, type LogPanelQuery } from './logs';
 import { aggregate, formula, normalizeRequest, preparePanelQuery, serverAggregator, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
 
@@ -63,7 +63,8 @@ export async function queryIntegrationPanel(
         const loadQuery = async (query: (typeof queries)[number], range: TimeRange, source: PanelDataSource): Promise<MetricSeries[]> => {
           if (query.data_source === 'security_signals') {
             const panelQuery = query as unknown as SignalPanelQuery;
-            const page = await searchSignals({ range, query: resolve(panelQuery.search?.query ?? ''), state: '', limit: 1, offset: 0, ascending: false });
+            const facet = signalFacet(panelQuery);
+            const page = await searchSignals({ range, query: resolve(panelQuery.search?.query ?? ''), state: '', limit: 1, offset: 0, ascending: false, facets: facet ? [facet] : [] });
             return signalSeries(page, panelQuery, range, !scalar);
           }
           if (query.data_source === 'logs') {

@@ -22088,6 +22088,8 @@ export interface components {
         SignalSearchRequest: {
             /** @description Oldest first (default newest first). */
             ascending?: boolean;
+            /** @description Facets to count besides the standard ones (a dashboard widget's group-by, `@evt.name`). */
+            facets?: string[];
             limit?: number | null;
             offset?: number | null;
             query?: string;

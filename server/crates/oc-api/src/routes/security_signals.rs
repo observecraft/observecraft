@@ -251,6 +251,9 @@ pub struct SignalSearchRequest {
     /// Oldest first (default newest first).
     #[serde(default)]
     pub ascending: bool,
+    /// Facets to count besides the standard ones (a dashboard widget's group-by, `@evt.name`).
+    #[serde(default)]
+    pub facets: Vec<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -302,6 +305,17 @@ pub async fn signals_in(st: &AppState, org: &str, range: TimeRange) -> Result<Ve
     .fetch_all(&st.postgres)
     .await?;
     Ok(rows.into_iter().map(SecuritySignal::from).collect())
+}
+
+/// The standard facets, then the extra ones a request names (each once).
+fn facet_keys(extra: &[String]) -> Vec<String> {
+    let mut keys: Vec<String> = FACETS.iter().map(|k| k.to_string()).collect();
+    for k in extra.iter().take(5) {
+        if !k.is_empty() && !keys.contains(k) {
+            keys.push(k.clone());
+        }
+    }
+    keys
 }
 
 /// One facet's value counts.
@@ -357,7 +371,7 @@ pub async fn search(State(st): State<AppState>, ctx: AuthContext, Json(req): Jso
     if req.ascending {
         shown.reverse();
     }
-    let facets = FACETS.iter().map(|k| facet(k, &shown)).collect();
+    let facets = facet_keys(&req.facets).iter().map(|k| facet(k, &shown)).collect();
     let histogram = histogram(req.range, &shown);
     let total = shown.len();
     let offset = req.offset.unwrap_or(0);
@@ -539,6 +553,16 @@ mod tests {
             state_updated_by: None,
             incident_ids: vec![],
         }
+    }
+
+    #[test]
+    fn widgets_count_signals_by_any_facet_they_name() {
+        let mut s = signal();
+        s.group_values.insert("@evt.name".into(), "authentication".into());
+        let keys = facet_keys(&["@evt.name".into(), "status".into()]);
+        assert_eq!(keys.iter().filter(|k| *k == "status").count(), 1, "the standard facets aren't repeated");
+        let evt = facet("@evt.name", &[&s]);
+        assert_eq!((evt.values[0].value.as_str(), evt.values[0].count), ("authentication", 1));
     }
 
     #[test]
