@@ -139,6 +139,16 @@ server:
   affinity: {}
   topologySpreadConstraints: []
 
+# Connector packages of your own (docs/connectors.md, "Third-party packages"): mounted into the servers as
+# OC_CONNECTORS_DIR and listed in the catalog beside the bundled ones. Either a ConfigMap of flat files named
+# `<package>__<path with __ for />` (`acme-status__connector.yaml`, `acme-status__fixtures__incidents.json`), or any
+# volume with one directory per package.
+connectors:
+  # -- A ConfigMap's name.
+  configMap: ""
+  # -- A volume definition (`persistentVolumeClaim: {claimName: …}`, `image: {reference: …}`), used when configMap is empty.
+  volume: {}
+
 # ObserveCraft monitoring itself (server/crates/oc-api/src/self_monitoring.rs): every minute one server writes
 # `observecraft.*` gauges (ClickHouse disks, parts and freshness, the log ingester's Kafka lag, Postgres, jobs, cost
 # and each organization's usage) into the operator's organization, which alone sees the "ObserveCraft Overview"
