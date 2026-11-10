@@ -1,0 +1,161 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bb-2ee0-7576-9371-02865dcbc6c8"
+      },
+      "action": "Save",
+      "application": "",
+      "audit_message": null,
+      "client": {
+        "id": ""
+      },
+      "context": {
+        "flowType": "inboundcall",
+        "version": "1.0"
+      },
+      "date": "2026-11-10T09:12:44Z",
+      "ddsource": "genesys",
+      "entity": {
+        "id": "426315b4-0000-4000-8000-000000000021",
+        "name": "Inbound Order Support Flow"
+      },
+      "entityType": "Flow",
+      "eventDate": "2026-11-10T09:12:44Z",
+      "host": "6a1b0c2d-0000-4000-8000-000000000001@mypurecloud.ie",
+      "id": "2d59394e-0000-4000-8000-000000000001",
+      "level": "USER",
+      "message": "Architect Save Flow Inbound Order Support Flow by Jane Doe",
+      "remoteIp": [
+        "203.0.113.24"
+      ],
+      "service": "audit",
+      "serviceName": "Architect",
+      "status": "info",
+      "transactionInitiator": false,
+      "user": {
+        "id": "d1e4ddd6-0000-4000-8000-000000000011",
+        "name": "Jane Doe",
+        "selfUri": "/api/v2/users/d1e4ddd6-0000-4000-8000-000000000011"
+      },
+      "userHomeOrgId": "f335b7ab-0000-4000-8000-0000000000aa",
+      "usr": {
+        "id": "d1e4ddd6-0000-4000-8000-000000000011",
+        "name": "Jane Doe"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bd-49f0-73c3-b7ba-d3a70ec5d60b"
+      },
+      "action": "Publish",
+      "application": "",
+      "audit_message": {
+        "localizableMessageCode": "FLOW_VALIDATION_FAILED",
+        "message": "The flow has validation errors"
+      },
+      "client": {
+        "id": ""
+      },
+      "context": {
+        "flowType": "inboundcall",
+        "version": "2.0"
+      },
+      "date": "2026-11-10T09:15:02Z",
+      "ddsource": "genesys",
+      "entity": {
+        "id": "426315b4-0000-4000-8000-000000000021",
+        "name": "Inbound Order Support Flow"
+      },
+      "entityType": "Flow",
+      "eventDate": "2026-11-10T09:15:02Z",
+      "host": "6a1b0c2d-0000-4000-8000-000000000001@mypurecloud.ie",
+      "id": "2d59394e-0000-4000-8000-000000000002",
+      "level": "USER",
+      "message": "Architect Publish Flow Inbound Order Support Flow by Jane Doe",
+      "remoteIp": [
+        "203.0.113.24"
+      ],
+      "service": "audit",
+      "serviceName": "Architect",
+      "status": "error",
+      "transactionInitiator": true,
+      "user": {
+        "id": "d1e4ddd6-0000-4000-8000-000000000011",
+        "name": "Jane Doe",
+        "selfUri": "/api/v2/users/d1e4ddd6-0000-4000-8000-000000000011"
+      },
+      "userHomeOrgId": "f335b7ab-0000-4000-8000-0000000000aa",
+      "usr": {
+        "id": "d1e4ddd6-0000-4000-8000-000000000011",
+        "name": "Jane Doe"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c51f-5f50-7834-b911-6b192c02c68a"
+      },
+      "action": "Update",
+      "application": "",
+      "audit_message": null,
+      "client": {
+        "id": "6a1b0c2d-0000-4000-8000-000000000002"
+      },
+      "date": "2026-11-10T11:02:10Z",
+      "ddsource": "genesys",
+      "entity": {
+        "id": "d1e4ddd6-0000-4000-8000-000000000013",
+        "name": "Alex Kim"
+      },
+      "entityType": "User",
+      "eventDate": "2026-11-10T11:02:10Z",
+      "host": "6a1b0c2d-0000-4000-8000-000000000001@mypurecloud.ie",
+      "id": "7b10c2aa-0000-4000-8000-000000000003",
+      "level": "USER",
+      "message": "Directory Update User Alex Kim by Sam Rivera",
+      "propertyChanges": [
+        {
+          "newValues": [
+            "Senior Agent"
+          ],
+          "oldValues": [
+            "Agent"
+          ],
+          "property": "title"
+        }
+      ],
+      "remoteIp": [
+        "198.51.100.7"
+      ],
+      "service": "audit",
+      "serviceName": "Directory",
+      "status": "info",
+      "transactionInitiator": false,
+      "user": {
+        "id": "d1e4ddd6-0000-4000-8000-000000000012",
+        "name": "Sam Rivera"
+      },
+      "userHomeOrgId": "f335b7ab-0000-4000-8000-0000000000aa",
+      "usr": {
+        "id": "d1e4ddd6-0000-4000-8000-000000000012",
+        "name": "Sam Rivera"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "Architect": {
+        "cursor": 1794312000000
+      },
+      "Directory": {
+        "cursor": 1794312000000
+      },
+      "Routing": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

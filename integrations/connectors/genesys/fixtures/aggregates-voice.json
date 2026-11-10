@@ -1,0 +1,17 @@
+{ "results": [ { "group": { "mediaType": "voice" }, "data": [
+  { "interval": "2026-11-10T11:30:00.000Z/2026-11-10T11:35:00.000Z", "metrics": [
+    { "metric": "nConversations", "qualifier": null, "stats": { "count": 42 } },
+    { "metric": "nOffered", "stats": { "count": 40 } },
+    { "metric": "nConnected", "stats": { "count": 37 } },
+    { "metric": "nTransferred", "stats": { "count": 5 } },
+    { "metric": "tAbandon", "stats": { "max": 61000, "min": 4000, "count": 3, "sum": 92000 } },
+    { "metric": "tAcw", "stats": { "max": 42000, "min": 5000, "count": 12, "sum": 180000 } },
+    { "metric": "tHandle", "stats": { "max": 905000, "min": 64000, "count": 34, "sum": 9860000 } },
+    { "metric": "tConnected", "stats": { "max": 900000, "min": 60000, "count": 37, "sum": 9250000 } }
+  ] },
+  { "interval": "2026-11-10T11:35:00.000Z/2026-11-10T11:40:00.000Z", "metrics": [
+    { "metric": "nConversations", "stats": { "count": 38 } },
+    { "metric": "nOffered", "stats": { "count": 36 } },
+    { "metric": "tAnswered", "stats": { "max": 30000, "min": 2000, "count": 33, "sum": 297000 } }
+  ] }
+] } ] }

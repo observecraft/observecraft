@@ -1,0 +1,1 @@
+{ "services": [ { "name": "Architect", "entities": [ { "name": "Flow", "actions": ["Create", "Save", "Publish", "Delete"] } ] }, { "name": "Directory", "entities": [ { "name": "User", "actions": ["Create", "Update", "Delete"] } ] }, { "name": "Routing", "entities": [ { "name": "Queue", "actions": ["Create", "Update", "Delete"] } ] } ] }

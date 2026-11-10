@@ -1,0 +1,6 @@
+{ "results": [ { "group": { "mediaType": "chat" }, "data": [
+  { "interval": "2026-11-10T11:40:00.000Z/2026-11-10T11:45:00.000Z", "metrics": [
+    { "metric": "nConversations", "stats": { "count": 9 } },
+    { "metric": "tAgentResponseTime", "stats": { "max": 45000, "min": 3000, "count": 20, "sum": 360000 } }
+  ] }
+] } ] }

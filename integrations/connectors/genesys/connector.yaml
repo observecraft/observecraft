@@ -1,0 +1,293 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Genesys Cloud CX (https://developer.genesys.cloud/): the organization's audit log as the logs Datadog's integration
+# sends (source:genesys, service:audit, the AuditLogMessage's fields at the top) and its conversation aggregates per
+# media type as Datadog's genesys_cloud.<media>.<metric>_{count,time_avg,time_max,time_min} metrics (metadata.csv of
+# integrations-core's genesys, every one of its 421 names). The tile's pipeline and dashboards (Audit, Conversation
+# Overview, Voice, Chat, Email, Message, Callback) are installed from integrations-core when a connection is saved.
+schema_version: 1
+id: genesys
+name: Genesys
+publisher: ObserveCraft
+vendor: Genesys
+description: >-
+  The audit log of a Genesys Cloud CX organization (who changed flows, users, queues, routing and settings) as logs,
+  and contact-center metrics per media type (voice, chat, email, message, callback: offered, connected, transferred,
+  abandoned conversations, alert, answer, talk, hold, wrap-up and handle times) every 5 minutes, read from Genesys
+  Cloud's Platform API.
+tiles: [genesys]
+categories: [Collaboration, Log Collection, Metrics]
+docs_url: https://developer.genesys.cloud/platform/api/
+setup: |
+  1. In Genesys Cloud, open **Admin → Roles / Permissions** and create a role, e.g. `ObserveCraft reader`, with
+     **Audits › Audit › View**, **Analytics › Conversation Aggregate › View** and **Analytics › Conversation Detail ›
+     View**.
+  2. Open **Admin → OAuth**, add a client with the **Client Credentials** grant and that role (in your division), and
+     copy its **Client ID** and **Client Secret**.
+  3. Choose the region your organization runs in (the domain of its login page, e.g. `mypurecloud.ie`).
+instance: "{{ config.client_id + '@' + config.region }}"
+
+config:
+  - key: region
+    label: Region
+    type: select
+    required: true
+    default: mypurecloud.com
+    options:
+      - { value: mypurecloud.com, label: "Americas (US East) — mypurecloud.com" }
+      - { value: use2.us-gov-pure.cloud, label: "Americas (US East 2, FedRAMP) — use2.us-gov-pure.cloud" }
+      - { value: usw2.pure.cloud, label: "Americas (US West) — usw2.pure.cloud" }
+      - { value: cac1.pure.cloud, label: "Americas (Canada) — cac1.pure.cloud" }
+      - { value: sae1.pure.cloud, label: "Americas (São Paulo) — sae1.pure.cloud" }
+      - { value: mypurecloud.ie, label: "EMEA (Dublin) — mypurecloud.ie" }
+      - { value: euw2.pure.cloud, label: "EMEA (London) — euw2.pure.cloud" }
+      - { value: mypurecloud.de, label: "EMEA (Frankfurt) — mypurecloud.de" }
+      - { value: euc2.pure.cloud, label: "EMEA (Zurich) — euc2.pure.cloud" }
+      - { value: mec1.pure.cloud, label: "EMEA (UAE) — mec1.pure.cloud" }
+      - { value: aps1.pure.cloud, label: "Asia Pacific (Mumbai) — aps1.pure.cloud" }
+      - { value: apne2.pure.cloud, label: "Asia Pacific (Seoul) — apne2.pure.cloud" }
+      - { value: mypurecloud.com.au, label: "Asia Pacific (Sydney) — mypurecloud.com.au" }
+      - { value: mypurecloud.jp, label: "Asia Pacific (Tokyo) — mypurecloud.jp" }
+      - { value: apne3.pure.cloud, label: "Asia Pacific (Osaka) — apne3.pure.cloud" }
+  - key: client_id
+    label: Client ID
+    type: string
+    required: true
+    placeholder: 00000000-0000-0000-0000-000000000000
+  - key: client_secret
+    label: Client Secret
+    type: string
+    secret: true
+    required: true
+  - key: media_types
+    label: Media types
+    type: multiselect
+    default: [voice, chat, email, message, callback]
+    options:
+      - { value: voice, label: Voice }
+      - { value: chat, label: Chat }
+      - { value: email, label: Email }
+      - { value: message, label: Message }
+      - { value: callback, label: Callback }
+    help: The media types whose conversation metrics are collected.
+
+auth:
+  kind: oauth2_client_credentials
+  token_url: "https://login.{{ config.region }}/oauth/token"
+  client_id: "{{ config.client_id }}"
+  client_secret: "{{ secrets.client_secret }}"
+
+# Genesys Cloud allows 300 requests a minute per OAuth client.
+rate_limit: { requests_per_minute: 120 }
+
+errors:
+  - status: [400]
+    when: "{{ response.code == 'bad.credentials' || response.error == 'invalid_client' }}"
+    kind: auth
+    message: Genesys Cloud refused the client ID and secret (check the region too)
+  - status: [401]
+    kind: auth
+    message: Genesys Cloud refused the OAuth client (check the region, the client ID and the secret)
+  - status: [403]
+    kind: access_denied
+    message: >-
+      The OAuth client's role lacks a permission: it needs Audits › Audit › View and Analytics › Conversation
+      Aggregate › View ({{ response.message ?? 'forbidden' }})
+
+# Conversation aggregate metrics → Datadog's names (genesys_cloud.<media>.<name>): `counts` for stats.count, `times` for
+# the _time_avg (sum / count), _time_max and _time_min of a duration (ms).
+tables:
+  counts:
+    nBlindTransferred: blind_transferred_count
+    nBotInteractions: bot_interactions_count
+    nConnected: connected_conversations_count
+    nConsult: consulted_conversations_count
+    nConsultTransferred: consult_transferred_conversations_count
+    nConversations: total_conversations
+    nError: errored_conversations_count
+    nOffered: offered_conversations_count
+    nOutbound: outbound_conversations_count
+    nOutboundAbandoned: abandoned_outbound_conversations_count
+    nOutboundAttempted: attempted_outbound_conversations_count
+    nOutboundConnected: connected_outbound_conversations_count
+    nOverSla: over_sla_count
+    nStateTransitionError: state_transition_errors_count
+    nTransferred: total_transferred_count
+    tAbandon: abandoned_conversation_count
+    tActiveCallbackComplete: active_callback_complete_count
+    tAcw: acw_count
+    tAgentResponseTime: agent_response_count
+    tAlert: alert_count
+    tAnswered: answered_count
+    tBarging: barged_conversations_count
+    tCoaching: coached_conversations_count
+    tContacting: contacting_count
+    tDialing: dialing_count
+    tFirstConnect: first_connect_count
+    tFirstDial: first_dial_count
+    tFlowOut: flow_out_count
+    tHandle: handle_count
+    tHeldComplete: held_complete_count
+    tIvr: ivr_count
+    tMonitoringComplete: monitoring_complete_count
+    tNotResponding: not_responding_count
+    tParkComplete: park_complete_count
+    tShortAbandon: short_abandoned_conversations_count
+    tTalkComplete: talk_complete_count
+    tUserResponseTime: user_response_count
+    tVoicemail: voicemail_count
+    tWait: wait_count
+  times:
+    tAbandon: abandoned_conversation
+    tActiveCallbackComplete: active_callback_complete
+    tAcw: acw
+    tAgentResponseTime: agent_response
+    tAlert: alert
+    tAnswered: answered
+    tBarging: barged_conversations
+    tCoaching: coached_conversations
+    tConnected: connected
+    tContacting: contacting
+    tDialing: dialing
+    tFirstConnect: first_connect
+    tFirstDial: first_dial
+    tFlowOut: flow_out
+    tHandle: handle
+    tHeldComplete: held_complete
+    tIvr: ivr
+    tMonitoringComplete: monitoring_complete
+    tNotResponding: not_responding
+    tParkComplete: park_complete
+    tShortAbandon: short_abandoned_conversations
+    tTalkComplete: talk_complete
+    tUserResponseTime: user_response
+    tVoicemail: voicemail
+    tWait: wait
+
+discover:
+  - name: services
+    request: { url: "https://api.{{ config.region }}/api/v2/audits/query/servicemapping" }
+    value: "{{ response.services | pluck('name') }}"
+    ttl: 1d
+
+streams:
+  - id: audits
+    name: Audit events
+    description: >-
+      Every audit event as a log (source:genesys, service:audit): serviceName, action, entityType, entity, level,
+      status (SUCCESS → info, FAILURE → error, WARNING → warn), user (usr.id, usr.name), remoteIp, propertyChanges.
+      One query per audit service; the realtime query reaches 14 days back.
+    interval: 5m
+    for_each: "{{ discovery.services }}"
+    request:
+      method: POST
+      url: "https://api.{{ config.region }}/api/v2/audits/query/realtime"
+      query: { expand: user }
+      body:
+        interval: "{{ (window.start | rfc3339_s) + '/' + (window.end | rfc3339_s) }}"
+        serviceName: "{{ item }}"
+        sort: [{ name: Timestamp, sortOrder: ascending }]
+        pageNumber: "{{ page.number }}"
+        pageSize: 500
+    records: "{{ response.entities }}"
+    pagination: { kind: page, size: 500, total_pages: "{{ response.pageCount }}" }
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.eventDate }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 10m
+    output:
+      logs:
+        service: audit
+        message: >-
+          {{ record.serviceName }} {{ record.action }} {{ record.entityType }}{{ (' ' + record.entity.name) ?? '' }}{{ (' by ' + record.user.name) ?? '' }}
+        status: "{{ record.status == 'FAILURE' ? 'error' : record.status == 'WARNING' ? 'warn' : 'info' }}"
+        date: "{{ record.eventDate }}"
+        attributes: "{{ record + {usr: {id: record.user.id, name: record.user.name}, audit_message: record.message} }}"
+
+  - id: conversations
+    name: Conversation metrics
+    description: >-
+      Conversation aggregates of each media type in 5-minute intervals, sent once an interval is 15 minutes old, as
+      genesys_cloud.<media>.* counts (offered, connected, transferred, abandoned, total conversations, …) and
+      _time_avg / _time_max / _time_min durations in milliseconds (alert, answered, talk, hold, wrap-up, handle,
+      wait, …), the names of Datadog's integration.
+    interval: 5m
+    for_each: "{{ config.media_types ?? ['voice', 'chat', 'email', 'message', 'callback'] }}"
+    request:
+      method: POST
+      url: "https://api.{{ config.region }}/api/v2/analytics/conversations/aggregates/query"
+      body:
+        # Whole 5-minute intervals, from the window's start to its end.
+        interval: >-
+          {{ (((window.start / 300000) | floor) * 300000 | rfc3339_s) + '/' + (((window.end / 300000) | floor) * 300000 | rfc3339_s) }}
+        granularity: PT5M
+        groupBy: [mediaType]
+        filter:
+          type: and
+          predicates: [{ type: dimension, dimension: mediaType, operator: matches, value: "{{ item }}" }]
+        metrics: ["nBlindTransferred", "nBotInteractions", "nConnected", "nConsult", "nConsultTransferred", "nConversations", "nError", "nOffered", "nOutbound", "nOutboundAbandoned", "nOutboundAttempted", "nOutboundConnected", "nOverSla", "nStateTransitionError", "nTransferred", "tAbandon", "tActiveCallbackComplete", "tAcw", "tAgentResponseTime", "tAlert", "tAnswered", "tBarging", "tCoaching", "tConnected", "tContacting", "tDialing", "tFirstConnect", "tFirstDial", "tFlowOut", "tHandle", "tHeldComplete", "tIvr", "tMonitoringComplete", "tNotResponding", "tParkComplete", "tShortAbandon", "tTalkComplete", "tUserResponseTime", "tVoicemail", "tWait"]
+    # One record per media type and interval: `data` is the interval with its metrics.
+    records: "{{ (response.results ?? []) | explode('data') }}"
+    record_id: "{{ record.group.mediaType + ' ' + record.data.interval }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.data.interval | split('/') | first }}"
+      order: oldest_first
+      lookback: 1h
+      overlap: 5m
+      settle: 15m
+    vars:
+      prefix: "{{ 'genesys_cloud.' + record.group.mediaType + '.' }}"
+    output:
+      metrics:
+        - name: "{{ vars.prefix + tables.counts[entry.metric] ?? '' }}"
+          type: count
+          each: "{{ record.data.metrics }}"
+          value: "{{ entry.stats.count }}"
+          time: "{{ record.data.interval | split('/') | first }}"
+          description: Conversations (or segments) of the interval, per metric.
+        - name: "{{ (vars.prefix + tables.times[entry.metric] + '_time_avg') ?? '' }}"
+          type: count
+          each: "{{ record.data.metrics }}"
+          value: "{{ entry.stats.sum / entry.stats.count }}"
+          time: "{{ record.data.interval | split('/') | first }}"
+          unit: millisecond
+          description: The interval's average duration, per metric.
+        - name: "{{ (vars.prefix + tables.times[entry.metric] + '_time_max') ?? '' }}"
+          type: count
+          each: "{{ record.data.metrics }}"
+          value: "{{ entry.stats.max }}"
+          time: "{{ record.data.interval | split('/') | first }}"
+          unit: millisecond
+          description: The interval's longest duration, per metric.
+        - name: "{{ (vars.prefix + tables.times[entry.metric] + '_time_min') ?? '' }}"
+          type: count
+          each: "{{ record.data.metrics }}"
+          value: "{{ entry.stats.min }}"
+          time: "{{ record.data.interval | split('/') | first }}"
+          unit: millisecond
+          description: The interval's shortest duration, per metric.
+
+test:
+  request: { url: "https://api.{{ config.region }}/api/v2/audits/query/servicemapping" }
+  success: "{{ response.services }}"
+  message: "Connected: {{ response.services | len }} audit services to read"
+
+mock:
+  config: { region: mypurecloud.ie, client_id: 6a1b0c2d-0000-4000-8000-000000000001, media_types: [voice, chat] }
+  secrets: { client_secret: genesys-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://login.mypurecloud.ie/oauth/token", body: { access_token: genesys-test-token, token_type: bearer, expires_in: 86399 } }
+    - { url: "https://api.mypurecloud.ie/api/v2/audits/query/servicemapping", file: fixtures/servicemapping.json }
+    - { method: POST, url: "https://api.mypurecloud.ie/api/v2/audits/query/realtime", body_contains: '"serviceName":"Architect"', file: fixtures/audits-architect.json }
+    - { method: POST, url: "https://api.mypurecloud.ie/api/v2/audits/query/realtime", body_contains: '"serviceName":"Directory"', file: fixtures/audits-directory.json }
+    - { method: POST, url: "https://api.mypurecloud.ie/api/v2/audits/query/realtime", file: fixtures/audits-empty.json }
+    - { method: POST, url: "https://api.mypurecloud.ie/api/v2/analytics/conversations/aggregates/query", body_contains: '"value":"voice"', file: fixtures/aggregates-voice.json }
+    - { method: POST, url: "https://api.mypurecloud.ie/api/v2/analytics/conversations/aggregates/query", body_contains: '"value":"chat"', file: fixtures/aggregates-chat.json }
+  expect:
+    audits: { records: 3, logs: 3, rerun: 0, golden: fixtures/audits.expected.json }
+    conversations: { records: 3, rerun: 0, golden: fixtures/conversations.expected.json }
+    test: { ok: true, message: "3 audit services" }

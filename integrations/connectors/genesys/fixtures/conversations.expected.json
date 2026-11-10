@@ -1,0 +1,263 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.total_conversations",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 42.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.offered_conversations_count",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 40.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.connected_conversations_count",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 37.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.total_transferred_count",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 5.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.abandoned_conversation_count",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 3.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.acw_count",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 12.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.handle_count",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 34.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.abandoned_conversation_time_avg",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 30666.666666666668
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.acw_time_avg",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 15000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.handle_time_avg",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 290000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.connected_time_avg",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 250000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.abandoned_conversation_time_max",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 61000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.acw_time_max",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 42000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.handle_time_max",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 905000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.connected_time_max",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 900000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.abandoned_conversation_time_min",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 4000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.acw_time_min",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 5000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.handle_time_min",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 64000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.connected_time_min",
+      "tags": [],
+      "time_ms": 1794310200000,
+      "value": 60000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.total_conversations",
+      "tags": [],
+      "time_ms": 1794310500000,
+      "value": 38.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.offered_conversations_count",
+      "tags": [],
+      "time_ms": 1794310500000,
+      "value": 36.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.answered_count",
+      "tags": [],
+      "time_ms": 1794310500000,
+      "value": 33.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.answered_time_avg",
+      "tags": [],
+      "time_ms": 1794310500000,
+      "value": 9000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.answered_time_max",
+      "tags": [],
+      "time_ms": 1794310500000,
+      "value": 30000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.voice.answered_time_min",
+      "tags": [],
+      "time_ms": 1794310500000,
+      "value": 2000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.chat.total_conversations",
+      "tags": [],
+      "time_ms": 1794310800000,
+      "value": 9.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.chat.agent_response_count",
+      "tags": [],
+      "time_ms": 1794310800000,
+      "value": 20.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.chat.agent_response_time_avg",
+      "tags": [],
+      "time_ms": 1794310800000,
+      "value": 18000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.chat.agent_response_time_max",
+      "tags": [],
+      "time_ms": 1794310800000,
+      "value": 45000.0
+    },
+    {
+      "host": null,
+      "kind": "count",
+      "name": "genesys_cloud.chat.agent_response_time_min",
+      "tags": [],
+      "time_ms": 1794310800000,
+      "value": 3000.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "chat": {
+        "cursor": 1794311100000,
+        "seen": [
+          {
+            "id": "c61e528ba8e2cecf",
+            "t": 1794310800000
+          }
+        ]
+      },
+      "voice": {
+        "cursor": 1794311100000
+      }
+    }
+  }
+}
