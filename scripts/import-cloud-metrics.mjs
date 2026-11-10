@@ -188,7 +188,9 @@ export function azureMetrics(dir, revision) {
   const catalog = JSON.parse(readFileSync(new URL('../../azure_integration.json', OUT), 'utf8')).resource_types;
   const resource_types = {};
   for (const t of catalog) {
-    const file = join(dir, `${t.type.toLowerCase().replace(/[/.]/g, '-')}-metrics.md`);
+    // Function apps (`Microsoft.Web/sites (functionapp)`, azure/naming.rs FUNCTION_APPS) are App Service sites.
+    const namespace = t.type.replace(/ \(.*\)$/, '');
+    const file = join(dir, `${namespace.toLowerCase().replace(/[/.]/g, '-')}-metrics.md`);
     if (existsSync(file)) resource_types[t.type] = { metrics: azurePage(readFileSync(file, 'utf8')) };
   }
   return { source: `MicrosoftDocs/azure-monitor-docs@${revision} (CC BY 4.0), articles/azure-monitor/reference/supported-metrics`, resource_types };

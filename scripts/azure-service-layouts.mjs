@@ -210,7 +210,7 @@ export const AZURE_LAYOUTS = {
   'Microsoft.Web/sites': {
     vars: ['instance'],
     monitor: 'azure_app_services',
-    note: 'Web apps and function apps: requests and HTTP status codes, response time, each instance’s CPU time, memory and queue, and function executions. Function apps share this resource type.',
+    note: 'Web apps: requests and HTTP status codes, response time, and each instance’s CPU time, memory and queue. Function apps share this resource type and have their own dashboard (Azure Functions).',
     logs: [['App Service logs', 'source:azure.web']],
     build: (q) => {
       const { sum, avg, max, min, count } = on(q);
@@ -220,7 +220,7 @@ export const AZURE_LAYOUTS = {
           qv('Requests', sum('requests')),
           qv('Server errors (5xx)', sum('http5xx'), { bad: true }),
           qv('Avg response time', avg('http_response_time'), { precision: 2 }),
-          qv('Function executions', sum('function_execution_count')),
+          qv('Data out', sum('bytes_sent')),
         ],
         groups: [
           g('Traffic', [
@@ -248,7 +248,57 @@ export const AZURE_LAYOUTS = {
             ts('Threads', avg('threads', 'name'), { w: 4 }),
             ts('Health check status', avg('health_check_status', 'name'), { w: 4 }),
           ]),
-          g('Functions', [ts('Executions by function app', sum('function_execution_count', 'name'), { display: 'bars' }), ts('Execution units (MB-ms)', sum('function_execution_units', 'name'))]),
+        ],
+      };
+    },
+  },
+
+  // Function apps: App Service sites of kind `functionapp`, which the crawler names `azure.functions.*` (azure/naming.rs FUNCTION_APPS).
+  'Microsoft.Web/sites (functionapp)': {
+    vars: ['instance'],
+    monitor: 'azure_functions',
+    note: 'Function apps: executions and execution units (the memory-time a Consumption or Flex plan bills), HTTP-triggered requests with their status codes and response time, and each instance’s memory, connections and threads.',
+    logs: [['Functions logs', 'source:azure.web']],
+    build: (q) => {
+      const { sum, avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Function apps running'),
+          qv('Executions', sum('function_execution_count')),
+          qv('Execution units (MB-ms)', sum('function_execution_units')),
+          qv('Server errors (5xx)', sum('http5xx'), { bad: true }),
+          qv('Avg response time', avg('http_response_time'), { precision: 2 }),
+        ],
+        groups: [
+          g('Executions', [
+            ts('Executions by function app', sum('function_execution_count', 'name'), { display: 'bars', w: 8 }),
+            top('Busiest function apps', sum('function_execution_count', 'name'), { w: 4 }),
+            ts('Executions by instance', sum('function_execution_count', 'instance'), { w: 6 }),
+            ts('On demand against always ready', [sum('on_demand_function_execution_count'), sum('always_ready_function_execution_count')], {
+              alias: ['on demand', 'always ready'],
+              display: 'bars',
+              w: 6,
+            }),
+          ]),
+          g('Execution units', [
+            ts('Execution units by function app', sum('function_execution_units', 'name'), { display: 'area', w: 8 }),
+            top('Most execution units', sum('function_execution_units', 'name'), { w: 4 }),
+            ts('MB-ms per execution', [sum('function_execution_units', 'name'), sum('function_execution_count', 'name')], { formulas: [['query1 / query2', 'MB-ms']], w: 8 }),
+            txt('Execution units are memory × time in MB-milliseconds; divided by the executions they are what an average run costs.', { w: 4 }),
+          ]),
+          g('HTTP triggers', [
+            ts('Responses by class', [sum('http2xx'), sum('http3xx'), sum('http4xx'), sum('http5xx')], { alias: ['2xx', '3xx', '4xx', '5xx'], display: 'bars', w: 6 }),
+            rate('5xx rate by function app', sum('http5xx', 'name'), sum('requests', 'name'), { w: 6 }),
+            ts('Response time by function app', avg('http_response_time', 'name'), { w: 8 }),
+            top('Slowest function apps', avg('http_response_time', 'name'), { w: 4 }),
+          ]),
+          g('Function app instances', [
+            ts('Memory working set by instance', avg('memory_working_set', 'instance'), { w: 6 }),
+            mirror('Data in and out', sum('bytes_received'), sum('bytes_sent'), { w: 6 }),
+            ts('Connections', max('app_connections', 'name'), { w: 6 }),
+            ts('Threads', avg('threads', 'name'), { w: 6 }),
+            byStatus(count, 'Function apps by health status', { w: 12 }),
+          ]),
         ],
       };
     },

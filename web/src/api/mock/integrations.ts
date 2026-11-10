@@ -1000,6 +1000,7 @@ const GCP_SERVICES: Entry[] = gcpCatalog.services.map((s) => ({
 const DEMO_AZURE = new Set([
   'Microsoft.Compute/virtualMachines',
   'Microsoft.Web/sites',
+  'Microsoft.Web/sites (functionapp)',
   'Microsoft.Sql/servers/databases',
   'Microsoft.Sql/servers/elasticPools',
   'Microsoft.Storage/storageAccounts',

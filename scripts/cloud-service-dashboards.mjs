@@ -322,6 +322,7 @@ export function azureSuffixes(primary, supported) {
  *  the Rust test every_azure_dashboard_charts_what_the_crawler_publishes checks the dashboards against the crawler's. */
 const AZURE_SPLITS = {
   'microsoft.web/sites': ['Instance'],
+  'microsoft.web/sites (functionapp)': ['Instance'],
   'microsoft.web/serverfarms': ['Instance'],
   'microsoft.storage/storageaccounts': ['ApiName', 'ResponseType'],
   'microsoft.documentdb/databaseaccounts': ['DatabaseName', 'CollectionName', 'Region', 'StatusCode'],
@@ -576,6 +577,7 @@ export const MOCK_SERVICES = [
   'tile:aws-wafv2',
   'tile:azure-cdn-profiles',
   'tile:azure-compute-virtualmachines',
+  'tile:azure-functions',
   'tile:azure-keyvault-vaults',
   'tile:azure-sql-servers-databases',
   'tile:azure-sql-servers-elasticpools',

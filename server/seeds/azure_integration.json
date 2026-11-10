@@ -43,6 +43,16 @@
       ]
     },
     {
+      "type": "Microsoft.Web/sites (functionapp)",
+      "name": "Azure Functions",
+      "id": "azure-functions",
+      "prefix": "azure.functions",
+      "categories": [
+        "Azure",
+        "Languages"
+      ]
+    },
+    {
       "type": "Microsoft.Web/serverFarms",
       "name": "Azure App Service Plan",
       "id": "azure-web-serverfarms",

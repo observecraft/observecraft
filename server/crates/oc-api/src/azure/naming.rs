@@ -32,8 +32,9 @@ pub fn count_name(resource_type: &str) -> String {
 /// Storage API names and response types, Cosmos DB databases and collections, Redis shards, Event Hubs and
 /// Service Bus entities, backup jobs' health, model deployments, …). Others are read aggregated over their
 /// dimensions, keeping the series count bounded.
-const SPLITS: [(&str, &[&str]); 27] = [
+const SPLITS: [(&str, &[&str]); 28] = [
     ("microsoft.web/sites", &["Instance"]),
+    ("microsoft.web/sites (functionapp)", &["Instance"]),
     ("microsoft.web/sites/slots", &["Instance"]),
     ("microsoft.web/serverfarms", &["Instance"]),
     ("microsoft.storage/storageaccounts", &["ApiName", "ResponseType"]),
@@ -74,10 +75,27 @@ pub fn dimension_tag(dimension: &str) -> String {
     underscored(dimension)
 }
 
+/// Function apps: App Service sites (`Microsoft.Web/sites`) whose `kind` has `functionapp`, which Datadog names
+/// `azure.functions.*` (its Azure Functions integration) apart from the web apps' `azure.app_services.*`.
+pub const FUNCTION_APPS: &str = "Microsoft.Web/sites (functionapp)";
+
+/// The type a resource's metrics are named, grouped and counted by: its resource type, or [`FUNCTION_APPS`] for an
+/// App Service site of kind `functionapp` (`functionapp,linux`, `functionapp,workflowapp`).
+pub fn named_type(resource_type: &str, kind: &str) -> String {
+    let function_app = resource_type.eq_ignore_ascii_case("microsoft.web/sites") && kind.split(',').any(|k| k.trim().eq_ignore_ascii_case("functionapp"));
+    if function_app { FUNCTION_APPS.to_string() } else { resource_type.to_string() }
+}
+
+/// The Azure Monitor metric namespace of a [`named_type`]: function apps are read as `Microsoft.Web/sites`.
+pub fn namespace(named_type: &str) -> &str {
+    named_type.split(" (").next().unwrap_or(named_type)
+}
+
 /// Resource types Datadog names other than `azure.<provider>_<type>`.
-const PREFIXES: [(&str, &str); 4] = [
+const PREFIXES: [(&str, &str); 5] = [
     ("microsoft.compute/virtualmachines", "azure.vm"),
     ("microsoft.web/sites", "azure.app_services"),
+    ("microsoft.web/sites (functionapp)", "azure.functions"),
     ("microsoft.storage/storageaccounts", "azure.storage"),
     ("microsoft.documentdb/databaseaccounts", "azure.cosmosdb"),
 ];
@@ -143,6 +161,27 @@ mod tests {
         assert_eq!(metric_name("Microsoft.Sql/servers/databases", "cpu_percent"), "azure.sql_servers_databases.cpu_percent");
         assert_eq!(metric_name("Microsoft.Network/loadBalancers", "VipAvailability"), "azure.network_loadbalancers.vip_availability");
         assert_eq!(metric_prefix("microsoft.cache/redis"), "azure.cache_redis");
+        // Storage accounts' blob, file, queue and table services are their own types.
+        assert_eq!(metric_name("Microsoft.Storage/storageAccounts/blobServices", "Transactions"), "azure.storage_storageaccounts_blobservices.transactions");
+        assert_eq!(metric_name("Microsoft.Storage/storageAccounts/fileServices", "FileCapacity"), "azure.storage_storageaccounts_fileservices.file_capacity");
+    }
+
+    #[test]
+    fn function_apps_are_datadogs_azure_functions() {
+        // App Service sites of kind `functionapp` (Linux, Windows, Logic Apps Standard) are named `azure.functions.*`.
+        assert_eq!(named_type("Microsoft.Web/sites", "functionapp,linux"), FUNCTION_APPS);
+        assert_eq!(named_type("microsoft.web/sites", "FunctionApp"), FUNCTION_APPS);
+        assert_eq!(named_type("Microsoft.Web/sites", "app,linux,container"), "Microsoft.Web/sites");
+        assert_eq!(named_type("Microsoft.Web/sites", ""), "Microsoft.Web/sites");
+        assert_eq!(named_type("Microsoft.Compute/virtualMachines", "functionapp"), "Microsoft.Compute/virtualMachines");
+        // Azure Monitor still reads them as `Microsoft.Web/sites`.
+        assert_eq!(namespace(FUNCTION_APPS), "Microsoft.Web/sites");
+        assert_eq!(namespace("Microsoft.Storage/storageAccounts/blobServices"), "Microsoft.Storage/storageAccounts/blobServices");
+        assert_eq!(metric_name(FUNCTION_APPS, "FunctionExecutionCount"), "azure.functions.function_execution_count");
+        assert_eq!(metric_name(FUNCTION_APPS, "Http5xx"), "azure.functions.http5xx");
+        assert_eq!(count_name(FUNCTION_APPS), "azure.functions.count");
+        assert_eq!(splits(FUNCTION_APPS, &["Instance".to_string()]), ["Instance"]);
+        assert!(provider_enabled(&json!({ "metrics_enabled_default": false, "resource_provider_configs": [{ "namespace": "Microsoft.Web", "metrics_enabled": true }] }), FUNCTION_APPS));
     }
 
     #[test]

@@ -122,6 +122,7 @@ const ALIASES = {
   'azure-network-virtualnetworkgateways': 'virtualnetworkgateways',
   'azure-network-expressroutecircuits': 'expressroutecircuits',
   'azure-network-dnszones': 'dnszones',
+  'azure-functions': 'functionapps',
   'azure-network-privatednszones': 'dnszones',
   'azure-network-trafficmanagerprofiles': 'trafficmanagerprofiles',
   'azure-cdn-profiles': 'frontdoorandcdnprofiles',

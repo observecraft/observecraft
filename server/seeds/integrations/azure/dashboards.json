@@ -983,7 +983,7 @@
               "id": "azure-32",
               "definition": {
                 "type": "note",
-                "content": "Web apps and function apps: requests, errors, response time and executions.",
+                "content": "Web apps and function apps (Azure Functions): requests, errors, response time and executions.",
                 "background": "purple",
                 "align": "center",
                 "fontSize": "sm"
@@ -1098,7 +1098,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:azure.app_services.function_execution_count{$subscription,$resource_group,$region}",
+                          "query": "sum:azure.functions.function_execution_count{$subscription,$resource_group,$region}",
                           "aggregator": "sum"
                         }
                       ],

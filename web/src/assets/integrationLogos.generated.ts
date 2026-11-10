@@ -559,6 +559,7 @@ export const INTEGRATION_LOGOS: Record<string, string> = {
   "tile:azure-eventgrid-systemtopics": "cloud-azure-azure-eventgrid-systemtopics.svg",
   "tile:azure-eventgrid-topics": "cloud-azure-azure-eventgrid-topics.svg",
   "tile:azure-eventhub-namespaces": "cloud-azure-azure-eventhub-namespaces.svg",
+  "tile:azure-functions": "cloud-azure-azure-functions.svg",
   "tile:azure-hdinsight-clusters": "cloud-azure-azure-hdinsight-clusters.svg",
   "tile:azure-insights-components": "cloud-azure-azure-insights-components.svg",
   "tile:azure-insights-datacollectionrules": "cloud-azure-azure-insights-datacollectionrules.svg",

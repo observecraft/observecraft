@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
-import { MOCK_SERVICES, azurePublishedNames, buildServiceDashboards, gcpNamesOf, gcpPublishedNames, metricOf, publishedNames } from './cloud-service-dashboards.mjs';
+import { MOCK_SERVICES, azurePublished, azurePublishedNames, buildServiceDashboards, gcpNamesOf, gcpPublishedNames, metricOf, publishedNames } from './cloud-service-dashboards.mjs';
 import { AWS_LAYOUTS } from './aws-service-layouts.mjs';
 import { AZURE_LAYOUTS } from './azure-service-layouts.mjs';
 import { GCP_LAYOUTS } from './gcp-service-layouts.mjs';
@@ -75,6 +75,8 @@ test('Azure metrics come from Azure Monitor’s supported metrics reference with
   );
   assert.equal(vm.metrics.find((m) => m.name === 'Network In Total').aggregation, 'Total');
   assert.deepEqual(azure.resource_types['Microsoft.Web/sites'].metrics.find((m) => m.name === 'AppConnections').aggregations, ['Average', 'Count', 'Maximum', 'Minimum']);
+  // Function apps are App Service sites of kind `functionapp`: the same metrics, named as Datadog's Azure Functions.
+  assert.deepEqual(azure.resource_types['Microsoft.Web/sites (functionapp)'].metrics, azure.resource_types['Microsoft.Web/sites'].metrics);
   assert.deepEqual(vm.metrics.find((m) => m.name === 'Data Disk Latency').dimensions, ['LUN']);
   // Storage capacity is hourly.
   const storage = azure.resource_types['Microsoft.Storage/storageAccounts'];
@@ -464,6 +466,7 @@ const DESIGNED_AZURE = [
   'Microsoft.Compute/virtualMachineScaleSets',
   'Microsoft.ContainerService/managedClusters',
   'Microsoft.Web/sites',
+  'Microsoft.Web/sites (functionapp)',
   'Microsoft.Web/serverFarms',
   'Microsoft.Sql/servers/databases',
   'Microsoft.Sql/managedInstances',
@@ -581,7 +584,12 @@ test('designed Azure dashboards follow their service’s model, not one template
   assert.match(text('Microsoft.Web/sites'), /sum:azure\.app_services\.http5xx\{/);
   assert.match(text('Microsoft.Web/sites'), /azure\.app_services\.http_response_time/);
   assert.match(text('Microsoft.Web/sites'), /by \{instance\}/);
-  assert.match(text('Microsoft.Web/sites'), /azure\.app_services\.function_execution_count/);
+  assert.doesNotMatch(text('Microsoft.Web/sites'), /function_execution/, 'function apps are Azure Functions');
+  // Functions: executions and execution units by function app, HTTP status codes, instances' memory.
+  assert.match(text('Microsoft.Web/sites (functionapp)'), /sum:azure\.functions\.function_execution_count\{[^}]*\} by \{name\}/);
+  assert.match(text('Microsoft.Web/sites (functionapp)'), /azure\.functions\.function_execution_units/);
+  assert.match(text('Microsoft.Web/sites (functionapp)'), /sum:azure\.functions\.http5xx\{/);
+  assert.match(text('Microsoft.Web/sites (functionapp)'), /sum:azure\.functions\.count\{[^}]*\} by \{status\}/);
   assert.deepEqual(vars('Microsoft.Web/sites'), ['subscription_id', 'resource_group', 'region', 'name', 'instance']);
   // Storage: transactions by API and response type, end-to-end against server latency, capacity.
   assert.match(text('Microsoft.Storage/storageAccounts'), /sum:azure\.storage\.transactions\{[^}]*\} by \{apiname\}/);
@@ -609,6 +617,9 @@ test('designed Azure dashboards follow their service’s model, not one template
 test('every Azure service dashboard charts only names and tags the crawler publishes', () => {
   assert.ok(azurePublishedNames('Microsoft.Web/sites').has('azure.app_services.cpu_time.max'));
   assert.ok(azurePublishedNames('Microsoft.Web/sites').has('azure.app_services.count'));
+  assert.ok(azurePublishedNames('Microsoft.Web/sites (functionapp)').has('azure.functions.function_execution_units'));
+  assert.ok(azurePublishedNames('Microsoft.Web/sites (functionapp)').has('azure.functions.count'));
+  assert.deepEqual(azurePublished('Microsoft.Web/sites (functionapp)').get('azure.functions.requests'), ['instance']);
   assert.ok(!azurePublishedNames('Microsoft.Web/sites').has('azure.app_services.http5xx.max'), 'Http5xx has no maximum');
   assert.ok(azurePublishedNames('Microsoft.Network/dnszones').has('azure.network_dnszones.record_set_count'), 'no primary aggregation: averaged');
   for (const t of seed('azure_integration.json').resource_types) {

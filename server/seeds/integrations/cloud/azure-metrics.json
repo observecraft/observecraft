@@ -2126,6 +2126,652 @@
     }
    ]
   },
+  "Microsoft.Web/sites (functionapp)": {
+   "metrics": [
+    {
+     "name": "AlwaysReadyFunctionExecutionCount",
+     "display": "Always Ready Function Execution Count",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "AlwaysReadyFunctionExecutionUnits",
+     "display": "Always Ready Function Execution Units",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "AlwaysReadyUnits",
+     "display": "Always Ready Units",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "AppConnections",
+     "display": "Connections",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Count",
+      "Maximum",
+      "Minimum"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "AverageMemoryWorkingSet",
+     "display": "Average memory working set",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "AverageResponseTime",
+     "display": "Average Response Time (deprecated)",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "second",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "BytesReceived",
+     "display": "Data In",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "BytesSent",
+     "display": "Data Out",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "CpuPercentage",
+     "display": "Percentage CPU",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "CpuTime",
+     "display": "CPU Time",
+     "aggregation": "Count",
+     "aggregations": [
+      "Count",
+      "Total",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "second",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "CurrentAssemblies",
+     "display": "Current Assemblies",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "FileSystemUsage",
+     "display": "File System Usage",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "grain": "PT6H"
+    },
+    {
+     "name": "FunctionExecutionCount",
+     "display": "Function Execution Count",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "FunctionExecutionUnits",
+     "display": "Function Execution Units",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Gen0Collections",
+     "display": "Gen 0 Garbage Collections",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Gen1Collections",
+     "display": "Gen 1 Garbage Collections",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Gen2Collections",
+     "display": "Gen 2 Garbage Collections",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Handles",
+     "display": "Handle Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "HealthCheckStatus",
+     "display": "Health check status",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "Instance"
+     ],
+     "grain": "PT5M"
+    },
+    {
+     "name": "Http101",
+     "display": "Http 101",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Http2xx",
+     "display": "Http 2xx",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Http3xx",
+     "display": "Http 3xx",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Http401",
+     "display": "Http 401",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Http403",
+     "display": "Http 403",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Http404",
+     "display": "Http 404",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Http406",
+     "display": "Http 406",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Http4xx",
+     "display": "Http 4xx",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Http5xx",
+     "display": "Http Server Errors",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "HttpResponseTime",
+     "display": "Response Time",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "second",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "InstanceCount",
+     "display": "Automatic Scaling Instance Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ]
+    },
+    {
+     "name": "IoOtherBytesPerSecond",
+     "display": "IO Other Bytes Per Second",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "byte/second",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "IoOtherOperationsPerSecond",
+     "display": "IO Other Operations Per Second",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "byte/second",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "IoReadBytesPerSecond",
+     "display": "IO Read Bytes Per Second",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "byte/second",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "IoReadOperationsPerSecond",
+     "display": "IO Read Operations Per Second",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "byte/second",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "IoWriteBytesPerSecond",
+     "display": "IO Write Bytes Per Second",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "byte/second",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "IoWriteOperationsPerSecond",
+     "display": "IO Write Operations Per Second",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "byte/second",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "MemoryWorkingSet",
+     "display": "Memory working set",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "OnDemandFunctionExecutionCount",
+     "display": "On Demand Function Execution Count",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "OnDemandFunctionExecutionUnits",
+     "display": "On Demand Function Execution Units",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "PrivateBytes",
+     "display": "Private Bytes",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Requests",
+     "display": "Requests",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "RequestsInApplicationQueue",
+     "display": "Requests In Application Queue",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "Threads",
+     "display": "Thread Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "TotalAppDomains",
+     "display": "Total App Domains",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "TotalAppDomainsUnloaded",
+     "display": "Total App Domains Unloaded",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "Instance"
+     ]
+    },
+    {
+     "name": "WorkflowActionsCompleted",
+     "display": "Workflow Action Completed Count",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "workflowName",
+      "status"
+     ]
+    },
+    {
+     "name": "WorkflowActionsFailureRate",
+     "display": "Workflow Actions Failure Rate",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "workflowName"
+     ]
+    },
+    {
+     "name": "WorkflowAppJobPullRate",
+     "display": "Logic App Job Pull Rate Per Second",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "accountName"
+     ]
+    },
+    {
+     "name": "WorkflowJobExecutionDelay",
+     "display": "Workflow Job Execution Delay",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "second",
+     "dimensions": [
+      "workflowName"
+     ]
+    },
+    {
+     "name": "WorkflowJobExecutionDuration",
+     "display": "Workflow Job Execution Duration",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "second",
+     "dimensions": [
+      "workflowName"
+     ]
+    },
+    {
+     "name": "WorkflowRunsCompleted",
+     "display": "Workflow Runs Completed Count",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "workflowName",
+      "status"
+     ]
+    },
+    {
+     "name": "WorkflowRunsDispatched",
+     "display": "Workflow Runs dispatched Count",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "workflowName"
+     ]
+    },
+    {
+     "name": "WorkflowRunsFailureRate",
+     "display": "Workflow Runs Failure Rate",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "workflowName"
+     ]
+    },
+    {
+     "name": "WorkflowRunsStarted",
+     "display": "Workflow Runs Started Count",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "workflowName"
+     ]
+    },
+    {
+     "name": "WorkflowTriggersCompleted",
+     "display": "Workflow Triggers Completed Count",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "workflowName",
+      "status"
+     ]
+    },
+    {
+     "name": "WorkflowTriggersFailureRate",
+     "display": "Workflow Triggers Failure Rate",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "workflowName"
+     ]
+    }
+   ]
+  },
   "Microsoft.Web/serverFarms": {
    "metrics": [
     {

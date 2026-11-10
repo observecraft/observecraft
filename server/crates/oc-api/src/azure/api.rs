@@ -27,6 +27,8 @@ pub struct Resource {
     pub name: String,
     /// `Microsoft.Compute/virtualMachines`
     pub kind: String,
+    /// The resource's own `kind`, when its type has several (`functionapp,linux` for a function app, `StorageV2`).
+    pub azure_kind: String,
     pub location: String,
     pub resource_group: String,
     /// `key:value`
@@ -355,6 +357,7 @@ impl AzureApi for Rest {
                     resource_group: resource_group(&id),
                     name: r["name"].as_str().unwrap_or_default().to_string(),
                     kind: r["type"].as_str()?.to_string(),
+                    azure_kind: r["kind"].as_str().unwrap_or_default().to_string(),
                     location: r["location"].as_str().unwrap_or_default().to_string(),
                     tags: r["tags"].as_object().map(|t| t.iter().map(|(k, v)| format!("{}:{}", k.to_ascii_lowercase(), v.as_str().unwrap_or_default())).collect()).unwrap_or_default(),
                     id,
@@ -496,7 +499,8 @@ mod tests {
             .route(
                 "/subscriptions/sub-a/resources",
                 get(|| async {
-                    Json(json!({ "value": [{ "id": "/subscriptions/sub-a/resourceGroups/Storefront/providers/Microsoft.Compute/virtualMachines/web-1", "name": "web-1", "type": "Microsoft.Compute/virtualMachines", "location": "westeurope", "tags": { "Env": "prod" } }] }))
+                    Json(json!({ "value": [{ "id": "/subscriptions/sub-a/resourceGroups/Storefront/providers/Microsoft.Compute/virtualMachines/web-1", "name": "web-1", "type": "Microsoft.Compute/virtualMachines", "location": "westeurope", "tags": { "Env": "prod" } },
+                        { "id": "/subscriptions/sub-a/resourceGroups/Storefront/providers/Microsoft.Web/sites/order-functions", "name": "order-functions", "type": "Microsoft.Web/sites", "kind": "functionapp,linux", "location": "westeurope" }] }))
                 }),
             )
             .route(
@@ -590,8 +594,10 @@ mod tests {
         let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base.clone() });
         let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
         let resources = rest.resources(&c, "sub-a").await.unwrap();
-        assert_eq!(resources.len(), 1);
+        assert_eq!(resources.len(), 2);
         assert_eq!((resources[0].kind.as_str(), resources[0].resource_group.as_str(), resources[0].tags.clone()), ("Microsoft.Compute/virtualMachines", "storefront", vec!["env:prod".to_string()]));
+        // The resource's `kind` (function apps are `Microsoft.Web/sites` of kind `functionapp`).
+        assert_eq!((resources[0].azure_kind.as_str(), resources[1].azure_kind.as_str()), ("", "functionapp,linux"));
         // Each metric's primary and supported aggregations, finest grain and dimensions.
         let defs = rest.metric_definitions(&c, &resources[0].id).await.unwrap();
         let s = |a: &[&str]| a.iter().map(|x| x.to_string()).collect::<Vec<_>>();

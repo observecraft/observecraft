@@ -450,10 +450,10 @@ function azure() {
       'App Services',
       'vivid_blue',
       [
-        b.place(section('Web apps and function apps: requests, errors, response time and executions.'), 0, 0, 12, 1),
+        b.place(section('Web apps and function apps (Azure Functions): requests, errors, response time and executions.'), 0, 0, 12, 1),
         b.place(queryValue('Requests', [metric(`sum:azure.app_services.requests{${f}}`, 'sum')]), 0, 1, 2, 1),
         b.place(queryValue('5xx errors', [metric(`sum:azure.app_services.http5xx{${f}}`, 'sum')], { formats: BAD }), 0, 2, 2, 1),
-        b.place(queryValue('Function executions', [metric(`sum:azure.app_services.function_execution_count{${f}}`, 'sum')]), 0, 3, 2, 1),
+        b.place(queryValue('Function executions', [metric(`sum:azure.functions.function_execution_count{${f}}`, 'sum')]), 0, 3, 2, 1),
         b.place(
           table('Apps', [
             ['Requests', `sum:azure.app_services.requests{${f}} by {name}`, 'sum'],

@@ -82,6 +82,7 @@ fn split_tag(t: &str) -> (String, String) {
 /// A one-minute read that failed, retried on the next runs.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Pending {
+    /// The resources' [`naming::named_type`].
     pub kind: String,
     pub region: String,
     pub resource_ids: Vec<String>,
@@ -233,9 +234,10 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
         Ok(r) => r.into_iter().filter(|r| selected(config, r)).collect(),
         Err(e) => return Outcome::Failed(issue(&e)).into(),
     };
+    // By the type their metrics are named by (function apps apart from web apps) and region.
     let mut groups: BTreeMap<(String, String), Vec<&Resource>> = BTreeMap::new();
     for r in &resources {
-        groups.entry((r.kind.clone(), r.location.to_ascii_lowercase())).or_default().push(r);
+        groups.entry((naming::named_type(&r.kind, &r.azure_kind), r.location.to_ascii_lowercase())).or_default().push(r);
     }
     let by_id: HashMap<String, &Resource> = resources.iter().map(|r| (r.id.to_ascii_lowercase(), r)).collect();
     let mut defs_by_type: HashMap<String, Vec<MetricDef>> = HashMap::new();
@@ -261,7 +263,7 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
         }
         let defs: Vec<&MetricDef> = defs_by_type[&p.kind].iter().filter(|d| p.metrics.contains(&d.name)).collect();
         let aggregations = asked(&defs);
-        let q = MetricsQuery { subscription, region: &p.region, resource_type: &p.kind, resource_ids: &p.resource_ids, metrics: &p.metrics, aggregations: &aggregations, grain_ms: MINUTE_MS, dimensions: &p.dimensions, start_ms: p.start_ms, end_ms: p.end_ms };
+        let q = MetricsQuery { subscription, region: &p.region, resource_type: naming::namespace(&p.kind), resource_ids: &p.resource_ids, metrics: &p.metrics, aggregations: &aggregations, grain_ms: MINUTE_MS, dimensions: &p.dimensions, start_ms: p.start_ms, end_ms: p.end_ms };
         match api.metrics(creds, &q).await {
             Ok(series) => {
                 run.ok += 1;
@@ -309,7 +311,7 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
                 let ids: Vec<String> = chunk.iter().map(|r| r.id.clone()).collect();
                 for metric_chunk in defs.chunks(METRICS_PER_CALL) {
                     let names: Vec<String> = metric_chunk.iter().map(|d| d.name.clone()).collect();
-                    let q = MetricsQuery { subscription, region, resource_type: kind, resource_ids: &ids, metrics: &names, aggregations: &aggregations, grain_ms: grain.max(MINUTE_MS), dimensions: &dimensions, start_ms: from, end_ms: to };
+                    let q = MetricsQuery { subscription, region, resource_type: naming::namespace(kind), resource_ids: &ids, metrics: &names, aggregations: &aggregations, grain_ms: grain.max(MINUTE_MS), dimensions: &dimensions, start_ms: from, end_ms: to };
                     match api.metrics(creds, &q).await {
                         Ok(series) => {
                             run.ok += 1;
@@ -343,7 +345,7 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
         let mut tags = resource_tags(subscription, r);
         tags.insert("status".into(), health.as_ref().map_or_else(|| "query_failed".to_string(), |h| status(h.get(&r.id.to_ascii_lowercase()))));
         let tags: Vec<(String, String)> = tags.into_iter().collect();
-        let name = naming::count_name(&r.kind);
+        let name = naming::count_name(&naming::named_type(&r.kind, &r.azure_kind));
         run.points.extend((start..end).step_by(MINUTE_MS as usize).map(|time_ms| Point { name: name.clone(), host: host(r), tags: tags.clone(), time_ms, value: 1.0 }));
     }
 
@@ -510,6 +512,7 @@ mod tests {
             id: format!("/subscriptions/sub-a/resourceGroups/storefront/providers/{kind}/{name}"),
             name: name.into(),
             kind: kind.into(),
+            azure_kind: String::new(),
             location: location.into(),
             resource_group: "storefront".into(),
             tags: tags.iter().map(|t| t.to_string()).collect(),
@@ -579,6 +582,34 @@ mod tests {
         let azure = FakeAzure { health: None, ..azure };
         let (_, sink) = run(&azure, &config, None, &State::default(), NOW).await;
         assert!(published(&sink).iter().filter(|p| p.0.ends_with(".count")).all(|p| p.2.contains(&("status".to_string(), "query_failed".to_string()))));
+    }
+
+    #[tokio::test]
+    async fn function_apps_are_named_as_datadogs_azure_functions() {
+        let functions = Resource { azure_kind: "functionapp,linux".into(), ..resource("order-functions", SITE, "westeurope", &[]) };
+        let web = Resource { azure_kind: "app,linux".into(), ..resource("storefront-web", SITE, "westeurope", &[]) };
+        let azure = FakeAzure {
+            resources: vec![functions.clone(), web.clone()],
+            defs: HashMap::from([(SITE.to_string(), vec![def("Http5xx", "Total", &["Total"], 60_000, &["Instance"]), def("FunctionExecutionCount", "Total", &["Total"], 60_000, &[])])]),
+            health: Some(HashMap::from([(functions.id.to_ascii_lowercase(), "Available".to_string())])),
+            ..Default::default()
+        };
+        let (crawl, sink) = run(&azure, &json!({}), None, &State::default(), NOW).await;
+        assert!(matches!(crawl.outcome, Outcome::Collected { warning: None, .. }), "{:?}", crawl.outcome);
+        // Both are read from Azure Monitor's `Microsoft.Web/sites` namespace, in their own batches.
+        let calls = azure.calls.lock().unwrap().clone();
+        assert!(calls.iter().all(|c| c.0 == SITE), "{calls:?}");
+        assert_eq!(calls.len(), 2 * 2);
+        let points = published(&sink);
+        let named = |prefix: &str| points.iter().filter(|p| p.0.starts_with(prefix)).map(|p| p.2.iter().find(|t| t.0 == "name").unwrap().1.clone()).collect::<HashSet<_>>();
+        assert_eq!(named("azure.functions."), HashSet::from(["order-functions".to_string()]));
+        assert_eq!(named("azure.app_services."), HashSet::from(["storefront-web".to_string()]));
+        let names: HashSet<&str> = points.iter().map(|p| p.0.as_str()).collect();
+        for n in ["azure.functions.function_execution_count", "azure.functions.http5xx", "azure.functions.count", "azure.app_services.http5xx", "azure.app_services.count"] {
+            assert!(names.contains(n), "{n}: {names:?}");
+        }
+        let count = points.iter().find(|p| p.0 == "azure.functions.count").unwrap();
+        assert!(count.2.contains(&("status".to_string(), "Running".to_string())));
     }
 
     #[tokio::test]

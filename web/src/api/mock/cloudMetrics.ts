@@ -45,9 +45,9 @@ export const CLOUD_SETS: Record<string, Tags[]> = {
   azure_vm_count: APPS.map((app, i) => ({ ...AZ, resource_group: 'storefront', region: i % 2 ? 'northeurope' : 'westeurope', name: `${app}-vm`, status: i === 5 ? 'Degraded' : 'Running' })),
   azure_sql: ['orders', 'catalog', 'billing'].map((n) => ({ ...AZ, resource_group: 'storefront', region: 'westeurope', name: n })),
   // Two App Service instances per app (the instance dimension the crawler splits by).
-  azure_app: ['storefront-web', 'api-gateway', 'order-functions'].flatMap((n, i) =>
-    ['A', 'B'].map((x) => ({ ...AZ, resource_group: 'storefront', region: 'westeurope', name: n, instance: `lw0sdlwk000${i}${x}` })),
-  ),
+  azure_app: ['storefront-web', 'api-gateway'].flatMap((n, i) => ['A', 'B'].map((x) => ({ ...AZ, resource_group: 'storefront', region: 'westeurope', name: n, instance: `lw0sdlwk000${i}${x}` }))),
+  // Function apps (azure.functions.*: App Service sites of kind `functionapp`), one instance each.
+  azure_functions: ['order-functions', 'inventory-sync-functions'].map((n, i) => ({ ...AZ, resource_group: 'storefront', region: 'westeurope', name: n, instance: `lw1sdlwk000${i}A` })),
   azure_lb: ['storefront-lb', 'internal-lb'].map((n) => ({ ...AZ, resource_group: 'network', region: 'westeurope', name: n })),
   azure_storage: ['storefrontassets', 'orderexports'].map((n) => ({ ...AZ, resource_group: 'storefront', region: 'westeurope', name: n })),
   // Storage transactions by API and response type (the dimensions the crawler splits by).
@@ -150,7 +150,7 @@ export const CLOUD_METRICS: Record<string, CloudMetricDef> = {
   'azure.sql_servers_databases.dtu_consumption_percent': m('azure_sql', 'DTU consumption', 'percent', range(10, 90), 0.25, { max: 100 }),
   'azure.app_services.requests': m('azure_app', 'Requests', undefined, range(2_000, 40_000), 0.3),
   'azure.app_services.http5xx': m('azure_app', '5xx responses', undefined, sometimes(0.6, 1, 50), 0.6),
-  'azure.app_services.function_execution_count': m('azure_app', 'Function executions', undefined, (e, r) => (e.name.includes('functions') ? 500 + r() * 5_000 : 0), 0.3),
+  'azure.functions.function_execution_count': m('azure_functions', 'Function executions', undefined, range(500, 5_500), 0.3),
   'azure.app_services.http_response_time': m('azure_app', 'Response time', 'second', range(0.05, 0.9), 0.25),
   'azure.network_loadbalancers.vip_availability': m('azure_lb', 'Data path availability', 'percent', range(99.5, 100), 0.002, { max: 100 }),
   'azure.network_loadbalancers.dip_availability': m('azure_lb', 'Health probe status', 'percent', range(92, 100), 0.02, { max: 100 }),

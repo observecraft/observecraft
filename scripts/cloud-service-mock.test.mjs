@@ -48,6 +48,7 @@ test('every chart of the demo accounts’ AWS, Azure and Google Cloud service da
     'tile:aws-docdb',
     'tile:azure-compute-virtualmachines',
     'tile:azure-web-sites',
+    'tile:azure-functions',
     'tile:azure-storage-storageaccounts',
     'tile:azure-sql-servers-databases',
     'tile:azure-keyvault-vaults',
