@@ -358,24 +358,17 @@ const CURATED: Entry[] = [
     collect: { kind: 'otel', receiver: 'redis', fields: ['endpoint: ${env:REDIS_ENDPOINT}', 'password: ${env:REDIS_PASSWORD}'], metrics: REDIS },
   },
   { id: 'dotnet', name: '.NET Runtime Metrics', categories: ['Languages', 'Tracing'], status: 'installed', collect: { kind: 'otlp', metrics: RUNTIME('dotnet') } },
+  // integrations-core's active_directory check: the Datadog Agent on Windows domain controllers reads their
+  // performance counters (`active_directory.dra.*`, LDAP, Kerberos, NTLM), which its dashboard charts. The
+  // OpenTelemetry Collector's receiver names its metrics differently (`active_directory.ds.*`).
   {
     id: 'active-directory',
     name: 'Active Directory',
     categories: ['Windows', 'Security'],
     status: 'installed',
     os: ['Windows'],
-    logs: 'windows_event_log',
-    collect: {
-      kind: 'otel',
-      receiver: 'active_directory_ds',
-      fields: [],
-      metrics: [
-        ['active_directory.ds.replication.network.io', 'count', 'Replication traffic', 'By'],
-        ['active_directory.ds.thread.count', 'gauge', 'Threads in use'],
-        ['active_directory.ds.bind.rate', 'rate', 'Binds per second'],
-        ['active_directory.ds.ldap.search.rate', 'rate', 'LDAP searches per second'],
-      ],
-    },
+    about: "Replication, LDAP, Kerberos and NTLM metrics of Windows domain controllers, read by the Datadog Agent's Active Directory check.",
+    collect: { kind: 'agent' },
   },
   {
     id: 'aws',

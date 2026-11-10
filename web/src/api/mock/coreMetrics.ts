@@ -335,15 +335,24 @@ CORE_METRICS['process.stat.container.cpu.total_pct'] = {
 
 /** Service checks whose runs on one host aren't OK: [check, host, status]. */
 const FAILING: [string, string, number][] = [['traefik_mesh.controller.ready', HOSTS[3], 2]];
-type Def = { type: string; check?: string; widgets?: { definition: Def }[]; original?: Def };
-const checksOf = (items: { definition: Def }[]): string[] =>
-  items.flatMap(({ definition: d }) =>
-    d.type === 'group' ? checksOf(d.widgets ?? []) : d.type === 'integration' && d.original?.type === 'check_status' && d.original.check ? [d.original.check] : [],
+type Def = { type: string; check?: string; tags?: string[]; widgets?: { definition: Def }[]; original?: Def };
+/** The check status widgets' checks, with the fixed tags they filter on (`windows_service:ntds`; not `$host`). */
+const checksOf = (items: { definition: Def }[]): [check: string, tags: Tags][] =>
+  items.flatMap(({ definition: d }): [string, Tags][] =>
+    d.type === 'group'
+      ? checksOf(d.widgets ?? [])
+      : d.type === 'integration' && d.original?.type === 'check_status' && d.original.check
+        ? [[d.original.check, Object.fromEntries((d.original.tags ?? []).filter((t) => !t.startsWith('$') && t.includes(':')).map((t) => [t.slice(0, t.indexOf(':')), t.slice(t.indexOf(':') + 1)]))]]
+        : [],
   );
-/** The runs of the service checks the integrations' check status widgets show: one per instance of the integration. */
+/** The runs of the service checks the integrations' check status widgets show: one per instance of the integration (and fixed tags). */
 const RUNS: Tags[] = [
-  ...new Map((core as { dashboards: (Dashboard & { widgets: { definition: Def }[] })[] }).dashboards.flatMap((d) => checksOf(d.widgets).map((check) => [check, d.logo] as const))),
-].flatMap(([check, logo]) => [...new Map((CORE_SETS[`core_${logo}`] ?? []).map((e) => [e.host, { ...e, check }])).values()]);
+  ...new Map(
+    (core as { dashboards: (Dashboard & { widgets: { definition: Def }[] })[] }).dashboards.flatMap((d) =>
+      checksOf(d.widgets).map(([check, tags]) => [`${check} ${JSON.stringify(tags)}`, [check, tags, d.logo]] as const),
+    ),
+  ).values(),
+].flatMap(([check, tags, logo]) => [...new Map((CORE_SETS[`core_${logo}`] ?? []).map((e) => [e.host, { ...e, ...tags, check }])).values()]);
 CORE_METRICS['service_check.status'] = {
   set: 'core_gatekeeper',
   description: 'Service check status (0 OK, 1 WARNING, 2 CRITICAL, 3 UNKNOWN)',

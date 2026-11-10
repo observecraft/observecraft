@@ -314,6 +314,7 @@ export function metricDescriptions(csv) {
 const OWN_BUNDLES = new Set(['kubernetes', 'aws', 'azure', 'gcp']);
 /** Integrations the mock shows installed: their dashboards are bundled with the UI for `make web-mock`. */
 const MOCK_INTEGRATIONS = [
+  'active-directory',
   'postgres',
   'mysql',
   'redisdb',
