@@ -1,0 +1,101 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c541-df58-7695-9441-5cd7e504183d"
+      },
+      "account_sid": "ACexample_account_sid",
+      "api_version": "2010-04-01",
+      "date": "2026-11-10T11:39:51.000Z",
+      "date_created": "Tue, 10 Nov 2026 11:39:50 +0000",
+      "date_sent": "Tue, 10 Nov 2026 11:39:51 +0000",
+      "date_updated": "Tue, 10 Nov 2026 11:40:00 +0000",
+      "ddsource": "twilio",
+      "delivery_status": "undelivered",
+      "direction": "outbound-api",
+      "error": {
+        "code": "30003",
+        "message": "Unreachable destination handset"
+      },
+      "from": "+15005550006",
+      "host": "ACexample_account_sid",
+      "message": "Message SM1a2b3c4d5e6f708192a3b4c5d6e7f809 undelivered (outbound-api), error 30003",
+      "messaging_service_sid": "MG0123456789abcdef0123456789abcdef",
+      "num_media": 0,
+      "num_segments": 1,
+      "price": -0.0079,
+      "price_unit": "USD",
+      "service": "messages",
+      "sid": "SM1a2b3c4d5e6f708192a3b4c5d6e7f809",
+      "status": "error",
+      "to": "+15005550001"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f4-3488-7f05-9ccd-02d0fd5d78ed"
+      },
+      "account_sid": "ACexample_account_sid",
+      "api_version": "2010-04-01",
+      "date": "2026-11-10T10:15:01.000Z",
+      "date_created": "Tue, 10 Nov 2026 10:15:00 +0000",
+      "date_sent": "Tue, 10 Nov 2026 10:15:01 +0000",
+      "date_updated": "Tue, 10 Nov 2026 10:15:04 +0000",
+      "ddsource": "twilio",
+      "delivery_status": "delivered",
+      "direction": "outbound-api",
+      "from": "+15005550006",
+      "host": "ACexample_account_sid",
+      "message": "Message SM2b3c4d5e6f708192a3b4c5d6e7f8091a delivered (outbound-api)",
+      "messaging_service_sid": "MG0123456789abcdef0123456789abcdef",
+      "num_media": 0,
+      "num_segments": 1,
+      "price": -0.0079,
+      "price_unit": "USD",
+      "service": "messages",
+      "sid": "SM2b3c4d5e6f708192a3b4c5d6e7f8091a",
+      "status": "info",
+      "to": "+15005550002"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c479-8260-7f25-86db-1e60f174ac0d"
+      },
+      "account_sid": "ACexample_account_sid",
+      "api_version": "2010-04-01",
+      "date": "2026-11-10T08:01:00.000Z",
+      "date_created": "Tue, 10 Nov 2026 08:01:00 +0000",
+      "date_sent": "Tue, 10 Nov 2026 08:01:00 +0000",
+      "date_updated": "Tue, 10 Nov 2026 08:01:00 +0000",
+      "ddsource": "twilio",
+      "delivery_status": "received",
+      "direction": "inbound",
+      "from": "+15005550003",
+      "host": "ACexample_account_sid",
+      "message": "Message SM3c4d5e6f708192a3b4c5d6e7f8091a2b received (inbound)",
+      "num_media": 0,
+      "num_segments": 1,
+      "price": -0.0079,
+      "price_unit": "USD",
+      "service": "messages",
+      "sid": "SM3c4d5e6f708192a3b4c5d6e7f8091a2b",
+      "status": "info",
+      "to": "+15005550006"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000,
+        "seen": [
+          {
+            "id": "d75fef816b89485d",
+            "t": 1794310791000
+          }
+        ]
+      }
+    }
+  }
+}

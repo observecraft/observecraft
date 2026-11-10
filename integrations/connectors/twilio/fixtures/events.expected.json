@@ -1,0 +1,50 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4ca-fdc0-7b03-a3b4-a34920a472a3"
+      },
+      "account_sid": "ACexample_account_sid",
+      "actor_sid": "US0123456789abcdef0123456789abcdef",
+      "actor_type": "user",
+      "date": "2026-11-10T09:30:00Z",
+      "ddsource": "twilio",
+      "description": "API Key created",
+      "event_data": {
+        "friendly_name": "deploy-bot"
+      },
+      "event_date": "2026-11-10T09:30:00Z",
+      "event_type": "api-keys.created",
+      "evt": {
+        "name": "api-keys.created"
+      },
+      "host": "ACexample_account_sid",
+      "message": "API Key created",
+      "network": {
+        "client": {
+          "ip": "198.51.100.60"
+        }
+      },
+      "resource_sid": "SKexample_api_key_two",
+      "resource_type": "api-keys",
+      "service": "events",
+      "sid": "AE0123456789abcdef0123456789abcdef",
+      "source": "web",
+      "source_ip_address": "198.51.100.60",
+      "status": "info",
+      "usr": {
+        "id": "US0123456789abcdef0123456789abcdef"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

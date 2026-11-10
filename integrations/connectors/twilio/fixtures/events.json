@@ -1,0 +1,8 @@
+{
+  "events": [
+    { "sid": "AE0123456789abcdef0123456789abcdef", "account_sid": "ACexample_account_sid", "event_type": "api-keys.created", "event_date": "2026-11-10T09:30:00Z",
+      "actor_sid": "US0123456789abcdef0123456789abcdef", "actor_type": "user", "description": "API Key created", "resource_sid": "SKexample_api_key_two",
+      "resource_type": "api-keys", "source": "web", "source_ip_address": "198.51.100.60", "event_data": { "friendly_name": "deploy-bot" } }
+  ],
+  "meta": { "page": 0, "page_size": 1000, "next_page_url": null, "key": "events" }
+}

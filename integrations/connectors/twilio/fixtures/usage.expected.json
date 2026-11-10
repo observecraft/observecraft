@@ -1,0 +1,54 @@
+{
+  "costs": [
+    {
+      "account": "ACexample_account_sid",
+      "cost": 12.008,
+      "currency": "USD",
+      "date": "2026-11-09",
+      "line": 3707742446,
+      "provider": "twilio",
+      "service": "sms-outbound",
+      "tags": {
+        "usage_unit": "segments"
+      },
+      "usage_amount": 1520.0,
+      "usage_type": "Outbound SMS"
+    },
+    {
+      "account": "ACexample_account_sid",
+      "cost": 6.37,
+      "currency": "USD",
+      "date": "2026-11-09",
+      "line": 4247690390,
+      "provider": "twilio",
+      "service": "calls-outbound",
+      "tags": {
+        "usage_unit": "minutes"
+      },
+      "usage_amount": 455.0,
+      "usage_type": "Outbound Voice Minutes"
+    },
+    {
+      "account": "ACexample_account_sid",
+      "cost": 0.1,
+      "currency": "USD",
+      "date": "2026-11-10",
+      "line": 1544166989,
+      "provider": "twilio",
+      "service": "phonenumbers",
+      "tags": {
+        "usage_unit": "phone-numbers"
+      },
+      "usage_amount": 3.0,
+      "usage_type": "Phone Numbers"
+    }
+  ],
+  "events": [],
+  "logs": [],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

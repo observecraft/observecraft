@@ -1,0 +1,75 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c542-0280-7258-b111-4ed15f9b24c8"
+      },
+      "account_sid": "ACexample_account_sid",
+      "alert_text": "Unreachable destination handset",
+      "api_version": "2010-04-01",
+      "date": "2026-11-10T11:40:00Z",
+      "date_created": "2026-11-10T11:40:00Z",
+      "date_generated": "2026-11-10T11:39:58Z",
+      "date_updated": "2026-11-10T11:40:00Z",
+      "ddsource": "twilio",
+      "error": {
+        "code": "30003",
+        "message": "Unreachable destination handset"
+      },
+      "error_code": "30003",
+      "host": "ACexample_account_sid",
+      "http": {
+        "url": null
+      },
+      "log_level": "warning",
+      "message": "30003: Unreachable destination handset",
+      "more_info": "https://www.twilio.com/docs/errors/30003",
+      "request_method": null,
+      "request_url": null,
+      "resource_sid": "SM1a2b3c4d5e6f708192a3b4c5d6e7f809",
+      "service": "alerts",
+      "service_sid": "MG0123456789abcdef0123456789abcdef",
+      "sid": "NO5a7a84730f529f0a76b3e30c01315d1a",
+      "status": "warn",
+      "url": "https://monitor.twilio.com/v1/Alerts/NO5a7a84730f529f0a76b3e30c01315d1a"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4eb-37c0-7146-a0e8-31ffddb6f216"
+      },
+      "account_sid": "ACexample_account_sid",
+      "alert_text": "HTTP retrieval failure",
+      "date": "2026-11-10T10:05:12Z",
+      "date_created": "2026-11-10T10:05:12Z",
+      "ddsource": "twilio",
+      "error": {
+        "code": "11200",
+        "message": "HTTP retrieval failure"
+      },
+      "error_code": "11200",
+      "host": "ACexample_account_sid",
+      "http": {
+        "url": "https://storefront-api.example.com/twilio/voice"
+      },
+      "log_level": "error",
+      "message": "11200: HTTP retrieval failure",
+      "more_info": "https://www.twilio.com/docs/errors/11200",
+      "request_method": "POST",
+      "request_url": "https://storefront-api.example.com/twilio/voice",
+      "resource_sid": "CA1a2b3c4d5e6f708192a3b4c5d6e7f809",
+      "service": "alerts",
+      "sid": "NO6b8b95841a630a1b87c4f41d12426e2b",
+      "status": "error"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}
