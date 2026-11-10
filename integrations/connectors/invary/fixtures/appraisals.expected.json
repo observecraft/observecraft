@@ -6,12 +6,48 @@
       "_oc_ingest": {
         "id": "01a1c54f-ef5c-76b3-873b-8e30cb2a1c18"
       },
+      "checks": [
+        {
+          "failureDetails": [],
+          "name": "required.nodes",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "jump.tables",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "function.pointers",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "task.gates",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "task.tree",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "data.nodes",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "nops.table",
+          "result": "SUCCESSFUL"
+        }
+      ],
       "created": "2026-11-10T11:55:12.604920Z",
       "date": "2026-11-10T11:55:12.604920Z",
       "ddsource": "invary",
       "distribution": {
         "codename": "noble",
-        "description": "Ubuntu 24.04.1 LTS",
         "release": "24.04",
         "vendor": "Ubuntu"
       },
@@ -24,19 +60,21 @@
         "release": "6.8.0-1012-aws",
         "version": "#13-Ubuntu SMP Mon Jul 15 13:40:27 UTC 2024"
       },
+      "level": "ok",
       "measurement": {
         "edges": 9681867,
-        "id": "msr1v3pnqqge17hd2ahdr3k48",
+        "modules": 52,
         "nodes": 2863051
       },
-      "message": "Runtime integrity of i-0a1b2c3d4e5f60001: SUCCESSFUL",
+      "message": "{\"message\":\"Runtime integrity of i-0a1b2c3d4e5f60001: SUCCESSFUL\",\"status\":\"SUCCESSFUL\"}",
       "node": {
         "name": "i-0a1b2c3d4e5f60001",
         "processor": "x86_64",
         "tags": [
           "linux",
           "prod"
-        ]
+        ],
+        "uptime": 1209600
       },
       "organization": "8z2xfqppx4xfa0fnm40ee063d",
       "passed": [
@@ -48,19 +86,62 @@
         "data.nodes",
         "nops.table"
       ],
-      "service": "invary",
-      "status": "SUCCESSFUL"
+      "service": "invary"
     },
     {
       "_oc_ingest": {
         "id": "01a1c542-0eae-7bcc-a391-16d663eb9f43"
       },
+      "checks": [
+        {
+          "failureDetails": [],
+          "name": "required.nodes",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [
+            {
+              "atNode": "sys_call_table",
+              "reason": "Matching sys_call_table entry could not be found in baseline",
+              "value": [
+                "Missing kernel__x64_sys_getdents64, found rogue:9a0 instead."
+              ]
+            }
+          ],
+          "name": "jump.tables",
+          "result": "FAILED"
+        },
+        {
+          "failureDetails": [],
+          "name": "function.pointers",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "task.gates",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "task.tree",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "data.nodes",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "nops.table",
+          "result": "SUCCESSFUL"
+        }
+      ],
       "created": "2026-11-10T11:40:03.118201Z",
       "date": "2026-11-10T11:40:03.118201Z",
       "ddsource": "invary",
       "distribution": {
         "codename": "noble",
-        "description": "Ubuntu 24.04.1 LTS",
         "release": "24.04",
         "vendor": "Ubuntu"
       },
@@ -75,19 +156,21 @@
         "release": "6.8.0-1012-aws",
         "version": "#13-Ubuntu SMP Mon Jul 15 13:40:27 UTC 2024"
       },
+      "level": "emergency",
       "measurement": {
         "edges": 9681868,
-        "id": "msr2v3pnqqge17hd2ahdr3k48",
+        "modules": 53,
         "nodes": 2863052
       },
-      "message": "Runtime integrity of i-0a1b2c3d4e5f60002: FAILED (failed: jump.tables)",
+      "message": "{\"message\":\"Runtime integrity of i-0a1b2c3d4e5f60002: FAILED (failed: jump.tables)\",\"status\":\"FAILED\"}",
       "node": {
         "name": "i-0a1b2c3d4e5f60002",
         "processor": "x86_64",
         "tags": [
           "linux",
           "prod"
-        ]
+        ],
+        "uptime": 86211
       },
       "organization": "8z2xfqppx4xfa0fnm40ee063d",
       "passed": [
@@ -98,19 +181,54 @@
         "data.nodes",
         "nops.table"
       ],
-      "service": "invary",
-      "status": "FAILED"
+      "service": "invary"
     },
     {
       "_oc_ingest": {
         "id": "01a1c4bb-2ee0-7765-8f9d-ad58254cf616"
       },
+      "checks": [
+        {
+          "failureDetails": [],
+          "name": "required.nodes",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "jump.tables",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "function.pointers",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "task.gates",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "task.tree",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "data.nodes",
+          "result": "SUCCESSFUL"
+        },
+        {
+          "failureDetails": [],
+          "name": "nops.table",
+          "result": "SUCCESSFUL"
+        }
+      ],
       "created": "2026-11-10T09:12:44.000000Z",
       "date": "2026-11-10T09:12:44.000000Z",
       "ddsource": "invary",
       "distribution": {
         "codename": "noble",
-        "description": "Ubuntu 24.04.1 LTS",
         "release": "24.04",
         "vendor": "Ubuntu"
       },
@@ -123,19 +241,21 @@
         "release": "6.8.0-1012-aws",
         "version": "#13-Ubuntu SMP Mon Jul 15 13:40:27 UTC 2024"
       },
+      "level": "error",
       "measurement": {
         "edges": 9681869,
-        "id": "msr3v3pnqqge17hd2ahdr3k48",
+        "modules": 49,
         "nodes": 2863053
       },
-      "message": "Runtime integrity of i-0a1b2c3d4e5f60003: ERRORED",
+      "message": "{\"message\":\"Runtime integrity of i-0a1b2c3d4e5f60003: ERRORED\",\"status\":\"ERRORED\"}",
       "node": {
         "name": "i-0a1b2c3d4e5f60003",
         "processor": "x86_64",
         "tags": [
           "linux",
           "prod"
-        ]
+        ],
+        "uptime": 3720
       },
       "organization": "8z2xfqppx4xfa0fnm40ee063d",
       "passed": [
@@ -147,8 +267,7 @@
         "data.nodes",
         "nops.table"
       ],
-      "service": "invary",
-      "status": "ERRORED"
+      "service": "invary"
     }
   ],
   "metrics": [],

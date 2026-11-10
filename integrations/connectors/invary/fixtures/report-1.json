@@ -1,0 +1,78 @@
+{
+  "id": "apr1x7k2m9q4w8e1r5t3y6u0p",
+  "organization": "8z2xfqppx4xfa0fnm40ee063d",
+  "created": "2026-11-10T11:55:12.604920Z",
+  "status": "SUCCESSFUL",
+  "passed": [
+    "required.nodes",
+    "jump.tables",
+    "function.pointers",
+    "task.gates",
+    "task.tree",
+    "data.nodes",
+    "nops.table"
+  ],
+  "failed": [],
+  "measurement": {
+    "nodes": 2863051,
+    "edges": 9681867,
+    "modules": 52
+  },
+  "kernel": {
+    "name": "Linux",
+    "release": "6.8.0-1012-aws",
+    "version": "#13-Ubuntu SMP Mon Jul 15 13:40:27 UTC 2024"
+  },
+  "node": {
+    "processor": "x86_64",
+    "name": "i-0a1b2c3d4e5f60001",
+    "uptime": 1209600,
+    "tags": [
+      "linux",
+      "prod"
+    ]
+  },
+  "distribution": {
+    "vendor": "Ubuntu",
+    "release": "24.04",
+    "codename": "noble"
+  },
+  "endpoint": "ep1cam653hsdrd2g31qnsqy6ak",
+  "checks": [
+    {
+      "name": "required.nodes",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    },
+    {
+      "name": "jump.tables",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    },
+    {
+      "name": "function.pointers",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    },
+    {
+      "name": "task.gates",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    },
+    {
+      "name": "task.tree",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    },
+    {
+      "name": "data.nodes",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    },
+    {
+      "name": "nops.table",
+      "result": "SUCCESSFUL",
+      "failureDetails": []
+    }
+  ]
+}
