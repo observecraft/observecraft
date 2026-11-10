@@ -1,0 +1,22 @@
+{
+  "data": [
+    {
+      "id": "17", "type": "threat_indicators",
+      "links": { "self": "https://triage.example.com/api/public/v2/threat_indicators/17" },
+      "attributes": { "threat_level": "Malicious", "threat_type": "Hostname", "threat_value": "lookalike-pay.example", "threat_source": "Triage-UI", "created_at": "2026-11-10T08:31:10.377Z", "updated_at": "2026-11-10T08:31:10.383Z" },
+      "relationships": {
+        "owner": { "links": { "related": "https://triage.example.com/api/public/v2/threat_indicators/17/owner", "self": "https://triage.example.com/api/public/v2/threat_indicators/17/relationships/owner" } },
+        "reports": { "links": { "related": "https://triage.example.com/api/public/v2/threat_indicators/17/reports", "self": "https://triage.example.com/api/public/v2/threat_indicators/17/relationships/reports" } }
+      }
+    },
+    {
+      "id": "18", "type": "threat_indicators",
+      "links": { "self": "https://triage.example.com/api/public/v2/threat_indicators/18" },
+      "attributes": { "threat_level": "Suspicious", "threat_type": "URL", "threat_value": "https://lookalike-pay.example/login", "threat_source": "Triage-UI", "created_at": "2026-11-10T08:32:00.000Z", "updated_at": "2026-11-10T08:32:00.000Z" },
+      "relationships": {
+        "owner": { "links": { "related": "https://triage.example.com/api/public/v2/threat_indicators/18/owner", "self": "https://triage.example.com/api/public/v2/threat_indicators/18/relationships/owner" } }
+      }
+    }
+  ],
+  "links": { "first": "https://triage.example.com/api/public/v2/threat_indicators?page%5Bnumber%5D=1&page%5Bsize%5D=200", "last": "https://triage.example.com/api/public/v2/threat_indicators?page%5Bnumber%5D=1&page%5Bsize%5D=200" }
+}

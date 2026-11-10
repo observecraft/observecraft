@@ -1,0 +1,84 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c495-222f-7edc-9e31-3ea3557ba5c6"
+      },
+      "attributes": {
+        "created_at": "2026-11-10T08:31:10.377Z",
+        "threat_level": "Malicious",
+        "threat_source": "Triage-UI",
+        "threat_type": "Hostname",
+        "threat_value": "lookalike-pay.example",
+        "updated_at": "2026-11-10T08:31:10.383Z"
+      },
+      "date": "2026-11-10T08:31:10.383Z",
+      "ddsource": "cofense-triage",
+      "host": "triage.example.com",
+      "id": "17",
+      "links": {
+        "self": "https://triage.example.com/api/public/v2/threat_indicators/17"
+      },
+      "message": "Malicious Hostname: lookalike-pay.example",
+      "relationships": {
+        "owner": {
+          "links": {
+            "related": "https://triage.example.com/api/public/v2/threat_indicators/17/owner",
+            "self": "https://triage.example.com/api/public/v2/threat_indicators/17/relationships/owner"
+          }
+        },
+        "reports": {
+          "links": {
+            "related": "https://triage.example.com/api/public/v2/threat_indicators/17/reports",
+            "self": "https://triage.example.com/api/public/v2/threat_indicators/17/relationships/reports"
+          }
+        }
+      },
+      "service": "threat-indicators",
+      "status": "info",
+      "type": "threat_indicators"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c495-e400-72e9-b72f-7e5d8afa27cf"
+      },
+      "attributes": {
+        "created_at": "2026-11-10T08:32:00.000Z",
+        "threat_level": "Suspicious",
+        "threat_source": "Triage-UI",
+        "threat_type": "URL",
+        "threat_value": "https://lookalike-pay.example/login",
+        "updated_at": "2026-11-10T08:32:00.000Z"
+      },
+      "date": "2026-11-10T08:32:00.000Z",
+      "ddsource": "cofense-triage",
+      "host": "triage.example.com",
+      "id": "18",
+      "links": {
+        "self": "https://triage.example.com/api/public/v2/threat_indicators/18"
+      },
+      "message": "Suspicious URL: https://lookalike-pay.example/login",
+      "relationships": {
+        "owner": {
+          "links": {
+            "related": "https://triage.example.com/api/public/v2/threat_indicators/18/owner",
+            "self": "https://triage.example.com/api/public/v2/threat_indicators/18/relationships/owner"
+          }
+        }
+      },
+      "service": "threat-indicators",
+      "status": "info",
+      "type": "threat_indicators"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}
