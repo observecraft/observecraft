@@ -3696,6 +3696,93 @@
   {
     "entry": {
       "categories": [
+        "Security",
+        "OS & System",
+        "Log Collection"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "org_id",
+          "label": "Organization ID",
+          "options": [],
+          "pattern": "[a-z0-9]+",
+          "placeholder": "8z2xfqppx4xfa0fnm40ee063d",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "token",
+          "label": "API token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The Runtime Integrity appraisals of an Invary organization's endpoints (kernel checks passed and failed, kernel, distribution, processor, measurement size) as logs, read every five minutes from Invary's API.",
+      "docsUrl": "https://developers.invary.com/",
+      "id": "invary",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Invary console",
+          "url": "https://console.invary.com"
+        }
+      ],
+      "logo": "invary",
+      "monitors": [],
+      "name": "Invary",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Invary console, open **Account Settings** and create an API token; copy it.\n2. Copy your organization's id (shown in Account Settings, and in the console's URLs).\n",
+      "source": "invary",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every appraisal as a log (source:invary, host the endpoint's hostname): status SUCCESSFUL, FAILED or ERRORED, passed and failed the kernel checks, node / kernel / distribution / measurement what was appraised.",
+          "events": false,
+          "id": "appraisals",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Appraisals"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "invary"
+      ],
+      "vendor": "Invary",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "org_id": "8z2xfqppx4xfa0fnm40ee063d"
+      },
+      "secrets": [
+        "token"
+      ],
+      "test": "organization 8z2xfqppx4xfa0fnm40ee063d"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
         "Cloud",
         "Log Collection",
         "Security",
