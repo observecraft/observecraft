@@ -3,10 +3,11 @@
 # Defender security events of one or more security configurations, as the logs of Datadog's Akamai Application
 # Security integration (source:akamai, service:appsec, Akamai's event at the top level plus standard http.* and
 # network.client.* attributes), read every minute with an EdgeGrid API client (requests signed by the server's
-# akamai_edgegrid signer). Akamai keeps events 12 hours: an offset older than that is refused (416) and the stream
-# must be reset. The rule fields are ";"-joined base64 lists: the first rule's message and action are decoded
-# (rule_message, rule_action), the lists are kept as Akamai sends them. CDN logs come by DataStream 2, a separate
-# package (akamai-datastream-2). Datadog has no integrations-core tile for this one, so it adds its own tile.
+# akamai_edgegrid signer). Akamai keeps events 12 hours: an offset older than that is refused (416), and the stream
+# starts again from the last 12 hours. The rule fields are ";"-joined, URL-encoded base64 lists: every rule is
+# decoded (attackData.rules, ruleMessages, ruleActions, … as lists; rule_action and rule_message every rule's).
+# CDN logs come by DataStream 2, a separate package (akamai-datastream-2). Datadog has no integrations-core tile for
+# this one, so it adds its own tile.
 schema_version: 1
 id: akamai
 name: Akamai Application Security
@@ -55,7 +56,8 @@ errors:
     message: "The API client can't read these configurations ({{ response.detail ?? 'forbidden' }}): give it the SIEM API and the configurations' group, and turn SIEM on"
   - status: [416]
     kind: other
-    message: "Akamai refused the saved offset: it is older than the 12 hours Akamai keeps; reset the stream to start again"
+    reset: true
+    message: "Akamai refused the saved offset (older than the 12 hours Akamai keeps): the stream starts again from the last 12 hours"
   - status: [429]
     kind: throttled
     message: Rate limited by Akamai
@@ -64,9 +66,10 @@ streams:
   - id: security_events
     name: Security events
     description: >-
-      Every security event as a log (source:akamai, service:appsec): evt.name is the first rule's action (alert,
-      deny, …), network.client.* the client, http.* the request; denied requests are warnings. The first run reads
-      the last 12 hours, later ones go on from Akamai's offset.
+      Every security event as a log (source:akamai, service:appsec) with all its rules decoded: evt.name is the first
+      rule's action (alert, deny, …), rule_action / rule_message every rule's, network.client.* the client, http.*
+      the request; denied requests are warnings. The first run reads the last 12 hours, later ones go on from
+      Akamai's offset.
     request:
       url: "https://{{ config.host }}/siem/v1/configs/{{ config.config_ids | join(';') }}"
       query:
@@ -81,19 +84,25 @@ streams:
     record_id: "{{ record.httpMessage.requestId + ':' + (record.attackData.configId ?? '') + ':' + (record.attackData.policyId ?? '') }}"
     incremental: { kind: token, next: "{{ (response | last).offset }}" }
     vars:
-      action: "{{ ((record.attackData.ruleActions ?? '') | replace('%3d', '=') | replace('%3D', '=') | replace('%3b', ';') | replace('%3B', ';') | split(';') | first | base64_decode) | nonempty }}"
-      message: "{{ ((record.attackData.ruleMessages ?? '') | replace('%3d', '=') | replace('%3D', '=') | replace('%3b', ';') | replace('%3B', ';') | replace('%2b', '+') | replace('%2B', '+') | replace('%2f', '/') | replace('%2F', '/') | split(';') | first | base64_decode) | nonempty }}"
+      # Each rule list URL-decoded (=, ;, +, /), split at ";" and every item base64-decoded.
+      rules: >-
+        {{ ['rules', 'ruleVersions', 'ruleMessages', 'ruleTags', 'ruleData', 'ruleSelectors', 'ruleActions']
+           | map({key: it, value: record.attackData[it] ? (record.attackData[it] | replace('%3d', '=') | replace('%3D', '=')
+               | replace('%3b', ';') | replace('%3B', ';') | replace('%2b', '+') | replace('%2B', '+') | replace('%2f', '/')
+               | replace('%2F', '/') | split(';') | map(it | base64_decode)) : null})
+           | from_entries }}
     output:
       logs:
         service: appsec
-        message: "{{ vars.action ?? 'event' }}: {{ vars.message ?? 'security event' }} ({{ record.httpMessage.method }} {{ record.httpMessage.host }}{{ record.httpMessage.path }} from {{ record.attackData.clientIP }})"
-        status: "{{ vars.action == 'deny' || (vars.action ?? '') | startswith('deny_custom') ? 'warn' : 'info' }}"
+        message: "{{ vars.rules.ruleActions[0] ?? 'event' }}: {{ vars.rules.ruleMessages[0] ?? 'security event' }} ({{ record.httpMessage.method }} {{ record.httpMessage.host }}{{ record.httpMessage.path }} from {{ record.attackData.clientIP }})"
+        status: "{{ true in ((vars.rules.ruleActions ?? []) | map(it | startswith('deny'))) ? 'warn' : 'info' }}"
         date: "{{ record.httpMessage.start | rfc3339 }}"
         attributes: >-
           {{ record + {
-               rule_action: vars.action,
-               rule_message: vars.message,
-               evt: {name: vars.action, category: 'appsec'},
+               attackData: record.attackData + vars.rules,
+               rule_action: vars.rules.ruleActions,
+               rule_message: vars.rules.ruleMessages,
+               evt: {name: vars.rules.ruleActions[0], category: 'appsec'},
                network: {client: {ip: record.attackData.clientIP, geoip: {country: {iso_code: record.geo.country}, city: {name: record.geo.city}}}},
                http: {method: record.httpMessage.method, status_code: record.httpMessage.status | int, url_details: {host: record.httpMessage.host, path: record.httpMessage.path, queryString: record.httpMessage.query}, request_id: record.httpMessage.requestId}
              } }}

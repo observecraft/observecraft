@@ -10,13 +10,31 @@
         "clientIP": "203.0.113.77",
         "configId": "14227",
         "policyId": "qik1_26545",
-        "ruleActions": "ZGVueQ%3d%3d%3bZGVueQ%3d%3d",
-        "ruleData": "Y2F0IC9ldGMvcGFzc3dk",
-        "ruleMessages": "U3lzdGVtIENvbW1hbmQgQWNjZXNz%3bU3lzdGVtIENvbW1hbmQgSW5qZWN0aW9u",
-        "ruleSelectors": "QVJHUzpvcmRlcg%3d%3d",
-        "ruleTags": "T1dBU1BfQ1JTL1dFQl9BVFRBQ0svRklMRV9JTkpFQ1RJT04%3d",
-        "ruleVersions": "NA%3d%3d%3bNA%3d%3d",
-        "rules": "OTUwMDAy%3bOTUwMDA2"
+        "ruleActions": [
+          "deny",
+          "deny"
+        ],
+        "ruleData": [
+          "cat /etc/passwd"
+        ],
+        "ruleMessages": [
+          "System Command Access",
+          "System Command Injection"
+        ],
+        "ruleSelectors": [
+          "ARGS:order"
+        ],
+        "ruleTags": [
+          "OWASP_CRS/WEB_ATTACK/FILE_INJECTION"
+        ],
+        "ruleVersions": [
+          "4",
+          "4"
+        ],
+        "rules": [
+          "950002",
+          "950006"
+        ]
       },
       "date": "2026-11-10T11:00:00.000Z",
       "ddsource": "akamai",
@@ -71,8 +89,14 @@
           "ip": "203.0.113.77"
         }
       },
-      "rule_action": "deny",
-      "rule_message": "System Command Access",
+      "rule_action": [
+        "deny",
+        "deny"
+      ],
+      "rule_message": [
+        "System Command Access",
+        "System Command Injection"
+      ],
       "service": "appsec",
       "status": "warn",
       "type": "akamai_siem",
@@ -86,13 +110,27 @@
         "clientIP": "198.51.100.90",
         "configId": "14228",
         "policyId": "api1_10001",
-        "ruleActions": "YWxlcnQ%3d",
-        "ruleData": "JyBvciAxPTE%3d",
-        "ruleMessages": "U1FMIEluamVjdGlvbiBBdHRhY2s%3d",
-        "ruleSelectors": "QVJHUzpxdWVyeQ%3d%3d",
-        "ruleTags": "T1dBU1BfQ1JTL1dFQl9BVFRBQ0svU1FMX0lOSkVDVElPTg%3d%3d",
-        "ruleVersions": "NA%3d%3d",
-        "rules": "OTUwMDAx"
+        "ruleActions": [
+          "alert"
+        ],
+        "ruleData": [
+          "' or 1=1"
+        ],
+        "ruleMessages": [
+          "SQL Injection Attack"
+        ],
+        "ruleSelectors": [
+          "ARGS:query"
+        ],
+        "ruleTags": [
+          "OWASP_CRS/WEB_ATTACK/SQL_INJECTION"
+        ],
+        "ruleVersions": [
+          "4"
+        ],
+        "rules": [
+          "950001"
+        ]
       },
       "date": "2026-11-10T11:30:00.000Z",
       "ddsource": "akamai",
@@ -142,8 +180,12 @@
           "ip": "198.51.100.90"
         }
       },
-      "rule_action": "alert",
-      "rule_message": "SQL Injection Attack",
+      "rule_action": [
+        "alert"
+      ],
+      "rule_message": [
+        "SQL Injection Attack"
+      ],
       "service": "appsec",
       "status": "info",
       "type": "akamai_siem",
