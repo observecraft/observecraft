@@ -1,0 +1,104 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mux.metric.video_startup_time",
+      "tags": [
+        [
+          "video_id",
+          "storefront-autumn-teaser"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 812.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mux.metric.video_startup_time",
+      "tags": [
+        [
+          "video_id",
+          "how-to-brew-pour-over"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1420.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mux.metric.views",
+      "tags": [
+        [
+          "video_id",
+          "storefront-autumn-teaser"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 320.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mux.metric.views",
+      "tags": [
+        [
+          "video_id",
+          "how-to-brew-pour-over"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 141.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mux.metric.views",
+      "tags": [
+        [
+          "video_id",
+          "catalog-walkthrough-2026"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 22.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "aggregate_startup_time": {},
+      "downscale_percentage": {},
+      "exits_before_video_start": {},
+      "live_stream_latency": {},
+      "max_downscale_percentage": {},
+      "max_upscale_percentage": {},
+      "page_load_time": {},
+      "playback_business_exception_percentage": {},
+      "playback_failure_percentage": {},
+      "playback_success_score": {},
+      "player_startup_time": {},
+      "playing_time": {},
+      "rebuffer_count": {},
+      "rebuffer_duration": {},
+      "rebuffer_frequency": {},
+      "rebuffer_percentage": {},
+      "seek_latency": {},
+      "smoothness_score": {},
+      "startup_time_score": {},
+      "unique_viewers": {},
+      "upscale_percentage": {},
+      "video_quality_score": {},
+      "video_startup_business_exception_percentage": {},
+      "video_startup_failure_percentage": {},
+      "video_startup_time": {},
+      "viewer_experience_score": {},
+      "views": {},
+      "weighted_average_bitrate": {}
+    }
+  }
+}

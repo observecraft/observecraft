@@ -1,0 +1,7 @@
+{
+  "data": [
+    { "field": "iOS", "value": 260, "views": 260, "negative_impact": 1 },
+    { "field": "Windows", "value": 223, "views": 223, "negative_impact": 2 }
+  ],
+  "total_row_count": 2, "timeframe": [1794308400, 1794312000], "meta": { "aggregation": "view_end" }
+}

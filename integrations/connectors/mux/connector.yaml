@@ -1,0 +1,197 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Mux Data (https://www.mux.com/docs/api-reference/data/metrics/list-breakdown-values): each video's quality of
+# experience metrics, as the metrics Datadog's integration sends (mux.metric.<metric id> tagged video_id, and
+# mux.metric.views by browser and by operating_system; names and units from integrations-core's metadata.csv). Its
+# "Mux Metrics" dashboard reads them. Values cover the views that ended in the last hour, read every 10 minutes.
+schema_version: 1
+id: mux
+name: Mux
+publisher: ObserveCraft
+vendor: Mux
+description: >-
+  Mux Data's viewer experience metrics per video (views, unique viewers, startup time, rebuffering, playback
+  failures, video quality and experience scores) and views by browser and operating system, read from the Mux Data
+  API.
+tiles: [mux]
+categories: [Metrics]
+docs_url: https://www.mux.com/docs/api-reference/data/metrics
+setup: |
+  1. In the Mux dashboard, open **Settings → Access Tokens** and **Generate new token** for the environment to
+     monitor.
+  2. Give it the **Mux Data** permission, read-only; copy the token id and the secret key.
+instance: "{{ config.environment ?? config.token_id }}"
+
+config:
+  - key: environment
+    label: Environment name
+    type: string
+    placeholder: production
+    help: Names the connection (tokens belong to one Mux environment).
+  - key: token_id
+    label: Access token id
+    type: string
+    required: true
+  - key: secret_key
+    label: Secret key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: basic
+  username: "{{ config.token_id }}"
+  password: "{{ secrets.secret_key }}"
+
+rate_limit: { requests_per_minute: 60 }
+
+tables:
+  metrics:
+    - aggregate_startup_time
+    - downscale_percentage
+    - exits_before_video_start
+    - live_stream_latency
+    - max_downscale_percentage
+    - max_upscale_percentage
+    - page_load_time
+    - playback_business_exception_percentage
+    - playback_failure_percentage
+    - playback_success_score
+    - player_startup_time
+    - playing_time
+    - rebuffer_count
+    - rebuffer_duration
+    - rebuffer_frequency
+    - rebuffer_percentage
+    - seek_latency
+    - smoothness_score
+    - startup_time_score
+    - unique_viewers
+    - upscale_percentage
+    - video_quality_score
+    - video_startup_business_exception_percentage
+    - video_startup_failure_percentage
+    - video_startup_time
+    - viewer_experience_score
+    - views
+    - weighted_average_bitrate
+  units:
+    aggregate_startup_time: millisecond
+    live_stream_latency: millisecond
+    page_load_time: millisecond
+    player_startup_time: millisecond
+    playing_time: millisecond
+    rebuffer_duration: millisecond
+    seek_latency: millisecond
+    video_startup_time: millisecond
+    weighted_average_bitrate: bit
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Mux refused the access token id and secret key
+  - status: [403]
+    kind: access_denied
+    message: The access token lacks the Mux Data read permission
+
+streams:
+  - id: videos
+    name: Metrics per video
+    description: >-
+      Every metric of mux.metric.* as a gauge per video (tag video_id), for the views that ended in the last hour;
+      the 500 most viewed videos per metric.
+    interval: 10m
+    for_each: "{{ tables.metrics }}"
+    max_pages: 5
+    request:
+      url: "https://api.mux.com/data/v1/metrics/{{ item }}/breakdown"
+      query:
+        group_by: video_id
+        "timeframe[]": ["{{ ((now - 3600000) / 1000) | floor }}", "{{ (now / 1000) | floor }}"]
+        order_by: views
+        order_direction: desc
+        limit: 100
+        page: "{{ page.number }}"
+    records: "{{ response.data }}"
+    pagination: { kind: page, size: 100 }
+    filter: "{{ record.field }}"
+    output:
+      metrics:
+        - name: "{{ 'mux.metric.' + item }}"
+          value: "{{ record.value }}"
+          unit: "{{ tables.units[item] }}"
+          tags: { video_id: "{{ record.field }}" }
+
+  - id: views_by_browser
+    name: Views by browser
+    description: mux.metric.views per browser (tag browser), for the views that ended in the last hour.
+    interval: 10m
+    request:
+      url: https://api.mux.com/data/v1/metrics/views/breakdown
+      query: { group_by: browser, "timeframe[]": ["{{ ((now - 3600000) / 1000) | floor }}", "{{ (now / 1000) | floor }}"], limit: 100 }
+    records: "{{ response.data }}"
+    filter: "{{ record.field }}"
+    output:
+      metrics:
+        - { name: mux.metric.views, value: "{{ record.value }}", tags: { browser: "{{ record.field }}" } }
+
+  - id: views_by_os
+    name: Views by operating system
+    description: mux.metric.views per operating system (tag operating_system), for the views that ended in the last hour.
+    interval: 10m
+    request:
+      url: https://api.mux.com/data/v1/metrics/views/breakdown
+      query: { group_by: operating_system, "timeframe[]": ["{{ ((now - 3600000) / 1000) | floor }}", "{{ (now / 1000) | floor }}"], limit: 100 }
+    records: "{{ response.data }}"
+    filter: "{{ record.field }}"
+    output:
+      metrics:
+        - { name: mux.metric.views, value: "{{ record.value }}", tags: { operating_system: "{{ record.field }}" } }
+
+test:
+  request:
+    url: https://api.mux.com/data/v1/metrics/views/overall
+    query: { "timeframe[]": "24:hours" }
+  message: "Connected: {{ response.data.value ?? 0 }} views in the last 24 hours"
+
+mock:
+  config: { environment: production, token_id: 44c0ffee-0000-4000-8000-000000000001 }
+  secrets: { secret_key: test-mux-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.mux.com/data/v1/metrics/views/breakdown", query: { group_by: browser }, file: fixtures/views-browser.json }
+    - { url: "https://api.mux.com/data/v1/metrics/views/breakdown", query: { group_by: operating_system }, file: fixtures/views-os.json }
+    - { url: "https://api.mux.com/data/v1/metrics/views/breakdown", query: { group_by: video_id }, file: fixtures/views-video.json }
+    - { url: "https://api.mux.com/data/v1/metrics/video_startup_time/breakdown", file: fixtures/video_startup_time-video.json }
+    - { url: "https://api.mux.com/data/v1/metrics/views/overall", body: { data: { value: 1820, total_views: 1820, total_watch_time: 513934000, total_playing_time: 413934000 }, timeframe: [1794225600, 1794312000], total_row_count: null } }
+    # The other metrics answer an empty breakdown in the replay.
+    - { url: "https://api.mux.com/data/v1/metrics/aggregate_startup_time/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/downscale_percentage/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/exits_before_video_start/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/live_stream_latency/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/max_downscale_percentage/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/max_upscale_percentage/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/page_load_time/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/playback_business_exception_percentage/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/playback_failure_percentage/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/playback_success_score/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/player_startup_time/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/playing_time/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/rebuffer_count/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/rebuffer_duration/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/rebuffer_frequency/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/rebuffer_percentage/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/seek_latency/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/smoothness_score/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/startup_time_score/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/unique_viewers/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/upscale_percentage/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/video_quality_score/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/video_startup_business_exception_percentage/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/video_startup_failure_percentage/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/viewer_experience_score/breakdown", body: { data: [], total_row_count: 0 } }
+    - { url: "https://api.mux.com/data/v1/metrics/weighted_average_bitrate/breakdown", body: { data: [], total_row_count: 0 } }
+  expect:
+    videos: { records: 5, metrics: 5, golden: fixtures/videos.expected.json }
+    views_by_browser: { records: 3, metrics: 3 }
+    views_by_os: { records: 2, metrics: 2, golden: fixtures/views_by_os.expected.json }
+    test: { ok: true, message: "1820 views in the last 24 hours" }

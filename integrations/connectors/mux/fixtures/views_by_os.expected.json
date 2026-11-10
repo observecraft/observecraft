@@ -1,0 +1,38 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mux.metric.views",
+      "tags": [
+        [
+          "operating_system",
+          "iOS"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 260.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "mux.metric.views",
+      "tags": [
+        [
+          "operating_system",
+          "Windows"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 223.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}
