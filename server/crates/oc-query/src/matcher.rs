@@ -27,6 +27,26 @@ impl<'a> Fields<'a> {
             k => self.tags.get(k).map(String::as_str),
         }
     }
+
+    /// Every value a dotted `@` key reaches inside arrays of objects (the JSON of `attr[prefix]`), as the SQL's
+    /// `element_values`: strings as they are, other values as JSON, empty ones left out.
+    pub fn element_values(&self, key: &str) -> Vec<String> {
+        let Some(path) = key.strip_prefix('@') else { return vec![] };
+        let mut out = vec![];
+        for (prefix, rest) in crate::sql::array_paths(path) {
+            let Some(raw) = self.attr.get(&prefix).filter(|r| r.starts_with('[')) else { continue };
+            let Ok(serde_json::Value::Array(items)) = serde_json::from_str::<serde_json::Value>(raw) else { continue };
+            for item in &items {
+                let v = rest.iter().try_fold(item, |v, k| v.get(k));
+                match v {
+                    Some(serde_json::Value::String(s)) if !s.is_empty() => out.push(s.clone()),
+                    Some(serde_json::Value::String(_) | serde_json::Value::Null) | None => {}
+                    Some(other) => out.push(other.to_string()),
+                }
+            }
+        }
+        out
+    }
 }
 
 /// Case-insensitive glob match supporting `*`.
@@ -73,7 +93,8 @@ pub fn matches(terms: &[Term], f: &Fields<'_>) -> bool {
         Term::Text { text, negate } => f.message.to_lowercase().contains(&text.to_lowercase()) != *negate,
         Term::Tag { key, .. } if key == "index" && f.index.is_none() => true,
         Term::Tag { key, values, negate } => {
-            let hit = f.get(key).is_some_and(|v| values.iter().any(|p| compare(p, v).unwrap_or_else(|| glob(p, v))));
+            let hit_one = |v: &str| values.iter().any(|p| compare(p, v).unwrap_or_else(|| glob(p, v)));
+            let hit = f.get(key).is_some_and(hit_one) || f.element_values(key).iter().any(|v| hit_one(v));
             hit != *negate
         }
         Term::Any { alternatives, negate } => alternatives.iter().any(|a| matches(a, f)) != *negate,
@@ -122,6 +143,22 @@ mod tests {
         assert!(matches(&parse_query("@auth.token_ttl:>46080"), &f));
         assert!(!matches(&parse_query("@auth.token_ttl:<=46080"), &f));
         assert!(!matches(&parse_query("@missing:>1"), &f));
+    }
+
+    /// Arrays of objects are flattened as Datadog does: any element matches (`@install_targets.name:urllib3`).
+    #[test]
+    fn dotted_keys_reach_into_arrays_of_objects() {
+        let none = HashMap::new();
+        let attr = HashMap::from([
+            ("install_targets".to_string(), r#"[{"name":"left-pad","version":"1.3.0"},{"name":"urllib3","n":2,"meta":{"ok":true}}]"#.to_string()),
+            ("evt.outcome".to_string(), "ALLOW".to_string()),
+        ]);
+        let f = Fields { service: "scfw", status: "info", host: "h1", source: "scfw", message: "", tags: &none, attr: &attr, index: None };
+        assert!(matches(&parse_query("@install_targets.name:urllib3 @evt.outcome:ALLOW"), &f));
+        assert!(matches(&parse_query("@install_targets.name:url* @install_targets.n:>1 @install_targets.meta.ok:true"), &f));
+        assert!(!matches(&parse_query("@install_targets.name:requests"), &f));
+        assert!(!matches(&parse_query("-@install_targets.name:urllib3"), &f));
+        assert_eq!(f.element_values("@install_targets.name"), ["left-pad", "urllib3"]);
     }
 
     #[test]

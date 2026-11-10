@@ -3,7 +3,8 @@
 import type { SearchTerm } from '../../lib/searchQuery';
 import type { JsonValue, LogEvent } from '../types';
 
-export type FieldGetter = (key: string) => string | undefined;
+/** A field's value, or every value it has inside arrays of objects (`@install_targets.name`). */
+export type FieldGetter = (key: string) => string | string[] | undefined;
 
 export function getPath(obj: Record<string, JsonValue>, path: string): JsonValue | undefined {
   let cur: JsonValue | undefined = obj;
@@ -16,6 +17,24 @@ export function getPath(obj: Record<string, JsonValue>, path: string): JsonValue
 
 export function scalar(v: JsonValue | undefined): string | undefined {
   return v === undefined || v === null || typeof v === 'object' ? undefined : String(v);
+}
+
+/** The scalars a path reaches through arrays of objects, as Datadog flattens them (`install_targets.name` of `install_targets: [{name}]`). */
+function pathValues(cur: JsonValue | undefined, parts: string[]): string[] {
+  if (Array.isArray(cur)) return parts.length ? cur.flatMap((item) => pathValues(item, parts)) : [];
+  if (!parts.length) {
+    const v = scalar(cur);
+    return v === undefined || v === '' ? [] : [v];
+  }
+  if (cur === null || typeof cur !== 'object') return [];
+  return pathValues((cur as Record<string, JsonValue>)[parts[0]], parts.slice(1));
+}
+
+/** Every value of a query key in a log: `logField`'s, else the values `@path` reaches inside arrays of objects. */
+export function logFieldValues(log: LogEvent, key: string): string[] {
+  const v = logField(log, key);
+  if (v !== undefined) return [v];
+  return key.startsWith('@') ? pathValues(log.attributes, key.slice(1).split('.')) : [];
 }
 
 /** Resolves a query key against a log: reserved fields, `@attribute.path`, or a tag. */
@@ -73,7 +92,8 @@ export function matchesTerms(get: FieldGetter, text: string, terms: SearchTerm[]
     } else {
       if (t.key === skipKey) continue;
       const v = get(t.key);
-      hit = v !== undefined && t.values.some((p) => matchesPattern(p, v));
+      const values = v === undefined ? [] : Array.isArray(v) ? v : [v];
+      hit = values.some((actual) => t.values.some((p) => matchesPattern(p, actual)));
     }
     if (hit === t.negate) return false;
   }
@@ -81,5 +101,5 @@ export function matchesTerms(get: FieldGetter, text: string, terms: SearchTerm[]
 }
 
 export function matchLog(log: LogEvent, terms: SearchTerm[], skipKey?: string): boolean {
-  return matchesTerms((k) => logField(log, k), log.message, terms, skipKey);
+  return matchesTerms((k) => logFieldValues(log, k), log.message, terms, skipKey);
 }

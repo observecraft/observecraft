@@ -185,8 +185,16 @@ pub fn aggregate_sql(req: &AggregateRequest, table: &str, clause: &str, scope_pa
     let mut groups = Vec::new();
     for g in &req.group_by {
         let (expr, p) = LogsSchema.field(&g.facet);
-        groups.push(format!("toString({expr})"));
-        params.extend(p);
+        params.extend(p.clone());
+        // A facet inside arrays of objects: the attribute itself, else each element's value (one row per value).
+        match LogsSchema.element_values(&g.facet) {
+            Some((elements, ep)) => {
+                groups.push(format!("toString(arrayJoin(if({expr} != '', [{expr}], {elements})))"));
+                params.extend(p);
+                params.extend(ep);
+            }
+            None => groups.push(format!("toString({expr})")),
+        }
     }
     let step = step_seconds(&computes, range)?;
     let t = match step {
@@ -205,7 +213,7 @@ pub fn aggregate_sql(req: &AggregateRequest, table: &str, clause: &str, scope_pa
     params.extend(scope_params);
     // A log without a group's facet is left out of the groups (Datadog's default).
     let mut present = String::new();
-    for g in &req.group_by {
+    for g in req.group_by.iter().filter(|g| LogsSchema.element_values(&g.facet).is_none()) {
         let (expr, p) = LogsSchema.field(&g.facet);
         present.push_str(&format!(" AND toString({expr}) != ''"));
         params.extend(p);
@@ -318,7 +326,7 @@ mod tests {
         let r = req(json!({
             "compute": [{"aggregation": "count"}, {"aggregation": "cardinality", "metric": "@usr.id"}, {"aggregation": "pc95", "metric": "@duration"}],
             "filter": {"query": "source:nginx"},
-            "group_by": [{"facet": "service"}, {"facet": "@http.status_code"}]
+            "group_by": [{"facet": "service"}, {"facet": "@status_code"}]
         }));
         let (sql, params) = aggregate_sql(&r, "oc.logs", "org_id = ?", vec![Param::Str("o".into())], TimeRange { from: 0, to: 3_600_000 }).unwrap();
         assert!(sql.starts_with("SELECT [toString(service), toString(attr[?])] AS g, toInt64(0) AS t, [ifNull(toFloat64(count()), nan), "), "{sql}");
@@ -327,7 +335,56 @@ mod tests {
         assert!(sql.contains("WHERE org_id = ? AND toString(service) != '' AND toString(attr[?]) != '' GROUP BY g, t"), "{sql}");
         // Parameters in the order of their placeholders: the facets, the metrics, the scope, the facets again, the limit.
         let strs: Vec<String> = params.iter().map(|p| match p { Param::Str(s) => s.clone(), Param::Int(i) => i.to_string() }).collect();
-        assert_eq!(strs, ["http.status_code", "usr.id", "duration", "o", "http.status_code", &MAX_ROWS.to_string()]);
+        assert_eq!(strs, ["status_code", "usr.id", "duration", "o", "status_code", &MAX_ROWS.to_string()]);
+    }
+
+    /// A facet inside an array of objects (`@install_targets.name`) groups each element's value, as Datadog does:
+    /// the attribute itself when the log has it, else every element's (a log counts in each group).
+    #[test]
+    fn a_facet_inside_arrays_of_objects_groups_each_element() {
+        let r = req(json!({"group_by": [{"facet": "@install_targets.name"}, {"facet": "@warning"}]}));
+        let (sql, params) = aggregate_sql(&r, "oc.logs", "org_id = ?", vec![Param::Str("o".into())], TimeRange { from: 0, to: 3_600_000 }).unwrap();
+        assert!(sql.starts_with("SELECT [toString(arrayJoin(if(attr[?] != '', [attr[?]], arrayFilter(_v -> _v != '', arrayConcat(arrayMap(_e -> "), "{sql}");
+        assert!(sql.contains("WHERE org_id = ? AND toString(attr[?]) != '' GROUP BY g, t"), "the array facet's empty values are dropped by arrayJoin: {sql}");
+        assert_eq!(sql.matches('?').count(), params.len());
+    }
+
+    /// On ClickHouse: Supply Chain Firewall's runs searched and grouped by `@install_targets.name` (an array of
+    /// objects the normalizer stores as JSON), and a dotted key that is a plain attribute still matches.
+    #[tokio::test]
+    async fn arrays_of_objects_are_searched_and_grouped_on_clickhouse() {
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
+        let ch = live.client.clone().with_database("oc");
+        let org = format!("array-facets-{}-{}", std::process::id(), crate::routes::metrics::now_ms());
+        let now = chrono::Utc::now().timestamp_millis();
+        let targets = [r#"[{"name":"urllib3","version":"2.0.2"},{"name":"requests","version":"2.32.0"}]"#, r#"[{"name":"urllib3","version":"1.26.0"}]"#, "[INFO] not json", ""];
+        for (i, t) in targets.iter().enumerate() {
+            let attr = if t.is_empty() { "map('evt.outcome', 'ALLOW')".to_string() } else { format!("map('install_targets', '{}', 'evt.outcome', 'ALLOW')", t.replace('\'', "\\'")) };
+            ch.query(&format!("INSERT INTO oc.logs (org_id, timestamp, status, service, host, source, message, tags, attr, retention_days) VALUES ('{org}', fromUnixTimestamp64Milli(toInt64({})), 'info', 'scfw', 'h', 'scfw', 'run', map(), {attr}, 15)", now - i as i64))
+                .execute()
+                .await
+                .expect("insert");
+        }
+        let count = |q: &'static str| {
+            let ch = ch.clone();
+            let org = org.clone();
+            async move {
+                let f = oc_query::build_where(&LogsSchema, &parse_query(q), None);
+                let mut params = vec![Param::Str(org)];
+                params.extend(f.params);
+                bind(ch.query(&format!("SELECT count() FROM oc.logs WHERE org_id = ? AND {}", f.clause)), &params).fetch_one::<u64>().await.unwrap_or_else(|e| panic!("{q}: {e}"))
+            }
+        };
+        assert_eq!(count("@install_targets.name:urllib3").await, 2);
+        assert_eq!(count("@install_targets.name:req*").await, 1);
+        assert_eq!(count("-@install_targets.name:requests").await, 3);
+        assert_eq!(count("@install_targets.version:2.0.2 @evt.outcome:ALLOW").await, 1);
+        let r = req(json!({"group_by": [{"facet": "@install_targets.name"}]}));
+        let (sql, params) = aggregate_sql(&r, "oc.logs", "org_id = ?", vec![Param::Str(org.clone())], TimeRange { from: 0, to: now + 1 }).unwrap();
+        let rows = bind(ch.query(&sql), &params).fetch_all::<AggregateRow>().await.unwrap_or_else(|e| panic!("{sql}: {e}"));
+        let mut groups: Vec<(String, f64)> = rows.into_iter().map(|r| (r.g[0].clone(), r.v[0])).collect();
+        groups.sort_by(|a, b| a.0.cmp(&b.0));
+        assert_eq!(groups, [("requests".to_string(), 1.0), ("urllib3".to_string(), 2.0)]);
     }
 
     #[test]

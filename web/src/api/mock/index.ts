@@ -9,7 +9,7 @@ import { authentikLogs } from './authentik';
 import { gitlabAuditLogs } from './gitlabAudit';
 import { kubernetesToolLogs } from './kubernetesToolLogs';
 import { supplyChainFirewallLogs } from './supplyChainFirewallLogs';
-import { logField, matchLog } from './match';
+import { logField, logFieldValues, matchLog } from './match';
 import { standardPaths } from './standardAttributes';
 import type { LogAggregateRequest, LogAggregateResponse } from '../integrations/logs';
 
@@ -177,12 +177,20 @@ export function mockAggregateLogs(req: LogAggregateRequest): LogAggregateRespons
   const groups = new Map<string, { by: Record<string, string>; logs: LogEvent[] }>();
   for (const l of inRange(range)) {
     if (!matchLog(l, terms)) continue;
-    const values = facets.map((f) => logField(l, f));
-    if (values.some((v) => v === undefined || v === '')) continue;
-    const key = values.join('\u0000');
-    const g = groups.get(key) ?? { by: Object.fromEntries(facets.map((f, i) => [f, values[i] as string])), logs: [] };
-    g.logs.push(l);
-    groups.set(key, g);
+    // A facet inside arrays of objects has a value per element: the log counts in each of its groups.
+    let combos: string[][] = [[]];
+    for (const f of facets)
+      combos = combos.flatMap((c) =>
+        logFieldValues(l, f)
+          .filter((v) => v !== '')
+          .map((v) => [...c, v]),
+      );
+    for (const values of new Set(combos.map((c) => c.join('\u0000')))) {
+      const parts = values.split('\u0000');
+      const g = groups.get(values) ?? { by: Object.fromEntries(facets.map((f, i) => [f, parts[i]])), logs: [] };
+      g.logs.push(l);
+      groups.set(values, g);
+    }
   }
   const [first] = req.compute;
   const timeseries = req.compute.some((c) => c.type === 'timeseries');

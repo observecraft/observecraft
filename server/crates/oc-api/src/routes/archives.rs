@@ -1115,6 +1115,29 @@ mod tests {
         assert_eq!(events[0]["tags"]["env"], "prod");
     }
 
+    /// Archive search reaches into arrays of objects stored as JSON (`@install_targets.name`), as the live search does.
+    #[test]
+    fn archive_search_reaches_into_arrays_of_objects() {
+        let dir = std::env::temp_dir().join(format!("oc-archive-array-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("part.parquet");
+        let conn = duckdb::Connection::open_in_memory().unwrap();
+        let row = |id: &str, targets: &str| format!("('{id}', TIMESTAMP '2026-10-25 14:00:01', 'info', 'scfw', 'h', 'scfw', 'run', MAP {{'env': 'prod'}}, MAP {{'install_targets': '{targets}'}}, '{{}}', '', '')");
+        conn.execute_batch(&format!(
+            "COPY (SELECT * FROM (VALUES {}, {}, {}) AS t(id, timestamp, status, service, host, source, message, tags, attr, attributes, trace_id, span_id)) TO '{}' (FORMAT parquet)",
+            row("id1", r#"[{"name":"urllib3","n":2},{"name":"requests"}]"#),
+            row("id2", r#"[{"name":"left-pad"}]"#),
+            row("id3", "[INFO] not json"),
+            file.display()
+        ))
+        .unwrap();
+        let range = TimeRange { from: 1_792_936_800_000, to: 1_792_936_900_000 };
+        let total = |q: &str| duck_search(std::slice::from_ref(&file), &parse_query(q), None, range, 10).unwrap_or_else(|e| panic!("{q}: {e:?}")).1;
+        let counts = (total("@install_targets.name:urllib3"), total("@install_targets.name:req*"), total("-@install_targets.name:urllib3"), total("@install_targets.n:>1"));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(counts, (1, 1, 2, 1));
+    }
+
     #[test]
     fn file_lists_escape_quotes() {
         assert_eq!(file_list(&[PathBuf::from("/tmp/a'b.parquet")]), "['/tmp/a''b.parquet']");

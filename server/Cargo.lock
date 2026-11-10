@@ -3792,6 +3792,7 @@ dependencies = [
 name = "oc-query"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
  "sqlparser",
 ]
 

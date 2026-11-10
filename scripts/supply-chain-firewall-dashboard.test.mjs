@@ -31,8 +31,6 @@ const panels = all(dashboard?.widgets ?? []).filter((w) => w.definition.type ===
 const queries = panels.flatMap((w) => w.definition.original.requests.flatMap((r) => (r.queries ?? []).filter((q) => q.data_source === 'logs').map((q) => [w.definition.title, q])));
 const streams = all(dashboard?.widgets ?? []).filter((w) => w.definition.type === 'log_stream');
 const resolve = (vars) => (q) => resolveSearchQuery(q, dashboard.templateVariables, vars);
-/** Facets the log normalizer doesn't keep as Datadog does: arrays of objects aren't facets. */
-const UNSUPPORTED = ['@install_targets.name'];
 
 test('mock mode carries the dashboard', () => {
   assert.ok(dashboard, 'supply-chain-firewall is in MOCK_INTEGRATIONS (node scripts/import-integration-dashboards.mjs --mock)');
@@ -43,7 +41,6 @@ test('every log panel and stream shows data in mock mode', () => {
   const to = Date.now();
   const range = { from: to - 7 * 86_400_000, to };
   for (const [title, q] of queries) {
-    if ((q.group_by ?? []).some((g) => UNSUPPORTED.includes(g.facet))) continue;
     const buckets = mockAggregateLogs(logRequest(q, resolve({}), range, false)).data.buckets;
     assert.ok(
       buckets.some((b) => b.computes.c0 > 0),
@@ -61,9 +58,17 @@ test('groups across attributes match: warned commands (`(@warning:true OR @warne
   assert.equal(mockSearchLogs({ range, query: 'source:scfw -(@warning:true OR @warning:false)' }).total, 0);
 });
 
-test('only facets the normalizer lacks stay empty', () => {
-  const skipped = queries.filter(([, q]) => (q.group_by ?? []).some((g) => UNSUPPORTED.includes(g.facet)));
-  assert.ok(skipped.length <= 6, `${skipped.length} of ${queries.length}`);
+test('arrays of objects are searched and grouped per element (`@install_targets.name`)', () => {
+  const to = Date.now();
+  const range = { from: to - 7 * 86_400_000, to };
+  const all = mockSearchLogs({ range, query: 'source:scfw' }).total;
+  const named = mockSearchLogs({ range, query: 'source:scfw @install_targets.name:*' }).total;
+  assert.ok(named === all && all > 0, `${named} of ${all}`);
+  const req = { filter: { query: 'source:scfw', from: range.from, to: range.to }, compute: [{ aggregation: 'count' }], group_by: [{ facet: '@install_targets.name', limit: 1000 }] };
+  const buckets = mockAggregateLogs(req).data.buckets;
+  const [top] = buckets;
+  assert.ok(buckets.length > 1 && top.computes.c0 === mockSearchLogs({ range, query: `source:scfw @install_targets.name:${top.by['@install_targets.name']}` }).total);
+  assert.ok(buckets.reduce((n, b) => n + b.computes.c0, 0) > all, 'a command installing two packages counts in both groups');
 });
 
 test('the template variables filter the panels', () => {
