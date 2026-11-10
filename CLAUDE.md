@@ -81,6 +81,9 @@ or SDK features.
     server and stored in Postgres `csm_sbom_entities` / `csm_packages` (Cloud Security, `cloud_security.rs`);
   - live processes and containers `/api/v1/collector` and `/api/v1/container`, stored as `process.*` / `container.*` metrics;
   - network connections and DNS stats `/api/v1/connections`, stored in `otel.otel_network` (Cloud Network Monitoring);
+  - Data Streams pathway checkpoints `/api/v0.1/pipeline_stats` (the tracers' gzip'd msgpack with DDSketches, via the
+    trace-agent; `datadog_dsm.rs`), stored as `oc.signal = dd.pathways` records in `otel.otel_pathways`; the Data Streams
+    map and Measure use their counts, edge and end-to-end latencies where they exist, the messaging spans elsewhere;
   - orchestrator manifests `/api/v2/orchmanif`, which feed the Kubernetes Explorer;
   - feature flag evaluation over OpenFeature's OFREP (`/ofrep/v1/evaluate/flags[/{key}]`, `oc-intake/src/ofrep.rs`,
     model in `oc-flags`), for any OpenFeature SDK with the OFREP provider; also takes the key as `X-API-Key`;
@@ -387,8 +390,9 @@ or SDK features.
     WAF ruleset itself, DAST and its dashboards (attack summary, account takeover, OWASP);
   - Cloud SIEM's other detection methods (new value, anomaly, impossible travel, sequences), signal correlation rules,
     notification rules, threat intelligence enrichment and the investigator; rule case notifications aren't sent yet;
-  - Data Streams Monitoring's pathway checkpoints from the tracers (`/api/v0.1/pipeline_stats`, DDSketch in msgpack): its map,
-    pipelines and Kafka Console are built from messaging spans and Kafka metrics (`data_streams.rs`, `kafka_console.rs`);
+  - Data Streams Monitoring from the checkpoints: the node panel's rates, the `data_streams.latency` /
+    `data_streams.payload_size` metrics (the Kafka dashboards' message size widgets have no data live), the checkpoints'
+    Kafka backlogs as lag (stored, unused; lag comes from the Kafka metrics) and origin-bucketed points (dropped);
   - APM: applying retention filters and span pipelines to incoming spans (the Collector writes spans directly),
     adaptive sampling and remote Agent ingestion settings (Remote Configuration), service remapping and tag enrichment;
   - Kubernetes autoscaling's vertical values and cluster (Karpenter) recommendations delivered to the Cluster Agent

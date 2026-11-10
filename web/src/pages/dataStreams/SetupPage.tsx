@@ -20,8 +20,9 @@ export const STREAM_SETUP: SetupOption[] = [
         code: 'DD_SERVICE=order-service\nDD_ENV=prod\nDD_AGENT_HOST=localhost',
       },
       {
-        title: 'Optional: Data Streams checkpoints',
-        text: 'DD_DATA_STREAMS_ENABLED=true makes the tracer also send pathway checkpoints. ObserveCraft does not read them yet, so leave it off: the map is built from the produce and consume spans, which the tracer sends either way.',
+        title: 'Recommended: Data Streams checkpoints',
+        text: 'DD_DATA_STREAMS_ENABLED=true makes the tracer also send pathway checkpoints, which the Agent forwards to this install. They count every message, not only the sampled traces, and measure each hop and the whole pathway from its first producer, even where spans are not linked; the map uses them where they exist and the spans elsewhere.',
+        code: 'DD_DATA_STREAMS_ENABLED=true',
       },
       { title: 'Check the map', text: 'Services and topics appear on the Map tab within a minute of the first messages. A consume span whose parent is the publish span gives the hop its latency.' },
     ],
