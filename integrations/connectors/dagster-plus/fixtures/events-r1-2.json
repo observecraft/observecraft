@@ -1,0 +1,27 @@
+{
+  "data": {
+    "logsForRun": {
+      "__typename": "EventConnection",
+      "cursor": "r1-c3",
+      "hasMore": false,
+      "events": [
+        {
+          "__typename": "MaterializationEvent",
+          "runId": "a3bcb088-1640-40dc-9701-4b554c0b9cac",
+          "message": "Materialized value orders_raw.",
+          "timestamp": "1794311015880",
+          "level": "DEBUG",
+          "stepKey": "orders_raw",
+          "eventType": "ASSET_MATERIALIZATION",
+          "assetKey": {
+            "path": [
+              "shop",
+              "orders_raw"
+            ]
+          },
+          "partition": "2026-11-09"
+        }
+      ]
+    }
+  }
+}

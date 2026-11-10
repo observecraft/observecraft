@@ -1973,6 +1973,106 @@
   {
     "entry": {
       "categories": [
+        "Orchestration",
+        "Log Collection",
+        "Cloud"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "organization",
+          "label": "Organization",
+          "options": [],
+          "pattern": "[a-z0-9-]+",
+          "placeholder": "example-org",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": "prod",
+          "help": null,
+          "key": "deployment",
+          "label": "Deployment",
+          "options": [],
+          "pattern": "[A-Za-z0-9_-]+",
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "token",
+          "label": "User token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The event logs of a Dagster+ deployment's runs (runs started, steps succeeded and failed, assets materialized, engine and user log messages) as logs, read every two minutes from the deployment's GraphQL API.",
+      "docsUrl": "https://docs.dagster.io/api/graphql",
+      "id": "dagster-plus",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Tokens",
+          "url": "{{ 'https://' + config.organization + '.dagster.cloud/' + (config.deployment ?? 'prod') + '/settings/tokens' }}"
+        }
+      ],
+      "logo": "dagster-plus",
+      "monitors": [],
+      "name": "Dagster+",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Dagster+, open **Organization Settings → Tokens** and **Create user token** (a token of a user with the\n   **Viewer** role on the deployment is enough). Copy it.\n2. Enter your organization (the `<organization>` of `https://<organization>.dagster.cloud`) and the deployment\n   (`prod` by default, or a branch deployment's name).\n",
+      "source": "dagster-plus",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every event of every run as a log (source:dagster-plus, service:dagster-plus): event_type is Dagster's event type (RUN_START, STEP_SUCCESS, STEP_FAILURE, ASSET_MATERIALIZATION, …; absent for plain log messages), level its log level; failures and cancellations get their status in the pipeline.",
+          "events": false,
+          "id": "run_events",
+          "incremental": "token",
+          "intervalSecs": 120,
+          "logs": true,
+          "metrics": [],
+          "name": "Run events"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "dagster-plus"
+      ],
+      "vendor": "Dagster Labs",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "deployment": "prod",
+        "organization": "example-org"
+      },
+      "secrets": [
+        "token"
+      ],
+      "test": "Dagster 1.12.1"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
         "AI/ML",
         "Cloud",
         "Cost Management",

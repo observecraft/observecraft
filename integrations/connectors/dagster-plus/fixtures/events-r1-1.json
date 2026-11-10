@@ -1,0 +1,29 @@
+{
+  "data": {
+    "logsForRun": {
+      "__typename": "EventConnection",
+      "cursor": "r1-c2",
+      "hasMore": true,
+      "events": [
+        {
+          "__typename": "RunStartEvent",
+          "runId": "a3bcb088-1640-40dc-9701-4b554c0b9cac",
+          "message": "Started execution of run for \"orders_daily_job\".",
+          "timestamp": "1794311000123",
+          "level": "DEBUG",
+          "stepKey": null,
+          "eventType": "RUN_START"
+        },
+        {
+          "__typename": "ExecutionStepStartEvent",
+          "runId": "a3bcb088-1640-40dc-9701-4b554c0b9cac",
+          "message": "Started execution of step \"orders_raw\".",
+          "timestamp": "1794311002410",
+          "level": "DEBUG",
+          "stepKey": "orders_raw",
+          "eventType": "STEP_START"
+        }
+      ]
+    }
+  }
+}
