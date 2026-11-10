@@ -95,6 +95,10 @@ for (const title of [
   'Argo Rollouts Overview',
   'Envoy - Overview',
   'Envoy Openmetrics',
+  'Istio - Overview (< v1.5)',
+  'Istio - Overview (v1.5+) - Legacy',
+  'Istio - Overview (v1.5+) - Openmetrics',
+  'Istio Overview',
 ]) {
   test(`every widget of ${title} has data in mock mode`, async () => {
     const d = mock.dashboards.find((x) => x.title === title);

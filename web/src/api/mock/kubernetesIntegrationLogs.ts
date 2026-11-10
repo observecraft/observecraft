@@ -126,6 +126,51 @@ const envoyAccess = (code: number, weight: number): Line => ({
 });
 
 const SOURCES: Source[] = [
+  // Istio's logs keep their images' names as sources (pilot, proxyv2), as the Istio Overview's log patterns read them.
+  {
+    source: 'pilot',
+    service: 'istiod',
+    namespace: 'istio-system',
+    pod: (i) => `istiod-7d9c6b5f4-${['2xkqp', '9tmwz', '2xkqp', '9tmwz'][i]}`,
+    count: 160,
+    lines: [
+      {
+        status: 'info',
+        message: (r) =>
+          `ads\tPush debounce stable[${Math.floor(r() * 900)}] ${1 + Math.floor(r() * 4)} for config ServiceEntry and VirtualService: 100.2ms since last change, 110.6ms since last push, full=true`,
+        weight: 5,
+      },
+      {
+        status: 'info',
+        message: (r) =>
+          `ads\tCDS: PUSH for node:${pick(r, APPS)}-7d9c6b5f4-${Math.floor(r() * 46656).toString(36)}.${pick(r, NAMESPACES)} resources:${80 + Math.floor(r() * 40)} size:${(60 + r() * 60).toFixed(1)}kB`,
+        weight: 5,
+      },
+      { status: 'warn', message: () => 'ads\tADS:EDS: ACK ERROR storefront-api-7d9c6b5f4-2xkqp.storefront Internal:Proxy rejected configuration', weight: 1 },
+    ],
+  },
+  {
+    source: 'proxyv2',
+    service: (r) => pick(r, APPS),
+    namespace: 'storefront',
+    pod: (i) => `${APPS[i]}-7d9c6b5f4-${['4kzxq', 'h2lmn', 'p9wvx', 'tq3rs'][i]}`,
+    count: 240,
+    lines: [
+      {
+        status: 'info',
+        message: (r) =>
+          `[2026-11-10T09:15:02.354Z] "GET ${pick(r, ['/api/cart', '/api/products', '/api/orders'])} HTTP/1.1" 200 - via_upstream - "-" 0 ${400 + Math.floor(r() * 4000)} ${2 + Math.floor(r() * 60)} ${1 + Math.floor(r() * 50)} "-" "Go-http-client/1.1" outbound|8080||order-service.checkout.svc.cluster.local`,
+        weight: 12,
+      },
+      {
+        status: 'warn',
+        message: () =>
+          '[2026-11-10T09:15:02.354Z] "POST /api/orders HTTP/1.1" 503 UF upstream_reset_before_response_started{connection_failure} - "-" 512 91 3 - "-" "Go-http-client/1.1" outbound|8080||billing.billing.svc.cluster.local',
+        weight: 1,
+      },
+      { status: 'warn', message: () => 'warning\tenvoy config\tStreamAggregatedResources gRPC config stream to xds-grpc closed since 1813s ago: 13, ', weight: 1 },
+    ],
+  },
   {
     source: 'envoy',
     service: (r) => (r() < 0.8 ? 'storefront-gateway' : 'internal-gateway'),

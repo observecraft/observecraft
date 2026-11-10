@@ -351,6 +351,7 @@ const MOCK_INTEGRATIONS = [
   'argo-workflows',
   'argo-rollouts',
   'envoy',
+  'istio',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */

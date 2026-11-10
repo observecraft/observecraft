@@ -448,6 +448,19 @@ mod tests {
         assert_eq!(log.timestamp_ms, Some(1_794_302_102_354));
     }
 
+    /// Istio's access log entries (JSON, `source:istio`), as integrations-core's `istio_tests.yaml` expects: the
+    /// response code and its category, the latency in nanoseconds, source and destination.
+    #[test]
+    fn istio_access_log_entries() {
+        use serde_json::json;
+        let line = json!({"instance": "accesslog.logentry.istio-system", "level": "info", "latency": "13.601485ms", "destination": "order-service", "responseSize": 178,
+            "time": "2026-11-10T09:15:02.009801Z", "source": "storefront-api", "user": "unknown", "responseCode": 503});
+        let log = agent_log("istio", json!({"message": line.to_string(), "hostname": "i-0a1b2c3d4e5f60002", "service": "istio-proxy", "ddsource": "istio"}));
+        assert_eq!((log.get("http.status_code"), log.get("http.status_category"), log.status.as_str()), (Some(json!(503)), Some(json!("error")), "error"));
+        assert_eq!((log.get("istio.source"), log.get("istio.destination"), log.get("duration")), (Some(json!("storefront-api")), Some(json!("order-service")), Some(json!(13_601_485))));
+        assert_eq!((log.get("network.bytes_written"), log.get("usr.name")), (Some(json!(178)), Some(json!("unknown"))));
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};

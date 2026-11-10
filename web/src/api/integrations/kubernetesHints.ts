@@ -564,6 +564,17 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
     ],
   },
   {
+    check: 'istio',
+    variants: [
+      {
+        label: 'Istio’s Helm charts (istio/istiod) and its sidecars',
+        text: 'The sidecars need nothing: the Agent recognizes the `istio-proxy` containers by their image (`proxyv2`) and reads their merged metrics on port 15020. For the control plane, put the annotations in the istiod chart’s `podAnnotations` value (the container is `discovery`, metrics on 15014). Istio’s logs keep their images’ names as sources (`pilot`, `proxyv2`), as the Istio Overview’s log patterns read them.',
+        filename: POD_ANNOTATIONS,
+        code: checkAnnotation('discovery', 'istio', { instances: [{ istiod_endpoint: 'http://%%host%%:15014/metrics', use_openmetrics: true }] }),
+      },
+    ],
+  },
+  {
     check: 'coredns',
     variants: [
       {
