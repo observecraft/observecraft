@@ -1,0 +1,23 @@
+[
+  {
+    "id": 41, "name": "Possible exfiltration from db-02", "status": "in_progress", "assessment": "undecided", "assignee": "analyst@example.com",
+    "notes": "Checking the S3 bucket's owner with the storefront team.", "detections": [8589934602], "is_user_created": true,
+    "created_by": "analyst@example.com", "last_interaction_by": "analyst@example.com", "creation_time": 1794305400000,
+    "last_interaction_time": 1794306000000, "update_time": 1794306000000,
+    "url": "https://example-shop.cloud.extrahop.com/#/detections/investigations/41"
+  },
+  {
+    "id": 38, "name": "Port scans from the build network", "status": "closed", "assessment": "benign_true_positive", "assignee": "secops@example.com",
+    "notes": "Scheduled vulnerability scan.", "detections": [8589934550, 8589934551], "is_user_created": true,
+    "created_by": "secops@example.com", "last_interaction_by": "secops@example.com", "creation_time": 1793900000000,
+    "last_interaction_time": 1794100000000, "update_time": 1794100000000,
+    "url": "https://example-shop.cloud.extrahop.com/#/detections/investigations/38"
+  },
+  {
+    "id": 12, "name": "Old phishing follow-up", "status": "closed", "assessment": "malicious_true_positive", "assignee": "secops@example.com",
+    "notes": "", "detections": [8589934010], "is_user_created": true,
+    "created_by": "secops@example.com", "last_interaction_by": "secops@example.com", "creation_time": 1790000000000,
+    "last_interaction_time": 1790100000000, "update_time": 1790100000000,
+    "url": "https://example-shop.cloud.extrahop.com/#/detections/investigations/12"
+  }
+]

@@ -1,0 +1,75 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f8-c480-726d-881f-fd5130304544"
+      },
+      "assessment": "undecided",
+      "assignee": "analyst@example.com",
+      "created_by": "analyst@example.com",
+      "creation_time": 1794305400000,
+      "date": 1794306000000,
+      "ddsource": "extrahop",
+      "detections": [
+        8589934602
+      ],
+      "host": "example-shop",
+      "http": {
+        "url": "https://example-shop.cloud.extrahop.com/#/detections/investigations/41"
+      },
+      "id": 41,
+      "investigation_status": "in_progress",
+      "is_user_created": true,
+      "last_interaction_by": "analyst@example.com",
+      "last_interaction_time": 1794306000000,
+      "message": "Possible exfiltration from db-02",
+      "name": "Possible exfiltration from db-02",
+      "notes": "Checking the S3 bucket's owner with the storefront team.",
+      "service": "investigation",
+      "status": "info",
+      "update_time": 1794306000000,
+      "url": "https://example-shop.cloud.extrahop.com/#/detections/investigations/41"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1b8b1-7500-75fd-970e-a9e90ab3f654"
+      },
+      "assessment": "benign_true_positive",
+      "assignee": "secops@example.com",
+      "created_by": "secops@example.com",
+      "creation_time": 1793900000000,
+      "date": 1794100000000,
+      "ddsource": "extrahop",
+      "detections": [
+        8589934550,
+        8589934551
+      ],
+      "host": "example-shop",
+      "http": {
+        "url": "https://example-shop.cloud.extrahop.com/#/detections/investigations/38"
+      },
+      "id": 38,
+      "investigation_status": "closed",
+      "is_user_created": true,
+      "last_interaction_by": "secops@example.com",
+      "last_interaction_time": 1794100000000,
+      "message": "Port scans from the build network",
+      "name": "Port scans from the build network",
+      "notes": "Scheduled vulnerability scan.",
+      "service": "investigation",
+      "status": "info",
+      "update_time": 1794100000000,
+      "url": "https://example-shop.cloud.extrahop.com/#/detections/investigations/38"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}
