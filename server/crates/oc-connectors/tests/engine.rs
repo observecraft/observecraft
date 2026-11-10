@@ -958,3 +958,36 @@ async fn an_error_rule_can_reset_a_stale_position() {
     let next = f.run(run.state, NOW + MIN).await.unwrap();
     assert_eq!((ids(&next), next.state.partitions[""].token.clone()), (vec!["a".to_string()], Some(json!("o2"))));
 }
+
+// ---------------------------------------------------------------- native
+
+#[test]
+fn a_native_connectors_records_map_as_a_package_stream_maps_them() {
+    let yaml = format!(
+        "{HEAD}native: example-queue\nconfig:\n  - {{ key: kinds, label: Kinds, type: list }}\n  - {{ key: token, label: Token, type: string, secret: true }}\ninstance: example-queue\n\
+         streams:\n  - id: files\n    name: Files\n    description: Queued files.\n    record_id: \"{{{{ record.id ?? (parent.key + ':' + parent.line) }}}}\"\n\
+         \x20   filter: \"{{{{ (config.kinds | len) == 0 || record.kind in config.kinds }}}}\"\n    vars: {{ kind: '{{{{ record.kind | upper }}}}' }}\n\
+         \x20   output:\n      logs: {{ message: '{{{{ vars.kind }}}}', date: '{{{{ record.ts }}}}', attributes: \"{{{{ record + {{s3_key: parent.key}} }}}}\" }}\n"
+    );
+    let pkg = Package::from_files([("connector.yaml".to_string(), yaml)].into(), Origin::Bundled).unwrap_or_else(|e| panic!("{e:#?}"));
+    let m = &pkg.manifest;
+    let c = Connection { id: "c1".into(), name: "queue".into(), config: json!({ "kinds": ["a"] }).as_object().unwrap().clone(), secrets: json!({ "token": "tok-SECRET-123" }).as_object().unwrap().clone() };
+    let records = engine::Records::new(m, &m.streams[0], &c, NOW).unwrap();
+    let mut out = oc_connectors::output::Mapped::default();
+    let parent = json!({ "key": "data/part-0.gz", "line": 7 });
+    assert!(records.map(json!({ "kind": "a", "ts": NOW - MIN }), Some(&parent), &mut out));
+    assert!(!records.map(json!({ "kind": "b" }), Some(&parent), &mut out), "filtered out");
+    assert!(records.map(json!({ "id": "x1", "kind": "a" }), None, &mut out));
+    assert_eq!(out.logs.len(), 2);
+    let log = &out.logs[0];
+    assert_eq!((log["message"].as_str(), log["s3_key"].as_str(), log["ddsource"].as_str()), (Some("A"), Some("data/part-0.gz"), Some("example")));
+    assert_eq!(oc_connectors::expr::to_ms(&log["date"]), Some(NOW - MIN));
+    // The identity: the record id (or the file and line), so a record read again is stored once.
+    let again = {
+        let mut o = oc_connectors::output::Mapped::default();
+        records.map(json!({ "kind": "a", "ts": NOW - MIN }), Some(&parent), &mut o);
+        o.logs.remove(0)
+    };
+    assert_eq!(again["_oc_ingest"], log["_oc_ingest"]);
+    assert_ne!(out.logs[1]["_oc_ingest"], log["_oc_ingest"]);
+}

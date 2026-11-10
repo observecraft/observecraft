@@ -17,6 +17,8 @@ aws-config = { version = "1", features = ["behavior-version-latest"] }
 aws-sdk-sts = "1"
 aws-sdk-cloudwatch = "1"
 aws-sdk-s3 = "1"
+# CrowdStrike Falcon Data Replicator: its feed's SQS notifications (connectors/sources/crowdstrike_fdr.rs).
+aws-sdk-sqs = "1"
 aws-sdk-resourcegroupstagging = "1"
 # Resources whose ARNs their metrics don't carry (aws/naming.rs LOOKUPS): REST APIs, RDS proxies, DMS replication
 # instances, WAF Classic web ACLs.
@@ -48,6 +50,8 @@ regex = "1"
 duckdb = { version = "=1.20000.1", features = ["bundled", "parquet", "json"] }
 # Profiles: gzip-compressed pprof uploads.
 flate2 = "1"
+# Gzip NDJSON objects decompressed as they stream in (CrowdStrike FDR).
+async-compression = { version = "0.4", features = ["tokio", "gzip"] }
 futures.workspace = true
 hmac = "0.13"
 # Per-org ClickHouse query limits: the clickhouse client's HTTP client with a connector that

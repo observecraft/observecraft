@@ -11,12 +11,14 @@
 //! - [`runner`]: packages' streams on the cloud crawlers' jobs, published to Kafka.
 //! - [`net`]: the SSRF-guarded transport packages' requests go through.
 //! - [`push`]: push packages' definitions and signing secrets for the intake.
+//! - [`sources`]: native sources (`native:` packages: CrowdStrike FDR's SQS and S3), their sessions on the same jobs.
 
 pub mod assets;
 pub mod native;
 pub mod net;
 pub mod push;
 pub mod runner;
+pub mod sources;
 pub mod store;
 
 use std::collections::BTreeSet;
@@ -120,6 +122,11 @@ pub fn load(dir: Option<&str>) -> Registry {
             Err(problems) => invalid.push((format!("integrations/connectors/{name}"), problems)),
         }
     }
+    // A package naming a native source this server doesn't have can't run.
+    let unknown_native = |p: &Package| p.manifest.native.as_deref().filter(|n| !sources::NAMES.contains(n)).map(|n| vec![format!("native: {n} is not a native source of this server")]);
+    let (packages, unrunnable): (Vec<Package>, Vec<Package>) = packages.into_iter().partition(|p| unknown_native(p).is_none());
+    invalid.extend(unrunnable.iter().map(|p| (format!("integrations/connectors/{}", p.manifest.id), unknown_native(p).unwrap_or_default())));
+    let mut packages = packages;
     let natives = native::all();
     if let Some(dir) = dir.filter(|d| !d.trim().is_empty()) {
         let (theirs, bad) = oc_connectors::package::load_all(std::path::Path::new(dir), |p| Origin::ThirdParty { dir: p.display().to_string() });
@@ -128,6 +135,8 @@ pub fn load(dir: Option<&str>) -> Registry {
             let id = p.manifest.id.clone();
             if packages.iter().any(|b| b.manifest.id == id) || natives.iter().any(|n| n.entry().id == id) {
                 invalid.push((format!("{dir}/{id}"), vec![format!("id: {id} is already a connector of ObserveCraft's")]));
+            } else if let Some(problems) = unknown_native(&p) {
+                invalid.push((format!("{dir}/{id}"), problems));
             } else {
                 packages.push(p);
             }

@@ -253,6 +253,9 @@ async fn main() -> anyhow::Result<()> {
         let transport: Arc<dyn oc_connectors::http::Transport> = Arc::new(connectors::net::Net { allow_private: state.config.portal_allow_private });
         let runner = Arc::new(connectors::runner::Runner { rt: Arc::new(oc_connectors::engine::Runtime::new(transport, true)), sinks });
         tokio::spawn(org_limits::background(connectors::runner::run(state.clone(), runner, concurrency)));
+        // Native sources (CrowdStrike FDR's queue): long sessions of their own.
+        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, connectors::runner::LOGS_TOPIC));
+        tokio::spawn(org_limits::background(connectors::sources::run(state.clone(), logs, concurrency)));
         // The FleetDM integration's poller: the Fleet servers' activities as logs, their hosts and policies as metrics.
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, fleetdm::crawler::LOGS_TOPIC));
         let metrics: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));

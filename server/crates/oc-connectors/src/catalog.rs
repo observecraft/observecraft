@@ -307,7 +307,8 @@ pub fn entry_of(p: &Package) -> ConnectorEntry {
         dashboards: p.dashboards().iter().filter_map(|d| d["title"].as_str().map(str::to_string)).collect(),
         pipeline: p.pipeline().and_then(|v| v["name"].as_str().map(str::to_string)),
         monitors: p.monitors().iter().filter_map(|v| v["name"].as_str().map(str::to_string)).collect(),
-        testable: m.test.is_some(),
+        // A native connector tests with its own code.
+        testable: m.test.is_some() || m.native.is_some(),
     }
 }
 

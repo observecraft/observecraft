@@ -687,6 +687,40 @@ impl RecordFns {
     }
 }
 
+/// A native connector's records (`native:`, SQS files, WebSocket frames) mapped as a package stream maps them: its
+/// `record_id`, `filter`, `vars` and `output` over the record, with `parent` (what the record came in: an S3 object)
+/// and the connection's `config`; never its secrets.
+pub struct Records {
+    f: RecordFns,
+    scope: Map<String, Value>,
+    instance: String,
+    now_ms: i64,
+}
+
+impl Records {
+    pub fn new(m: &Manifest, stream: &Stream, conn: &Connection, now_ms: i64) -> Result<Records, Issue> {
+        let mut scope = Map::new();
+        scope.insert("config".into(), Value::Object(conn.config.clone()));
+        scope.insert("connection".into(), json!({ "id": conn.id, "name": conn.name, "instance": instance(m, &conn.config) }));
+        scope.insert("tables".into(), json!(m.tables));
+        scope.insert("now".into(), json!(now_ms));
+        scope.insert("minute".into(), json!(now_ms - now_ms.rem_euclid(60_000)));
+        scope.insert("source".into(), json!(m.source.clone().unwrap_or_else(|| m.id.clone())));
+        Ok(Records { f: RecordFns::new(m, stream)?, scope, instance: instance(m, &conn.config), now_ms })
+    }
+
+    /// Maps one record into `out`; false when the stream's filter skips it.
+    pub fn map(&self, record: Value, parent: Option<&Value>, out: &mut Mapped) -> bool {
+        let record = match parent {
+            Some(p) => json!({ EXPANDED: true, "parent": p, "record": record }),
+            None => record,
+        };
+        let Some(rec) = prepare_record(&self.f, &self.scope, record) else { return false };
+        self.f.mapper.map(&Item { scope: &rec.scope, time_ms: rec.time, id: &rec.id, instance: &self.instance, now_ms: self.now_ms }, out);
+        true
+    }
+}
+
 /// A record in its scope, with its id and time; None when the filter skips it.
 struct Rec {
     scope: Map<String, Value>,

@@ -6376,6 +6376,126 @@
   {
     "entry": {
       "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The feed's queue; its region is read from the URL.",
+          "key": "sqs_queue_url",
+          "label": "SQS queue URL",
+          "options": [],
+          "pattern": "https://sqs\\.[a-z]{2}(-[a-z]+)+-[0-9]{1,2}\\.amazonaws\\.com/[0-9]{12}/[A-Za-z0-9_-]{1,80}(\\.fifo)?",
+          "placeholder": "https://sqs.us-west-1.amazonaws.com/123456789012/cs-prod-cannon-queue",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "The bucket (or access point alias) of the feed's S3 path, without s3:// or the prefix. Files are only read from it.",
+          "key": "s3_bucket",
+          "label": "S3 bucket",
+          "options": [],
+          "pattern": "[a-z0-9]([a-z0-9.-]{1,61}[a-z0-9])?",
+          "placeholder": "cs-prod-cannon-0a1b2c3d-s3alias",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "aws_access_key_id",
+          "label": "AWS access key id",
+          "options": [],
+          "pattern": "[A-Z0-9]{16,128}",
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "aws_secret_key",
+          "label": "AWS secret key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "event_simpleName values to keep (ProcessRollup2, NetworkConnectIP4, DnsRequest, UserLogon, …); empty keeps every event. Inventory and detection records, which have none, are always kept.",
+          "key": "event_types",
+          "label": "Event types",
+          "options": [],
+          "pattern": "[A-Za-z0-9_]+",
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "list"
+        }
+      ],
+      "dashboards": [],
+      "description": "Falcon sensor telemetry (processes, network connections, DNS requests, logons, file writes, detections) and the host and user inventory of a Falcon Data Replicator feed, read from its SQS queue and S3 bucket as logs.",
+      "docsUrl": "https://www.crowdstrike.com/en-us/resources/data-sheets/falcon-data-replicator/",
+      "id": "crowdstrike-fdr",
+      "kind": "package",
+      "links": [],
+      "logo": "crowdstrike-fdr",
+      "monitors": [],
+      "name": "CrowdStrike FDR",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. FDR is a paid Falcon add-on: ask CrowdStrike Support to enable it for your CID if the Falcon console has no\n   **Falcon data replicator** page.\n2. In the Falcon console, open **Support and resources → Resources → Falcon data replicator** and create a feed.\n3. Copy the feed's **access key id**, **secret key** and **SQS queue URL**, and its **S3 path**\n   (`s3://<bucket>/<prefix>/`): the bucket is the part between `s3://` and the next `/`.\n4. With a feed replicated into your own AWS account, use your queue's URL and bucket and an IAM user allowed\n   `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:ChangeMessageVisibility`, `sqs:GetQueueAttributes` on the queue\n   and `s3:GetObject` on the bucket.\n\nThe queue is read continuously: a notification is deleted only once every event of its files is stored, so nothing\nis lost when the server restarts (CrowdStrike keeps notifications for 7 days). FDR feeds are large: list event types\nto keep only those (other files are still downloaded).\n",
+      "source": "crowdstrike-fdr",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per event of the feed's files: sensor telemetry under data/ (event_simpleName, aid, ComputerName, CommandLine, hashes, network and DNS fields) and the inventory under fdrv2/ (userinfo, aidmaster), with s3_key and s3_bucket naming the file.",
+          "events": false,
+          "id": "events",
+          "incremental": "none",
+          "intervalSecs": 60,
+          "logs": true,
+          "metrics": [],
+          "name": "Telemetry and inventory"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "crowdstrike-fdr"
+      ],
+      "vendor": "CrowdStrike",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "s3_bucket": "cs-prod-cannon-0a1b2c3d-s3alias",
+        "sqs_queue_url": "https://sqs.us-west-1.amazonaws.com/123456789012/cs-prod-cannon-queue"
+      },
+      "secrets": [
+        "aws_access_key_id",
+        "aws_secret_key"
+      ],
+      "test": "the queue cs-prod-cannon-queue: about 1 notifications waiting"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
         "Orchestration",
         "Log Collection",
         "Cloud"

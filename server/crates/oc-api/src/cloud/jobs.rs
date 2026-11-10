@@ -268,6 +268,19 @@ pub async fn record(st: &AppState, job: &JobKey, outcome: &Outcome, interval_sec
     Ok(())
 }
 
+/// Holds a running job for another lease (a native connector's session, which lasts minutes).
+pub async fn extend(st: &AppState, job: &JobKey) -> Result<(), sqlx::Error> {
+    sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE cloud_crawl_jobs SET claimed_until = now() + make_interval(secs => $5) {KEY}")))
+        .bind(&job.provider)
+        .bind(&job.org_id)
+        .bind(&job.account_id)
+        .bind(&job.scope)
+        .bind(LEASE_SECS)
+        .execute(&st.postgres)
+        .await?;
+    Ok(())
+}
+
 /// The last crawl problem of a scope.
 #[derive(Serialize, ToSchema, Debug)]
 pub struct CrawlIssue {

@@ -574,8 +574,11 @@ pub async fn test_connection(State(st): State<AppState>, Admin(ctx): Admin, Path
         }
     }
     let conn = engine_connection(&st, m, previous.as_ref().map_or_else(|| format!("test-{}", ctx.org_id), |p| p.id.clone()), &checked, previous.as_ref())?;
-    let rt = fresh_runtime(&st);
-    let t = engine::test(m, &conn, chrono::Utc::now().timestamp_millis(), &rt).await;
+    let t = match m.native.as_deref().and_then(connectors::sources::of) {
+        // A native source tests with its own code (an SQS queue).
+        Some(source) => source.test(m, &conn).await,
+        None => engine::test(m, &conn, chrono::Utc::now().timestamp_millis(), &fresh_runtime(&st)).await,
+    };
     Ok(Json(ConnectorTest { ok: t.ok, message: t.message, records: t.records }))
 }
 
