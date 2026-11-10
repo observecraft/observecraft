@@ -1,0 +1,147 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Forcepoint Secure Web Gateway (Forcepoint ONE SSE, formerly Bitglass): the web and web DLP logs of the SWG module,
+# read from the SSE log export API (`/api/bitglassapi/logs/v1/`), as the logs Datadog's integration sends
+# (source:forcepoint-secure-web-gateway, service:forcepoint-swg-swgweb and forcepoint-swg-swgwebdlp, the record's
+# fields at the top). integrations-core's pipeline and dashboards (Overview, Web Logs, Web DLP Logs) read them as they
+# are, so this package ships none: saving a connection installs the tile's. The SSE connector reads the same API's
+# other log types.
+schema_version: 1
+id: forcepoint-secure-web-gateway
+name: Forcepoint Secure Web Gateway
+publisher: ObserveCraft
+vendor: Forcepoint
+description: >-
+  Web traffic logs (allowed and blocked requests, categories, reputation, users and devices) and web DLP matches of
+  Forcepoint ONE Secure Web Gateway, read from Forcepoint's log export API as logs.
+tiles: [forcepoint-secure-web-gateway]
+source: forcepoint-secure-web-gateway
+categories: [Log Collection, Security, Network]
+docs_url: https://help.forcepoint.com/insights/en-us/userguide/guid-58f76f66-45d3-41ea-bc4b-c43ff220c4ac.html
+setup: |
+  1. In the Forcepoint ONE SSE admin portal, open **SETTINGS → API Interface → OAuth** and add an application with the
+     **Log Events** API permission for a user who may read the logs.
+  2. Open the application's **Token Authorization URL** as that user and **Approve**: Forcepoint shows the user's
+     access token (it does not expire).
+  3. Pick the portal your tenant uses (the host in the admin portal's address bar).
+  4. Forcepoint allows 300 log export requests a day per log type: each log type is read every 10 minutes.
+instance: "{{ config.portal | host }}"
+
+config:
+  - key: portal
+    label: Portal
+    type: url
+    required: true
+    default: https://portal.bitglass.com
+    placeholder: https://portal.bitglass.com
+    strip_suffix: [/api/bitglassapi/logs/v1, /api/bitglassapi/logs/v1/]
+    help: >-
+      https://portal.bitglass.com, https://portal.us.bitglass.net, https://portal.eu.bitglass.net,
+      https://portal.bitglass.ca, https://portal.fg-bitglass.net, or your own portal domain.
+  - key: access_token
+    label: Access token
+    type: string
+    secret: true
+    required: true
+    help: The OAuth access token of a user approved for the Log Events API permission.
+
+auth:
+  kind: bearer
+  token: "{{ secrets.access_token }}"
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Forcepoint refused the access token (approve the OAuth application with the Log Events permission)
+  - status: [403]
+    kind: access_denied
+    message: The access token's user may not read this log type
+  - status: [429]
+    kind: throttled
+    message: "Forcepoint's daily quota of 300 requests for this log type is used up (it resets at 00:00 UTC)"
+  - status: [200]
+    when: "{{ response.status == 'Unauthorized' }}"
+    kind: auth
+    message: Forcepoint refused the access token
+
+streams:
+  - id: swgweb
+    name: Web logs
+    description: >-
+      One log per web request through the gateway (service:forcepoint-swg-swgweb): action, url, requestdomain,
+      application, webcategories, webreputation, email, devicehostname, ipaddress and the other fields.
+    interval: 10m
+    budget: { requests: 290, per: day }
+    max_pages: 10
+    request:
+      method: POST
+      url: "{{ config.portal }}/api/bitglassapi/logs/v1/"
+      query:
+        cv: 1.1.0
+        responseformat: json
+        type: swgweb
+        # The checkpoint once there is one; the first run starts a day back.
+        nextpagetoken: "{{ page.cursor ?? cursor.token }}"
+        startdate: "{{ (page.cursor ?? cursor.token) ? null : ((now - 86400000) | strftime('%Y-%m-%dT%H:%M:%SZ')) }}"
+    records: "{{ response.response.data }}"
+    pagination: { kind: cursor, next: "{{ response.nextpagetoken }}" }
+    record_id: "{{ record.setransactionid ?? record.transactionid }}"
+    incremental: { kind: token, next: "{{ response.nextpagetoken }}" }
+    output:
+      logs:
+        service: forcepoint-swg-swgweb
+        message: "{{ record.action }} {{ record.requestmethod }} {{ record.url ?? record.requestdomain }} ({{ record.email ?? record.ipaddress }})"
+        status: "{{ record.action == 'block' ? 'warn' : 'info' }}"
+        date: "{{ (record.indexedtime | epoch_ms('UTC')) ?? ((record.time + ' +0000') | epoch_ms) }}"
+        attributes: "{{ record }}"
+
+  - id: swgwebdlp
+    name: Web DLP logs
+    description: >-
+      One log per web DLP match (service:forcepoint-swg-swgwebdlp): dlppattern, action, url, filename, email and the
+      other fields.
+    interval: 10m
+    budget: { requests: 290, per: day }
+    max_pages: 10
+    request:
+      method: POST
+      url: "{{ config.portal }}/api/bitglassapi/logs/v1/"
+      query:
+        cv: 1.1.0
+        responseformat: json
+        type: swgwebdlp
+        nextpagetoken: "{{ page.cursor ?? cursor.token }}"
+        startdate: "{{ (page.cursor ?? cursor.token) ? null : ((now - 86400000) | strftime('%Y-%m-%dT%H:%M:%SZ')) }}"
+    records: "{{ response.response.data }}"
+    pagination: { kind: cursor, next: "{{ response.nextpagetoken }}" }
+    record_id: "{{ record.setransactionid ?? record.transactionid }}"
+    incremental: { kind: token, next: "{{ response.nextpagetoken }}" }
+    output:
+      logs:
+        service: forcepoint-swg-swgwebdlp
+        message: "{{ record.action }} {{ record.url }}: {{ record.dlppattern ?? record.patterns ?? 'DLP match' }} ({{ record.email ?? record.ipaddress }})"
+        status: "{{ record.action == 'block' ? 'warn' : 'info' }}"
+        date: "{{ (record.indexedtime | epoch_ms('UTC')) ?? ((record.time + ' +0000') | epoch_ms) }}"
+        attributes: "{{ record }}"
+
+test:
+  request:
+    method: POST
+    url: "{{ config.portal }}/api/bitglassapi/logs/v1/"
+    query: { cv: 1.1.0, responseformat: json, type: swgweb, startdate: "{{ (now - 300000) | strftime('%Y-%m-%dT%H:%M:%SZ') }}" }
+  success: "{{ response.status != 'Unauthorized' }}"
+  message: "Connected to {{ config.portal | host }}: {{ response.response.data | len }} web logs in the last 5 minutes"
+
+mock:
+  config: { portal: "https://portal.bitglass.com" }
+  secrets: { access_token: fp-test-access-token }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: swgweb }, file: fixtures/swgweb-1.json }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: swgwebdlp }, file: fixtures/swgwebdlp.json }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: swgweb, nextpagetoken: "swgweb-t1" }, file: fixtures/swgweb-2.json }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: swgweb, nextpagetoken: "swgweb-t2" }, file: fixtures/empty-swgweb-t2.json }
+    - { method: POST, url: "https://portal.bitglass.com/api/bitglassapi/logs/v1/", query: { type: swgwebdlp, nextpagetoken: "dlp-t1" }, file: fixtures/empty-dlp-t1.json }
+  expect:
+    swgweb: { records: 3, logs: 3, rerun: 0, golden: fixtures/swgweb.expected.json }
+    swgwebdlp: { records: 1, logs: 1, rerun: 0, golden: fixtures/swgwebdlp.expected.json }
+    test: { ok: true, message: "portal.bitglass.com" }

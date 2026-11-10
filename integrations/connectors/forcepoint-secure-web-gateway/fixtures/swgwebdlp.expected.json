@@ -1,0 +1,48 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bc-f400-7342-a2bb-3651cf1c3c11"
+      },
+      "action": "block",
+      "application": "Example Files",
+      "city": "Berlin",
+      "country": "Germany",
+      "countrycode": "DE",
+      "date": 1794302080000,
+      "ddsource": "forcepoint-secure-web-gateway",
+      "devicehostname": "laptop-0107",
+      "dlppattern": "Credit Card Numbers",
+      "email": "sam.lee@example.com",
+      "filename": "orders-2026-11.csv",
+      "firstname": "Sam",
+      "host": "portal.bitglass.com",
+      "indexedtime": "2026-11-10 09:14:40",
+      "ipaddress": "203.0.113.57",
+      "lastname": "Lee",
+      "message": "block files.example.net/upload: Credit Card Numbers (sam.lee@example.com)",
+      "patterns": "Credit Card Numbers",
+      "policyid": "100207",
+      "requestdomain": "files.example.net",
+      "requestmethod": "POST",
+      "service": "forcepoint-swg-swgwebdlp",
+      "setransactionid": "7C2F1B3D-0000-4B00-8000-000000000001",
+      "size": "48211",
+      "status": "warn",
+      "syslogheader": "<110>1 2026-11-10T09:14:06.000000Z api.bitglass.com NILVALUE NILVALUE swgwebdlp",
+      "time": "10 Nov 2026 09:14:06",
+      "url": "files.example.net/upload",
+      "usergroup": "['All Users', 'Billing']"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "dlp-t1"
+      }
+    }
+  }
+}
