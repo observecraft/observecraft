@@ -1,0 +1,152 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "workato.recipes.failure",
+      "tags": [
+        [
+          "folder_id",
+          "25081370"
+        ],
+        [
+          "name",
+          "Sync orders to billing"
+        ],
+        [
+          "project",
+          "Order Ops"
+        ],
+        [
+          "recipe_id",
+          "62567615"
+        ],
+        [
+          "source",
+          "workato"
+        ],
+        [
+          "workato_tags",
+          "critical,billing"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "workato.recipes.task_count",
+      "tags": [
+        [
+          "folder_id",
+          "25081370"
+        ],
+        [
+          "name",
+          "Sync orders to billing"
+        ],
+        [
+          "project",
+          "Order Ops"
+        ],
+        [
+          "recipe_id",
+          "62567615"
+        ],
+        [
+          "source",
+          "workato"
+        ],
+        [
+          "workato_tags",
+          "critical,billing"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 12473.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "workato.recipes.failure",
+      "tags": [
+        [
+          "folder_id",
+          "25077197"
+        ],
+        [
+          "name",
+          "Restock alerts"
+        ],
+        [
+          "project",
+          "Inventory"
+        ],
+        [
+          "recipe_id",
+          "62605996"
+        ],
+        [
+          "source",
+          "workato"
+        ],
+        [
+          "stop_cause",
+          "trigger_error"
+        ],
+        [
+          "workato_tags",
+          "critical"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "workato.recipes.task_count",
+      "tags": [
+        [
+          "folder_id",
+          "25077197"
+        ],
+        [
+          "name",
+          "Restock alerts"
+        ],
+        [
+          "project",
+          "Inventory"
+        ],
+        [
+          "recipe_id",
+          "62605996"
+        ],
+        [
+          "source",
+          "workato"
+        ],
+        [
+          "stop_cause",
+          "trigger_error"
+        ],
+        [
+          "workato_tags",
+          "critical"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 55882.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

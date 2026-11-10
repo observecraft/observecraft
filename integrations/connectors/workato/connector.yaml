@@ -1,0 +1,216 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Workato (https://docs.workato.com/en/workato-api.html): every recipe's jobs as the logs Datadog's integration sends
+# (source:workato, service:jobs, the job at the top with its recipe and project), and the recipes' and connections'
+# state as Datadog's three gauges (workato.recipes.failure, workato.recipes.task_count, workato.connections.failure,
+# metadata.csv), tagged as the tile's dashboard and monitors read them. integrations-core's pipeline and dashboard
+# work unchanged, so this package ships neither.
+schema_version: 1
+id: workato
+name: Workato
+publisher: ObserveCraft
+vendor: Workato
+description: >-
+  The jobs of every recipe of a Workato workspace as logs (with the recipe and project they belong to), and the
+  recipes (offline, lifetime tasks) and connections (authorization failed or lost) as metrics, read with an API
+  client's token.
+tiles: [workato]
+categories: [Log Collection, Metrics]
+source: workato
+docs_url: https://docs.workato.com/en/workato-api.html
+setup: |
+  1. In Workato, open **Workspace admin → API clients**, create a **client role** with these Developer API
+     permissions: **Projects** (list projects and folders), **Connections** (list), **Recipes** (list, get, list
+     versions), **Jobs** (list jobs, get job), **Tags** (list).
+  2. Create an **API client** with that role and copy its token; Workato shows it once.
+  3. Pick your workspace's data center (the host you sign in at).
+instance: "{{ config.base_url | host }}"
+
+config:
+  - key: base_url
+    label: Data center
+    type: select
+    required: true
+    default: https://www.workato.com
+    options:
+      - { value: "https://www.workato.com", label: US (www.workato.com) }
+      - { value: "https://app.eu.workato.com", label: EU (app.eu.workato.com) }
+      - { value: "https://app.jp.workato.com", label: JP (app.jp.workato.com) }
+      - { value: "https://app.sg.workato.com", label: SG (app.sg.workato.com) }
+      - { value: "https://app.au.workato.com", label: AU (app.au.workato.com) }
+      - { value: "https://app.il.workato.com", label: IL (app.il.workato.com) }
+  - key: api_token
+    label: API client token
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: bearer
+  token: "{{ secrets.api_token }}"
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Workato refused the API client token
+  - status: [403]
+    kind: access_denied
+    message: >-
+      The API client's role lacks a permission: it needs Projects, Connections, Recipes and Jobs (list and get)
+
+streams:
+  - id: jobs
+    name: Recipe jobs
+    description: >-
+      Every finished job of every recipe (service:jobs): id, title, status, is_error, error_parts, started_at,
+      completed_at, duration, with recipe (id, name, description, folder_id, tags, job_succeeded_count,
+      lifetime_task_count) and project (id, name, description, folder_id). Jobs still running are read once they end.
+    interval: 10m
+    # Workato allows 60 requests a minute on its Jobs endpoints: one per recipe per run.
+    rate_limit: { requests_per_minute: 60 }
+    lookups:
+      - name: recipes
+        request:
+          url: "{{ config.base_url }}/api/recipes"
+          query: { page: "{{ page.number }}", per_page: "{{ page.size }}", "includes[]": tags, exclude_code: "true" }
+        records: "{{ response.items }}"
+        pagination: { kind: page, size: 100 }
+        key: "{{ record.id | str }}"
+        ttl: 10m
+      - name: projects
+        request:
+          url: "{{ config.base_url }}/api/projects"
+          query: { page: "{{ page.number }}", per_page: "{{ page.size }}" }
+        pagination: { kind: page, size: 100 }
+        key: "{{ record.id | str }}"
+        ttl: 1h
+    for_each: "{{ lookups.recipes | keys }}"
+    request:
+      url: "{{ config.base_url + '/api/recipes/' + item + '/jobs' }}"
+      query: { offset_job_id: "{{ page.cursor }}" }
+    records: "{{ response.items }}"
+    # Newest jobs first, up to 1,000 a page: the older jobs of a full page are read only while they can hold jobs
+    # that ended in the window (started up to an hour before it). `records[-1]`: pagination doesn't see `last`.
+    pagination:
+      kind: cursor
+      next: "{{ (records | len) >= 1000 && (records[-1].started_at | epoch_ms) > window.start - 3600000 ? records[-1].id : null }}"
+    filter: "{{ record.completed_at && record.status != 'pending' }}"
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.completed_at }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 10m
+    vars:
+      recipe: "{{ lookups.recipes[item] ?? {} }}"
+      project: "{{ lookups.projects[(lookups.recipes[item].project_id ?? '') | str] }}"
+    output:
+      logs:
+        service: jobs
+        status: "{{ record.is_error || record.status == 'failed' ? 'error' : 'ok' }}"
+        message: "{{ record.title ?? (vars.recipe.name + ': job ' + record.id) ?? record.id }}"
+        date: "{{ record.completed_at }}"
+        attributes: >-
+          {{ record + {
+               duration: record.duration ?? (((record.completed_at | epoch_ms) - (record.started_at | epoch_ms)) * 1000),
+               recipe: {id: vars.recipe.id ?? (item | int), name: vars.recipe.name, description: vars.recipe.description,
+                        folder_id: vars.recipe.folder_id, tags: vars.recipe.tags,
+                        job_succeeded_count: vars.recipe.job_succeeded_count, lifetime_task_count: vars.recipe.lifetime_task_count},
+               project: vars.project ? {id: vars.project.id, name: vars.project.name, description: vars.project.description, folder_id: vars.project.folder_id} : null
+             } }}
+
+  - id: recipes
+    name: Recipes
+    description: >-
+      Every recipe's state: workato.recipes.failure (1 while the recipe is stopped, with its stop_cause) and
+      workato.recipes.task_count (its lifetime tasks), tagged name, recipe_id, stop_cause, workato_tags, project.
+    interval: 5m
+    lookups:
+      - name: projects
+        request:
+          url: "{{ config.base_url }}/api/projects"
+          query: { page: "{{ page.number }}", per_page: "{{ page.size }}" }
+        pagination: { kind: page, size: 100 }
+        key: "{{ record.id | str }}"
+        ttl: 1h
+    request:
+      url: "{{ config.base_url }}/api/recipes"
+      query: { page: "{{ page.number }}", per_page: "{{ page.size }}", "includes[]": tags, exclude_code: "true" }
+    records: "{{ response.items }}"
+    pagination: { kind: page, size: 100 }
+    filter: "{{ record.id }}"
+    output:
+      metrics:
+        - name: workato.recipes.failure
+          value: "{{ record.running ? 0 : 1 }}"
+          description: 1 while the recipe is stopped (stop_cause says why when Workato stopped it), else 0.
+          tags: &recipe
+            source: workato
+            name: "{{ record.name }}"
+            recipe_id: "{{ record.id | str }}"
+            stop_cause: "{{ record.running ? null : record.stop_cause }}"
+            workato_tags: "{{ (record.tags ?? []) | join(',') }}"
+            folder_id: "{{ record.folder_id | str }}"
+            project: "{{ lookups.projects[(record.project_id ?? '') | str].name }}"
+        - name: workato.recipes.task_count
+          value: "{{ record.lifetime_task_count }}"
+          description: The recipe's lifetime task count.
+          tags: *recipe
+
+  - id: connections
+    name: Connections
+    description: >-
+      Every connection's state: workato.connections.failure (1 when its authorization isn't successful or Workato lost
+      it), tagged name, provider, authorization_status, authorization_error, connection_lost_reason and active_recipes
+      (whether a running recipe uses it).
+    interval: 5m
+    lookups:
+      - name: recipes
+        request:
+          url: "{{ config.base_url }}/api/recipes"
+          query: { page: "{{ page.number }}", per_page: "{{ page.size }}", exclude_code: "true" }
+        records: "{{ response.items }}"
+        pagination: { kind: page, size: 100 }
+        key: "{{ record.id | str }}"
+        ttl: 10m
+    request:
+      url: "{{ config.base_url }}/api/connections"
+    filter: "{{ record.id }}"
+    vars:
+      used: "{{ lookups.recipes | values | where('running', true) | pluck('config') | flatten | pluck('account_id') }}"
+    output:
+      metrics:
+        - name: workato.connections.failure
+          value: "{{ record.authorization_status != 'success' || record.connection_lost_reason ? 1 : 0 }}"
+          description: 1 when the connection's authorization failed or Workato lost the connection, else 0.
+          tags:
+            source: workato
+            name: "{{ record.name }}"
+            connection_id: "{{ record.id | str }}"
+            provider: "{{ record.provider ?? record.application }}"
+            authorization_status: "{{ record.authorization_status }}"
+            authorization_error: "{{ record.authorization_error }}"
+            connection_lost_reason: "{{ record.connection_lost_reason }}"
+            active_recipes: "{{ (record.id in vars.used) ? 'true' : 'false' }}"
+
+test:
+  request: { url: "{{ config.base_url }}/api/users/me" }
+  success: "{{ response.id }}"
+  message: "Connected to the {{ response.name }} workspace"
+
+mock:
+  config: { base_url: "https://www.workato.com" }
+  secrets: { api_token: wrk-test-token-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://www.workato.com/api/recipes", file: fixtures/recipes.json }
+    - { url: "https://www.workato.com/api/projects", file: fixtures/projects.json }
+    - { url: "https://www.workato.com/api/recipes/62567615/jobs", file: fixtures/jobs-62567615.json }
+    - { url: "https://www.workato.com/api/recipes/62605996/jobs", file: fixtures/jobs-62605996.json }
+    - { url: "https://www.workato.com/api/connections", file: fixtures/connections.json }
+    - { url: "https://www.workato.com/api/users/me", body: { id: 41022, name: "Example Shop", plan_id: "enterprise" } }
+  expect:
+    jobs: { records: 3, logs: 3, rerun: 0, golden: fixtures/jobs.expected.json }
+    recipes: { records: 2, metrics: 4, golden: fixtures/recipes.expected.json }
+    connections: { records: 2, metrics: 2, golden: fixtures/connections.expected.json }
+    test: { ok: true, message: "Example Shop" }

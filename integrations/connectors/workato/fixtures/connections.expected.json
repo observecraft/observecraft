@@ -1,0 +1,86 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "workato.connections.failure",
+      "tags": [
+        [
+          "active_recipes",
+          "true"
+        ],
+        [
+          "authorization_status",
+          "success"
+        ],
+        [
+          "connection_id",
+          "901"
+        ],
+        [
+          "name",
+          "Billing DB"
+        ],
+        [
+          "provider",
+          "postgresql"
+        ],
+        [
+          "source",
+          "workato"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "workato.connections.failure",
+      "tags": [
+        [
+          "active_recipes",
+          "false"
+        ],
+        [
+          "authorization_error",
+          "invalid_auth"
+        ],
+        [
+          "authorization_status",
+          "failed"
+        ],
+        [
+          "connection_id",
+          "903"
+        ],
+        [
+          "connection_lost_reason",
+          "Token revoked"
+        ],
+        [
+          "name",
+          "Ops Slack"
+        ],
+        [
+          "provider",
+          "slack"
+        ],
+        [
+          "source",
+          "workato"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}

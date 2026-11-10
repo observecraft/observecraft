@@ -1,0 +1,6 @@
+{
+  "job_succeeded_count": 27941, "job_failed_count": 12, "job_count": 27953, "job_scope_count": 1,
+  "items": [
+    { "id": "j-BQx6Pp0a-Zx1q22", "recipe_id": 62605996, "title": "Low stock for SKU-1042", "status": "succeeded", "is_error": false, "started_at": "2026-11-10T10:04:58.000Z", "completed_at": "2026-11-10T10:05:00.000Z" }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "job_succeeded_count": 6244, "job_failed_count": 3, "job_count": 6247, "job_scope_count": 3,
+  "items": [
+    { "id": "j-BQx81Lmd-pRm2aa", "recipe_id": 62567615, "title": "Order 100245 created", "status": "pending", "is_error": false, "started_at": "2026-11-10T11:59:40.000Z", "completed_at": null },
+    { "id": "j-BQx7ZkQe-uYb4c1", "recipe_id": 62567615, "title": "Order 100244 created", "status": "succeeded", "is_error": false, "started_at": "2026-11-10T11:40:12.000Z", "completed_at": "2026-11-10T11:40:15.000Z" },
+    { "id": "j-BQx7Yt2p-kTe9d0", "recipe_id": 62567615, "title": "Order 100243 created", "status": "failed", "is_error": true,
+      "error_parts": { "error_type": "Database adapter error", "error_id": "5d0e3a2c-8f41-4b7a-9c1e-2a3b4c5d6e7f", "message": "duplicate key value violates unique constraint \"invoices_order_id_key\"" },
+      "started_at": "2026-11-10T11:31:02.000Z", "completed_at": "2026-11-10T11:31:02.000Z" }
+  ]
+}

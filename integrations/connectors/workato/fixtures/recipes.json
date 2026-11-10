@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "id": 62567615, "user_id": 41022, "name": "Sync orders to billing", "description": "New orders from storefront-api become invoices",
+      "folder_id": 25081370, "project_id": 12466695, "running": true, "stop_cause": null,
+      "job_succeeded_count": 6244, "job_failed_count": 3, "lifetime_task_count": 12473,
+      "config": [ { "keyword": "application", "provider": "postgresql", "account_id": 901 }, { "keyword": "application", "provider": "netsuite", "account_id": 902 } ],
+      "tags": ["critical", "billing"], "created_at": "2026-01-12T09:00:00.000Z", "updated_at": "2026-10-30T14:21:00.000Z", "last_run_at": "2026-11-10T11:40:12.000Z"
+    },
+    {
+      "id": 62605996, "user_id": 41022, "name": "Restock alerts", "description": "",
+      "folder_id": 25077197, "project_id": 12464630, "running": false, "stop_cause": "trigger_error",
+      "job_succeeded_count": 27941, "job_failed_count": 12, "lifetime_task_count": 55882,
+      "config": [ { "keyword": "application", "provider": "slack", "account_id": 903 } ],
+      "tags": ["critical"], "created_at": "2026-02-03T09:00:00.000Z", "updated_at": "2026-11-10T10:05:00.000Z", "stopped_at": "2026-11-10T10:05:00.000Z", "last_run_at": "2026-11-10T10:04:58.000Z"
+    }
+  ]
+}
