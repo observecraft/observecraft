@@ -291,6 +291,7 @@ impl<'a> Pager<'a> {
             None => response.clone(),
         });
         s.insert("records".into(), Value::Array(records.clone()));
+        s.insert("last".into(), records.last().cloned().unwrap_or(Value::Null));
         let render = |t: &str| Template::parse(t).map(|t| t.render(&s)).map_err(Issue::other);
         let next = match self.pagination {
             Pagination::None | Pagination::AsyncExport(_) => None,

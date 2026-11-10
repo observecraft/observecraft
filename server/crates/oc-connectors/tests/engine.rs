@@ -190,11 +190,16 @@ async fn refused_credentials_fail_the_run_without_echoing_secrets() {
 
 #[tokio::test]
 async fn every_pagination_kind_reads_to_the_last_page() {
-    let cases: [(&str, &str, &str); 6] = [
+    let cases: [(&str, &str, &str); 7] = [
         (
             "cursor in the body",
             "    request: { url: '{{ config.base_url }}/v1/events', query: { cursor: '{{ page.cursor }}' } }\n    records: '{{ response.data }}'\n    pagination: { kind: cursor, next: '{{ response.next }}' }\n",
             "    - { url: 'https://api.example.com/v1/events', query: { cursor: c2 }, body: { data: [{ id: b }], next: null } }\n    - { url: 'https://api.example.com/v1/events', body: { data: [{ id: a }], next: c2 } }",
+        ),
+        (
+            "cursor from the last record",
+            "    request: { url: '{{ config.base_url }}/v1/events', query: { after: '{{ page.cursor }}' } }\n    pagination: { kind: cursor, next: '{{ last.next }}' }\n",
+            "    - { url: 'https://api.example.com/v1/events', query: { after: c2 }, body: [{ id: b }] }\n    - { url: 'https://api.example.com/v1/events', body: [{ id: x0 }, { id: a, next: c2 }] }",
         ),
         (
             "cursor in headers",
@@ -227,7 +232,7 @@ async fn every_pagination_kind_reads_to_the_last_page() {
         let run = f.run(StreamState::default(), NOW).await.unwrap_or_else(|e| panic!("{name}: {e:?}"));
         let mut got = ids(&run);
         got.sort();
-        let want: &[&str] = if name == "offset" { &["a", "b", "c"] } else { &["a", "b"] };
+        let want: &[&str] = match name { "offset" => &["a", "b", "c"], "cursor from the last record" => &["a", "b", "x0"], _ => &["a", "b"] };
         assert_eq!(got, want, "{name}");
         assert!(run.warning.is_none(), "{name}: {:?}", run.warning);
     }
