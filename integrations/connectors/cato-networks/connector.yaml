@@ -1,0 +1,157 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Cato Networks (GraphQL API, https://api.catonetworks.com/documentation/): the account's audit trail and its events
+# feed, as the logs Datadog's integration has (source:cato-networks; service:audit-logs, each log {fieldsMap: <the
+# audit record's fields>}; service:events, the event's fields at the top). Datadog reads events from Cato's S3 export;
+# this package reads the same events from the eventsFeed query. integrations-core's pipeline (OCSF mapping) and the
+# tile's three dashboards read them as they are, so this package ships neither. Queries and fields as Cato's own
+# client documents them (catonetworks/cato-cli, Apache-2.0).
+schema_version: 1
+id: cato-networks
+name: Cato Networks
+publisher: ObserveCraft
+vendor: Cato Networks
+description: >-
+  The audit trail (administrators' configuration changes) and the events (security, connectivity, system, Detection &
+  Response) of a Cato Networks SASE account as logs, read every minute from its GraphQL API.
+tiles: [cato-networks]
+categories: [Log Collection, Security, SIEM, Cloud]
+source: cato-networks
+docs_url: https://api.catonetworks.com/documentation/
+setup: |
+  1. In the Cato Management Application, open **Resources → Service API Keys** and create a key for a service
+     principal with **View** permission; copy it, Cato shows it once.
+  2. For events, enable the events feed in **Resources → Event Integrations** (**Enable integration with Cato
+     events**). Cato keeps one position in the feed per account: don't let another consumer read the same feed.
+  3. Copy the **Account ID** from **Account → General Info**, and the region from your management URL (`us1` in
+     `cc.us1.catonetworks.com`; empty for `cc.catonetworks.com`).
+instance: "{{ 'cato-' + config.account_id }}"
+
+config:
+  - key: account_id
+    label: Account ID
+    type: string
+    required: true
+    pattern: "[0-9]+"
+  - key: region
+    label: Region
+    type: string
+    pattern: "[a-z0-9]+"
+    placeholder: us1
+    help: The part between cc. and .catonetworks.com in your management URL; empty for cc.catonetworks.com.
+  - key: api_key
+    label: Service API key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: api_key
+  name: x-api-key
+  value: "{{ secrets.api_key }}"
+
+headers:
+  Accept-Encoding: gzip
+
+errors:
+  - status: [401, 403]
+    kind: auth
+    message: Cato refused the API key (it needs View permission on the account)
+  - status: [429]
+    kind: throttled
+    message: Cato's API rate limit for this query was reached
+
+streams:
+  - id: events
+    name: Events
+    description: >-
+      Every event of the events feed (service:events): event_type, event_sub_type, action, src_ip, user_name,
+      rule_name, threat and Detection & Response fields, as Cato's fieldsMap gives them, with time in epoch ms.
+    interval: 1m
+    # Cato answers up to 3,000 events per call and allows about 100 calls a minute.
+    rate_limit: { requests_per_minute: 60 }
+    max_pages: 50
+    request:
+      method: POST
+      url: "{{ 'https://api.' + (config.region ? config.region + '.' : '') + 'catonetworks.com/api/v1/graphql2' }}"
+      body:
+        query: >-
+          query eventsFeed($accountIDs: [ID!], $marker: String) { eventsFeed(accountIDs: $accountIDs, marker: $marker)
+          { marker fetchedCount accounts { id records { time fieldsMap } } } }
+        variables:
+          accountIDs: ["{{ config.account_id }}"]
+          marker: "{{ page.cursor ?? cursor.token ?? '' }}"
+    records: "{{ response.data.eventsFeed.accounts | pluck('records') | flatten }}"
+    pagination: { kind: cursor, next: "{{ response.data.eventsFeed.fetchedCount > 0 ? response.data.eventsFeed.marker : null }}" }
+    # The marker is the feed's position: kept once the run's events are stored.
+    incremental: { kind: token, next: "{{ response.data.eventsFeed.marker }}" }
+    record_id: "{{ record.fieldsMap.internalId ?? record.fieldsMap.event_id }}"
+    output:
+      logs:
+        service: events
+        message: "{{ record.fieldsMap.event_message ?? (record.fieldsMap.event_type + ' / ' + record.fieldsMap.event_sub_type) ?? (record.fieldsMap | json) }}"
+        date: "{{ (record.fieldsMap.time ?? record.time) | epoch_ms }}"
+        # Cato's fields are text: time and criticality become numbers (the pipeline's ranges read criticality).
+        attributes: >-
+          {{ record.fieldsMap + {time: (record.fieldsMap.time ?? record.time) | epoch_ms}
+             + (record.fieldsMap.criticality ? {criticality: record.fieldsMap.criticality | int} : {}) }}
+
+  - id: audit_logs
+    name: Audit logs
+    description: >-
+      Every administrator's change (service:audit-logs): fieldsMap.admin, admin_id, module, model_type, model_name,
+      change_type and the change itself, with creation and insertion dates.
+    interval: 5m
+    request:
+      method: POST
+      url: "{{ 'https://api.' + (config.region ? config.region + '.' : '') + 'catonetworks.com/api/v1/graphql2' }}"
+      body:
+        query: >-
+          query auditFeed($accountIDs: [ID!], $timeFrame: TimeFrame!, $marker: String) { auditFeed(accountIDs:
+          $accountIDs, timeFrame: $timeFrame, marker: $marker) { marker fetchedCount hasMore accounts { id records
+          { time fieldsMap } } } }
+        variables:
+          accountIDs: ["{{ config.account_id }}"]
+          # The marker carries the position; the frame only bounds how far back the first run reads.
+          timeFrame: last.P1D
+          marker: "{{ page.cursor ?? cursor.token ?? '' }}"
+    records: "{{ response.data.auditFeed.accounts | pluck('records') | flatten }}"
+    pagination: { kind: cursor, next: "{{ response.data.auditFeed.hasMore ? response.data.auditFeed.marker : null }}" }
+    incremental: { kind: token, next: "{{ response.data.auditFeed.marker }}" }
+    record_id: >-
+      {{ record.fieldsMap.audit_id ?? ((record.fieldsMap.creation_date ?? record.time) + ':' + record.fieldsMap.admin_id
+         + ':' + record.fieldsMap.model_name + ':' + record.fieldsMap.change_type) }}
+    output:
+      logs:
+        service: audit-logs
+        message: "{{ record.fieldsMap | json }}"
+        date: "{{ (record.fieldsMap.insertion_date ?? record.time) | epoch_ms }}"
+        attributes:
+          fieldsMap: "{{ record.fieldsMap }}"
+
+test:
+  request:
+    method: POST
+    url: "{{ 'https://api.' + (config.region ? config.region + '.' : '') + 'catonetworks.com/api/v1/graphql2' }}"
+    body:
+      query: "query accountSnapshot($accountID: ID!) { accountSnapshot(accountID: $accountID) { id } }"
+      variables: { accountID: "{{ config.account_id }}" }
+  # GraphQL answers its errors with 200.
+  success: "{{ response.data.accountSnapshot.id && !response.errors }}"
+  message: "Connected to account {{ response.data.accountSnapshot.id }}"
+  failure: "Cato refused the query: {{ response.errors[0].message ?? 'no account' }}"
+
+mock:
+  config: { account_id: "4011", region: us1 }
+  secrets: { api_key: cato-test-key-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://api.us1.catonetworks.com/api/v1/graphql2", body_contains: accountSnapshot, body: { data: { accountSnapshot: { id: "4011" } } } }
+    - { method: POST, url: "https://api.us1.catonetworks.com/api/v1/graphql2", body_contains: '"marker":"ev-0002"', body: { data: { eventsFeed: { marker: "ev-0002", fetchedCount: 0, accounts: [ { id: "4011", records: [] } ] } } } }
+    - { method: POST, url: "https://api.us1.catonetworks.com/api/v1/graphql2", body_contains: '"marker":"ev-0002"', body: { data: { eventsFeed: { marker: "ev-0002", fetchedCount: 0, accounts: [ { id: "4011", records: [] } ] } } } }  # once per run: the feed is at its end
+    - { method: POST, url: "https://api.us1.catonetworks.com/api/v1/graphql2", body_contains: eventsFeed, file: fixtures/events.json }
+    - { method: POST, url: "https://api.us1.catonetworks.com/api/v1/graphql2", body_contains: '"marker":"au-0001"', body: { data: { auditFeed: { marker: "au-0001", fetchedCount: 0, hasMore: false, accounts: [ { id: "4011", records: [] } ] } } } }
+    - { method: POST, url: "https://api.us1.catonetworks.com/api/v1/graphql2", body_contains: auditFeed, file: fixtures/audit.json }
+  expect:
+    events: { records: 3, logs: 3, rerun: 0, golden: fixtures/events.expected.json }
+    audit_logs: { records: 2, logs: 2, rerun: 0, golden: fixtures/audit_logs.expected.json }
+    test: { ok: true, message: "account 4011" }

@@ -1,0 +1,32 @@
+{
+  "data": {
+    "auditFeed": {
+      "marker": "au-0001",
+      "fetchedCount": 2,
+      "hasMore": false,
+      "accounts": [
+        {
+          "id": "4011",
+          "records": [
+            {
+              "time": "2026-11-10T09:47:03Z",
+              "fieldsMap": {
+                "account_id": "4011", "admin": "Jane Doe", "admin_id": "400000101", "module": "IPS Configuration", "model_type": "IPS Configuration",
+                "model_name": "IpsConfiguration", "change_type": "MODIFIED", "change": { "Before": { "blockNewDomains": "false" }, "After": { "blockNewDomains": "true" } },
+                "creation_date": "1794303623000", "insertion_date": "1794303630734"
+              }
+            },
+            {
+              "time": "2026-11-10T10:12:40Z",
+              "fieldsMap": {
+                "account_id": "4011", "admin": "John Roe", "admin_id": "400000102", "module": "Internet Firewall", "model_type": "Internet Firewall Rule",
+                "model_name": "Block risky categories", "change_type": "CREATED", "change": { "After": { "action": "BLOCK", "enabled": "true" } },
+                "creation_date": "1794305160000", "insertion_date": "1794305166120"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
