@@ -246,6 +246,7 @@ mod tests {
         assert_eq!((log.message.as_str(), log.service.as_str(), log.source.as_str(), log.status.as_str()), ("Command 'pip install urllib3==2.0.2' was allowed", "scfw", "scfw", "info"));
         assert_eq!((log.get("usr.name"), log.get("evt.outcome"), log.get("warning")), (Some(json!("root")), Some(json!("ALLOW")), Some(json!(true))));
         assert_eq!((log.get("package_manager"), log.get("ecosystem"), log.host.as_str()), (Some(json!("pip")), Some(json!("PyPI")), "test10-10-1-10"), "the host scfw ran on");
+        assert_eq!(log.get("hostname"), Some(json!("test10-10-1-10")), "kept as `@hostname`, as Datadog does");
         assert_eq!((log.get("install_targets"), log.get("version"), log.get("env")), (Some(json!([{"ecosystem": "PyPI", "name": "urllib3", "version": "2.0.2"}])), Some(json!("3.0.0")), Some(json!("dev"))));
         assert_eq!((log.get("username"), log.get("action")), (None, None), "remapped, not kept");
         assert_eq!(log.timestamp_ms, Some(1_755_017_456_590), "the run's time");

@@ -56,9 +56,13 @@ if !otlp {
   attrs = merge(extra, attrs)
 }
 body = null
+# A `hostname` of the log's own JSON (its body or message) stays an attribute, as Datadog's `@hostname`; the
+# intake envelope's (the Agent's) is only the host.
+own_hostname = false
 if otlp {
   body = .message
   if is_object(body) {
+    own_hostname = exists(body.hostname)
     attrs = merge(attrs, object!(body))
     body = null
   } else if is_string(body) {
@@ -66,6 +70,7 @@ if otlp {
     if starts_with(b, "{") {
       parsed = parse_json(b) ?? null
       if is_object(parsed) {
+        own_hostname = exists(parsed.hostname)
         attrs = merge(attrs, object!(parsed))
         body = null
       }
@@ -89,6 +94,7 @@ if is_string(msg) {
   if starts_with(m, "{") {
     parsed = parse_json(m) ?? null
     if is_object(parsed) {
+      own_hostname = own_hostname || exists(parsed.hostname)
       attrs = merge(filter(attrs) -> |k, _v| { !includes(used, k) }, object!(parsed))
       used = []
       flat = flatten(attrs)
@@ -284,7 +290,10 @@ host = null
 for_each(["host", "hostname", "syslog.hostname"]) -> |_i, k| {
   if is_null(host) {
     v = get(flat, [k]) ?? null
-    if is_string(v) && v != "" { host = v; used = push(used, k) }
+    if is_string(v) && v != "" {
+      host = v
+      if !(k == "hostname" && own_hostname) { used = push(used, k) }
+    }
   }
 }
 if is_null(host) { host = get(r, ["host.name"]) ?? null }

@@ -322,10 +322,14 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
         attrs = merge(extra, attrs);
     }
     let mut body = Value::Null;
+    // A `hostname` of the log's own JSON (its body or message) stays an attribute, as Datadog's `@hostname`; the
+    // intake envelope's (the Agent's) is only the host.
+    let mut own_hostname = false;
     if otlp {
         body = fields.get("message").cloned().unwrap_or(Value::Null);
         match &body {
             Value::Object(m) => {
+                own_hostname = m.contains_key("hostname");
                 attrs = merge(attrs, m.clone());
                 body = Value::Null;
             }
@@ -333,6 +337,7 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
                 let b = s.trim();
                 if b.starts_with('{') {
                     if let Some(parsed) = json_object(b) {
+                        own_hostname = parsed.contains_key("hostname");
                         attrs = merge(attrs, parsed);
                         body = Value::Null;
                     }
@@ -351,6 +356,7 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
         let m = s.trim().to_string();
         if m.starts_with('{') {
             if let Some(parsed) = json_object(&m) {
+                own_hostname |= parsed.contains_key("hostname");
                 attrs.retain(|k, _| !used.contains(&k.as_str()));
                 attrs = merge(attrs, parsed);
                 used.clear();
@@ -549,6 +555,9 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
         .or_else(|| r.get("host.name").and_then(to_string))
         .or_else(|| r.get("k8s.node.name").and_then(to_string))
         .unwrap_or_default();
+    if own_hostname {
+        used.retain(|k| *k != "hostname");
+    }
 
     let mut source = text_of(&flat, "ddsource");
     if !source.is_empty() {
@@ -690,6 +699,19 @@ mod tests {
         let tags = &json[json.find("\"tags\"").unwrap()..json.find("\"attr\"").unwrap()];
         let (ta, tm, tz) = (tags.find("\"a\"").unwrap(), tags.find("\"m\"").unwrap(), tags.find("\"z\"").unwrap());
         assert!(ta < tm && tm < tz, "{tags}");
+    }
+
+    /// Datadog keeps a log's own `hostname` searchable as `@hostname` after reading the host from it (Supply Chain
+    /// Firewall's dashboard groups by it); the intake envelope's `hostname` (the Agent's) is only the log's host.
+    #[test]
+    fn a_json_messages_hostname_stays_an_attribute() {
+        let line = serde_json::json!({"msg": "pip install urllib3", "hostname": "dev-laptop-01"}).to_string();
+        let event = serde_json::json!({"source_type": "kafka", "_oc_kafka_headers": {"x-oc-org": "org-1"}, "message": line, "hostname": "agent-host", "ddsource": "scfw"});
+        let row = normalize(LogEvent { fields: event.as_object().unwrap().clone(), timestamp: None }, chrono::Utc::now()).unwrap();
+        assert_eq!((row.host.as_str(), row.attr.get("hostname").map(String::as_str)), ("dev-laptop-01", Some("dev-laptop-01")));
+        let event = serde_json::json!({"source_type": "kafka", "_oc_kafka_headers": {"x-oc-org": "org-1"}, "message": "plain", "hostname": "agent-host", "ddsource": "scfw"});
+        let row = normalize(LogEvent { fields: event.as_object().unwrap().clone(), timestamp: None }, chrono::Utc::now()).unwrap();
+        assert_eq!((row.host.as_str(), row.attr.get("hostname")), ("agent-host", None));
     }
 
     #[test]

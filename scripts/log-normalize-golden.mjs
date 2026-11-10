@@ -137,6 +137,10 @@ const cases = [
   ['tags: deployment.environment and explicit env tag', { source_type: 'http_server', 'x-oc-org': 'acme', _t: T, tags: { env: 'prod' }, resources: { 'deployment.environment': 'staging', 'service.version': '9' }, message: 'x' }],
   ['tags: ddtags edge cases', json({ message: 'x', ddtags: ' a:1 , b , :c, d:e:f,,env:qa ' })],
   ['tags: ddsource and host from hostname', json({ message: 'x', ddsource: 'nginx', hostname: 'web-1', host: '' })],
+  // A log's own JSON keeps `hostname` as an attribute (Datadog: `@hostname`); an intake envelope's is only the host.
+  ['tags: hostname of a JSON message stays an attribute', agent(JSON.stringify({ msg: 'pip install urllib3', hostname: 'dev-laptop-01', action: 'ALLOW' }), 'info', { ddsource: 'scfw', service: 'scfw' })],
+  ['tags: hostname of an OTLP JSON body stays an attribute', otlp({ resources: { 'oc.org_id': 'acme', 'host.name': 'node-9' }, message: '{"msg":"x","hostname":"web-7"}' })],
+  ['tags: hostname of an OTLP object body stays an attribute', otlp({ resources: { 'oc.org_id': 'acme' }, message: { msg: 'x', hostname: 'web-8' } })],
   ['tags: resource values of other types', otlp({ resources: { 'oc.org_id': 'acme', 'process.pid': 4242, 'k8s.node.name': 'node-2', 'array.attr': ['a', 'b'] }, message: 'x' })],
   ['tags: FireLens container name and task definition without revision', json({ message: 'x', container_name: '/api', ecs_task_definition: 'api', ecs_task_arn: 'arn:aws:ecs:task/1' })],
   ['tags: syslog appname and dd.service precedence', json({ message: 'x', service: '', syslog: { appname: 'cron' }, dd: { service: 'later' } })],

@@ -1,7 +1,7 @@
 // Mock logs of Supply Chain Firewall (Datadog's open-source `scfw`, its integration's dashboard and Logs →
 // source:scfw): one per package manager command it inspected, as the Datadog Agent forwards its JSON lines and the
 // integration's pipeline parses them (`created` as the date, `username` → @usr.name, `action` → @evt.outcome,
-// `msg` as the message). The JSON's `hostname` is the log's host, as the log normalizer makes it.
+// `msg` as the message). The JSON's `hostname` is the log's host and stays `@hostname`, as the log normalizer makes it.
 import type { JsonValue, LogEvent } from '../types';
 import type { Rand } from './generator';
 
@@ -83,6 +83,7 @@ export function supplyChainFirewallLogs(r: Rand, now: number): LogEvent[] {
       env,
       evt: { outcome: action },
       executable: manager === 'npm' ? '/usr/local/bin/npm' : manager === 'poetry' ? `/home/${user}/.local/bin/poetry` : `${cwd}/.venv/bin/python`,
+      hostname: host,
       install_targets: chosen.map(([name, version]) => ({ ecosystem, name, version })),
       log_version: 1,
       package_manager: manager,

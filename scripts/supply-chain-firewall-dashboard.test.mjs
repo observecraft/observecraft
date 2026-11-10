@@ -31,8 +31,8 @@ const panels = all(dashboard?.widgets ?? []).filter((w) => w.definition.type ===
 const queries = panels.flatMap((w) => w.definition.original.requests.flatMap((r) => (r.queries ?? []).filter((q) => q.data_source === 'logs').map((q) => [w.definition.title, q])));
 const streams = all(dashboard?.widgets ?? []).filter((w) => w.definition.type === 'log_stream');
 const resolve = (vars) => (q) => resolveSearchQuery(q, dashboard.templateVariables, vars);
-/** Facets the log normalizer doesn't keep as Datadog does: scfw's `hostname` becomes the log's host, and arrays of objects aren't facets. */
-const UNSUPPORTED = ['@hostname', '@install_targets.name'];
+/** Facets the log normalizer doesn't keep as Datadog does: arrays of objects aren't facets. */
+const UNSUPPORTED = ['@install_targets.name'];
 
 test('mock mode carries the dashboard', () => {
   assert.ok(dashboard, 'supply-chain-firewall is in MOCK_INTEGRATIONS (node scripts/import-integration-dashboards.mjs --mock)');
@@ -63,7 +63,7 @@ test('groups across attributes match: warned commands (`(@warning:true OR @warne
 
 test('only facets the normalizer lacks stay empty', () => {
   const skipped = queries.filter(([, q]) => (q.group_by ?? []).some((g) => UNSUPPORTED.includes(g.facet)));
-  assert.ok(skipped.length <= 14, `${skipped.length} of ${queries.length}`);
+  assert.ok(skipped.length <= 6, `${skipped.length} of ${queries.length}`);
 });
 
 test('the template variables filter the panels', () => {
