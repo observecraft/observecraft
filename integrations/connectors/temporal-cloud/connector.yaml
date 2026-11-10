@@ -1,0 +1,119 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Temporal Cloud's OpenMetrics endpoint (https://docs.temporal.io/cloud/metrics/openmetrics): every minute's aggregates of
+# an account's namespaces, scraped from https://metrics.temporal.io/v1/metrics with a service account's API key. Names
+# follow Datadog's Temporal Cloud OpenMetrics integration: `temporal_cloud_v1_<name>[_count]` → `temporal.cloud.v1_<name>`
+# (the `_count` suffix dropped), the labels as tags. The tile's integrations-core dashboard reads the older v0 metrics
+# of the mTLS Prometheus endpoint Temporal retired, so the package ships its own dashboard for the v1 names.
+schema_version: 1
+id: temporal-cloud
+name: Temporal Cloud
+publisher: ObserveCraft
+vendor: Temporal Technologies
+description: >-
+  The metrics of a Temporal Cloud account's namespaces (requests, errors and latency of the frontend service, workflow
+  and activity outcomes, task queue backlogs, actions, schedules, replication lag and limits), scraped every minute
+  from Temporal Cloud's OpenMetrics endpoint.
+tiles: [temporal-cloud]
+categories: [Cloud, Developer Tools, Metrics]
+docs_url: https://docs.temporal.io/cloud/metrics/openmetrics/api-reference
+setup: |
+  1. In Temporal Cloud, open **Settings → Service Accounts** and create one, e.g. `observecraft-metrics`, with the
+     account role **Metrics Read-Only**.
+  2. Create an **API key** for that service account and copy it (Temporal Cloud shows it once).
+  3. Optionally list the namespaces to read (wildcards such as `prod-*` work); empty reads every namespace.
+
+  Temporal allows 180 requests an hour per account: this connection uses 60, so another scraper (an OpenTelemetry
+  Collector, Grafana) can share the account.
+links:
+  - { label: Service accounts, url: "https://cloud.temporal.io/settings/service-accounts" }
+instance: "{{ config.account_id ?? 'temporal-cloud' }}"
+
+config:
+  - key: account_id
+    label: Account ID
+    type: string
+    pattern: "[a-z0-9]+"
+    placeholder: a1b2c
+    help: The account part of your namespaces' `<namespace>.<account>.tmprl.cloud` addresses; names the connection.
+  - key: namespaces
+    label: Namespaces
+    type: list
+    placeholder: orders-prod.a1b2c
+    help: Namespaces to read, one per line (wildcards like `prod-*` work). Empty reads every namespace.
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+    help: A Metrics Read-Only service account's API key.
+
+auth:
+  kind: bearer
+  token: "{{ secrets.api_key }}"
+
+# 180 requests an hour per account (https://docs.temporal.io/cloud/metrics/openmetrics/api-reference).
+rate_limit: { requests_per_minute: 2 }
+
+errors:
+  - status: [401, 403]
+    kind: auth
+    message: Temporal Cloud refused the API key; it needs a service account with the Metrics Read-Only role
+  - status: [429]
+    kind: throttled
+    message: "Temporal Cloud's 180 requests an hour are used up (retry after {{ headers['retry-after'] ?? '?' }}s): another scraper shares the account"
+
+streams:
+  - id: metrics
+    name: Metrics
+    description: >-
+      Every `temporal_cloud_v1_*` series as a gauge named `temporal.cloud.v1_*` (the `_count` suffix dropped, as
+      Datadog's integration names them), tagged with its labels (temporal_namespace, temporal_account, region,
+      operation, temporal_workflow_type, temporal_task_queue, task_type, …). Rates are per-second averages over the
+      minute, latencies and ages seconds.
+    interval: 1m
+    request:
+      url: https://metrics.temporal.io/v1/metrics
+      query: { namespaces: "{{ config.namespaces }}" }
+      format: prometheus
+    filter: "{{ record.name | startswith('temporal_cloud_v1_') }}"
+    vars:
+      name: >-
+        {{ 'temporal.cloud.' + ((record.name | endswith('_count')) ? (record.name | slice(15, -6)) : (record.name | slice(15))) }}
+      seconds: "{{ record.name | matches('_(p50|p95|p99|age|e2e_delay_p\\d+)$') }}"
+    output:
+      metrics:
+        - name: "{{ vars.name }}"
+          filter: "{{ vars.seconds }}"
+          value: "{{ record.value }}"
+          time: "{{ record.timestamp | epoch_ms }}"
+          tags_from: "{{ record.labels }}"
+          unit: second
+          description: A latency percentile or an age, over the minute.
+        - name: "{{ vars.name }}"
+          filter: "{{ !vars.seconds }}"
+          value: "{{ record.value }}"
+          time: "{{ record.timestamp | epoch_ms }}"
+          tags_from: "{{ record.labels }}"
+          description: A per-second rate averaged over the minute, or a value (backlog, open workflows, limits).
+
+test:
+  request:
+    url: https://metrics.temporal.io/v1/metrics
+    query: { namespaces: "{{ config.namespaces }}", metrics: temporal_cloud_v1_namespace_open_workflows }
+    format: prometheus
+  message: "Connected: {{ response | pluck('labels') | pluck('temporal_namespace') | unique | len }} namespaces"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+  monitors: [assets/monitors/service_errors.json, assets/monitors/backlog_age.json]
+
+mock:
+  config: { account_id: a1b2c }
+  secrets: { api_key: tmprl-test-key }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://metrics.temporal.io/v1/metrics", query: { metrics: temporal_cloud_v1_namespace_open_workflows }, file: fixtures/open-workflows.txt }
+    - { url: "https://metrics.temporal.io/v1/metrics", file: fixtures/metrics.txt }
+  expect:
+    metrics: { records: 14, metrics: 14, golden: fixtures/metrics.expected.json }
+    test: { ok: true, message: "2 namespaces" }

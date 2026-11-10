@@ -1,0 +1,5 @@
+# HELP temporal_cloud_v1_namespace_open_workflows Workflows currently open.
+# TYPE temporal_cloud_v1_namespace_open_workflows gauge
+temporal_cloud_v1_namespace_open_workflows{temporal_namespace="orders-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1"} 1284 1794311820
+temporal_cloud_v1_namespace_open_workflows{temporal_namespace="billing-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1"} 96 1794311820
+# EOF

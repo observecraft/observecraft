@@ -1,0 +1,33 @@
+# HELP temporal_cloud_v1_service_request_count The number of RPC requests received by the service.
+# TYPE temporal_cloud_v1_service_request_count gauge
+temporal_cloud_v1_service_request_count{temporal_namespace="orders-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1",operation="StartWorkflowExecution"} 12.5 1794311820
+temporal_cloud_v1_service_request_count{temporal_namespace="orders-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1",operation="PollWorkflowTaskQueue"} 40.25 1794311820
+temporal_cloud_v1_service_request_count{temporal_namespace="billing-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1",operation="StartWorkflowExecution"} 3 1794311820
+# HELP temporal_cloud_v1_service_error_count The number of gRPC errors returned by the service.
+# TYPE temporal_cloud_v1_service_error_count gauge
+temporal_cloud_v1_service_error_count{temporal_namespace="orders-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1",operation="StartWorkflowExecution"} 0.05 1794311820
+# HELP temporal_cloud_v1_service_latency_p99 The 99th percentile latency of service requests.
+# TYPE temporal_cloud_v1_service_latency_p99 gauge
+temporal_cloud_v1_service_latency_p99{temporal_namespace="orders-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1",operation="StartWorkflowExecution"} 0.042 1794311820
+temporal_cloud_v1_service_latency_p99{temporal_namespace="billing-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1",operation="StartWorkflowExecution"} 0.038 1794311820
+# HELP temporal_cloud_v1_workflow_success_count Workflows completed successfully.
+# TYPE temporal_cloud_v1_workflow_success_count gauge
+temporal_cloud_v1_workflow_success_count{temporal_namespace="orders-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1",temporal_task_queue="order-fulfillment",temporal_workflow_type="FulfillOrder"} 2.4 1794311820
+temporal_cloud_v1_workflow_success_count{temporal_namespace="billing-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1",temporal_task_queue="invoices",temporal_workflow_type="IssueInvoice"} 0.5 1794311820
+# HELP temporal_cloud_v1_workflow_failed_count Workflows that failed.
+# TYPE temporal_cloud_v1_workflow_failed_count gauge
+temporal_cloud_v1_workflow_failed_count{temporal_namespace="orders-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1",temporal_task_queue="order-fulfillment",temporal_workflow_type="FulfillOrder"} 0.0167 1794311820
+# HELP temporal_cloud_v1_approximate_backlog_count Approximate number of tasks waiting in a task queue.
+# TYPE temporal_cloud_v1_approximate_backlog_count gauge
+temporal_cloud_v1_approximate_backlog_count{temporal_namespace="orders-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1",temporal_task_queue="order-fulfillment",task_type="Activity",task_priority="3"} 17 1794311820
+# HELP temporal_cloud_v1_approximate_backlog_age Age of the oldest task in a task queue.
+# TYPE temporal_cloud_v1_approximate_backlog_age gauge
+temporal_cloud_v1_approximate_backlog_age{temporal_namespace="orders-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1",temporal_task_queue="order-fulfillment",task_type="Activity"} 4.5 1794311820
+# HELP temporal_cloud_v1_namespace_open_workflows Workflows currently open.
+# TYPE temporal_cloud_v1_namespace_open_workflows gauge
+temporal_cloud_v1_namespace_open_workflows{temporal_namespace="orders-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1"} 1284 1794311820
+temporal_cloud_v1_namespace_open_workflows{temporal_namespace="billing-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1"} 96 1794311820
+# HELP temporal_cloud_v1_action_limit Actions per second the namespace may use.
+# TYPE temporal_cloud_v1_action_limit gauge
+temporal_cloud_v1_action_limit{temporal_namespace="orders-prod.a1b2c",temporal_account="a1b2c",region="aws-us-east-1"} 500 1794311820
+# EOF

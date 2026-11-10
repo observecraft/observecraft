@@ -8873,6 +8873,1224 @@
   {
     "entry": {
       "categories": [
+        "Cloud",
+        "Developer Tools",
+        "Metrics"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "The account part of your namespaces' `<namespace>.<account>.tmprl.cloud` addresses; names the connection.",
+          "key": "account_id",
+          "label": "Account ID",
+          "options": [],
+          "pattern": "[a-z0-9]+",
+          "placeholder": "a1b2c",
+          "required": false,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "Namespaces to read, one per line (wildcards like `prod-*` work). Empty reads every namespace.",
+          "key": "namespaces",
+          "label": "Namespaces",
+          "options": [],
+          "pattern": null,
+          "placeholder": "orders-prod.a1b2c",
+          "required": false,
+          "secret": false,
+          "type": "list"
+        },
+        {
+          "default": null,
+          "help": "A Metrics Read-Only service account's API key.",
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [
+        "Temporal Cloud Overview"
+      ],
+      "description": "The metrics of a Temporal Cloud account's namespaces (requests, errors and latency of the frontend service, workflow and activity outcomes, task queue backlogs, actions, schedules, replication lag and limits), scraped every minute from Temporal Cloud's OpenMetrics endpoint.",
+      "docsUrl": "https://docs.temporal.io/cloud/metrics/openmetrics/api-reference",
+      "id": "temporal-cloud",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Service accounts",
+          "url": "https://cloud.temporal.io/settings/service-accounts"
+        }
+      ],
+      "logo": "temporal-cloud",
+      "monitors": [],
+      "name": "Temporal Cloud",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Temporal Cloud, open **Settings → Service Accounts** and create one, e.g. `observecraft-metrics`, with the\n   account role **Metrics Read-Only**.\n2. Create an **API key** for that service account and copy it (Temporal Cloud shows it once).\n3. Optionally list the namespaces to read (wildcards such as `prod-*` work); empty reads every namespace.\n\nTemporal allows 180 requests an hour per account: this connection uses 60, so another scraper (an OpenTelemetry\nCollector, Grafana) can share the account.\n",
+      "source": "temporal-cloud",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every `temporal_cloud_v1_*` series as a gauge named `temporal.cloud.v1_*` (the `_count` suffix dropped, as Datadog's integration names them), tagged with its labels (temporal_namespace, temporal_account, region, operation, temporal_workflow_type, temporal_task_queue, task_type, …). Rates are per-second averages over the minute, latencies and ages seconds.",
+          "events": false,
+          "id": "metrics",
+          "incremental": "none",
+          "intervalSecs": 60,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "A latency percentile or an age, over the minute.",
+              "name": "{{ vars.name }}",
+              "tags": [],
+              "type": "gauge",
+              "unit": "second"
+            },
+            {
+              "description": "A per-second rate averaged over the minute, or a value (backlog, open workflows, limits).",
+              "name": "{{ vars.name }}",
+              "tags": [],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Metrics"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "temporal-cloud"
+      ],
+      "vendor": "Temporal Technologies",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "account_id": "a1b2c"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "2 namespaces"
+    },
+    "dashboards": [
+      {
+        "id": "temporal-cloud-overview",
+        "title": "Temporal Cloud Overview",
+        "description": "Requests, errors, latency, workflow outcomes, task queue backlogs and limits of a Temporal Cloud account's namespaces.",
+        "kind": "integration",
+        "logo": "temporal-cloud",
+        "teams": [],
+        "layoutType": "grid",
+        "templateVariables": [
+          {
+            "name": "temporal_namespace",
+            "prefix": "temporal_namespace",
+            "default": "*"
+          },
+          {
+            "name": "region",
+            "prefix": "region",
+            "default": "*"
+          }
+        ],
+        "widgets": [
+          {
+            "id": "temporal-cloud-2",
+            "definition": {
+              "type": "group",
+              "title": "",
+              "color": "blue",
+              "compact": false,
+              "widgets": [
+                {
+                  "id": "temporal-cloud-1",
+                  "definition": {
+                    "type": "note",
+                    "content": "**Temporal Cloud** runs Temporal's workflow service as a managed service. This dashboard shows the namespaces of the connected account from Temporal Cloud's OpenMetrics endpoint: frontend requests, errors and latency, workflow outcomes, task queue backlogs and the namespace's limits. Values are per-minute aggregates: rates are per second, latencies in seconds. Connect an account in Integrations → Temporal Cloud.",
+                    "background": "white",
+                    "align": "left",
+                    "fontSize": "sm"
+                  },
+                  "layout": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 4
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "w": 12,
+              "h": 7
+            }
+          },
+          {
+            "id": "temporal-cloud-7",
+            "definition": {
+              "type": "group",
+              "title": "Overview",
+              "color": "blue",
+              "light": true,
+              "compact": false,
+              "widgets": [
+                {
+                  "id": "temporal-cloud-3",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Open workflows",
+                    "original": {
+                      "type": "query_value",
+                      "title": "Open workflows",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "requests": [
+                        {
+                          "response_format": "scalar",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "query1",
+                              "query": "sum:temporal.cloud.v1_namespace_open_workflows{$temporal_namespace,$region}",
+                              "aggregator": "last"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "query1"
+                            }
+                          ]
+                        }
+                      ],
+                      "autoscale": true,
+                      "precision": 2
+                    }
+                  },
+                  "layout": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 3,
+                    "h": 4
+                  }
+                },
+                {
+                  "id": "temporal-cloud-4",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Requests / s",
+                    "original": {
+                      "type": "query_value",
+                      "title": "Requests / s",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "requests": [
+                        {
+                          "response_format": "scalar",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "query1",
+                              "query": "sum:temporal.cloud.v1_service_request{$temporal_namespace,$region}",
+                              "aggregator": "avg"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "query1"
+                            }
+                          ]
+                        }
+                      ],
+                      "autoscale": true,
+                      "precision": 2
+                    }
+                  },
+                  "layout": {
+                    "x": 3,
+                    "y": 0,
+                    "w": 3,
+                    "h": 4
+                  }
+                },
+                {
+                  "id": "temporal-cloud-5",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Errors / s",
+                    "original": {
+                      "type": "query_value",
+                      "title": "Errors / s",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "requests": [
+                        {
+                          "response_format": "scalar",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "query1",
+                              "query": "sum:temporal.cloud.v1_service_error{$temporal_namespace,$region}",
+                              "aggregator": "avg"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "query1"
+                            }
+                          ]
+                        }
+                      ],
+                      "autoscale": true,
+                      "precision": 2
+                    }
+                  },
+                  "layout": {
+                    "x": 6,
+                    "y": 0,
+                    "w": 3,
+                    "h": 4
+                  }
+                },
+                {
+                  "id": "temporal-cloud-6",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Backlog",
+                    "original": {
+                      "type": "query_value",
+                      "title": "Backlog",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "requests": [
+                        {
+                          "response_format": "scalar",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "query1",
+                              "query": "sum:temporal.cloud.v1_approximate_backlog{$temporal_namespace,$region}",
+                              "aggregator": "last"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "query1"
+                            }
+                          ]
+                        }
+                      ],
+                      "autoscale": true,
+                      "precision": 2
+                    }
+                  },
+                  "layout": {
+                    "x": 9,
+                    "y": 0,
+                    "w": 3,
+                    "h": 4
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 7,
+              "w": 12,
+              "h": 7
+            }
+          },
+          {
+            "id": "temporal-cloud-12",
+            "definition": {
+              "type": "group",
+              "title": "Frontend service",
+              "color": "blue",
+              "light": true,
+              "compact": false,
+              "widgets": [
+                {
+                  "id": "temporal-cloud-8",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Requests by operation (per second)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Requests by operation (per second)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "sum:temporal.cloud.v1_service_request{$temporal_namespace,$region} by {operation}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0"
+                            }
+                          ],
+                          "display_type": "line",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-9",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Errors and throttled requests (per second)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Errors and throttled requests (per second)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "sum:temporal.cloud.v1_service_error{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q1",
+                              "query": "sum:temporal.cloud.v1_service_request_throttled{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q2",
+                              "query": "sum:temporal.cloud.v1_resource_exhausted_error{$temporal_namespace,$region}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0",
+                              "alias": "errors"
+                            },
+                            {
+                              "formula": "q1",
+                              "alias": "throttled"
+                            },
+                            {
+                              "formula": "q2",
+                              "alias": "resource exhausted"
+                            }
+                          ],
+                          "display_type": "line",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 6,
+                    "y": 0,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-10",
+                  "definition": {
+                    "type": "integration",
+                    "title": "p99 latency by operation (seconds)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "p99 latency by operation (seconds)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "max:temporal.cloud.v1_service_latency_p99{$temporal_namespace,$region} by {operation}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0"
+                            }
+                          ],
+                          "display_type": "line",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 0,
+                    "y": 6,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-11",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Slowest namespaces (p95, seconds)",
+                    "original": {
+                      "type": "toplist",
+                      "title": "Slowest namespaces (p95, seconds)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "requests": [
+                        {
+                          "response_format": "scalar",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "query1",
+                              "query": "max:temporal.cloud.v1_service_latency_p95{$temporal_namespace,$region} by {temporal_namespace}",
+                              "aggregator": "avg"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "query1",
+                              "limit": {
+                                "count": 10,
+                                "order": "desc"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 6,
+                    "y": 6,
+                    "w": 6,
+                    "h": 6
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 14,
+              "w": 12,
+              "h": 15
+            }
+          },
+          {
+            "id": "temporal-cloud-17",
+            "definition": {
+              "type": "group",
+              "title": "Workflows",
+              "color": "blue",
+              "light": true,
+              "compact": false,
+              "widgets": [
+                {
+                  "id": "temporal-cloud-13",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Workflow outcomes (per second)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Workflow outcomes (per second)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "sum:temporal.cloud.v1_workflow_success{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q1",
+                              "query": "sum:temporal.cloud.v1_workflow_failed{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q2",
+                              "query": "sum:temporal.cloud.v1_workflow_timeout{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q3",
+                              "query": "sum:temporal.cloud.v1_workflow_cancel{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q4",
+                              "query": "sum:temporal.cloud.v1_workflow_terminate{$temporal_namespace,$region}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0",
+                              "alias": "success"
+                            },
+                            {
+                              "formula": "q1",
+                              "alias": "failed"
+                            },
+                            {
+                              "formula": "q2",
+                              "alias": "timed out"
+                            },
+                            {
+                              "formula": "q3",
+                              "alias": "canceled"
+                            },
+                            {
+                              "formula": "q4",
+                              "alias": "terminated"
+                            }
+                          ],
+                          "display_type": "bars",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-14",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Failing workflow types (per second)",
+                    "original": {
+                      "type": "toplist",
+                      "title": "Failing workflow types (per second)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "requests": [
+                        {
+                          "response_format": "scalar",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "query1",
+                              "query": "sum:temporal.cloud.v1_workflow_failed{$temporal_namespace,$region} by {temporal_workflow_type}",
+                              "aggregator": "avg"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "query1",
+                              "limit": {
+                                "count": 10,
+                                "order": "desc"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 6,
+                    "y": 0,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-15",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Open workflows by namespace",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Open workflows by namespace",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "sum:temporal.cloud.v1_namespace_open_workflows{$temporal_namespace,$region} by {temporal_namespace}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0"
+                            }
+                          ],
+                          "display_type": "line",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 0,
+                    "y": 6,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-16",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Schedule-to-close p95 by workflow type (seconds)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Schedule-to-close p95 by workflow type (seconds)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "max:temporal.cloud.v1_workflow_schedule_to_close_latency_p95{$temporal_namespace,$region} by {temporal_workflow_type}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0"
+                            }
+                          ],
+                          "display_type": "line",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 6,
+                    "y": 6,
+                    "w": 6,
+                    "h": 6
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 29,
+              "w": 12,
+              "h": 15
+            }
+          },
+          {
+            "id": "temporal-cloud-22",
+            "definition": {
+              "type": "group",
+              "title": "Task queues",
+              "color": "blue",
+              "light": true,
+              "compact": false,
+              "widgets": [
+                {
+                  "id": "temporal-cloud-18",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Backlog by task queue",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Backlog by task queue",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "sum:temporal.cloud.v1_approximate_backlog{$temporal_namespace,$region} by {temporal_task_queue}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0"
+                            }
+                          ],
+                          "display_type": "line",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-19",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Oldest task's age by task queue (seconds)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Oldest task's age by task queue (seconds)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "max:temporal.cloud.v1_approximate_backlog_age{$temporal_namespace,$region} by {temporal_task_queue}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0"
+                            }
+                          ],
+                          "display_type": "line",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 6,
+                    "y": 0,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-20",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Polls (per second)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Polls (per second)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "sum:temporal.cloud.v1_poll_success{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q1",
+                              "query": "sum:temporal.cloud.v1_poll_success_sync{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q2",
+                              "query": "sum:temporal.cloud.v1_poll_timeout{$temporal_namespace,$region}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0",
+                              "alias": "matched"
+                            },
+                            {
+                              "formula": "q1",
+                              "alias": "matched synchronously"
+                            },
+                            {
+                              "formula": "q2",
+                              "alias": "timed out"
+                            }
+                          ],
+                          "display_type": "line",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 0,
+                    "y": 6,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-21",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Tasks without a poller (per second)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Tasks without a poller (per second)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "sum:temporal.cloud.v1_no_poller_tasks{$temporal_namespace,$region} by {temporal_task_queue}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0"
+                            }
+                          ],
+                          "display_type": "bars",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 6,
+                    "y": 6,
+                    "w": 6,
+                    "h": 6
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 44,
+              "w": 12,
+              "h": 15
+            }
+          },
+          {
+            "id": "temporal-cloud-27",
+            "definition": {
+              "type": "group",
+              "title": "Actions and limits",
+              "color": "blue",
+              "light": true,
+              "compact": false,
+              "widgets": [
+                {
+                  "id": "temporal-cloud-23",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Actions against the limit (per second)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Actions against the limit (per second)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "sum:temporal.cloud.v1_total_action{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q1",
+                              "query": "max:temporal.cloud.v1_action_limit{$temporal_namespace,$region}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0",
+                              "alias": "actions"
+                            },
+                            {
+                              "formula": "q1",
+                              "alias": "limit"
+                            }
+                          ],
+                          "display_type": "line",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-24",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Operations against the limit (per second)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Operations against the limit (per second)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "sum:temporal.cloud.v1_operations{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q1",
+                              "query": "max:temporal.cloud.v1_operations_limit{$temporal_namespace,$region}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0",
+                              "alias": "operations"
+                            },
+                            {
+                              "formula": "q1",
+                              "alias": "limit"
+                            }
+                          ],
+                          "display_type": "line",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 6,
+                    "y": 0,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-25",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Throttled actions and operations (per second)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Throttled actions and operations (per second)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "sum:temporal.cloud.v1_total_action_throttled{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q1",
+                              "query": "sum:temporal.cloud.v1_operations_throttled{$temporal_namespace,$region}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0",
+                              "alias": "actions"
+                            },
+                            {
+                              "formula": "q1",
+                              "alias": "operations"
+                            }
+                          ],
+                          "display_type": "bars",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 0,
+                    "y": 6,
+                    "w": 6,
+                    "h": 6
+                  }
+                },
+                {
+                  "id": "temporal-cloud-26",
+                  "definition": {
+                    "type": "integration",
+                    "title": "Replication lag (seconds)",
+                    "original": {
+                      "type": "timeseries",
+                      "title": "Replication lag (seconds)",
+                      "title_size": "16",
+                      "title_align": "left",
+                      "show_legend": true,
+                      "legend_layout": "auto",
+                      "requests": [
+                        {
+                          "response_format": "timeseries",
+                          "queries": [
+                            {
+                              "data_source": "metrics",
+                              "name": "q0",
+                              "query": "max:temporal.cloud.v1_replication_lag_p50{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q1",
+                              "query": "max:temporal.cloud.v1_replication_lag_p95{$temporal_namespace,$region}"
+                            },
+                            {
+                              "data_source": "metrics",
+                              "name": "q2",
+                              "query": "max:temporal.cloud.v1_replication_lag_p99{$temporal_namespace,$region}"
+                            }
+                          ],
+                          "formulas": [
+                            {
+                              "formula": "q0",
+                              "alias": "p50"
+                            },
+                            {
+                              "formula": "q1",
+                              "alias": "p95"
+                            },
+                            {
+                              "formula": "q2",
+                              "alias": "p99"
+                            }
+                          ],
+                          "display_type": "line",
+                          "style": {
+                            "palette": "dog_classic"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "layout": {
+                    "x": 6,
+                    "y": 6,
+                    "w": 6,
+                    "h": 6
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 59,
+              "w": 12,
+              "h": 15
+            }
+          }
+        ],
+        "source": {
+          "repository": "connector:temporal-cloud",
+          "path": "assets/dashboards/overview.json",
+          "license": "MIT"
+        }
+      }
+    ]
+  },
+  {
+    "entry": {
+      "categories": [
         "Log Collection",
         "SIEM",
         "Security",
