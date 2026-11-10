@@ -1,0 +1,36 @@
+{
+  "events": [
+    {
+      "id": 34568,
+      "event_action": "login",
+      "event_object": "user",
+      "event_data": { "user": "analyst@example.com", "device_name": "Firefox 140, macOS", "country": "Romania", "city": "Bucharest" },
+      "message": "Successful login",
+      "username": "analyst@example.com",
+      "user_id": "2041",
+      "user_role": "Security Analyst",
+      "user_type": "JWT",
+      "result_status": "success",
+      "source_ip": "198.51.100.23",
+      "version": "202611.1.0",
+      "event_timestamp": 1794304500000
+    },
+    {
+      "id": 34569,
+      "event_action": "update",
+      "event_object": "detection",
+      "event_data": { "detection_id": 36224, "field": "assigned_to", "value": "analyst@example.com" },
+      "message": "Failed to assign detection 36224",
+      "username": "automation@example.com",
+      "user_id": "2077",
+      "user_role": "Auditor",
+      "user_type": "API Client",
+      "result_status": "failure",
+      "source_ip": "198.51.100.40",
+      "version": "202611.1.0",
+      "event_timestamp": 1794305100000
+    }
+  ],
+  "next_checkpoint": 34569,
+  "remaining_count": 0
+}

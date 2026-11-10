@@ -1,0 +1,120 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bb-2ee0-7de8-8c18-f6412afd3dbb"
+      },
+      "assigned_to": "analyst@example.com",
+      "certainty": 60,
+      "created_timestamp": "2026-11-10T08:40:02Z",
+      "data_source": {
+        "connection_id": "x7k2m9pq",
+        "connection_name": "Sensor eu-west-1",
+        "type": "network"
+      },
+      "date": "2026-11-10T09:12:44Z",
+      "ddsource": "vectra",
+      "detection": "Hidden HTTPS Tunnel",
+      "detection_category": "command_and_control",
+      "detection_type": "Hidden HTTPS Tunnel",
+      "detection_url": "https://example.portal.vectra.ai/api/v3.4/detections/36224",
+      "filtered_by_ai": false,
+      "filtered_by_rule": false,
+      "filtered_by_user": false,
+      "first_timestamp": "2026-11-10T08:31:10Z",
+      "host": "example.portal.vectra.ai",
+      "id": 36224,
+      "is_custom_model": false,
+      "is_marked_custom": false,
+      "is_targeting_key_asset": false,
+      "is_triaged": false,
+      "last_timestamp": 1794301964000,
+      "message": "This host kept a long HTTPS session to an external server that looks like a tunnel for remote control.",
+      "sensor": "x7k2m9pq",
+      "sensor_name": "Sensor eu-west-1",
+      "service": "vectra",
+      "src_host": {
+        "certainty": 64,
+        "id": 1083,
+        "ip": "10.0.12.34",
+        "name": "i-0a1b2c3d4e5f60003",
+        "threat": 72
+      },
+      "src_ip": "10.0.12.34",
+      "state": "active",
+      "status": "critical",
+      "summary": {
+        "description": "This host kept a long HTTPS session to an external server that looks like a tunnel for remote control."
+      },
+      "threat": 70,
+      "type": "host",
+      "url": "https://example.portal.vectra.ai/api/v3.4/detections/36224",
+      "vendor": {
+        "endpoint": "detections"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e9-3808-7dce-aae5-0035c5c7dead"
+      },
+      "assigned_to": null,
+      "certainty": 50,
+      "created_timestamp": "2026-11-10T10:03:01Z",
+      "data_source": {
+        "connection_id": "s9z9x5sj",
+        "connection_name": "M365-Example",
+        "type": "o365"
+      },
+      "date": "2026-11-10T10:03:01Z",
+      "ddsource": "vectra",
+      "detection": "M365 Suspicious Mail Forwarding",
+      "detection_category": "exfiltration",
+      "detection_type": "M365 Suspicious Mail Forwarding",
+      "detection_url": "https://example.portal.vectra.ai/api/v3.4/detections/36230",
+      "filtered_by_ai": false,
+      "filtered_by_rule": false,
+      "filtered_by_user": false,
+      "first_timestamp": "2026-11-10T10:02:30Z",
+      "host": "example.portal.vectra.ai",
+      "id": 36230,
+      "is_custom_model": false,
+      "is_marked_custom": false,
+      "is_targeting_key_asset": false,
+      "is_triaged": false,
+      "last_timestamp": 1794304981000,
+      "message": "This account created an inbox rule forwarding mail to an external address.",
+      "sensor": "s9z9x5sj",
+      "sensor_name": "M365-Example",
+      "service": "vectra",
+      "src_account": {
+        "certainty": 55,
+        "id": 1090,
+        "name": "O365:jane.doe@example.com",
+        "threat": 40,
+        "url": "https://example.portal.vectra.ai/api/v3.4/accounts/1090"
+      },
+      "src_ip": "198.51.100.77",
+      "state": "active",
+      "status": "notice",
+      "summary": {
+        "description": "This account created an inbox rule forwarding mail to an external address."
+      },
+      "threat": 35,
+      "type": "account",
+      "url": "https://example.portal.vectra.ai/api/v3.4/detections/36230",
+      "vendor": {
+        "endpoint": "detections"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}
