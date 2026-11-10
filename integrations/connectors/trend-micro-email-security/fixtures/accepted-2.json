@@ -1,0 +1,26 @@
+{
+  "logs": [
+    {
+      "timestamp": "2026-11-10T09:12:40Z",
+      "genTime": "2026-11-10T09:12:38Z",
+      "deliveryTime": "2026-11-10T09:12:42Z",
+      "type": "accepted_traffic",
+      "direction": "out",
+      "sender": "billing@example.com",
+      "headerFrom": "billing@example.com",
+      "recipient": "accounts@customer.example.org",
+      "headerTo": ["accounts@customer.example.org"],
+      "subject": "Your receipt",
+      "senderIP": "10.0.30.8",
+      "deliveredTo": "198.51.100.25",
+      "mailID": "73173f80-2e0e-46df-b2dc-a62e80160002",
+      "messageID": "<receipt-88123@example.com>",
+      "size": 18233,
+      "action": "Delivered",
+      "details": "250 2.0.0 OK",
+      "tlsInfo": "upstreamTLS: TLS 1.3; downstreamTLS: TLS 1.3",
+      "attachments": [],
+      "embeddedUrls": ["https://shop.example.com/orders/88123"]
+    }
+  ]
+}

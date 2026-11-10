@@ -1,0 +1,154 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Trend Micro Email Security (https://docs.trendmicro.com/en-us/documentation/article/trend-micro-email-security-rest-api-online-help-getting-started-with):
+# the mail tracking and policy event logs of its log retrieval API, as the logs Datadog's integration sends
+# (source:trend-micro-email-security, the record as it is with vendor.endpoint = mail-tracking or policy-events, and
+# mail tracking tagged traffic_type). integrations-core's pipeline and the tile's two dashboards read them as they
+# are, so this package ships neither.
+schema_version: 1
+id: trend-micro-email-security
+name: Trend Micro Email Security
+publisher: ObserveCraft
+vendor: Trend Micro
+description: >-
+  The accepted and blocked mail traffic (sender, recipients, action, TLS, attachments, URLs) and the policy events
+  (spam, malware, phishing, DLP and other policy hits) of Trend Micro Email Security as logs, read every 5 minutes from
+  its log retrieval API.
+tiles: [trend-micro-email-security]
+categories: [Log Collection, Security, SIEM]
+source: trend-micro-email-security
+docs_url: https://docs.trendmicro.com/en-us/documentation/article/trend-micro-email-security-rest-api-online-help-getting-started-with
+setup: |
+  1. In the Trend Micro Email Security console, open **Administration → Service Integration → API Access** and
+     **Add** an API key (or copy an existing one).
+  2. On the **Log Retrieval** tab of the same page, enable log retrieval and select the **Mail tracking** and
+     **Policy events** log types.
+  3. Enter the console's login ID as the user name, the API key, and the region your account is hosted in.
+instance: "{{ config.region }}"
+
+config:
+  - key: region
+    label: Region
+    type: select
+    required: true
+    default: api.tmes.trendmicro.com
+    options:
+      - { value: api.tmes.trendmicro.com, label: "North America, Latin America and Asia Pacific" }
+      - { value: api.tmes.trendmicro.eu, label: Europe and Africa }
+      - { value: api.tmes-anz.trendmicro.com, label: Australia and New Zealand }
+      - { value: api.tmems-jp.trendmicro.com, label: Japan }
+      - { value: api.tmes-sg.trendmicro.com, label: Singapore }
+      - { value: api.tmes-in.trendmicro.com, label: India }
+      - { value: api.tmes-uae.trendmicro.com, label: Middle East (UAE) }
+      - { value: api.tmes-uk.trendmicro.com, label: United Kingdom }
+      - { value: api.tmes-ca.trendmicro.com, label: Canada }
+  - key: username
+    label: Login ID
+    type: string
+    required: true
+    help: The administrator login ID the API key belongs to.
+  - key: api_key
+    label: API key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: basic
+  username: "{{ config.username }}"
+  password: "{{ secrets.api_key }}"
+
+# Trend Micro publishes no rate; a request every few seconds keeps well under its throttling.
+rate_limit: { min_interval: 2s }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Trend Micro Email Security refused the login ID and API key
+  - status: [403]
+    kind: access_denied
+    message: Log retrieval isn't enabled for this API key (Administration → Service Integration → Log Retrieval)
+
+streams:
+  - id: mail_tracking
+    name: Mail tracking
+    description: >-
+      Every accepted and blocked message (vendor.endpoint:mail-tracking, tag traffic_type): sender, recipient,
+      headerFrom / headerTo, subject, action, senderIP, deliveredTo, tlsInfo, attachments, embeddedUrls.
+    interval: 5m
+    for_each: "{{ ['accepted_traffic', 'blocked_traffic'] }}"
+    request:
+      url: "https://{{ config.region }}/api/v1/log/mailtrackinglog"
+      query:
+        type: "{{ item }}"
+        start: "{{ window.start | rfc3339_s }}"
+        end: "{{ window.end | rfc3339_s }}"
+        limit: 500
+        token: "{{ page.cursor }}"
+    records: "{{ response.logs }}"
+    pagination: { kind: cursor, next: "{{ response.nextToken }}" }
+    record_id: "{{ item + ':' + record.mailID + ':' + (record.recipient ?? '') }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.timestamp ?? record.genTime }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+      settle: 5m
+      # The API reads at most 72 hours back.
+      max_window: 72h
+    output:
+      logs:
+        service: mail-tracking
+        message: "{{ record | json }}"
+        date: "{{ record.genTime }}"
+        tags: { traffic_type: "{{ item }}" }
+        attributes: "{{ record + {vendor: {endpoint: 'mail-tracking'}} }}"
+
+  - id: policy_events
+    name: Policy events
+    description: >-
+      Every policy hit (vendor.endpoint:policy-events): eventType and eventSubtype (spam, virus, suspicious objects,
+      DLP, …), policyName, policyAction, sender, recipients, domainName, details.
+    interval: 5m
+    request:
+      url: "https://{{ config.region }}/api/v1/log/policyeventlog"
+      query:
+        start: "{{ window.start | rfc3339_s }}"
+        end: "{{ window.end | rfc3339_s }}"
+        limit: 500
+        token: "{{ page.cursor }}"
+    records: "{{ response.logs }}"
+    pagination: { kind: cursor, next: "{{ response.nextToken }}" }
+    record_id: "{{ record.messageID + ':' + record.policyName + ':' + record.genTime + ':' + ((record.recipients ?? []) | join(',')) }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.timestamp ?? record.genTime }}"
+      order: unordered
+      lookback: 1d
+      overlap: 5m
+      settle: 5m
+      max_window: 72h
+    output:
+      logs:
+        service: policy-events
+        message: "{{ record | json }}"
+        date: "{{ record.genTime }}"
+        attributes: "{{ record + {vendor: {endpoint: 'policy-events'}} }}"
+
+test:
+  stream: policy_events
+  message: "Connected: {{ records | len }} policy events in the last day"
+
+mock:
+  config: { region: api.tmes.trendmicro.com, username: secops-admin }
+  secrets: { api_key: tmes-test-key-0000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.tmes.trendmicro.com/api/v1/log/mailtrackinglog", query: { type: accepted_traffic, token: p2 }, file: fixtures/accepted-2.json }
+    - { url: "https://api.tmes.trendmicro.com/api/v1/log/mailtrackinglog", query: { type: accepted_traffic }, file: fixtures/accepted-1.json }
+    - { url: "https://api.tmes.trendmicro.com/api/v1/log/mailtrackinglog", query: { type: blocked_traffic }, file: fixtures/blocked.json }
+    - { url: "https://api.tmes.trendmicro.com/api/v1/log/policyeventlog", file: fixtures/policy-events.json }
+  expect:
+    mail_tracking: { records: 4, logs: 4, rerun: 0, golden: fixtures/mail_tracking.expected.json }
+    policy_events: { records: 2, logs: 2, rerun: 0, golden: fixtures/policy_events.expected.json }
+    test: { ok: true, message: "2 policy events" }

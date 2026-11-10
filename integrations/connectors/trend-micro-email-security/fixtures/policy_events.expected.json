@@ -1,0 +1,83 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c510-8a71-7f1f-82fe-178c0974d71b"
+      },
+      "date": "2026-11-10T10:45:58.001Z",
+      "ddsource": "trend-micro-email-security",
+      "details": "{\"urlInfo\":[{\"url\":\"https://login.examp1e.example.net/reset\",\"extractType\":\"body\"}]}",
+      "direction": "in",
+      "domainName": "example.com",
+      "eventSubtype": "Phishing",
+      "eventType": "Spam",
+      "genTime": "2026-11-10T10:45:58.001Z",
+      "headerFrom": "it-support@examp1e.example.net",
+      "headerTo": [
+        "john.smith@example.com"
+      ],
+      "host": "api.tmes.trendmicro.com",
+      "message": "{\"details\":\"{\\\"urlInfo\\\":[{\\\"url\\\":\\\"https://login.examp1e.example.net/reset\\\",\\\"extractType\\\":\\\"body\\\"}]}\",\"direction\":\"in\",\"domainName\":\"example.com\",\"eventSubtype\":\"Phishing\",\"eventType\":\"Spam\",\"genTime\":\"2026-11-10T10:45:58.001Z\",\"headerFrom\":\"it-support@examp1e.example.net\",\"headerTo\":[\"john.smith@example.com\"],\"messageID\":\"<p4ss@examp1e.example.net>\",\"policyAction\":\"Quarantine\",\"policyName\":\"Inbound Phishing: example.com: Spam\",\"recipients\":[\"john.smith@example.com\"],\"sender\":\"it-support@examp1e.example.net\",\"size\":9022,\"subject\":\"Password expiry\",\"timestamp\":\"2026-11-10T10:45:59.120Z\"}",
+      "messageID": "<p4ss@examp1e.example.net>",
+      "policyAction": "Quarantine",
+      "policyName": "Inbound Phishing: example.com: Spam",
+      "recipients": [
+        "john.smith@example.com"
+      ],
+      "sender": "it-support@examp1e.example.net",
+      "service": "policy-events",
+      "size": 9022,
+      "status": "info",
+      "subject": "Password expiry",
+      "timestamp": "2026-11-10T10:45:59.120Z",
+      "vendor": {
+        "endpoint": "policy-events"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c51f-6e78-72ba-9563-4aab21722f72"
+      },
+      "date": "2026-11-10T11:02:13.880Z",
+      "ddsource": "trend-micro-email-security",
+      "details": "{\"dlpTemplates\":[\"PCI-DSS\"]}",
+      "direction": "out",
+      "domainName": "example.com",
+      "eventSubtype": "Credit card numbers",
+      "eventType": "Data Loss Prevention",
+      "genTime": "2026-11-10T11:02:13.880Z",
+      "headerFrom": "analyst@example.com",
+      "headerTo": [
+        "someone@partner.example.org"
+      ],
+      "host": "api.tmes.trendmicro.com",
+      "message": "{\"details\":\"{\\\"dlpTemplates\\\":[\\\"PCI-DSS\\\"]}\",\"direction\":\"out\",\"domainName\":\"example.com\",\"eventSubtype\":\"Credit card numbers\",\"eventType\":\"Data Loss Prevention\",\"genTime\":\"2026-11-10T11:02:13.880Z\",\"headerFrom\":\"analyst@example.com\",\"headerTo\":[\"someone@partner.example.org\"],\"messageID\":\"<export-77@example.com>\",\"policyAction\":\"Bypass\",\"policyName\":\"Outbound DLP: example.com: PCI\",\"recipients\":[\"someone@partner.example.org\",\"other@partner.example.org\"],\"sender\":\"analyst@example.com\",\"size\":512000,\"subject\":\"Customer export\",\"timestamp\":\"2026-11-10T11:02:14.402Z\"}",
+      "messageID": "<export-77@example.com>",
+      "policyAction": "Bypass",
+      "policyName": "Outbound DLP: example.com: PCI",
+      "recipients": [
+        "someone@partner.example.org",
+        "other@partner.example.org"
+      ],
+      "sender": "analyst@example.com",
+      "service": "policy-events",
+      "size": 512000,
+      "status": "info",
+      "subject": "Customer export",
+      "timestamp": "2026-11-10T11:02:14.402Z",
+      "vendor": {
+        "endpoint": "policy-events"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311700000
+      }
+    }
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b0-74c8-729e-800c-f63966b66b0e"
+      },
+      "action": "Delivered",
+      "attachments": [
+        {
+          "fileName": "invoice-2026-1142.pdf",
+          "sha256": "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0"
+        }
+      ],
+      "date": "2026-11-10T09:01:01Z",
+      "ddsource": "trend-micro-email-security",
+      "ddtags": "traffic_type:accepted_traffic",
+      "deliveredTo": "10.0.30.5",
+      "deliveryTime": "2026-11-10T09:01:05Z",
+      "details": "250 2.0.0 Ok: queued as 3CBEFC0811",
+      "direction": "in",
+      "embeddedUrls": [],
+      "genTime": "2026-11-10T09:01:01Z",
+      "headerFrom": "orders@supplier.example.net",
+      "headerTo": [
+        "purchasing@example.com"
+      ],
+      "host": "api.tmes.trendmicro.com",
+      "mailID": "73173f80-2e0e-46df-b2dc-a62e80160001",
+      "message": "{\"action\":\"Delivered\",\"attachments\":[{\"fileName\":\"invoice-2026-1142.pdf\",\"sha256\":\"0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\"}],\"deliveredTo\":\"10.0.30.5\",\"deliveryTime\":\"2026-11-10T09:01:05Z\",\"details\":\"250 2.0.0 Ok: queued as 3CBEFC0811\",\"direction\":\"in\",\"embeddedUrls\":[],\"genTime\":\"2026-11-10T09:01:01Z\",\"headerFrom\":\"orders@supplier.example.net\",\"headerTo\":[\"purchasing@example.com\"],\"mailID\":\"73173f80-2e0e-46df-b2dc-a62e80160001\",\"messageID\":\"<a1b2c3d4@mail.supplier.example.net>\",\"recipient\":\"purchasing@example.com\",\"sender\":\"orders@supplier.example.net\",\"senderIP\":\"203.0.113.10\",\"size\":66390,\"subject\":\"Invoice 2026-1142\",\"timestamp\":\"2026-11-10T09:01:02Z\",\"tlsInfo\":\"upstreamTLS: TLS 1.2; downstreamTLS: TLS 1.2\",\"type\":\"accepted_traffic\"}",
+      "messageID": "<a1b2c3d4@mail.supplier.example.net>",
+      "recipient": "purchasing@example.com",
+      "sender": "orders@supplier.example.net",
+      "senderIP": "203.0.113.10",
+      "service": "mail-tracking",
+      "size": 66390,
+      "status": "info",
+      "subject": "Invoice 2026-1142",
+      "timestamp": "2026-11-10T09:01:02Z",
+      "tlsInfo": "upstreamTLS: TLS 1.2; downstreamTLS: TLS 1.2",
+      "type": "accepted_traffic",
+      "vendor": {
+        "endpoint": "mail-tracking"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bb-1770-7a4c-b702-bacbc290e624"
+      },
+      "action": "Delivered",
+      "attachments": [],
+      "date": "2026-11-10T09:12:38Z",
+      "ddsource": "trend-micro-email-security",
+      "ddtags": "traffic_type:accepted_traffic",
+      "deliveredTo": "198.51.100.25",
+      "deliveryTime": "2026-11-10T09:12:42Z",
+      "details": "250 2.0.0 OK",
+      "direction": "out",
+      "embeddedUrls": [
+        "https://shop.example.com/orders/88123"
+      ],
+      "genTime": "2026-11-10T09:12:38Z",
+      "headerFrom": "billing@example.com",
+      "headerTo": [
+        "accounts@customer.example.org"
+      ],
+      "host": "api.tmes.trendmicro.com",
+      "mailID": "73173f80-2e0e-46df-b2dc-a62e80160002",
+      "message": "{\"action\":\"Delivered\",\"attachments\":[],\"deliveredTo\":\"198.51.100.25\",\"deliveryTime\":\"2026-11-10T09:12:42Z\",\"details\":\"250 2.0.0 OK\",\"direction\":\"out\",\"embeddedUrls\":[\"https://shop.example.com/orders/88123\"],\"genTime\":\"2026-11-10T09:12:38Z\",\"headerFrom\":\"billing@example.com\",\"headerTo\":[\"accounts@customer.example.org\"],\"mailID\":\"73173f80-2e0e-46df-b2dc-a62e80160002\",\"messageID\":\"<receipt-88123@example.com>\",\"recipient\":\"accounts@customer.example.org\",\"sender\":\"billing@example.com\",\"senderIP\":\"10.0.30.8\",\"size\":18233,\"subject\":\"Your receipt\",\"timestamp\":\"2026-11-10T09:12:40Z\",\"tlsInfo\":\"upstreamTLS: TLS 1.3; downstreamTLS: TLS 1.3\",\"type\":\"accepted_traffic\"}",
+      "messageID": "<receipt-88123@example.com>",
+      "recipient": "accounts@customer.example.org",
+      "sender": "billing@example.com",
+      "senderIP": "10.0.30.8",
+      "service": "mail-tracking",
+      "size": 18233,
+      "status": "info",
+      "subject": "Your receipt",
+      "timestamp": "2026-11-10T09:12:40Z",
+      "tlsInfo": "upstreamTLS: TLS 1.3; downstreamTLS: TLS 1.3",
+      "type": "accepted_traffic",
+      "vendor": {
+        "endpoint": "mail-tracking"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f8-eb90-7e03-85ed-216b4962fba7"
+      },
+      "action": "Blocked",
+      "date": "2026-11-10T10:20:10Z",
+      "ddsource": "trend-micro-email-security",
+      "ddtags": "traffic_type:blocked_traffic",
+      "details": "550 5.7.1 Service unavailable",
+      "direction": "in",
+      "genTime": "2026-11-10T10:20:10Z",
+      "host": "api.tmes.trendmicro.com",
+      "mailID": "73173f80-2e0e-46df-b2dc-a62e80160003",
+      "message": "{\"action\":\"Blocked\",\"details\":\"550 5.7.1 Service unavailable\",\"direction\":\"in\",\"genTime\":\"2026-11-10T10:20:10Z\",\"mailID\":\"73173f80-2e0e-46df-b2dc-a62e80160003\",\"messageID\":\"<x9y8z7@bulk.example.net>\",\"reason\":\"Sender IP address is on the Email Reputation Services list\",\"recipient\":\"jane.doe@example.com\",\"sender\":\"promo@bulk.example.net\",\"senderIP\":\"192.0.2.77\",\"size\":4210,\"subject\":\"You won\",\"timestamp\":\"2026-11-10T10:20:11Z\",\"type\":\"blocked_traffic\"}",
+      "messageID": "<x9y8z7@bulk.example.net>",
+      "reason": "Sender IP address is on the Email Reputation Services list",
+      "recipient": "jane.doe@example.com",
+      "sender": "promo@bulk.example.net",
+      "senderIP": "192.0.2.77",
+      "service": "mail-tracking",
+      "size": 4210,
+      "status": "info",
+      "subject": "You won",
+      "timestamp": "2026-11-10T10:20:11Z",
+      "type": "blocked_traffic",
+      "vendor": {
+        "endpoint": "mail-tracking"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c510-8a70-78a2-8613-655206ef699a"
+      },
+      "action": "Quarantined",
+      "date": "2026-11-10T10:45:58Z",
+      "ddsource": "trend-micro-email-security",
+      "ddtags": "traffic_type:blocked_traffic",
+      "details": "Quarantined by policy Inbound Phishing",
+      "direction": "in",
+      "genTime": "2026-11-10T10:45:58Z",
+      "host": "api.tmes.trendmicro.com",
+      "mailID": "73173f80-2e0e-46df-b2dc-a62e80160004",
+      "message": "{\"action\":\"Quarantined\",\"details\":\"Quarantined by policy Inbound Phishing\",\"direction\":\"in\",\"genTime\":\"2026-11-10T10:45:58Z\",\"mailID\":\"73173f80-2e0e-46df-b2dc-a62e80160004\",\"messageID\":\"<p4ss@examp1e.example.net>\",\"reason\":\"Phishing\",\"recipient\":\"john.smith@example.com\",\"sender\":\"it-support@examp1e.example.net\",\"senderIP\":\"192.0.2.91\",\"size\":9022,\"subject\":\"Password expiry\",\"timestamp\":\"2026-11-10T10:45:59Z\",\"type\":\"blocked_traffic\"}",
+      "messageID": "<p4ss@examp1e.example.net>",
+      "reason": "Phishing",
+      "recipient": "john.smith@example.com",
+      "sender": "it-support@examp1e.example.net",
+      "senderIP": "192.0.2.91",
+      "service": "mail-tracking",
+      "size": 9022,
+      "status": "info",
+      "subject": "Password expiry",
+      "timestamp": "2026-11-10T10:45:59Z",
+      "type": "blocked_traffic",
+      "vendor": {
+        "endpoint": "mail-tracking"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "accepted_traffic": {
+        "cursor": 1794311700000
+      },
+      "blocked_traffic": {
+        "cursor": 1794311700000
+      }
+    }
+  }
+}

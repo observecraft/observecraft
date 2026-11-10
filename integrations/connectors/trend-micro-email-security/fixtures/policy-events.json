@@ -1,0 +1,40 @@
+{
+  "logs": [
+    {
+      "timestamp": "2026-11-10T10:45:59.120Z",
+      "genTime": "2026-11-10T10:45:58.001Z",
+      "direction": "in",
+      "domainName": "example.com",
+      "messageID": "<p4ss@examp1e.example.net>",
+      "sender": "it-support@examp1e.example.net",
+      "headerFrom": "it-support@examp1e.example.net",
+      "recipients": ["john.smith@example.com"],
+      "headerTo": ["john.smith@example.com"],
+      "subject": "Password expiry",
+      "size": 9022,
+      "eventType": "Spam",
+      "eventSubtype": "Phishing",
+      "policyName": "Inbound Phishing: example.com: Spam",
+      "policyAction": "Quarantine",
+      "details": "{\"urlInfo\":[{\"url\":\"https://login.examp1e.example.net/reset\",\"extractType\":\"body\"}]}"
+    },
+    {
+      "timestamp": "2026-11-10T11:02:14.402Z",
+      "genTime": "2026-11-10T11:02:13.880Z",
+      "direction": "out",
+      "domainName": "example.com",
+      "messageID": "<export-77@example.com>",
+      "sender": "analyst@example.com",
+      "headerFrom": "analyst@example.com",
+      "recipients": ["someone@partner.example.org", "other@partner.example.org"],
+      "headerTo": ["someone@partner.example.org"],
+      "subject": "Customer export",
+      "size": 512000,
+      "eventType": "Data Loss Prevention",
+      "eventSubtype": "Credit card numbers",
+      "policyName": "Outbound DLP: example.com: PCI",
+      "policyAction": "Bypass",
+      "details": "{\"dlpTemplates\":[\"PCI-DSS\"]}"
+    }
+  ]
+}
