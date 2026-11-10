@@ -2,6 +2,1388 @@
   {
     "entry": {
       "categories": [
+        "AI/ML",
+        "Log Collection",
+        "SIEM",
+        "Security"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "Shown as the logs' host; any name.",
+          "key": "organization",
+          "label": "Name for this organization",
+          "options": [],
+          "pattern": null,
+          "placeholder": "example-org",
+          "required": false,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": "sk-ant-…",
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The compliance activity log of a Claude Enterprise organization (sign-ins, chats, projects and artifacts created, shared or deleted, members, API keys, settings), one log per activity, read from Anthropic's Compliance API.",
+      "docsUrl": "https://platform.claude.com/docs/en/api/compliance",
+      "id": "anthropic-compliance-logs",
+      "kind": "package",
+      "links": [],
+      "logo": "anthropic-compliance-logs",
+      "monitors": [],
+      "name": "Claude Compliance",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. The Compliance API needs a Claude Enterprise plan with the Compliance API enabled for the organization.\n2. Create a key that can read compliance activities (`read:compliance_activities`): a Compliance Access key, or an\n   Admin API key with that scope; copy it.\n3. Each read is itself recorded as a compliance activity, so the log is read every five minutes.\n",
+      "source": "claude-compliance-logs",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every compliance activity as a log (source:claude-compliance-logs) with Anthropic's fields as they are; the tile's pipeline names the event (evt.name = type) and maps actor.email_address, user_id and ip_address to usr.* and network.client.ip.",
+          "events": false,
+          "id": "activities",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Compliance activities"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "anthropic-compliance-logs"
+      ],
+      "vendor": "Anthropic",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "organization": "example-org"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "compliance activity log is readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "AI/ML",
+        "Metrics",
+        "Cost Management"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "Names the connection; the organization's own name is read from Anthropic for the org_name tag.",
+          "key": "organization",
+          "label": "Name for this organization",
+          "options": [],
+          "pattern": null,
+          "placeholder": "example-org",
+          "required": false,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "admin_key",
+          "label": "Admin API key",
+          "options": [],
+          "pattern": "sk-ant-admin01-.+",
+          "placeholder": "sk-ant-admin01-…",
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Token usage of a Claude Console organization per hour (input, output, cache reads and writes, web searches) by model, workspace, API key and service tier as metrics, and its daily costs in Cloud Cost Management, read from Anthropic's Admin API.",
+      "docsUrl": "https://platform.claude.com/docs/en/manage-claude/usage-cost-api",
+      "id": "anthropic-usage-and-costs",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Admin keys",
+          "url": "https://platform.claude.com/settings/admin-keys"
+        }
+      ],
+      "logo": "anthropic-usage-and-costs",
+      "monitors": [],
+      "name": "Anthropic Usage and Costs",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Claude Console, open **Settings → Admin keys** (an organization admin can) and **Create admin key**,\n   e.g. `observecraft-usage`; copy it (`sk-ant-admin01-…`).\n2. Usage appears within minutes; costs settle within a day or two, so the last three days are read again every\n   run.\n",
+      "source": "anthropic-usage-and-costs",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Hourly token usage as gauges at the bucket's start (anthropic.messages.input_tokens, output_tokens, cache_read_input_tokens, cache_creation.ephemeral_5m_input_tokens / _1h_input_tokens, server_tool_use.web_search_requests), tagged model, workspace_id, workspace_name, api_key_id, api_key_name, service_tier, context_window, org_name. A bucket is read once it has been closed for 15 minutes.",
+          "events": false,
+          "id": "usage",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "Uncached input tokens in the hour.",
+              "name": "anthropic.messages.input_tokens",
+              "tags": [
+                "api_key_id",
+                "api_key_name",
+                "context_window",
+                "model",
+                "org_id",
+                "org_name",
+                "service_tier",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": "token"
+            },
+            {
+              "description": "Output tokens in the hour.",
+              "name": "anthropic.messages.output_tokens",
+              "tags": [
+                "api_key_id",
+                "api_key_name",
+                "context_window",
+                "model",
+                "org_id",
+                "org_name",
+                "service_tier",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": "token"
+            },
+            {
+              "description": "Input tokens read from the prompt cache in the hour.",
+              "name": "anthropic.messages.cache_read_input_tokens",
+              "tags": [
+                "api_key_id",
+                "api_key_name",
+                "context_window",
+                "model",
+                "org_id",
+                "org_name",
+                "service_tier",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": "token"
+            },
+            {
+              "description": "Input tokens written to the 5-minute prompt cache in the hour.",
+              "name": "anthropic.messages.cache_creation.ephemeral_5m_input_tokens",
+              "tags": [
+                "api_key_id",
+                "api_key_name",
+                "context_window",
+                "model",
+                "org_id",
+                "org_name",
+                "service_tier",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": "token"
+            },
+            {
+              "description": "Input tokens written to the 1-hour prompt cache in the hour.",
+              "name": "anthropic.messages.cache_creation.ephemeral_1h_input_tokens",
+              "tags": [
+                "api_key_id",
+                "api_key_name",
+                "context_window",
+                "model",
+                "org_id",
+                "org_name",
+                "service_tier",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": "token"
+            },
+            {
+              "description": "Web searches run by the server tool in the hour.",
+              "name": "anthropic.messages.server_tool_use.web_search_requests",
+              "tags": [
+                "api_key_id",
+                "api_key_name",
+                "context_window",
+                "model",
+                "org_id",
+                "org_name",
+                "service_tier",
+                "workspace_id",
+                "workspace_name"
+              ],
+              "type": "gauge",
+              "unit": "request"
+            }
+          ],
+          "name": "Token usage"
+        },
+        {
+          "costs": true,
+          "defaultEnabled": true,
+          "description": "Daily costs in USD by workspace and line (model and token type, web search, code execution) as Cloud Cost rows (provider anthropic, service the model or cost type, tags model, model_name, token_type, cost_type, service_tier, context_window, workspace_name, org_name). The last three days are read again every run and replace their rows. Priority Tier costs aren't in Anthropic's cost report.",
+          "events": false,
+          "id": "costs",
+          "incremental": "none",
+          "intervalSecs": 3600,
+          "logs": false,
+          "metrics": [],
+          "name": "Costs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "anthropic-usage-and-costs"
+      ],
+      "vendor": "Anthropic",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {},
+      "secrets": [
+        "admin_key"
+      ],
+      "test": "Connected to the Example Org organization"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "workspace_id",
+          "label": "Workspace (domain) id",
+          "options": [],
+          "pattern": "[0-9]+",
+          "placeholder": "1208000000000000",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "token",
+          "label": "Service account token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The audit log of an Asana organization or workspace (logins, app authorizations, permission and privacy changes, exports, deletions), one log per event, read every few minutes from Asana's Audit Log API.",
+      "docsUrl": "https://developers.asana.com/docs/audit-log-api",
+      "id": "asana",
+      "kind": "package",
+      "links": [],
+      "logo": "asana",
+      "monitors": [],
+      "name": "Asana",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. The Audit Log API needs an Enterprise or Enterprise+ plan.\n2. In the Admin Console, open **Apps → Service accounts** and add one; copy its token (Asana shows it once). Give it\n   the **Audit logs** scope when scopes are offered.\n3. The workspace (domain) id is in the Admin Console's **Settings**, or in any project URL's first number.\n",
+      "source": "asana",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every audit log event as a log (source:asana) with Asana's fields as they are; the tile's pipeline maps actor.* to usr.*, context.client_ip_address to network.client.ip and context.user_agent to http.useragent.",
+          "events": false,
+          "id": "audit_log_events",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit log events"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "asana"
+      ],
+      "vendor": "Asana",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "workspace_id": "1208000000000000"
+      },
+      "secrets": [
+        "token"
+      ],
+      "test": "the audit log is readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": "us",
+          "help": null,
+          "key": "region",
+          "label": "Server",
+          "options": [
+            {
+              "label": "Bitwarden cloud (US)",
+              "value": "us"
+            },
+            {
+              "label": "Bitwarden cloud (EU)",
+              "value": "eu"
+            },
+            {
+              "label": "Self-hosted",
+              "value": "self_hosted"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": "Only for a self-hosted server; its API is under /api and its identity service under /identity.",
+          "key": "server_url",
+          "label": "Self-hosted server URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://vault.example.com",
+          "required": false,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "client_id",
+          "options": [],
+          "pattern": "organization\\.[0-9a-f-]+",
+          "placeholder": "organization.00000000-0000-0000-0000-000000000000",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "client_secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The event log of a Bitwarden organization (logins, vault item, collection, group, member and policy changes), one log per event with the acting user, member and group resolved, read from Bitwarden's Public API (cloud US or EU, or a self-hosted server).",
+      "docsUrl": "https://bitwarden.com/help/public-api/",
+      "id": "bitwarden",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Public API",
+          "url": "https://bitwarden.com/help/public-api/"
+        }
+      ],
+      "logo": "bitwarden",
+      "monitors": [],
+      "name": "Bitwarden",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. Event logs need a Teams or Enterprise organization.\n2. In the Admin Console, open **Settings → Organization info → API key** and **View API key** (an owner can);\n   copy the `client_id` (`organization.…`) and `client_secret`.\n",
+      "source": "bitwarden",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every organization event as a log (source:bitwarden): event is Bitwarden's record (type, device, ipAddress, actingUserId, memberId, groupId, itemId, collectionId, policyId, date); enrichment_details holds the acting user's, member's and group's names, emails and types read from the organization's members and groups.",
+          "events": false,
+          "id": "events",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Events"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "bitwarden"
+      ],
+      "vendor": "Bitwarden",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "client_id": "organization.0b1c2d3e-0000-4000-8000-000000000001",
+        "region": "us"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "event log is readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Collaboration",
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "enterprise_id",
+          "label": "Enterprise id",
+          "options": [],
+          "pattern": "[0-9]+",
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "Client id",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Client secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The enterprise events of a Box account (logins, uploads, downloads, shares, permission and user changes, Box Shield alerts), one log per event, read every few minutes from Box's Events API with a Client Credentials app.",
+      "docsUrl": "https://developer.box.com/guides/events/enterprise-events/for-enterprise/",
+      "id": "box",
+      "kind": "package",
+      "links": [],
+      "logo": "box",
+      "monitors": [],
+      "name": "Box",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the [Developer Console](https://app.box.com/developers/console), create a **Custom App** with **Server\n   Authentication (Client Credentials Grant)**.\n2. Under **Configuration**, set **App Access Level** to **App + Enterprise Access** and enable the application\n   scope **Manage enterprise properties**; save.\n3. Submit the app for authorization (**Authorization** tab); a Box admin approves it in the Admin Console\n   (**Apps → Custom Apps Manager**).\n4. Copy the client id and secret (**Configuration**) and the enterprise id (**General Settings**).\n",
+      "source": "box",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every enterprise event (admin_logs) as a log (source:box, service:enterprise-events) with Box's fields as they are; the tile's pipeline maps created_by to usr.*, ip_address to network.client.ip and the event type to its category.",
+          "events": false,
+          "id": "enterprise_events",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Enterprise events"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "box"
+      ],
+      "vendor": "Box",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "client_id": "boxclient0000000000000000000001",
+        "enterprise_id": "900000001"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "enterprise events are readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "api_host",
+          "label": "API hostname",
+          "options": [],
+          "pattern": "api-[a-z0-9]+\\.duosecurity\\.com",
+          "placeholder": "api-xxxxxxxx.duosecurity.com",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "integration_key",
+          "label": "Integration key",
+          "options": [],
+          "pattern": null,
+          "placeholder": "DI…",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "secret_key",
+          "label": "Secret key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Cisco Duo's authentication log (results, factors, devices, applications), activity log, telephony usage, administrator actions and offline enrollments, one log per record, read from Duo's Admin API.",
+      "docsUrl": "https://duo.com/docs/adminapi#logs",
+      "id": "cisco-duo",
+      "kind": "package",
+      "links": [],
+      "logo": "cisco-duo",
+      "monitors": [],
+      "name": "Cisco Duo",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Duo Admin Panel, open **Applications → Protect an Application**, find **Admin API** and **Protect** it.\n2. Under **Permissions**, keep only **Grant read log**; save.\n3. Copy the integration key, the secret key and the API hostname (`api-XXXXXXXX.duosecurity.com`).\n",
+      "source": "cisco-duo",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every authentication attempt as a log (service:authentication): result, reason, factor, user, application, access_device, auth_device, email.",
+          "events": false,
+          "id": "authentication",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Authentication log"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every activity record (admin and user actions, enrollments, policy changes) as a log (service:activity).",
+          "events": false,
+          "id": "activity",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Activity log"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every SMS or phone call Duo sent, with its credits, as a log (service:telephony).",
+          "events": false,
+          "id": "telephony",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Telephony log"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every administrator action (logins, user, group, policy and application changes) as a log (service:administrator).",
+          "events": false,
+          "id": "administrator",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Administrator log"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every offline enrollment of Duo Authentication for Windows Logon as a log (service:offline_enrollment).",
+          "events": false,
+          "id": "offline_enrollment",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Offline enrollment log"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "cisco-duo"
+      ],
+      "vendor": "Cisco",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "api_host": "api-0a1b2c3d.duosecurity.com",
+        "integration_key": "DIWJ8X6AEYOR5OMC6TQ1"
+      },
+      "secrets": [
+        "secret_key"
+      ],
+      "test": "authentication log is readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "Cloud",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": "api.us.etd.cisco.com",
+          "help": null,
+          "key": "api_host",
+          "label": "API host",
+          "options": [
+            {
+              "label": "Americas (api.us.etd.cisco.com)",
+              "value": "api.us.etd.cisco.com"
+            },
+            {
+              "label": "Europe (api.de.etd.cisco.com)",
+              "value": "api.de.etd.cisco.com"
+            },
+            {
+              "label": "Australia (api.au.etd.cisco.com)",
+              "value": "api.au.etd.cisco.com"
+            },
+            {
+              "label": "India (api.in.etd.cisco.com)",
+              "value": "api.in.etd.cisco.com"
+            },
+            {
+              "label": "UAE (api.ae.etd.cisco.com)",
+              "value": "api.ae.etd.cisco.com"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "Client id",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_password",
+          "label": "Client password",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The messages Cisco Secure Email Threat Defense judged scam, malicious, phishing, BEC, spam, graymail or neutral, with their verdicts, techniques and remediation, read from the Message Search API once their verdicts settle.",
+      "docsUrl": "https://developer.cisco.com/docs/message-search-api/",
+      "id": "cisco-secure-email-threat-defense",
+      "kind": "package",
+      "links": [],
+      "logo": "cisco-secure-email-threat-defense",
+      "monitors": [],
+      "name": "Cisco Secure Email Threat Defense",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Secure Email Threat Defense, open **Administration → API Clients** and copy the **API Key**.\n2. **Add New Client**, name it (e.g. `observecraft`) and copy its client id and password.\n3. Pick the API host of your region (the one your console's URL names).\n",
+      "source": "cisco-secure-email-threat-defense",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every message with a verdict other than clean as a log (service:message): fromAddress, toAddresses, subject, verdict.latestVerdict / originalVerdict / techniques, action, urls, clientIP, direction. Windows are read 30 minutes after they close, so retrospective verdicts are in.",
+          "events": false,
+          "id": "messages",
+          "incremental": "time",
+          "intervalSecs": 600,
+          "logs": true,
+          "metrics": [],
+          "name": "Messages"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "cisco-secure-email-threat-defense"
+      ],
+      "vendor": "Cisco",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "api_host": "api.us.etd.cisco.com",
+        "client_id": "1f2e3d4c-0000-4000-8000-000000000001"
+      },
+      "secrets": [
+        "api_key",
+        "client_password"
+      ],
+      "test": "messages are searchable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "Cloud",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": "api.amp.cisco.com",
+          "help": null,
+          "key": "api_host",
+          "label": "API host",
+          "options": [
+            {
+              "label": "North America (api.amp.cisco.com)",
+              "value": "api.amp.cisco.com"
+            },
+            {
+              "label": "Europe (api.eu.amp.cisco.com)",
+              "value": "api.eu.amp.cisco.com"
+            },
+            {
+              "label": "Asia Pacific, Japan and China (api.apjc.amp.cisco.com)",
+              "value": "api.apjc.amp.cisco.com"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "3rd party API client id",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": true,
+          "help": "Reads the computers list once an hour (one request per 500 computers).",
+          "key": "endpoint_details",
+          "label": "Add the endpoint's details to events",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "boolean"
+        }
+      ],
+      "dashboards": [],
+      "description": "Cisco Secure Endpoint's events (threat detections, quarantines, isolations, scans) with the endpoint's details, and its console audit log, read every few minutes from the Secure Endpoint API.",
+      "docsUrl": "https://developer.cisco.com/docs/secure-endpoint/",
+      "id": "cisco-secure-endpoint",
+      "kind": "package",
+      "links": [],
+      "logo": "cisco-secure-endpoint",
+      "monitors": [],
+      "name": "Cisco Secure Endpoint",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Secure Endpoint console, open **Administration → API Credentials** and **New API Credential**.\n2. Name it (e.g. `observecraft`), keep the scope **Read-only**, and create it; copy the 3rd party API client id\n   and the API key (shown once).\n",
+      "source": "cisco-secure-endpoint",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every event (threat detected or quarantined, isolation, scans, policy updates) as a log (source:cisco-secure-endpoint, service:event): event is Cisco's record; endpoint_details the computer it happened on (operating system, isolation, policy, compromise state).",
+          "events": false,
+          "id": "events",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Events"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every audit log record of the console (logins, policy, group and computer changes) as a log (service:audit).",
+          "events": false,
+          "id": "audit_logs",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit log"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "cisco-secure-endpoint"
+      ],
+      "vendor": "Cisco",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "api_host": "api.amp.cisco.com",
+        "client_id": "0a1b2c3d4e5f60718293",
+        "endpoint_details": true
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "Connected to api.amp.cisco.com"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Network",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "key_secret",
+          "label": "Key secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Cisco Umbrella's DNS activity (domain, query type, verdict, categories, identities) and proxied web traffic (URL, method, status, verdict, file hashes), one log per request, read from the Umbrella Reports API.",
+      "docsUrl": "https://developer.cisco.com/docs/cloud-security/umbrella-api-reference-reports-overview/",
+      "id": "cisco-umbrella-dns",
+      "kind": "package",
+      "links": [],
+      "logo": "cisco-umbrella-dns",
+      "monitors": [],
+      "name": "Cisco Umbrella DNS",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Umbrella, open **Admin → API Keys** and **Add** a key.\n2. Give it the scopes **Reports → Granular Events** and **Reports → Aggregations** (read-only), and an expiry.\n3. Copy the API key and the key secret (shown once).\n",
+      "source": "cisco-umbrella-dns",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every DNS request Umbrella resolved as a log (service:dns): domain, querytype, returncode, verdict, categories, identities, internalip, externalip.",
+          "events": false,
+          "id": "dns",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "DNS activity"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every request through the secure web gateway as a log (service:proxy): url, requestmethod, statuscode, verdict, useragent, categories, identities, file hashes.",
+          "events": false,
+          "id": "proxy",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Proxy activity"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "cisco-umbrella-dns"
+      ],
+      "vendor": "Cisco",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "api_key": "3f1c0000aaaa4000b000000000000001"
+      },
+      "secrets": [
+        "key_secret"
+      ],
+      "test": "DNS activity is readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Cloud",
+        "Log Collection",
+        "SIEM",
+        "Security"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "base_url",
+          "label": "Triage URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://triage.example.com",
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "Client id",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Client secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The emails users reported to Cofense Triage (sender, subject, risk score, location, categorization) and the threat indicators analysts tagged, one log each time a record is created or updated, read from the Triage API v2.",
+      "docsUrl": null,
+      "id": "cofense-triage",
+      "kind": "package",
+      "links": [],
+      "logo": "cofense-triage",
+      "monitors": [],
+      "name": "Cofense Triage",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Triage, open **Administration → API Management → Version 2 API → Applications** and create an application\n   with the **Read Only** role. The API reference is on your instance, at `/docs/api/v2`.\n2. Copy its client id and secret.\n3. Raise the application's request limit under **API Management** if the instance is busy, and allow this\n   server's outbound IP addresses if the instance restricts its API by address.\n",
+      "source": "cofense-triage",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every reported email as a log (service:reports) when it is created and each time Triage updates it (categorized, processed): attributes hold from_address, subject, risk_score, location, match_priority, tags.",
+          "events": false,
+          "id": "reports",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Reports"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every threat indicator as a log (service:threat-indicators) when it is created or updated: threat_level, threat_type, threat_value, threat_source.",
+          "events": false,
+          "id": "threat_indicators",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Threat indicators"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "cofense-triage"
+      ],
+      "vendor": "Cofense",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "base_url": "https://triage.example.com",
+        "client_id": "9b8a7c6d5e4f3a2b1c0d"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "Connected to triage.example.com"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "Shown as the logs' host; any name.",
+          "key": "organization",
+          "label": "Name for this organization",
+          "options": [],
+          "pattern": null,
+          "placeholder": "example-org",
+          "required": false,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "DNSFilter's DNS query logs (domain, allowed or blocked, threat, categories, policy, network, roaming client and user), one log per query, read every few minutes from DNSFilter's API.",
+      "docsUrl": "https://api.dnsfilter.com/docs.json",
+      "id": "dnsfilter",
+      "kind": "package",
+      "links": [],
+      "logo": "dnsfilter",
+      "monitors": [],
+      "name": "DNSFilter",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the DNSFilter dashboard, open **Account Settings → Security → API Keys** and create a key (an\n   administrator can); copy it.\n2. DNSFilter describes the query logs API as meant for investigation and reporting: very busy organizations are\n   better served by its Data Export (S3) integration.\n",
+      "source": "dnsfilter",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every DNS query as a log (source:dnsfilter) with DNSFilter's fields as they are: fqdn, domain, result (allowed, blocked), threat, categories_names, policy_name, network_name, agentname, local_user_name, question_type, protocol, region.",
+          "events": false,
+          "id": "query_logs",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Query logs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "dnsfilter"
+      ],
+      "vendor": "DNSFilter",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "organization": "example-org"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "1 organizations"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": "us",
+          "help": null,
+          "key": "region",
+          "label": "Region",
+          "options": [
+            {
+              "label": "United States (auditlog.us.greenhouse.io)",
+              "value": "us"
+            },
+            {
+              "label": "Australia and New Zealand (auditlog.anz.greenhouse.io)",
+              "value": "anz"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "user_id",
+          "label": "User id (On-Behalf-Of)",
+          "options": [],
+          "pattern": "[0-9]+",
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "Harvest API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The audit log of a Greenhouse Recruiting organization (data changes to candidates, applications, jobs and users, Harvest API and MCP access, sensitive pages viewed), one log per event, read from Greenhouse's Audit Log API.",
+      "docsUrl": "https://docs.greenhouse.io/audit-log.html",
+      "id": "greenhouse",
+      "kind": "package",
+      "links": [],
+      "logo": "greenhouse",
+      "monitors": [],
+      "name": "Greenhouse",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. The audit log is an Expert-plan feature; Greenhouse support can enable it.\n2. In Greenhouse, open **Configure → Dev Center → API Credential Management** and **Create new API key** of type\n   **Harvest**; under permissions, enable **Audit Log → Audit Log V1** only. Copy the key.\n3. The user id is the Greenhouse user the token acts for (a site admin's id, from **Configure → Users**).\n",
+      "source": "greenhouse",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every audit event as a log (service:audit): event.type (data_change_*, harvest_access, mcp_access, action), event.target_type / target_id / meta, performer (id, type, ip_address, meta.username), request.",
+          "events": false,
+          "id": "audit",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit log"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "greenhouse"
+      ],
+      "vendor": "Greenhouse Software",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "region": "us",
+        "user_id": "4080001"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "2 audit events in the last hour"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
         "Log Collection",
         "Security",
         "SIEM"
@@ -97,6 +1479,971 @@
         "api_key"
       ],
       "test": "Pwned 1 subscription"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Cloud",
+        "Log Collection",
+        "Security",
+        "OS & System",
+        "Automation",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "base_url",
+          "label": "API URL",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://example.api.kandji.io",
+          "required": true,
+          "secret": false,
+          "type": "url"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "token",
+          "label": "API token",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The audit log of an Iru (Kandji) tenant (admin, blueprint, library item and device actions, EDR threat events) and the open vulnerability detections of its Macs, iPhones and iPads, one log each, read from the Iru API.",
+      "docsUrl": "https://api-docs.iru.com/",
+      "id": "kandji",
+      "kind": "package",
+      "links": [],
+      "logo": "kandji",
+      "monitors": [],
+      "name": "Iru (Kandji)",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Iru, open **Settings → Access → API Token** and **Add Token**; name it (e.g. `observecraft`) and copy it.\n2. **Configure API Permissions**: enable **List Audit Events** (Audit Log) and **Detections List** (Vulnerability\n   Management).\n3. The API URL is shown above the tokens (`https://<subdomain>.api.kandji.io`, or `.api.eu.kandji.io`).\n",
+      "source": "kandji",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every audit event as a log (service:audit): action, actor_type, actor_id, target_type, target_component, target_id, new_state / old_state; EDR threats arrive as audit events too (target_type file_detection).",
+          "events": false,
+          "id": "audit",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit log"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every open vulnerability detection as a log (service:detection) the first time it is listed for a device and software version: cve_id, severity, cvss_score, name, version, path, device_name, blueprint_name.",
+          "events": false,
+          "id": "detection",
+          "incremental": "new_records",
+          "intervalSecs": 21600,
+          "logs": true,
+          "metrics": [],
+          "name": "Vulnerability detections"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "kandji"
+      ],
+      "vendor": "Iru",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "base_url": "https://example.api.kandji.io"
+      },
+      "secrets": [
+        "token"
+      ],
+      "test": "Connected to example.api.kandji.io"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "Shown as the logs' host; any name.",
+          "key": "account",
+          "label": "Name for this account",
+          "options": [],
+          "pattern": null,
+          "placeholder": "example-store",
+          "required": false,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "Private API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": "pk_…",
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Every Klaviyo event of an account (emails and SMS received, opened, clicked, bounced; orders placed, checkouts started, products viewed; flows and forms), one log per event with its metric name and profile, read from Klaviyo's API.",
+      "docsUrl": "https://developers.klaviyo.com/en/reference/get_events",
+      "id": "klaviyo",
+      "kind": "package",
+      "links": [],
+      "logo": "klaviyo",
+      "monitors": [],
+      "name": "Klaviyo",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Klaviyo, open **Settings → Account → API keys** and **Create Private API Key**, e.g. `observecraft`.\n2. Choose **Custom Key** with read access to **Events** and **Metrics** (and **Accounts**); copy the key\n   (`pk_…`).\n",
+      "source": "klaviyo",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every event as a log (source:klaviyo): id, attributes (datetime, uuid, event_properties), metric_name (the event's metric, e.g. Opened Email, Placed Order) and profile_id; the tile's pipeline picks the service.",
+          "events": false,
+          "id": "events",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Events"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "klaviyo"
+      ],
+      "vendor": "Klaviyo",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "account": "example-store"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "Connected to Example Store"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": "us",
+          "help": null,
+          "key": "region",
+          "label": "Data center",
+          "options": [
+            {
+              "label": "United States (lastpass.com)",
+              "value": "us"
+            },
+            {
+              "label": "Europe (lastpass.eu)",
+              "value": "eu"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "account_number",
+          "label": "Account number (CID)",
+          "options": [],
+          "pattern": "[0-9]+",
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "provisioning_hash",
+          "label": "Provisioning hash",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        },
+        {
+          "default": "UTC",
+          "help": "The IANA name of the time zone set in LastPass (event times are in it).",
+          "key": "time_zone",
+          "label": "Account time zone",
+          "options": [],
+          "pattern": null,
+          "placeholder": "America/New_York",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The reporting events of a LastPass Business account (logins, vault and shared folder changes, policy and admin actions, group membership), one log per event, read from LastPass's Enterprise API.",
+      "docsUrl": "https://support.lastpass.com/s/document-item?language=en_US&bundleId=lastpass&topicId=LastPass%2Fapi_event_reporting.html",
+      "id": "lastpass",
+      "kind": "package",
+      "links": [],
+      "logo": "lastpass",
+      "monitors": [],
+      "name": "LastPass",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Admin Console, open **Advanced → Enterprise API**.\n2. Copy the **account number** (CID) and create (or reveal) a **provisioning hash**.\n3. Set the time zone the account reports in (**Account settings → Time zone**): LastPass's event times carry none.\n",
+      "source": "lastpass",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every reporting event as a log (service:reporting-events): Time, Username, IP_Address, Action, Data and timestamp (Time read in the account's time zone).",
+          "events": false,
+          "id": "reporting_events",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Reporting events"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "lastpass"
+      ],
+      "vendor": "LastPass",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "account_number": "8771312",
+        "region": "us",
+        "time_zone": "America/New_York"
+      },
+      "secrets": [
+        "provisioning_hash"
+      ],
+      "test": "Connected to LastPass account 8771312"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Metrics"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
+          "key": "server_prefix",
+          "label": "Data center",
+          "options": [],
+          "pattern": "[a-z]+[0-9]+",
+          "placeholder": "us13",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": "examplekey-us13",
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The reports of the campaigns sent in the last 90 days (sends, opens, clicks, bounces, unsubscribes, abuse reports) and every audience's members, unsubscribes and rates, as metrics read hourly from Mailchimp's Marketing API.",
+      "docsUrl": "https://mailchimp.com/developer/marketing/api/",
+      "id": "mailchimp",
+      "kind": "package",
+      "links": [],
+      "logo": "mailchimp",
+      "monitors": [],
+      "name": "Mailchimp",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Mailchimp, open **Profile → Extras → API keys** and **Create A Key**; copy it.\n2. The data center is the key's suffix after the dash (`…-us13` is `us13`).\n",
+      "source": "mailchimp",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every campaign sent in the last 90 days as gauges (mailchimp.campaigns.emails_sent, opens_total, unique_opens, open_rate, clicks_total, unique_clicks, unique_subscriber_clicks, click_rate, hard_bounces, soft_bounces, syntax_errors, unsubscribed, abuse_reports, count). Reports keep growing for days after a send.",
+          "events": false,
+          "id": "campaigns",
+          "incremental": "none",
+          "intervalSecs": 3600,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "1 per campaign; summed, the campaigns.",
+              "name": "mailchimp.campaigns.count",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Emails sent.",
+              "name": "mailchimp.campaigns.emails_sent",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Abuse reports.",
+              "name": "mailchimp.campaigns.abuse_reports",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Unsubscribes.",
+              "name": "mailchimp.campaigns.unsubscribed",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Hard bounces.",
+              "name": "mailchimp.campaigns.hard_bounces",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Soft bounces.",
+              "name": "mailchimp.campaigns.soft_bounces",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Bounces for malformed addresses.",
+              "name": "mailchimp.campaigns.syntax_errors",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Opens.",
+              "name": "mailchimp.campaigns.opens_total",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Recipients who opened.",
+              "name": "mailchimp.campaigns.unique_opens",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Unique opens divided by successful deliveries.",
+              "name": "mailchimp.campaigns.open_rate",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Clicks.",
+              "name": "mailchimp.campaigns.clicks_total",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Unique links clicked.",
+              "name": "mailchimp.campaigns.unique_clicks",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Recipients who clicked.",
+              "name": "mailchimp.campaigns.unique_subscriber_clicks",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Unique clicks divided by successful deliveries.",
+              "name": "mailchimp.campaigns.click_rate",
+              "tags": [
+                "campaign_id",
+                "campaign_list_id",
+                "campaign_list_name",
+                "campaign_title",
+                "campaign_type"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Campaign reports"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every audience as gauges (mailchimp.lists.member_count, total_contacts, unsubscribe_count, campaign_count, open_rate, click_rate, list_rating, count).",
+          "events": false,
+          "id": "lists",
+          "incremental": "none",
+          "intervalSecs": 3600,
+          "logs": false,
+          "metrics": [
+            {
+              "description": "1 per audience; summed, the audiences.",
+              "name": "mailchimp.lists.count",
+              "tags": [
+                "list_id",
+                "list_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Active members.",
+              "name": "mailchimp.lists.member_count",
+              "tags": [
+                "list_id",
+                "list_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Contacts (subscribed or not).",
+              "name": "mailchimp.lists.total_contacts",
+              "tags": [
+                "list_id",
+                "list_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Members who unsubscribed.",
+              "name": "mailchimp.lists.unsubscribe_count",
+              "tags": [
+                "list_id",
+                "list_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Campaigns using the audience.",
+              "name": "mailchimp.lists.campaign_count",
+              "tags": [
+                "list_id",
+                "list_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            },
+            {
+              "description": "Average open rate per campaign.",
+              "name": "mailchimp.lists.open_rate",
+              "tags": [
+                "list_id",
+                "list_name"
+              ],
+              "type": "gauge",
+              "unit": "percent"
+            },
+            {
+              "description": "Average click rate per campaign.",
+              "name": "mailchimp.lists.click_rate",
+              "tags": [
+                "list_id",
+                "list_name"
+              ],
+              "type": "gauge",
+              "unit": "percent"
+            },
+            {
+              "description": "Mailchimp's activity score of the audience (0-5).",
+              "name": "mailchimp.lists.list_rating",
+              "tags": [
+                "list_id",
+                "list_name"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Audiences"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "mailchimp"
+      ],
+      "vendor": "Intuit Mailchimp",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "server_prefix": "us13"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "Connected to Mailchimp (us13)"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": "api.services.mimecast.com",
+          "help": null,
+          "key": "gateway",
+          "label": "API gateway",
+          "options": [
+            {
+              "label": "Global (api.services.mimecast.com)",
+              "value": "api.services.mimecast.com"
+            },
+            {
+              "label": "United Kingdom (uk-api.services.mimecast.com)",
+              "value": "uk-api.services.mimecast.com"
+            },
+            {
+              "label": "United States (us-api.services.mimecast.com)",
+              "value": "us-api.services.mimecast.com"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_id",
+          "label": "Client id",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "client_secret",
+          "label": "Client secret",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Mimecast's audit log, DLP policy hits, rejected messages and Targeted Threat Protection logs (attachment sandboxing, impersonation, URL clicks), one log per record, read from Mimecast's API 2.0.",
+      "docsUrl": "https://developer.services.mimecast.com/",
+      "id": "mimecast",
+      "kind": "package",
+      "links": [],
+      "logo": "mimecast",
+      "monitors": [],
+      "name": "Mimecast",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Mimecast Administration Console, open **Integrations → API and Platform Integrations → Your API 2.0\n   Applications** and **Add API Application**.\n2. Pick the category **SIEM Integration**, the products **Audit Events**, **Data Leak Prevention**, **Gateway**\n   (rejections) and **Targeted Threat Protection**, and a role with log access (e.g. **Basic Administrator**).\n3. Copy the client id and client secret.\n",
+      "source": "mimecast",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every audit event of the administration console (logins, policy and user changes, exports) as a log (service:audit).",
+          "events": false,
+          "id": "audit",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Audit events"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every message a Data Leak Prevention policy acted on as a log (service:dlp).",
+          "events": false,
+          "id": "dlp",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "DLP"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every message Mimecast's gateway rejected (spam, viruses, policies) as a log (service:rejection).",
+          "events": false,
+          "id": "rejection",
+          "incremental": "time",
+          "intervalSecs": 900,
+          "logs": true,
+          "metrics": [],
+          "name": "Rejections"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every attachment Targeted Threat Protection sandboxed as a log (service:ttp-attachment-protection).",
+          "events": false,
+          "id": "ttp_attachment",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "TTP attachment protection"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every message Impersonation Protection flagged as a log (service:ttp-impersonation).",
+          "events": false,
+          "id": "ttp_impersonation",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "TTP impersonation protection"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every URL click URL Protection scanned as a log (service:ttp-url).",
+          "events": false,
+          "id": "ttp_url",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "TTP URL protection"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "mimecast"
+      ],
+      "vendor": "Mimecast",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "client_id": "0a1b2c3d-0000-4000-8000-000000000001",
+        "gateway": "api.services.mimecast.com"
+      },
+      "secrets": [
+        "client_secret"
+      ],
+      "test": "audit log is readable"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Metrics"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "Names the connection (tokens belong to one Mux environment).",
+          "key": "environment",
+          "label": "Environment name",
+          "options": [],
+          "pattern": null,
+          "placeholder": "production",
+          "required": false,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "token_id",
+          "label": "Access token id",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "secret_key",
+          "label": "Secret key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "Mux Data's viewer experience metrics per video (views, unique viewers, startup time, rebuffering, playback failures, video quality and experience scores) and views by browser and operating system, read from the Mux Data API.",
+      "docsUrl": "https://www.mux.com/docs/api-reference/data/metrics",
+      "id": "mux",
+      "kind": "package",
+      "links": [],
+      "logo": "mux",
+      "monitors": [],
+      "name": "Mux",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In the Mux dashboard, open **Settings → Access Tokens** and **Generate new token** for the environment to\n   monitor.\n2. Give it the **Mux Data** permission, read-only; copy the token id and the secret key.\n",
+      "source": "mux",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every metric of mux.metric.* as a gauge per video (tag video_id), for the views that ended in the last hour; the 500 most viewed videos per metric.",
+          "events": false,
+          "id": "videos",
+          "incremental": "none",
+          "intervalSecs": 600,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "{{ 'mux.metric.' + item }}",
+              "tags": [
+                "video_id"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Metrics per video"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "mux.metric.views per browser (tag browser), for the views that ended in the last hour.",
+          "events": false,
+          "id": "views_by_browser",
+          "incremental": "none",
+          "intervalSecs": 600,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "mux.metric.views",
+              "tags": [
+                "browser"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Views by browser"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "mux.metric.views per operating system (tag operating_system), for the views that ended in the last hour.",
+          "events": false,
+          "id": "views_by_os",
+          "incremental": "none",
+          "intervalSecs": 600,
+          "logs": false,
+          "metrics": [
+            {
+              "description": null,
+              "name": "mux.metric.views",
+              "tags": [
+                "operating_system"
+              ],
+              "type": "gauge",
+              "unit": null
+            }
+          ],
+          "name": "Views by operating system"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "mux"
+      ],
+      "vendor": "Mux",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "environment": "production",
+        "token_id": "44c0ffee-0000-4000-8000-000000000001"
+      },
+      "secrets": [
+        "secret_key"
+      ],
+      "test": "1820 views in the last 24 hours"
     },
     "dashboards": []
   },
