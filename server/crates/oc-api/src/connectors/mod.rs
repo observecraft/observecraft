@@ -11,7 +11,8 @@
 //! - [`runner`]: packages' streams on the cloud crawlers' jobs, published to Kafka.
 //! - [`net`]: the SSRF-guarded transport packages' requests go through.
 //! - [`push`]: push packages' definitions and signing secrets for the intake.
-//! - [`sources`]: native sources (`native:` packages: CrowdStrike FDR's SQS and S3), their sessions on the same jobs.
+//! - [`sources`]: native sources (`native:` packages: CrowdStrike FDR's SQS and S3, Proofpoint On-Demand's WebSocket),
+//!   their sessions on the same jobs.
 
 pub mod assets;
 pub mod native;

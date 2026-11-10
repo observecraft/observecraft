@@ -23642,6 +23642,100 @@
         {
           "default": null,
           "help": null,
+          "key": "cluster_id",
+          "label": "Cluster ID",
+          "options": [],
+          "pattern": "[A-Za-z0-9_.-]{1,100}",
+          "placeholder": "example_hosted",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "api_key",
+          "label": "API key",
+          "options": [],
+          "pattern": null,
+          "placeholder": null,
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "A Proofpoint On-Demand cluster's message logs (envelope, filter actions and disposition, routes, verdicts, message parts) and, optionally, its mail logs, streamed live from the PoD Log API as logs.",
+      "docsUrl": "https://www.proofpoint.com/us/products/email-security-and-protection/email-protection",
+      "id": "proofpoint-on-demand",
+      "kind": "package",
+      "links": [],
+      "logo": "proofpoint-on-demand",
+      "monitors": [],
+      "name": "Proofpoint On-Demand",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. The Log API is enabled per cluster by Proofpoint: ask your account team or support for it if your admin portal\n   can't issue Log API keys yet.\n2. In the PoD admin portal, create a Log API key for ObserveCraft and note your **cluster ID** (the portal shows it;\n   it is also the `cid` Proofpoint's documentation and support use).\n\nObserveCraft keeps a WebSocket session open per log type and resumes from the last stored event after a restart.\nThe Log API replays recent history: a new connection starts an hour back.\n",
+      "source": "proofpoint-on-demand",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "One log per message (service:message): guid, connection (ip, host, TLS), envelope (from, rcpts), filter (disposition, routeDirection, actions, routes, qid, quarantine), msg headers, msgParts and verdicts, with ts.",
+          "events": false,
+          "id": "message",
+          "incremental": "none",
+          "intervalSecs": 60,
+          "logs": true,
+          "metrics": [],
+          "name": "Message logs"
+        },
+        {
+          "costs": false,
+          "defaultEnabled": false,
+          "description": "The mail transfer agent's log lines (service:maillog): data (the sendmail line), sm (the message's transfer fields), pps (agent and cid) and ts.",
+          "events": false,
+          "id": "maillog",
+          "incremental": "none",
+          "intervalSecs": 60,
+          "logs": true,
+          "metrics": [],
+          "name": "Mail logs"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "proofpoint-on-demand"
+      ],
+      "vendor": "Proofpoint",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "cluster_id": "example_hosted"
+      },
+      "secrets": [
+        "api_key"
+      ],
+      "test": "cluster example_hosted's message log stream"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
+        "Log Collection",
+        "Security",
+        "SIEM"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": null,
           "key": "service_principal",
           "label": "Service principal",
           "options": [],

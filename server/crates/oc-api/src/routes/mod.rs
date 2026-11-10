@@ -2434,6 +2434,7 @@ mod tests {
             ("../connectors/store.rs", include_str!("../connectors/store.rs")),
             ("../connectors/sources/mod.rs", include_str!("../connectors/sources/mod.rs")),
             ("../connectors/sources/crowdstrike_fdr.rs", include_str!("../connectors/sources/crowdstrike_fdr.rs")),
+            ("../connectors/sources/proofpoint_pod.rs", include_str!("../connectors/sources/proofpoint_pod.rs")),
             ("../fleetdm/mod.rs", include_str!("../fleetdm/mod.rs")),
             ("../fleetdm/api.rs", include_str!("../fleetdm/api.rs")),
             ("../fleetdm/crawler.rs", include_str!("../fleetdm/crawler.rs")),

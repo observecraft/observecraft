@@ -17,6 +17,7 @@
 //!    the state is stored once.
 
 pub mod crowdstrike_fdr;
+pub mod proofpoint_pod;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -77,11 +78,12 @@ pub trait Source: Send + Sync {
 }
 
 /// The sources compiled into this server, by the name a package's `native:` gives.
-pub const NAMES: [&str; 1] = [crowdstrike_fdr::NAME];
+pub const NAMES: [&str; 2] = [crowdstrike_fdr::NAME, proofpoint_pod::NAME];
 
 pub fn of(name: &str) -> Option<Arc<dyn Source>> {
     match name {
         crowdstrike_fdr::NAME => Some(Arc::new(crowdstrike_fdr::Fdr::aws())),
+        proofpoint_pod::NAME => Some(Arc::new(proofpoint_pod::Pod::proofpoint())),
         _ => None,
     }
 }
@@ -218,6 +220,68 @@ pub async fn run(st: AppState, sink: Arc<dyn MetricSink>, concurrency: i64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cloud::testing::FakeSink;
+    use serde_json::json;
+
+    /// Two events, committed with the position of the last.
+    struct Two;
+
+    #[async_trait::async_trait]
+    impl Source for Two {
+        async fn test(&self, _m: &Manifest, _conn: &Connection) -> Tested {
+            failed("unused")
+        }
+
+        async fn session(&self, s: Session<'_>) -> Result<Summary, Issue> {
+            let mut out = oc_connectors::output::Mapped::default();
+            for (guid, ts) in [("g-1", "2026-11-10T11:58:01.000000+00:00"), ("g-2", "2026-11-10T11:58:02.000000+00:00")] {
+                s.records.map(json!({ "guid": guid, "ts": ts, "filter": { "disposition": "accept" } }), None, &mut out);
+            }
+            let mut state = s.state.clone();
+            state.token = Some(json!("2026-11-10T11:58:02.000000+00:00"));
+            state.cursor = Some(1_794_311_882_000);
+            s.out.commit(out.logs, Some(&state)).await.map_err(|e| issue(IssueKind::Other, e))?;
+            Ok(Summary { records: 2, written: 2, until: state.cursor, warning: None })
+        }
+    }
+
+    /// A session's logs reach Kafka with the org's headers before its position is saved; Kafka down saves nothing;
+    /// another org's job for the connection runs nothing; the connection's streams are the loop's jobs.
+    #[tokio::test]
+    async fn sessions_publish_before_the_position_moves_and_stay_in_their_org() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let a = crate::test_support::admin_of_new_org(st, "native-runs").await;
+        let input: crate::routes::connectors::ConnectionInput = serde_json::from_value(json!({ "config": { "cluster_id": "example_hosted" }, "secrets": { "api_key": "pod-test-key-0001" } })).unwrap();
+        let saved = crate::routes::connectors::create_connection(axum::extract::State(st.clone()), crate::auth::Admin(a.clone()), axum::extract::Path("proofpoint-on-demand".into()), axum::Json(input)).await.unwrap().0;
+        assert!(runner::desired(st, "proofpoint-on-demand").await.unwrap().contains(&(a.org_id.clone(), saved.id.clone(), "message".to_string())));
+        let job = JobKey { provider: "proofpoint-on-demand".into(), org_id: a.org_id.clone(), account_id: saved.id.clone(), scope: "message".into(), collected_until: None };
+
+        let down = FakeSink { fail: true, ..Default::default() };
+        assert!(matches!(run_with(st, &down, &job, &Two).await.unwrap(), Outcome::Failed(i) if i.message.contains("Kafka")));
+        assert_eq!(store::state(st, &a.org_id, &saved.id, "message").await.unwrap(), Default::default(), "nothing stored, no position");
+
+        let sink = FakeSink::default();
+        let outcome = run_with(st, &sink, &job, &Two).await.unwrap();
+        assert_eq!(outcome, Outcome::Collected { end_ms: 1_794_311_882_000, metrics: 2, points: 2, warning: None });
+        let records = sink.records.lock().unwrap().clone();
+        assert!(records.iter().all(|(org, headers, _)| org == &a.org_id && headers.contains(&("x-oc-org".to_string(), a.org_id.clone()))));
+        let logs: Vec<Value> = records.iter().flat_map(|(_, _, b)| b.as_array().unwrap().clone()).collect();
+        assert_eq!(logs.iter().map(|l| l["guid"].as_str().unwrap()).collect::<Vec<_>>(), ["g-1", "g-2"]);
+        assert!(!serde_json::to_string(&logs).unwrap().contains("pod-test-key-0001"));
+        let state = store::state(st, &a.org_id, &saved.id, "message").await.unwrap();
+        assert_eq!(state.partitions[""].token, Some(json!("2026-11-10T11:58:02.000000+00:00")));
+        jobs::record(st, &job, &outcome, AGAIN_SECS).await.unwrap();
+        let status = jobs::status(st, "proofpoint-on-demand", &a.org_id, &saved.id).await.unwrap();
+        assert_eq!((status[0].scope.as_str(), status[0].metrics, status[0].collected_until), ("message", 2, Some(1_794_311_882_000)), "the page's stream status");
+
+        let b = crate::test_support::admin_of_new_org(st, "native-runs-b").await;
+        let theirs = JobKey { org_id: b.org_id.clone(), ..job.clone() };
+        assert_eq!(run_with(st, &FakeSink::default(), &theirs, &Two).await.unwrap(), Outcome::Idle);
+        let maillog = JobKey { scope: "maillog".into(), ..job.clone() };
+        assert_eq!(run_with(st, &FakeSink::default(), &maillog, &Two).await.unwrap(), Outcome::Idle, "a stream left off");
+    }
+
     #[test]
     fn every_native_package_has_its_source() {
         let natives: Vec<&str> = registry().packages.iter().filter_map(|p| p.package.manifest.native.as_deref()).collect();
