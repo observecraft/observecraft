@@ -33,8 +33,8 @@ export const integrationDashboards = [
   ...aws,
   ...azure,
   ...gcp,
-  // Typed as one of ours: each package's JSON gives a different literal type (template variables or none).
-  ...connectorPackages.flatMap((p) => p.dashboards as unknown as typeof fleetdm),
+  // Typed as one of ours: the union TypeScript infers over every package's widgets is too wide to check.
+  ...(connectorPackages as unknown as { dashboards: typeof fleetdm }[]).flatMap((p) => p.dashboards),
   ...fleetdm,
   ...authentik,
   ...gitlabAudit,

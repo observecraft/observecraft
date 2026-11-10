@@ -62,10 +62,10 @@ const CASES = {
   slack: { remove: async () => Promise.all((await web.slack.getSlackOverview()).accounts.map((a) => web.slack.disconnectSlackAccount(a.id))) },
 };
 
-// Every bundled connector package, through the generic connectors mock, with its own mock connection.
+// Every bundled package that pulls (kind `package`), through the generic connectors mock, with its manifest's mock
+// connection: a token for each secret. Push packages (kind `push`) are left out here and in the check below alike.
 const PACKAGES = JSON.parse(readFileSync(new URL('../web/src/api/connectors/packages.generated.json', import.meta.url), 'utf8'));
-for (const { entry, mock } of PACKAGES) {
-  if (entry.push) continue;
+for (const { entry, mock } of PACKAGES.filter((p) => p.entry.kind === 'package')) {
   CASES[entry.id] = {
     connect: () => web.connectors.createConnection(entry.id, { name: '', config: mock?.config ?? {}, secrets: Object.fromEntries((mock?.secrets ?? []).map((k) => [k, token])) }),
     remove: async () => Promise.all((await web.connectors.getConnector(entry.id)).connections.map((c) => web.connectors.deleteConnection(entry.id, c.id))),
