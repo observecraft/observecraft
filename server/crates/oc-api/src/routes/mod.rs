@@ -2394,6 +2394,7 @@ mod tests {
         vec![
             ("authentik_integration.rs", include_str!("authentik_integration.rs")),
             ("connectors.rs", include_str!("connectors.rs")),
+            ("connector_oauth.rs", include_str!("connector_oauth.rs")),
             ("fleetdm_integration.rs", include_str!("fleetdm_integration.rs")),
             ("gitlab_audit_integration.rs", include_str!("gitlab_audit_integration.rs")),
             ("google_workspace_integration.rs", include_str!("google_workspace_integration.rs")),
@@ -2425,6 +2426,8 @@ mod tests {
             ("../entra/fixtures.rs", include_str!("../entra/fixtures.rs")),
             ("../entra/logs.rs", include_str!("../entra/logs.rs")),
             ("../connectors/mod.rs", include_str!("../connectors/mod.rs")),
+            ("../connectors/assets.rs", include_str!("../connectors/assets.rs")),
+            ("../connectors/push.rs", include_str!("../connectors/push.rs")),
             ("../connectors/native.rs", include_str!("../connectors/native.rs")),
             ("../connectors/net.rs", include_str!("../connectors/net.rs")),
             ("../connectors/runner.rs", include_str!("../connectors/runner.rs")),
