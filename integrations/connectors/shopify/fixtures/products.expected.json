@@ -24,7 +24,7 @@
       "id": "gid://shopify/Product/8000000002",
       "isGiftCard": false,
       "legacyResourceId": "8000000002",
-      "level": "ACTIVE",
+      "level": "info",
       "mediaCount": {
         "count": 2
       },
@@ -78,7 +78,7 @@
       "id": "gid://shopify/Product/8000000001",
       "isGiftCard": false,
       "legacyResourceId": "8000000001",
-      "level": "DRAFT",
+      "level": "info",
       "mediaCount": {
         "count": 4
       },
