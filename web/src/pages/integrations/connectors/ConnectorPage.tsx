@@ -371,7 +371,7 @@ function Configure({ c, connections }: { c: ConnectorEntry; connections: Connect
 
       <Step n={4} title="Wait for the first data" open onToggle={() => {}} done={!!current?.streams.some((s) => s.lastSuccessAt)}>
         {!current ? (
-          <p className="muted">Once a connection is saved, ObserveCraft reads {c.vendor}&apos;s API on each stream&apos;s schedule.</p>
+          <p className="muted">Once a connection is saved, ObserveCraft starts reading {c.vendor}&apos;s data and shows each stream&apos;s status here.</p>
         ) : (
           <>
             <table className="ci-sync-table">
