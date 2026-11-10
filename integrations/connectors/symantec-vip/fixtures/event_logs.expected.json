@@ -1,0 +1,103 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_id": "vip-be-d1.179430000001.1000001",
+      "_oc_ingest": {
+        "id": "01a1c4ba-9316-7bbd-974a-0c562ffd1197"
+      },
+      "date": "2026-11-10T09:12:04.118Z",
+      "ddsource": "symantec-vip",
+      "durationMillis": 3,
+      "extUserId": "jane.doe",
+      "host": "4815162",
+      "jurHash": "4815162",
+      "message": "{\"_id\":\"vip-be-d1.179430000001.1000001\",\"durationMillis\":3,\"extUserId\":\"jane.doe\",\"jurHash\":\"4815162\",\"operation\":\"createUser\",\"requestId\":\"req-orders-0001\",\"result.status\":\"0000\",\"result.statusMessage\":\"Success\",\"ts\":\"2026-11-10 09:12:04.118 +0000\",\"txnId\":\"vipus0A1B2C3D4E5F6071\",\"wsdlVersion\":\"1_1\"}",
+      "operation": "createUser",
+      "requestId": "req-orders-0001",
+      "result.status": "0000",
+      "result.statusMessage": "Success",
+      "service": "event-logs",
+      "status": "info",
+      "ts": "2026-11-10 09:12:04.118 +0000",
+      "txnId": "vipus0A1B2C3D4E5F6071",
+      "wsdlVersion": "1_1"
+    },
+    {
+      "_id": "vip-be-d1.179430000002.1000002",
+      "_nestedCalls": [
+        {
+          "credId": "VSMT00001234",
+          "extUserId": "jane.doe",
+          "jurHash": "4815162",
+          "newBindStatus": "ENABLED",
+          "operation": "addCredential",
+          "result.credType": "STANDARD_OTP",
+          "result.status": "0000",
+          "result.statusMessage": "Success"
+        },
+        {
+          "operation": "activateToken",
+          "result.detail": "0000",
+          "result.detailMessage": "Success",
+          "result.status": "0000",
+          "result.statusMessage": "Success"
+        }
+      ],
+      "_oc_ingest": {
+        "id": "01a1c4ba-981a-77d6-b3e4-0125df42b45c"
+      },
+      "credId": "VSMT00001234",
+      "date": "2026-11-10T09:12:05.402Z",
+      "ddsource": "symantec-vip",
+      "durationMillis": 61,
+      "extUserId": "jane.doe",
+      "host": "4815162",
+      "jurHash": "4815162",
+      "message": "{\"_id\":\"vip-be-d1.179430000002.1000002\",\"_nestedCalls\":[{\"credId\":\"VSMT00001234\",\"extUserId\":\"jane.doe\",\"jurHash\":\"4815162\",\"newBindStatus\":\"ENABLED\",\"operation\":\"addCredential\",\"result.credType\":\"STANDARD_OTP\",\"result.status\":\"0000\",\"result.statusMessage\":\"Success\"},{\"operation\":\"activateToken\",\"result.detail\":\"0000\",\"result.detailMessage\":\"Success\",\"result.status\":\"0000\",\"result.statusMessage\":\"Success\"}],\"credId\":\"VSMT00001234\",\"durationMillis\":61,\"extUserId\":\"jane.doe\",\"jurHash\":\"4815162\",\"newBindStatus\":\"ENABLED\",\"operation\":\"addCredential\",\"requestId\":\"req-orders-0002\",\"result.credType\":\"STANDARD_OTP\",\"result.status\":\"0000\",\"result.statusMessage\":\"Success\",\"ts\":\"2026-11-10 09:12:05.402 +0000\",\"txnId\":\"vipus0A1B2C3D4E5F6072\",\"wsdlVersion\":\"1_1\"}",
+      "newBindStatus": "ENABLED",
+      "operation": "addCredential",
+      "requestId": "req-orders-0002",
+      "result.credType": "STANDARD_OTP",
+      "result.status": "0000",
+      "result.statusMessage": "Success",
+      "service": "event-logs",
+      "status": "info",
+      "ts": "2026-11-10 09:12:05.402 +0000",
+      "txnId": "vipus0A1B2C3D4E5F6072",
+      "wsdlVersion": "1_1"
+    },
+    {
+      "_id": "vip-be-d2.179430000003.1000003",
+      "_oc_ingest": {
+        "id": "01a1c50b-db3f-71c8-927b-07fc51f0e136"
+      },
+      "credId": "VSMT00001234",
+      "date": "2026-11-10T10:40:51.007Z",
+      "ddsource": "symantec-vip",
+      "durationMillis": 12,
+      "extUserId": "sam.lee",
+      "host": "4815162",
+      "jurHash": "4815162",
+      "message": "{\"_id\":\"vip-be-d2.179430000003.1000003\",\"credId\":\"VSMT00001234\",\"durationMillis\":12,\"extUserId\":\"sam.lee\",\"jurHash\":\"4815162\",\"operation\":\"authenticateUser\",\"requestId\":\"req-storefront-0003\",\"result.status\":\"6009\",\"result.statusMessage\":\"Security code is invalid.\",\"ts\":\"2026-11-10 10:40:51.007 +0000\",\"txnId\":\"vipus0A1B2C3D4E5F6073\",\"wsdlVersion\":\"1_1\"}",
+      "operation": "authenticateUser",
+      "requestId": "req-storefront-0003",
+      "result.status": "6009",
+      "result.statusMessage": "Security code is invalid.",
+      "service": "event-logs",
+      "status": "warn",
+      "ts": "2026-11-10 10:40:51.007 +0000",
+      "txnId": "vipus0A1B2C3D4E5F6073",
+      "wsdlVersion": "1_1"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "token": "4959644139515036903501650644574422180314684442962768694"
+      }
+    }
+  }
+}
