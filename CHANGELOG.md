@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.0](https://github.com/observecraft/observecraft/compare/v0.20.0...v0.21.0) (2026-11-10)
+
+
+### Features
+
+* **integrations:** Datadog-parity integrations and a modular connector framework ([#132](https://github.com/observecraft/observecraft/issues/132)) ([5e0d343](https://github.com/observecraft/observecraft/commit/5e0d34371fb83d81f23a06a8e2a5b89cf9233093))
+* **synthetics:** browser tests and AI Testing ([#122](https://github.com/observecraft/observecraft/issues/122)) ([014bd3b](https://github.com/observecraft/observecraft/commit/014bd3b7f6b9695333dc8361d9f7aa64253175c2))
+
 ## [0.20.0](https://github.com/observecraft/observecraft/compare/v0.19.0...v0.20.0) (2026-11-09)
 
 
