@@ -15,6 +15,14 @@ const between = (lo: number, hi: number, noise = 0.15, integer = false): Overrid
 const fixed = (v: number): Override => ({ base: () => v, noise: 0, integer: Number.isInteger(v) });
 /** A typical value per value of a tag (response codes, phases), 0 for the others. */
 const byTag = (tag: string, values: Record<string, number>, noise = 0.2, integer = false): Override => ({ base: (e) => values[e[tag]] ?? 0, noise, ...(integer ? { integer } : {}) });
+/** Karpenter's per-resource values: CPU cores, memory bytes and pods, each between its bounds. */
+const resources = (cpu: [number, number], memory: [number, number], pods: [number, number], noise = 0.1): Override => ({
+  base: (e, r) => {
+    const [lo, hi] = e.resource_type === 'memory' ? memory : e.resource_type === 'pods' ? pods : cpu;
+    return lo + r() * (hi - lo);
+  },
+  noise,
+});
 /** Usually 0, sometimes up to `hi` (errors, retries, restarts). */
 const rare = (hi: number, share = 0.25): Override => ({ base: (_e, r) => (r() < share ? 1 + r() * (hi - 1) : 0), noise: 0.6, integer: true });
 
@@ -92,6 +100,20 @@ export const INFRA_VALUES: Record<string, Record<string, string[]>> = {
     grpc_service: ['api.MetricsService', 'api.MetricsService', 'api.MetricsService', 'api.MetricsService'],
     grpc_method: ['GetMetrics', 'GetMetrics', 'GetMetrics', 'GetMetrics'],
     grpc_type: ['unary', 'unary', 'unary', 'unary'],
+  },
+  karpenter: {
+    kube_cluster_name: CLUSTER,
+    namespace: ['storefront', 'checkout', 'billing', 'catalog'],
+    instance_type: ['m6i.xlarge', 'm6i.2xlarge', 'c6i.2xlarge', 'r6i.large'],
+    nodepool: ['default', 'default', 'compute', 'spot'],
+    zone: ['eu-west-1a', 'eu-west-1b', 'eu-west-1c', 'eu-west-1a'],
+    reason: ['provisioned', 'underutilized', 'drifted', 'empty'],
+    phase: ['Running', 'Running', 'Pending', 'Succeeded'],
+    node: ['ip-10-0-1-23.eu-west-1.compute.internal', 'ip-10-0-2-41.eu-west-1.compute.internal', 'ip-10-0-3-17.eu-west-1.compute.internal', 'ip-10-0-1-88.eu-west-1.compute.internal'],
+    name: ['storefront-api-7d9c6b5f4-2xkqp', 'order-service-5c7d8b6f9-h2lmn', 'billing-7b6c5d4f8-p9wvx', 'catalog-service-84f7c6d59-tq3rs'],
+    action_type: ['CordonAndDrain', 'CordonAndDrain', 'NoAction', 'CordonAndDrain'],
+    message_type: ['SpotInterruptionKind', 'RebalanceRecommendationKind', 'ScheduledChangeKind', 'StateChangeKind'],
+    controller: ['nodeclaim.lifecycle', 'provisioner', 'disruption', 'nodepool.counter'],
   },
 };
 
@@ -178,6 +200,39 @@ export const INFRA_OVERRIDES: Record<string, Override> = {
   'keda.go.goroutines': between(140, 380, 0.05, true),
   'keda.go.memstats.alloc_bytes': between(18e6, 60e6, 0.15),
   'keda.process.cpu.seconds.count': between(0.02, 0.25, 0.3),
+  'karpenter.nodeclaims_created.count': rare(3, 0.15),
+  'karpenter.nodeclaims_terminated.count': rare(2, 0.1),
+  'karpenter.nodes.created.count': rare(3, 0.15),
+  'karpenter.nodes.terminated.count': rare(2, 0.1),
+  // Per resource type: cores, bytes, pods.
+  'karpenter.nodes.total.pod_requests': resources([2, 12], [6e9, 40e9], [12, 60]),
+  'karpenter.nodes.total.daemon_requests': resources([0.3, 0.6], [0.5e9, 1e9], [4, 6]),
+  'karpenter.nodes.allocatable': resources([3.9, 15.9], [14e9, 62e9], [58, 110], 0),
+  'karpenter.provisioner.usage.pct': between(20, 85, 0.05),
+  'karpenter.pods.state': fixed(1),
+  'karpenter.pods.startup.time_seconds.sum': between(10, 120, 0.4),
+  'karpenter.pods.startup.time_seconds.count': between(1, 8, 0.4),
+  'karpenter.cloudprovider.instance.type.cpu_cores': { base: (e) => ({ 'm6i.xlarge': 4, 'm6i.2xlarge': 8, 'c6i.2xlarge': 8, 'r6i.large': 2 })[e.instance_type] ?? 4, noise: 0, integer: true },
+  'karpenter.cloudprovider.instance.type.memory_bytes': { base: (e) => (({ 'm6i.xlarge': 16, 'm6i.2xlarge': 32, 'c6i.2xlarge': 16, 'r6i.large': 16 })[e.instance_type] ?? 16) * 2 ** 30, noise: 0 },
+  // On-demand list prices (USD per hour).
+  'karpenter.cloudprovider.instance.type.price_estimate': { base: (e) => ({ 'm6i.xlarge': 0.214, 'm6i.2xlarge': 0.428, 'c6i.2xlarge': 0.38, 'r6i.large': 0.141 })[e.instance_type] ?? 0.2, noise: 0 },
+  'karpenter.provisioner.scheduling.duration_seconds.sum': between(0.02, 0.4, 0.4),
+  'karpenter.provisioner.scheduling.duration_seconds.count': between(2, 12, 0.4),
+  'karpenter.provisioner.scheduling.simulation.duration_seconds.sum': between(0.01, 0.2, 0.4),
+  'karpenter.provisioner.scheduling.simulation.duration_seconds.count': between(1, 10, 0.4),
+  'karpenter.interruption.actions_performed.count': rare(2, 0.1),
+  'karpenter.interruption.received_messages.count': rare(4, 0.2),
+  'karpenter.interruption.deleted_messages.count': rare(4, 0.2),
+  'karpenter.interruption.message.latency.time_seconds.sum': between(0.2, 2, 0.4),
+  'karpenter.interruption.message.latency.time_seconds.count': between(1, 4, 0.4),
+  'karpenter.controller.runtime.active_workers': rare(3, 0.3),
+  'karpenter.controller.runtime.reconcile_errors.count': rare(2, 0.05),
+  'karpenter.controller.runtime.reconcile.count': between(5, 80, 0.3),
+  'karpenter.controller.runtime.reconcile.time_seconds.sum': between(0.02, 0.6, 0.4),
+  'karpenter.controller.runtime.reconcile.time_seconds.count': between(5, 80, 0.3),
+  'karpenter.go_goroutines': between(380, 720, 0.05, true),
+  'karpenter.go.memstats.alloc_bytes': between(60e6, 160e6, 0.15),
+  'karpenter.process.cpu_seconds.count': between(0.05, 0.4, 0.3),
   'kube_apiserver.registered_watchers': between(5, 180, 0.05, true),
   'kube_apiserver.process_virtual_memory_bytes': between(1.6e9, 2.1e9, 0.01),
   'kube_apiserver.process_resident_memory_bytes': between(650e6, 1.2e9, 0.03),

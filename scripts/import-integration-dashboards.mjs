@@ -344,6 +344,7 @@ const MOCK_INTEGRATIONS = [
   'kube-controller-manager',
   'coredns',
   'keda',
+  'karpenter',
 ];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */

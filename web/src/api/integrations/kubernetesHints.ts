@@ -473,6 +473,20 @@ ${indent(checkAnnotation('kafka', 'confluent_platform', jmxCheck(9999, { service
     ],
   },
   {
+    check: 'karpenter',
+    variants: [
+      {
+        label: 'Karpenter Helm chart (oci://public.ecr.aws/karpenter/karpenter)',
+        text: 'The controller serves its metrics on port 8080 (`controller.metrics.port`). Put the annotations in the chart’s `podAnnotations` value (the container is `controller`); recent Agents also find Karpenter by its image by themselves. The logs annotation names the source the integration’s pipeline reads (otherwise `controller`).',
+        filename: POD_ANNOTATIONS,
+        code: [
+          checkAnnotation('controller', 'karpenter', { instances: [{ openmetrics_endpoint: 'http://%%host%%:8080/metrics' }] }),
+          logsAnnotation('controller', 'karpenter', 'karpenter'),
+        ].join('\n'),
+      },
+    ],
+  },
+  {
     check: 'coredns',
     variants: [
       {

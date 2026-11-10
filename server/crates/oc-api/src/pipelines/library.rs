@@ -362,6 +362,21 @@ mod tests {
         assert!(log.message.contains("Connecting Metrics Service gRPC client"), "{}", log.message);
     }
 
+    /// Karpenter's JSON logs (its `controller` container, the source named `karpenter` by the logs annotation), as
+    /// integrations-core's `karpenter_tests.yaml` expects.
+    #[test]
+    fn karpenter_controller_logs() {
+        use serde_json::json;
+        let line = json!({"level": "INFO", "time": "2026-11-10T09:15:02.908Z", "logger": "controller", "message": "launched nodeclaim", "commit": "1a2b3c4",
+            "controller": "nodeclaim.lifecycle", "NodeClaim": {"name": "default-x7k2p"}, "provider-id": "aws:///eu-west-1a/i-0a1b2c3d4e5f60007", "instance-type": "m6i.xlarge", "zone": "eu-west-1a", "capacity-type": "on-demand"});
+        let log = agent_log("karpenter", json!({"message": line.to_string(), "hostname": "i-0a1b2c3d4e5f60001", "service": "karpenter", "ddsource": "karpenter"}));
+        assert_eq!((log.message.as_str(), log.status.as_str(), log.get("logger.name")), ("launched nodeclaim", "info", Some(json!("controller"))));
+        assert_eq!((log.get("controller"), log.get("instance-type")), (Some(json!("nodeclaim.lifecycle")), Some(json!("m6i.xlarge"))));
+        assert_eq!(log.timestamp_ms, Some(1_794_302_102_908));
+        let line = json!({"level": "ERROR", "time": "2026-11-10T09:15:03.000Z", "logger": "controller.interruption", "message": "getting messages from queue, discovering queue url"});
+        assert_eq!(agent_log("karpenter", json!({"message": line.to_string(), "service": "karpenter", "ddsource": "karpenter"})).status, "error");
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};
