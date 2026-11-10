@@ -4185,6 +4185,769 @@
     }
    ]
   },
+  "Microsoft.Storage/storageAccounts/blobServices": {
+   "metrics": [
+    {
+     "name": "BlobCapacity",
+     "display": "Blob Capacity",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "BlobType",
+      "Tier"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "BlobCount",
+     "display": "Blob Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "BlobType",
+      "Tier"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "BlobProvisionedSize",
+     "display": "Blob Provisioned Size",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "BlobType",
+      "Tier"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "ContainerBlobCount",
+     "display": "Container Blob Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "ContainerName",
+      "BlobType",
+      "Tier"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "ContainerCount",
+     "display": "Blob Container Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "AccessLevel"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "ContainerUsedSize",
+     "display": "Container Blob Capacity",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "ContainerName",
+      "Tier",
+      "BlobType"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "IndexCapacity",
+     "display": "Index Capacity",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "grain": "PT1H"
+    },
+    {
+     "name": "Availability",
+     "display": "Availability",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "Tier"
+     ]
+    },
+    {
+     "name": "Egress",
+     "display": "Egress",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "Tier"
+     ]
+    },
+    {
+     "name": "Ingress",
+     "display": "Ingress",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "Tier"
+     ]
+    },
+    {
+     "name": "SuccessE2ELatency",
+     "display": "Success E2E Latency",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "millisecond",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "Tier"
+     ]
+    },
+    {
+     "name": "SuccessServerLatency",
+     "display": "Success Server Latency",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "millisecond",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "Tier"
+     ]
+    },
+    {
+     "name": "Transactions",
+     "display": "Transactions",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "ResponseType",
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "TransactionType",
+      "Tier"
+     ]
+    }
+   ]
+  },
+  "Microsoft.Storage/storageAccounts/fileServices": {
+   "metrics": [
+    {
+     "name": "FileCapacity",
+     "display": "File Capacity",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "FileShare",
+      "Tier"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "FileCount",
+     "display": "File Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "FileShare",
+      "Tier"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "FileShareCapacityQuota",
+     "display": "File Share Capacity Quota",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "FileShare"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "FileShareCount",
+     "display": "File Share Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "FileShareProvisionedBandwidthMiBps",
+     "display": "File Share Provisioned Bandwidth MiB/s",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "FileShare"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "FileShareProvisionedIOPS",
+     "display": "File Share Provisioned IOPS",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "FileShare"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "FileShareSnapshotCount",
+     "display": "File Share Snapshot Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "FileShare"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "FileShareSnapshotSize",
+     "display": "File Share Snapshot Size",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "FileShare"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "PercentFileShareBandwidthUtilization",
+     "display": "Percentage File Share Bandwidth Utilization",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "FileShare"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "PercentFileShareIOPSUtilization",
+     "display": "Percentage File Share IOPS Utilization",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "FileShare"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "PercentFileShareUtilization",
+     "display": "Percentage File Share Utilization",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "FileShare"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "Availability",
+     "display": "Availability",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "FileShare"
+     ]
+    },
+    {
+     "name": "Egress",
+     "display": "Egress",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "FileShare",
+      "SizeBucket"
+     ]
+    },
+    {
+     "name": "FileShareAvailableBurstCredits",
+     "display": "Burst Credits For IOPS",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "dimensions": [
+      "FileShare"
+     ]
+    },
+    {
+     "name": "FileShareMaxUsedBandwidthMiBps",
+     "display": "Bandwidth by Max MiB/s",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "FileShare"
+     ]
+    },
+    {
+     "name": "FileShareMaxUsedIOPS",
+     "display": "Transactions by Max IOPS",
+     "aggregation": "Maximum",
+     "aggregations": [
+      "Maximum"
+     ],
+     "dimensions": [
+      "FileShare"
+     ]
+    },
+    {
+     "name": "FileSharePaidBurstingBandwidth",
+     "display": "Paid Bursting Bandwidth",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "FileShare"
+     ]
+    },
+    {
+     "name": "FileSharePaidBurstingIOS",
+     "display": "Paid Bursting IOS",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "FileShare"
+     ]
+    },
+    {
+     "name": "Ingress",
+     "display": "Ingress",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "FileShare",
+      "SizeBucket"
+     ]
+    },
+    {
+     "name": "SuccessE2ELatency",
+     "display": "Success E2E Latency",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "millisecond",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "FileShare"
+     ]
+    },
+    {
+     "name": "SuccessServerLatency",
+     "display": "Success Server Latency",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "millisecond",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "FileShare"
+     ]
+    },
+    {
+     "name": "Transactions",
+     "display": "Transactions",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "ResponseType",
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "FileShare",
+      "TransactionType"
+     ]
+    }
+   ]
+  },
+  "Microsoft.Storage/storageAccounts/queueServices": {
+   "metrics": [
+    {
+     "name": "QueueCapacity",
+     "display": "Queue Capacity",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "grain": "PT1H"
+    },
+    {
+     "name": "QueueCount",
+     "display": "Queue Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "QueueMessageCount",
+     "display": "Queue Message Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "Availability",
+     "display": "Availability",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication"
+     ]
+    },
+    {
+     "name": "Egress",
+     "display": "Egress",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication"
+     ]
+    },
+    {
+     "name": "Ingress",
+     "display": "Ingress",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication"
+     ]
+    },
+    {
+     "name": "SuccessE2ELatency",
+     "display": "Success E2E Latency",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "millisecond",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication"
+     ]
+    },
+    {
+     "name": "SuccessServerLatency",
+     "display": "Success Server Latency",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "millisecond",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication"
+     ]
+    },
+    {
+     "name": "Transactions",
+     "display": "Transactions",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "ResponseType",
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "TransactionType"
+     ]
+    }
+   ]
+  },
+  "Microsoft.Storage/storageAccounts/tableServices": {
+   "metrics": [
+    {
+     "name": "TableCapacity",
+     "display": "Table Capacity",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "unit": "byte",
+     "grain": "PT1H"
+    },
+    {
+     "name": "TableCount",
+     "display": "Table Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "TableEntityCount",
+     "display": "Table Entity Count",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average"
+     ],
+     "grain": "PT1H"
+    },
+    {
+     "name": "Availability",
+     "display": "Availability",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "percent",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication"
+     ]
+    },
+    {
+     "name": "Egress",
+     "display": "Egress",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication"
+     ]
+    },
+    {
+     "name": "Ingress",
+     "display": "Ingress",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total",
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "byte",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication"
+     ]
+    },
+    {
+     "name": "SuccessE2ELatency",
+     "display": "Success E2E Latency",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "millisecond",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication"
+     ]
+    },
+    {
+     "name": "SuccessServerLatency",
+     "display": "Success Server Latency",
+     "aggregation": "Average",
+     "aggregations": [
+      "Average",
+      "Minimum",
+      "Maximum"
+     ],
+     "unit": "millisecond",
+     "dimensions": [
+      "GeoType",
+      "ApiName",
+      "Authentication"
+     ]
+    },
+    {
+     "name": "Transactions",
+     "display": "Transactions",
+     "aggregation": "Total",
+     "aggregations": [
+      "Total"
+     ],
+     "dimensions": [
+      "ResponseType",
+      "GeoType",
+      "ApiName",
+      "Authentication",
+      "TransactionType"
+     ]
+    }
+   ]
+  },
   "Microsoft.Sql/servers/databases": {
    "metrics": [
     {

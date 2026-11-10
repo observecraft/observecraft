@@ -124,6 +124,46 @@
       ]
     },
     {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "name": "Azure Blob Storage",
+      "id": "azure-storage-storageaccounts-blobservices",
+      "prefix": "azure.storage_storageaccounts_blobservices",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices",
+      "name": "Azure File Storage",
+      "id": "azure-storage-storageaccounts-fileservices",
+      "prefix": "azure.storage_storageaccounts_fileservices",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/queueServices",
+      "name": "Azure Queue Storage",
+      "id": "azure-storage-storageaccounts-queueservices",
+      "prefix": "azure.storage_storageaccounts_queueservices",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/tableServices",
+      "name": "Azure Table Storage",
+      "id": "azure-storage-storageaccounts-tableservices",
+      "prefix": "azure.storage_storageaccounts_tableservices",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
       "type": "Microsoft.Sql/servers/databases",
       "name": "Azure SQL Database",
       "id": "azure-sql-servers-databases",

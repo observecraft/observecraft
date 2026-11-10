@@ -82,6 +82,14 @@ test('Azure metrics come from Azure Monitor’s supported metrics reference with
   const storage = azure.resource_types['Microsoft.Storage/storageAccounts'];
   assert.equal(storage.metrics.find((m) => m.name === 'UsedCapacity').grain, 'PT1H');
   assert.deepEqual(storage.metrics.find((m) => m.name === 'Transactions').dimensions.slice(0, 2), ['ResponseType', 'GeoType']);
+  // Storage accounts' services are their own resource types, as Datadog's Blob, File, Queue and Table Storage.
+  const blobs = azure.resource_types['Microsoft.Storage/storageAccounts/blobServices'];
+  assert.deepEqual(blobs.metrics.find((m) => m.name === 'BlobCapacity').dimensions, ['BlobType', 'Tier']);
+  for (const s of ['fileServices', 'queueServices', 'tableServices'])
+    assert.ok(
+      azure.resource_types[`Microsoft.Storage/storageAccounts/${s}`].metrics.some((m) => m.name === 'Transactions'),
+      s,
+    );
   assert.ok(Object.keys(azure.resource_types).length >= 50);
 });
 
@@ -474,6 +482,10 @@ const DESIGNED_AZURE = [
   'Microsoft.DBforMySQL/flexibleServers',
   'Microsoft.DocumentDB/databaseAccounts',
   'Microsoft.Storage/storageAccounts',
+  'Microsoft.Storage/storageAccounts/blobServices',
+  'Microsoft.Storage/storageAccounts/fileServices',
+  'Microsoft.Storage/storageAccounts/queueServices',
+  'Microsoft.Storage/storageAccounts/tableServices',
   'Microsoft.KeyVault/vaults',
   'Microsoft.Cache/redis',
   'Microsoft.Cache/redisEnterprise',
@@ -596,6 +608,13 @@ test('designed Azure dashboards follow their service’s model, not one template
   assert.match(text('Microsoft.Storage/storageAccounts'), /by \{responsetype\}/);
   assert.match(text('Microsoft.Storage/storageAccounts'), /azure\.storage\.success_e2elatency/);
   assert.match(text('Microsoft.Storage/storageAccounts'), /azure\.storage\.used_capacity/);
+  // Blob, File, Queue and Table Storage: each service's transactions by API, its capacity, its own objects.
+  assert.match(text('Microsoft.Storage/storageAccounts/blobServices'), /sum:azure\.storage_storageaccounts_blobservices\.transactions\{[^}]*\} by \{apiname\}/);
+  assert.match(text('Microsoft.Storage/storageAccounts/blobServices'), /sum:azure\.storage_storageaccounts_blobservices\.blob_capacity\{[^}]*\} by \{tier\}/);
+  assert.match(text('Microsoft.Storage/storageAccounts/fileServices'), /azure\.storage_storageaccounts_fileservices\.percent_file_share_utilization\{[^}]*\} by \{fileshare\}/);
+  assert.match(text('Microsoft.Storage/storageAccounts/queueServices'), /azure\.storage_storageaccounts_queueservices\.queue_message_count/);
+  assert.match(text('Microsoft.Storage/storageAccounts/tableServices'), /azure\.storage_storageaccounts_tableservices\.table_entity_count/);
+  assert.deepEqual(vars('Microsoft.Storage/storageAccounts/fileServices'), ['subscription_id', 'resource_group', 'region', 'name', 'apiname', 'responsetype', 'fileshare']);
   // Cosmos DB: requests by status code, throttled 429s, normalized RU consumption.
   assert.match(text('Microsoft.DocumentDB/databaseAccounts'), /sum:azure\.cosmosdb\.total_requests\{[^}]*\} by \{statuscode\}/);
   assert.match(text('Microsoft.DocumentDB/databaseAccounts'), /statuscode:429/);
@@ -619,6 +638,8 @@ test('every Azure service dashboard charts only names and tags the crawler publi
   assert.ok(azurePublishedNames('Microsoft.Web/sites').has('azure.app_services.count'));
   assert.ok(azurePublishedNames('Microsoft.Web/sites (functionapp)').has('azure.functions.function_execution_units'));
   assert.ok(azurePublishedNames('Microsoft.Web/sites (functionapp)').has('azure.functions.count'));
+  assert.deepEqual(azurePublished('Microsoft.Storage/storageAccounts/blobServices').get('azure.storage_storageaccounts_blobservices.transactions'), ['apiname', 'responsetype', 'tier']);
+  assert.ok(azurePublishedNames('Microsoft.Storage/storageAccounts/tableServices').has('azure.storage_storageaccounts_tableservices.count'));
   assert.deepEqual(azurePublished('Microsoft.Web/sites (functionapp)').get('azure.functions.requests'), ['instance']);
   assert.ok(!azurePublishedNames('Microsoft.Web/sites').has('azure.app_services.http5xx.max'), 'Http5xx has no maximum');
   assert.ok(azurePublishedNames('Microsoft.Network/dnszones').has('azure.network_dnszones.record_set_count'), 'no primary aggregation: averaged');

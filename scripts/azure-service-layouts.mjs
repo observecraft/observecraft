@@ -604,6 +604,175 @@ export const AZURE_LAYOUTS = {
     },
   },
 
+  // A storage account's services: the crawler reads `<account>/blobServices/default` etc. as their own types (azure/crawler.rs
+  // storage_services), tagged as their account.
+  'Microsoft.Storage/storageAccounts/blobServices': {
+    vars: ['apiname', 'responsetype', 'tier'],
+    monitor: 'azure_blob_storage',
+    note: 'Blob services of the storage accounts: requests by blob API and response type, end-to-end against server latency, ingress and egress, and hourly capacity, blobs and containers by access tier and blob type.',
+    logs: [['Blob storage logs', 'source:azure.storage']],
+    build: (q) => {
+      const { sum, avg, min, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Blob services running'),
+          qv('Availability', avg('availability'), { precision: 2 }),
+          qv('Blob requests', sum('transactions')),
+          qv('Failed requests', sum('transactions', null, '!responsetype:success'), { bad: true }),
+          qv('Blob capacity', sum('blob_capacity'), { agg: 'last' }),
+        ],
+        groups: [
+          g('Blob requests', [
+            ts('Requests by blob API', sum('transactions', 'apiname'), { display: 'bars', w: 8 }),
+            top('Most called blob APIs', sum('transactions', 'apiname'), { w: 4 }),
+            ts('Requests by response type', sum('transactions', 'responsetype'), { display: 'bars', w: 6 }),
+            top('Accounts with the most failed requests', sum('transactions', 'name', '!responsetype:success'), { palette: 'warm', w: 6 }),
+          ]),
+          g('Blob latency and availability', [
+            ts('End-to-end against server', [avg('success_e2elatency'), avg('success_server_latency')], { alias: ['end-to-end', 'server'], w: 6 }),
+            ts('Server latency by blob API', avg('success_server_latency', 'apiname'), { w: 6 }),
+            ts('Availability by account', min('availability', 'name'), { w: 6 }),
+            top('Slowest accounts', avg('success_e2elatency', 'name'), { w: 6 }),
+          ]),
+          g('Blob throughput', [
+            mirror('Ingress and egress', sum('ingress'), sum('egress'), { w: 8 }),
+            top('Most egress', sum('egress', 'name'), { w: 4 }),
+            ts('Requests by access tier', sum('transactions', 'tier'), { w: 12 }),
+          ]),
+          g('Capacity and objects (hourly)', [
+            ts('Capacity by access tier', sum('blob_capacity', 'tier'), { display: 'area', span: '1w', w: 6 }),
+            tree('Capacity by account', sum('blob_capacity', 'name'), { agg: 'last', w: 6 }),
+            ts('Blobs by blob type', sum('blob_count', 'blobtype'), { span: '1w', w: 4 }),
+            ts('Containers by account', sum('container_count', 'name'), { span: '1w', w: 4 }),
+            chg('Capacity against the week before', sum('blob_capacity', 'name'), { increaseGood: false, w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Storage/storageAccounts/fileServices': {
+    vars: ['apiname', 'responsetype', 'fileshare'],
+    monitor: 'azure_file_storage',
+    note: 'Azure Files: requests by share and SMB/REST operation, latency, and each share’s hourly capacity against its quota, provisioned IOPS and bandwidth (premium shares throttle at 100%).',
+    logs: [['File storage logs', 'source:azure.storage']],
+    build: (q) => {
+      const { sum, avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'File services running'),
+          qv('Availability', avg('availability'), { precision: 2 }),
+          qv('Share requests', sum('transactions')),
+          qv('Failed requests', sum('transactions', null, '!responsetype:success'), { bad: true }),
+          qv('File capacity', sum('file_capacity'), { agg: 'last' }),
+        ],
+        groups: [
+          g('Share requests', [
+            ts('Requests by operation', sum('transactions', 'apiname'), { display: 'bars', w: 8 }),
+            top('Busiest shares', sum('transactions', 'fileshare'), { w: 4 }),
+            ts('Requests by response type', sum('transactions', 'responsetype'), { display: 'bars', w: 6 }),
+            top('Shares with the most failed requests', sum('transactions', 'fileshare', '!responsetype:success'), { palette: 'warm', w: 6 }),
+          ]),
+          g('Share latency and throughput', [
+            ts('End-to-end against server', [avg('success_e2elatency'), avg('success_server_latency')], { alias: ['end-to-end', 'server'], w: 6 }),
+            ts('End-to-end latency by share', avg('success_e2elatency', 'fileshare'), { w: 6 }),
+            mirror('Ingress and egress', sum('ingress'), sum('egress'), { w: 6 }),
+            ts('Peak IOPS by share', max('file_share_max_used_iops', 'fileshare'), { w: 6 }),
+          ]),
+          g('Quota and limits (hourly)', [
+            ts('Share of quota used', max('percent_file_share_utilization', 'fileshare'), { palette: 'warm', span: '1w', w: 4 }),
+            ts('Share of provisioned IOPS used', max('percent_file_share_iopsutilization', 'fileshare'), { palette: 'warm', span: '1w', w: 4 }),
+            ts('Share of provisioned bandwidth used', max('percent_file_share_bandwidth_utilization', 'fileshare'), { palette: 'warm', span: '1w', w: 4 }),
+          ]),
+          g('Shares and files (hourly)', [
+            tree('Capacity by share', sum('file_capacity', 'fileshare'), { agg: 'last', w: 6 }),
+            ts('Files by share', sum('file_count', 'fileshare'), { span: '1w', w: 6 }),
+            ts('Snapshots by share', sum('file_share_snapshot_count', 'fileshare'), { span: '1w', w: 6 }),
+            chg('Capacity against the week before', sum('file_capacity', 'fileshare'), { increaseGood: false, w: 6 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Storage/storageAccounts/queueServices': {
+    vars: ['apiname', 'responsetype'],
+    monitor: 'azure_queue_storage',
+    note: 'Queue services of the storage accounts: queue operations (put, get, delete) and their results, latency, and the hourly backlog of messages waiting in each account’s queues.',
+    logs: [['Queue storage logs', 'source:azure.storage']],
+    build: (q) => {
+      const { sum, avg, min, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Queue services running'),
+          qv('Messages waiting', sum('queue_message_count'), { agg: 'last' }),
+          qv('Queue operations', sum('transactions')),
+          qv('Failed operations', sum('transactions', null, '!responsetype:success'), { bad: true }),
+          qv('Avg end-to-end latency', avg('success_e2elatency'), { precision: 1 }),
+        ],
+        groups: [
+          g('Queue operations', [
+            ts('Operations by API', sum('transactions', 'apiname'), { display: 'bars', w: 8 }),
+            top('Most used queue operations', sum('transactions', 'apiname'), { w: 4 }),
+            ts('Results by response type', sum('transactions', 'responsetype'), { display: 'bars', w: 6 }),
+            top('Accounts with the most failed operations', sum('transactions', 'name', '!responsetype:success'), { palette: 'warm', w: 6 }),
+          ]),
+          g('Backlog (hourly)', [
+            ts('Messages waiting by account', sum('queue_message_count', 'name'), { display: 'area', span: '1w', w: 8 }),
+            top('Longest backlogs', sum('queue_message_count', 'name'), { agg: 'last', w: 4 }),
+            ts('Queues by account', sum('queue_count', 'name'), { span: '1w', w: 6 }),
+            ts('Queue capacity by account', sum('queue_capacity', 'name'), { span: '1w', w: 6 }),
+          ]),
+          g('Queue latency and availability', [
+            ts('End-to-end against server', [avg('success_e2elatency'), avg('success_server_latency')], { alias: ['end-to-end', 'server'], w: 6 }),
+            ts('End-to-end latency by operation', avg('success_e2elatency', 'apiname'), { w: 6 }),
+            ts('Availability by account', min('availability', 'name'), { w: 6 }),
+            mirror('Ingress and egress', sum('ingress'), sum('egress'), { w: 6 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Storage/storageAccounts/tableServices': {
+    vars: ['apiname', 'responsetype'],
+    monitor: 'azure_table_storage',
+    note: 'Table services of the storage accounts: entity operations (query, insert, update, delete) and their results, latency, and each account’s hourly tables, entities and capacity.',
+    logs: [['Table storage logs', 'source:azure.storage']],
+    build: (q) => {
+      const { sum, avg, min, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Table services running'),
+          qv('Entities', sum('table_entity_count'), { agg: 'last' }),
+          qv('Table operations', sum('transactions')),
+          qv('Failed operations', sum('transactions', null, '!responsetype:success'), { bad: true }),
+          qv('Avg server latency', avg('success_server_latency'), { precision: 1 }),
+        ],
+        groups: [
+          g('Entity operations', [
+            ts('Operations by API', sum('transactions', 'apiname'), { display: 'bars', w: 8 }),
+            top('Most used table operations', sum('transactions', 'apiname'), { w: 4 }),
+            ts('Results by response type', sum('transactions', 'responsetype'), { display: 'bars', w: 6 }),
+            top('Accounts with the most failed operations', sum('transactions', 'name', '!responsetype:success'), { palette: 'warm', w: 6 }),
+          ]),
+          g('Tables and entities (hourly)', [
+            ts('Entities by account', sum('table_entity_count', 'name'), { display: 'area', span: '1w', w: 6 }),
+            ts('Tables by account', sum('table_count', 'name'), { span: '1w', w: 6 }),
+            tree('Capacity by account', sum('table_capacity', 'name'), { agg: 'last', w: 6 }),
+            chg('Entities against the week before', sum('table_entity_count', 'name'), { w: 6 }),
+          ]),
+          g('Table latency and availability', [
+            ts('End-to-end against server', [avg('success_e2elatency'), avg('success_server_latency')], { alias: ['end-to-end', 'server'], w: 6 }),
+            ts('Server latency by operation', avg('success_server_latency', 'apiname'), { w: 6 }),
+            ts('Availability by account', min('availability', 'name'), { w: 6 }),
+            mirror('Ingress and egress', sum('ingress'), sum('egress'), { w: 6 }),
+          ]),
+        ],
+      };
+    },
+  },
+
   'Microsoft.KeyVault/vaults': {
     vars: ['activitytype'],
     monitor: 'azure_key_vault',

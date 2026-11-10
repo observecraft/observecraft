@@ -8,6 +8,8 @@
 //!   type's metric definitions once, and their values over the window since the watermark (at most 3 hours,
 //!   ending 5 minutes ago): 50 resources of one type and region and 20 metrics per call, from the regional
 //!   batch API, or Resource Manager's per-resource API for global resources (DNS zones, Front Door, …).
+//!   Storage accounts' blob, file, queue and table services, which the list leaves out, are read from their
+//!   accounts' ids (`…/blobServices/default`); function apps (sites of kind `functionapp`) apart from web apps.
 //! - **Time grains.** Each metric is read at its finest grain. One-minute metrics follow the watermark;
 //!   coarser ones (storage capacity: hourly) are re-read over their last intervals (at least an hour, 3 of
 //!   them, at most 3 days) when one completed or once an hour, and each series' latest published point is
@@ -202,6 +204,31 @@ fn to_points(kind: &str, subscription: &str, defs: &[&MetricDef], series: Vec<Se
     }
 }
 
+/// A storage account's blob, file, queue and table services (`…/blobServices/default`), which the resources list
+/// leaves out: their metrics are their own types' (`azure.storage_storageaccounts_blobservices.*`), read from the
+/// regional batch API like the account's, and tagged as the account (its name, group, region and tags).
+fn storage_services(r: &Resource) -> Vec<Resource> {
+    if !r.kind.eq_ignore_ascii_case("microsoft.storage/storageaccounts") {
+        return vec![];
+    }
+    // Premium block blob and file share accounts have only their own service; general-purpose ones have the four.
+    let services: &[&str] = match r.azure_kind.to_ascii_lowercase().as_str() {
+        "blobstorage" | "blockblobstorage" => &["blobServices"],
+        "filestorage" => &["fileServices"],
+        _ => &["blobServices", "fileServices", "queueServices", "tableServices"],
+    };
+    services.iter().map(|s| Resource { id: format!("{}/{s}/default", r.id), kind: format!("Microsoft.Storage/storageAccounts/{s}"), azure_kind: String::new(), ..r.clone() }).collect()
+}
+
+/// The id Resource Health reports a resource under (lowercase): a storage service's account.
+fn health_id(r: &Resource) -> String {
+    let id = r.id.to_ascii_lowercase();
+    if r.kind.to_ascii_lowercase().starts_with("microsoft.storage/storageaccounts/") {
+        return id.rsplitn(3, '/').nth(2).unwrap_or(&id).to_string();
+    }
+    id
+}
+
 /// Resource Health's state as Datadog's `status` tag.
 fn status(state: Option<&String>) -> String {
     match state.map(String::as_str) {
@@ -231,7 +258,7 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
         return Outcome::Idle.into();
     }
     let resources: Vec<Resource> = match api.resources(creds, subscription).await {
-        Ok(r) => r.into_iter().filter(|r| selected(config, r)).collect(),
+        Ok(r) => r.into_iter().filter(|r| selected(config, r)).flat_map(|r| { let services = storage_services(&r); std::iter::once(r).chain(services) }).collect(),
         Err(e) => return Outcome::Failed(issue(&e)).into(),
     };
     // By the type their metrics are named by (function apps apart from web apps) and region.
@@ -343,7 +370,7 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
     let health = api.availability(creds, subscription).await.ok();
     for r in &resources {
         let mut tags = resource_tags(subscription, r);
-        tags.insert("status".into(), health.as_ref().map_or_else(|| "query_failed".to_string(), |h| status(h.get(&r.id.to_ascii_lowercase()))));
+        tags.insert("status".into(), health.as_ref().map_or_else(|| "query_failed".to_string(), |h| status(h.get(&health_id(r)))));
         let tags: Vec<(String, String)> = tags.into_iter().collect();
         let name = naming::count_name(&naming::named_type(&r.kind, &r.azure_kind));
         run.points.extend((start..end).step_by(MINUTE_MS as usize).map(|time_ms| Point { name: name.clone(), host: host(r), tags: tags.clone(), time_ms, value: 1.0 }));
@@ -474,7 +501,12 @@ mod tests {
             Ok(self.resources.clone())
         }
         async fn metric_definitions(&self, _c: &Credentials, id: &str) -> Result<Vec<MetricDef>, AzureError> {
-            let kind = self.resources.iter().find(|r| r.id == id).map(|r| r.kind.clone()).unwrap_or_default();
+            // A listed resource's type, else the one its id names (a storage account's `…/blobServices/default`).
+            let named = || {
+                let parts: Vec<&str> = id.split("/providers/").nth(1).unwrap_or_default().split('/').collect();
+                std::iter::once(parts[0]).chain(parts.iter().skip(1).step_by(2).copied()).collect::<Vec<_>>().join("/")
+            };
+            let kind = self.resources.iter().find(|r| r.id == id).map(|r| r.kind.clone()).unwrap_or_else(named);
             Ok(self.defs.get(&kind).cloned().unwrap_or_default())
         }
         async fn metrics(&self, _c: &Credentials, q: &MetricsQuery<'_>) -> Result<Vec<Series>, AzureError> {
@@ -610,6 +642,51 @@ mod tests {
         }
         let count = points.iter().find(|p| p.0 == "azure.functions.count").unwrap();
         assert!(count.2.contains(&("status".to_string(), "Running".to_string())));
+    }
+
+    #[tokio::test]
+    async fn storage_accounts_blob_file_queue_and_table_services_are_read_as_their_own_types() {
+        const BLOBS: &str = "Microsoft.Storage/storageAccounts/blobServices";
+        const FILES: &str = "Microsoft.Storage/storageAccounts/fileServices";
+        const QUEUES: &str = "Microsoft.Storage/storageAccounts/queueServices";
+        const TABLES: &str = "Microsoft.Storage/storageAccounts/tableServices";
+        let general = Resource { azure_kind: "StorageV2".into(), ..resource("storefrontassets", STORAGE, "westeurope", &["env:prod"]) };
+        let shares = Resource { azure_kind: "FileStorage".into(), ..resource("ordershares", STORAGE, "westeurope", &[]) };
+        let transactions = || def("Transactions", "Total", &["Total"], 60_000, &["ResponseType", "GeoType", "ApiName", "Authentication", "TransactionType"]);
+        let azure = FakeAzure {
+            resources: vec![general.clone(), shares.clone()],
+            defs: HashMap::from([
+                (STORAGE.to_string(), vec![transactions()]),
+                (BLOBS.to_string(), vec![transactions(), def("BlobCapacity", "Average", &["Average"], HOUR_MS, &["BlobType", "Tier"])]),
+                (FILES.to_string(), vec![transactions()]),
+                (QUEUES.to_string(), vec![transactions()]),
+                (TABLES.to_string(), vec![transactions()]),
+            ]),
+            health: Some(HashMap::from([(general.id.to_ascii_lowercase(), "Available".to_string()), (shares.id.to_ascii_lowercase(), "Degraded".to_string())])),
+            ..Default::default()
+        };
+        let (crawl, sink) = run(&azure, &json!({}), None, &State::default(), NOW).await;
+        assert!(matches!(crawl.outcome, Outcome::Collected { warning: None, .. }), "{:?}", crawl.outcome);
+        // A general-purpose account has the four services, a file storage account only files; read per service type.
+        let calls = azure.calls.lock().unwrap().clone();
+        let read = |kind: &str| calls.iter().filter(|c| c.0 == kind && c.6 == MINUTE_MS).map(|c| c.2).sum::<usize>();
+        assert_eq!((read(STORAGE), read(BLOBS), read(FILES), read(QUEUES), read(TABLES)), (2, 1, 2, 1, 1));
+        assert_eq!(calls.iter().find(|c| c.0 == BLOBS && c.6 == HOUR_MS).unwrap().7, ["BlobType", "Tier"]);
+        let points = published(&sink);
+        let blob = points.iter().find(|p| p.0 == "azure.storage_storageaccounts_blobservices.transactions").unwrap();
+        let tags: HashMap<_, _> = blob.2.iter().cloned().collect();
+        // Tagged as their account (its name, resource group and Azure tags), split by API and response type.
+        assert_eq!((tags["name"].as_str(), tags["resource_group"].as_str(), tags["env"].as_str(), tags["apiname"].as_str()), ("storefrontassets", "storefront", "prod", "ApiName-0"));
+        assert!(points.iter().any(|p| p.0 == "azure.storage_storageaccounts_blobservices.blob_capacity"));
+        // Their resource counts carry the account's Resource Health status.
+        let status = |name: &str, account: &str| {
+            let p = points.iter().find(|p| p.0 == name && p.2.contains(&("name".to_string(), account.to_string()))).unwrap_or_else(|| panic!("{name} of {account}"));
+            p.2.iter().find(|t| t.0 == "status").unwrap().1.clone()
+        };
+        assert_eq!(status("azure.storage_storageaccounts_blobservices.count", "storefrontassets"), "Running");
+        assert_eq!(status("azure.storage_storageaccounts_fileservices.count", "ordershares"), "Degraded");
+        assert_eq!(status("azure.storage_storageaccounts_tableservices.count", "storefrontassets"), "Running");
+        assert!(!points.iter().any(|p| p.0 == "azure.storage_storageaccounts_queueservices.count" && p.2.contains(&("name".to_string(), "ordershares".to_string()))));
     }
 
     #[tokio::test]
