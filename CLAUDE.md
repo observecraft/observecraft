@@ -374,7 +374,8 @@ or SDK features.
     its provisioning and Graph activity logs, and Okta (Datadog's Okta integration is its own crawler; only Okta
     Workflows is in the catalog);
   - Logs: forwarding to Microsoft Sentinel (needs Azure credentials), Azure Blob archives, archive readers (roles), the
-    pipeline processors the engine doesn't run yet (array, decoder, schema, span id remapper: stored and skipped);
+    pipeline processors the engine doesn't run yet (decoder, schema, span id remapper: stored and skipped), a GeoIP
+    database for the GeoIP parser (addresses get `{}`, as Datadog's unknown ones);
   - the profiler's Thread Timeline and Call Graph views, and Event Management's saved work item states, intelligent (learned) correlation, projects and event pipelines (correlators, maintenance windows and work item attributes exist);
   - Cloud Cost Management's Google Cloud billing export (`datadog_gcp_uc_config`), tag pipelines and custom allocation
     rules (budgets, custom forecasts, custom costs files, `datadog_api/cost.rs`, and the AWS and Azure bills exist; costs

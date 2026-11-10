@@ -27,7 +27,18 @@ pub enum Step {
     Lookup { source: String, target: String, table: HashMap<String, String>, default: Option<String> },
     Arithmetic { expr: Expr, target: String, replace_missing: bool },
     Url { sources: Vec<String>, target: String },
+    GeoIp { sources: Vec<String>, target: String },
+    Array(ArrayOp),
     Pipeline(Box<Pipeline>),
+}
+
+/// An array processor's operation.
+pub enum ArrayOp {
+    /// The `value` of the first element matching `filter`, into `target`.
+    Select { source: String, target: String, filter: Filter, value: String },
+    /// The value of `source` appended to the array `target`.
+    Append { source: String, target: String, preserve_source: bool },
+    Length { source: String, target: String },
 }
 
 pub struct Remap {
@@ -175,6 +186,26 @@ struct UrlDef {
 }
 
 #[derive(Deserialize)]
+struct ArrayDef {
+    operation: ArrayOpDef,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ArrayOpDef {
+    #[serde(rename = "type")]
+    kind: String,
+    source: String,
+    target: String,
+    #[serde(default)]
+    filter: Option<String>,
+    #[serde(default, alias = "value_to_extract")]
+    value_to_extract: Option<String>,
+    #[serde(default, alias = "preserve_source")]
+    preserve_source: Option<bool>,
+}
+
+#[derive(Deserialize)]
 struct NestedDef {
     #[serde(default)]
     name: Option<String>,
@@ -216,6 +247,8 @@ pub const SUPPORTED: &[&str] = &[
     "lookup-processor",
     "arithmetic-processor",
     "url-parser",
+    "geo-ip-parser",
+    "array-processor",
     "pipeline",
 ];
 
@@ -281,6 +314,19 @@ pub fn compile(def: &Value, depth: usize) -> Result<Option<Step>, String> {
             let d: UrlDef = de(def)?;
             let sources = if d.sources.is_empty() { vec!["http.url".to_string()] } else { d.sources };
             Step::Url { sources, target: d.target.filter(|t| !t.is_empty()).unwrap_or_else(|| "http.url_details".into()) }
+        }
+        "geo-ip-parser" => {
+            let d: UrlDef = de(def)?;
+            Step::GeoIp { sources: d.sources, target: d.target.filter(|t| !t.is_empty()).unwrap_or_else(|| "network.client.geoip".into()) }
+        }
+        "array-processor" => {
+            let ArrayDef { operation: o } = de(def)?;
+            Step::Array(match o.kind.as_str() {
+                "select" => Step::select(o)?,
+                "append" => ArrayOp::Append { source: o.source, target: o.target, preserve_source: o.preserve_source.unwrap_or(true) },
+                "length" => ArrayOp::Length { source: o.source, target: o.target },
+                k => return Err(format!("Unknown array operation '{k}' (select, append or length)")),
+            })
         }
         "pipeline" => {
             if depth >= MAX_NESTING {
@@ -378,8 +424,67 @@ pub fn apply(step: &Step, log: &mut Log, now_ms: i64) {
                 log.set(target, details);
             }
         }
+        Step::GeoIp { sources, target } => {
+            let Some(v) = sources.iter().find_map(|s| log.get(s)) else { return };
+            // No location database ships with ObserveCraft: a valid address gets Datadog's "no location known".
+            let ip = text(&v);
+            if ip.trim().is_empty() || v.is_null() {
+                return;
+            }
+            let geo = if ip.trim().parse::<std::net::IpAddr>().is_ok() { serde_json::json!({}) } else { serde_json::json!({ "invalidAddress": ip }) };
+            log.set(target, geo);
+        }
+        Step::Array(op) => op.apply(log),
         Step::Pipeline(p) => {
             p.apply(log, now_ms);
+        }
+    }
+}
+
+impl Step {
+    fn select(o: ArrayOpDef) -> Result<ArrayOp, String> {
+        let value = o.value_to_extract.filter(|v| !v.is_empty()).ok_or("A select operation needs a value to extract")?;
+        Ok(ArrayOp::Select { source: o.source, target: o.target, filter: Filter::parse(o.filter.as_deref().unwrap_or("").trim()), value })
+    }
+}
+
+impl ArrayOp {
+    fn apply(&self, log: &mut Log) {
+        match self {
+            ArrayOp::Select { source, target, filter, value } => {
+                let Some(Value::Array(items)) = log.get(source) else { return };
+                let mut found = items.into_iter().filter_map(|item| match item {
+                    Value::Object(attrs) => {
+                        // Its fields, as attributes or bare names (`info.ipAddress:*`).
+                        let mut item = Log::default();
+                        item.tags = super::log::flatten(&attrs);
+                        item.attrs = attrs;
+                        Some(item)
+                    }
+                    _ => None,
+                });
+                if let Some(v) = found.find_map(|mut item| if item.matches(filter) { item.get(value) } else { None }) {
+                    log.set(target, v);
+                }
+            }
+            ArrayOp::Append { source, target, preserve_source } => {
+                let Some(v) = log.get(source) else { return };
+                let mut list = match log.get(target) {
+                    Some(Value::Array(a)) => a,
+                    Some(other) => vec![other],
+                    None => vec![],
+                };
+                list.push(v);
+                if !preserve_source && source != target {
+                    log.remove(source);
+                }
+                log.set(target, Value::Array(list));
+            }
+            ArrayOp::Length { source, target } => {
+                if let Some(Value::Array(a)) = log.get(source) {
+                    log.set(target, Value::from(a.len()));
+                }
+            }
         }
     }
 }
@@ -806,6 +911,32 @@ mod tests {
         assert_eq!(out.get("http.url_details"), Some(json!({"scheme": "https", "host": "shop.example.com", "port": 8443, "path": "/cart", "queryString": {"id": "7", "q": "red shoes"}})));
         let out = run(p, log("m", json!({"http": {"url": "/cart"}})));
         assert_eq!(out.get("http.url_details"), Some(json!({"path": "/cart"})));
+    }
+
+    #[test]
+    fn geo_ip_parser_without_a_location_database() {
+        let p = json!([{"type": "geo-ip-parser", "sources": ["client_ip", "network.client.ip"], "target": "network.client.geoip"}]);
+        // A valid address no location is known for is `{}`, as Datadog writes for private and unknown ones.
+        let out = run(p.clone(), log("m", json!({"network": {"client": {"ip": "10.0.0.12"}}})));
+        assert_eq!(out.get("network.client.geoip"), Some(json!({})));
+        assert_eq!(run(p.clone(), log("m", json!({"client_ip": " 2001:db8::1 "}))).get("network.client.geoip"), Some(json!({})));
+        assert_eq!(run(p.clone(), log("m", json!({"client_ip": "Unknown IP"}))).get("network.client.geoip"), Some(json!({"invalidAddress": "Unknown IP"})));
+        assert_eq!(run(p.clone(), log("m", json!({"client_ip": ""}))).get("network.client.geoip"), None);
+        assert_eq!(run(p, log("m", json!({}))).get("network.client.geoip"), None);
+    }
+
+    #[test]
+    fn array_processor_selects_appends_and_counts() {
+        let p = json!([
+            {"type": "array-processor", "operation": {"type": "select", "source": "entries", "target": "outcome", "filter": "name:login ", "valueToExtract": "outcome"}},
+            {"type": "array-processor", "operation": {"type": "length", "source": "entries", "target": "count"}},
+            {"type": "array-processor", "operation": {"type": "append", "source": "extra", "target": "tags_list", "preserveSource": false}},
+            {"type": "array-processor", "operation": {"type": "append", "source": "single", "target": "fresh"}}
+        ]);
+        let out = run(p, log("m", json!({"entries": [{"name": "check", "outcome": "skip"}, {"name": "login", "outcome": "ok"}], "extra": "b", "tags_list": ["a"], "single": "x"})));
+        assert_eq!((out.get("outcome"), out.get("count")), (Some(json!("ok")), Some(json!(2))));
+        assert_eq!((out.get("tags_list"), out.get("extra")), (Some(json!(["a", "b"])), None));
+        assert_eq!((out.get("fresh"), out.get("single")), (Some(json!(["x"])), Some(json!("x"))));
     }
 
     #[test]
