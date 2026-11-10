@@ -3,9 +3,9 @@
 # OpenTelemetry integration pushes a workspace's Function logs, audit logs and container metrics over OTLP/HTTP
 # (protobuf) to a provider's base URL with headers from a Modal Secret (`OTEL_HEADER_<name>`). The metric names it
 # lists are the modal.* ones of Datadog's Modal integration (metadata.csv), so the tile's dashboard reads them.
-# Logs arrive as OpenTelemetry logs, not with `source:modal`: the intake stamps OTLP logs sent to
-# /v1/logs?ddsource=modal, but Modal takes only a base URL (it appends /v1/logs itself), so integrations-extras' Modal
-# pipeline (filter source:modal) doesn't apply to them.
+# Modal takes only a base URL (it appends /v1/logs itself), so `?ddsource=modal` can't be carried; the secret's
+# `OTEL_HEADER_X-OC-Source` / `OTEL_HEADER_X-OC-Service` headers name them instead, which the intake applies to every
+# record without its own, so integrations-extras' Modal pipeline (filter source:modal) and facets match.
 schema_version: 1
 id: modal
 name: Modal
@@ -22,10 +22,11 @@ docs_url: https://modal.com/docs/guide/otel-integration
 push:
   kind: otlp
   url: "{{ intake }}"
-  headers: { DD-API-KEY: "{{ api_key }}" }
+  headers: { DD-API-KEY: "{{ api_key }}", X-OC-Source: "{{ source }}", X-OC-Service: modal }
   instructions: |
-    1. In Modal, open **Secrets → Create new secret → Custom** and add one key, `OTEL_HEADER_DD-API-KEY`, with the value
-       `{{ api_key }}`. Name the secret, e.g. `observecraft-otel`.
+    1. In Modal, open **Secrets → Create new secret → Custom** and add three keys: `OTEL_HEADER_DD-API-KEY` with the
+       value `{{ api_key }}`, `OTEL_HEADER_X-OC-Source` with `{{ source }}` and `OTEL_HEADER_X-OC-Service` with `modal`
+       (the logs' source and service, so the Modal pipeline reads them). Name the secret, e.g. `observecraft-otel`.
     2. Open [Settings → Metrics](https://modal.com/settings/metrics), choose **OpenTelemetry**, enter the push URL
        `{{ intake }}` (the base URL: Modal adds `/v1/logs` and `/v1/metrics`) and pick the secret from step 1.
     3. **Test** the connection: a test log appears in Logs, then Function logs, audit logs and the `modal.*` metrics

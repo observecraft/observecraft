@@ -17183,9 +17183,11 @@
         "canCreate": false,
         "endpoints": [],
         "headers": {
-          "DD-API-KEY": "{{ api_key }}"
+          "DD-API-KEY": "{{ api_key }}",
+          "X-OC-Service": "modal",
+          "X-OC-Source": "{{ source }}"
         },
-        "instructions": "1. In Modal, open **Secrets → Create new secret → Custom** and add one key, `OTEL_HEADER_DD-API-KEY`, with the value\n   `{{ api_key }}`. Name the secret, e.g. `observecraft-otel`.\n2. Open [Settings → Metrics](https://modal.com/settings/metrics), choose **OpenTelemetry**, enter the push URL\n   `{{ intake }}` (the base URL: Modal adds `/v1/logs` and `/v1/metrics`) and pick the secret from step 1.\n3. **Test** the connection: a test log appears in Logs, then Function logs, audit logs and the `modal.*` metrics\n   (tagged app_name, function_name, environment_name, workspace_name, container_id) every minute.\n",
+        "instructions": "1. In Modal, open **Secrets → Create new secret → Custom** and add three keys: `OTEL_HEADER_DD-API-KEY` with the\n   value `{{ api_key }}`, `OTEL_HEADER_X-OC-Source` with `{{ source }}` and `OTEL_HEADER_X-OC-Service` with `modal`\n   (the logs' source and service, so the Modal pipeline reads them). Name the secret, e.g. `observecraft-otel`.\n2. Open [Settings → Metrics](https://modal.com/settings/metrics), choose **OpenTelemetry**, enter the push URL\n   `{{ intake }}` (the base URL: Modal adds `/v1/logs` and `/v1/metrics`) and pick the secret from step 1.\n3. **Test** the connection: a test log appears in Logs, then Function logs, audit logs and the `modal.*` metrics\n   (tagged app_name, function_name, environment_name, workspace_name, container_id) every minute.\n",
         "kind": "otlp",
         "signatureHeader": null,
         "signatureSecret": null,

@@ -7,10 +7,10 @@
 //! attribute every table is filtered by; for JSON logs, Vector does the same.
 //!
 //! - `POST /v1/traces | /v1/logs | /v1/metrics`  OTLP/HTTP (protobuf or JSON, optionally gzip) → Collector; `/v1/logs`
-//!   takes `?ddsource=&service=` for every record without its own (push packages' OTLP endpoints)
+//!   takes `?ddsource=&service=` (or `X-OC-Source` / `X-OC-Service`) for every record without its own (push packages)
 //! - OTLP/gRPC on OC_INTAKE_GRPC_ADDR             the same three services (passed through undecoded) → Collector
 //! - `POST /api/v2/logs`                         JSON log events (object, array or NDJSON; Datadog's format) → Vector;
-//!   `?ddsource=&service=&hostname=&ddtags=` apply to every log (webhooks, `log_query`)
+//!   `?ddsource=&service=&hostname=&ddtags=` (`X-OC-Source` / `X-OC-Service`) apply to every log (webhooks, `log_query`)
 //! - `POST /api/v2/secruntime`, `/api/v2/secinfo` the Agent's runtime security events (Workload Protection), as logs
 //! - `POST /api/v2/series`, `/api/v1/series`     Datadog metrics (JSON or the Agent's protobuf) → OTLP → Collector
 //! - `POST /api/beta/sketches`                   Datadog distribution metrics (DDSketch) → OTLP exponential histograms
@@ -721,19 +721,12 @@ async fn metrics(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> R
     forward(st, headers, body, Sink::Metrics).await
 }
 
-/// `POST /v1/logs`; `?ddsource=&service=` (a push package's OTLP endpoint, as its page shows it) become every record's
+/// `POST /v1/logs`; `?ddsource=&service=` (a push package's OTLP endpoint, as its page shows it), else the
+/// `X-OC-Source` / `X-OC-Service` headers (senders that take only a base URL, such as Modal), become every record's
 /// attributes of that name unless it has its own, so the package's pipeline and facets match.
 async fn otlp_logs(State(st): State<Shared>, RawQuery(query): RawQuery, mut headers: HeaderMap, body: Bytes) -> Response {
-    let defaults: Vec<(&str, String)> = url::form_urlencoded::parse(query.as_deref().unwrap_or("").as_bytes())
-        .filter_map(|(k, v)| {
-            let key = match k.as_ref() {
-                "ddsource" => "ddsource",
-                "service" => "service",
-                _ => return None,
-            };
-            Some((key, v.trim().to_string())).filter(|(_, v)| !v.is_empty())
-        })
-        .collect();
+    let d = log_query::LogDefaults::from_request(query.as_deref(), &headers);
+    let defaults: Vec<(&str, String)> = [("ddsource", d.ddsource), ("service", d.service)].into_iter().filter_map(|(k, v)| Some((k, v?))).collect();
     if defaults.is_empty() {
         return forward(st, headers, body, Sink::Logs).await;
     }
@@ -753,9 +746,9 @@ async fn otlp_logs(State(st): State<Shared>, RawQuery(query): RawQuery, mut head
 }
 
 /// `POST /api/v2/logs`: JSON logs (an object, an array or a JSON object per line); `ddsource`, `service`, `hostname` and `ddtags` in the query string apply to
-/// every log of the body (`log_query`), as on Datadog's intake.
+/// every log of the body (`log_query`), as on Datadog's intake; `X-OC-Source` / `X-OC-Service` when the query has none.
 async fn json_logs(State(st): State<Shared>, RawQuery(query): RawQuery, mut headers: HeaderMap, body: Bytes) -> Response {
-    let defaults = log_query::LogDefaults::from_query(query.as_deref());
+    let defaults = log_query::LogDefaults::from_request(query.as_deref(), &headers);
     if defaults.is_empty() {
         return forward(st, headers, body, Sink::JsonLogs).await;
     }
@@ -1015,6 +1008,39 @@ mod tests {
         assert_eq!(status, StatusCode::BAD_REQUEST);
         let (status, _) = post(query, HeaderMap::new(), br#"{"message":"x"}"#.to_vec()).await;
         assert_eq!(status, StatusCode::UNAUTHORIZED, "admitted before the body is read");
+    }
+
+    /// Modal sends OTLP logs to a base URL with headers from a secret: `X-OC-Source` / `X-OC-Service` become the
+    /// records' `ddsource` / `service`, as `?ddsource=&service=` do; the logs API reads them too.
+    #[tokio::test]
+    async fn source_and_service_headers_reach_the_pipeline() {
+        use sha2::{Digest, Sha256};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mut cfg = Config::from_env();
+        cfg.collector_url = format!("http://{}", listener.local_addr().unwrap());
+        cfg.logs_url = format!("http://{}/", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            axum::serve(listener, Router::new().route("/v1/logs", post(|body: Bytes| async move { body })).route("/", post(|body: Bytes| async move { body }))).await.unwrap();
+        });
+        let st = test_state(cfg);
+        let org = KeyOrg { org_id: "example-org".into(), span_retention_days: 15, metrics_retention_days: 30, metrics_5m_days: 90, metrics_1h_days: 395, flag_environment_id: None, ingest_mbps: None, ingest_rps: None };
+        st.keys.lock().unwrap().insert(Sha256::digest(b"ocik_modal_test").to_vec(), CachedKey { org: Some(org), at: Instant::now(), touched: Some(Instant::now()) });
+        let mut headers = HeaderMap::new();
+        headers.insert("dd-api-key", HeaderValue::from_static("ocik_modal_test"));
+        headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert("x-oc-source", HeaderValue::from_static("modal"));
+        headers.insert("x-oc-service", HeaderValue::from_static("modal"));
+        let otlp = br#"{"resourceLogs":[{"scopeLogs":[{"logRecords":[{"body":{"stringValue":"started"}}]}]}]}"#;
+        let res = otlp_logs(State(st.clone()), RawQuery(None), headers.clone(), Bytes::from_static(otlp)).await;
+        assert_eq!(res.status(), StatusCode::OK);
+        let got: serde_json::Value = serde_json::from_slice(&axum::body::to_bytes(res.into_body(), 1 << 16).await.unwrap()).unwrap();
+        let attrs = got["resourceLogs"][0]["scopeLogs"][0]["logRecords"][0]["attributes"].as_array().unwrap().clone();
+        for key in ["ddsource", "service"] {
+            assert!(attrs.contains(&serde_json::json!({"key": key, "value": {"stringValue": "modal"}})), "{key}: {attrs:?}");
+        }
+        let res = json_logs(State(st), RawQuery(None), headers, Bytes::from_static(br#"{"message":"m"}"#)).await;
+        let got: serde_json::Value = serde_json::from_slice(&axum::body::to_bytes(res.into_body(), 1 << 16).await.unwrap()).unwrap();
+        assert_eq!((&got["ddsource"], &got["service"]), (&serde_json::json!("modal"), &serde_json::json!("modal")));
     }
 
     /// The Cluster Agent's external recommender call: admitted by its key, forwarded to the server

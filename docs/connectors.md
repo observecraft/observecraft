@@ -438,7 +438,9 @@ page shows the URL and headers, and with `create` a form (the package's `config`
 
 `push.endpoints` lists more endpoints the vendor sends to (`{label: Traces, kind: otlp, url: …, headers, instructions}`),
 each shown with its URL. OTLP logs take `?ddsource=<source>&service=…` on `/v1/logs` (`url: "{{ intake }}/v1/logs?ddsource={{
-source }}"`): every record without its own gets them, so the package's pipeline matches.
+source }}"`): every record without its own gets them, so the package's pipeline matches. Vendors that take only a base
+URL but let the user add headers (Modal's `OTEL_HEADER_<name>` secrets) send `X-OC-Source` / `X-OC-Service` instead;
+`/api/v2/logs` reads them too, and the query's win over them.
 
 **Signatures.** `push.signature` names the header, the algorithm and the secret config field holding the signing
 secret; a package with one is connected like a polled one (the page's "Save the signing secret": a connection with

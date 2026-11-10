@@ -2,6 +2,8 @@
 //! (`/api/v2/logs?dd-api-key=…&ddsource=solarwinds`), for senders that can only set a URL, such as vendors'
 //! webhooks. They apply to every log of the body: a log's own `ddsource`, `service` and `hostname` win, and the
 //! query's tags are added to its `ddtags`. Applied here, before Kafka, so the log ingester sees ordinary logs.
+//! Senders that can set headers but not the URL (Modal's OpenTelemetry integration takes only a base URL) name the
+//! source and service in `X-OC-Source` / `X-OC-Service` instead; the query's win over them.
 
 use serde_json::{Map, Value};
 
@@ -31,6 +33,17 @@ impl LogDefaults {
                 _ => continue,
             };
             *slot = Some(v.to_string());
+        }
+        d
+    }
+
+    /// [`LogDefaults::from_query`], with `X-OC-Source` / `X-OC-Service` for the source and service it doesn't name.
+    pub fn from_request(query: Option<&str>, headers: &axum::http::HeaderMap) -> LogDefaults {
+        let mut d = LogDefaults::from_query(query);
+        for (name, slot) in [("x-oc-source", &mut d.ddsource), ("x-oc-service", &mut d.service)] {
+            if slot.is_none() {
+                *slot = headers.get(name).and_then(|v| v.to_str().ok()).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
+            }
         }
         d
     }
@@ -84,6 +97,20 @@ mod tests {
         assert_eq!(d, LogDefaults { ddsource: Some("solarwinds".into()), service: Some("orion".into()), hostname: Some("nms-01".into()), ddtags: Some("env:prod,team:noc".into()) });
         assert!(LogDefaults::from_query(Some("api_key=x&ddsource=")).is_empty());
         assert!(LogDefaults::from_query(None).is_empty());
+    }
+
+    /// Senders that set headers but not the URL (Modal's `OTEL_HEADER_<name>` secrets) name the source and service in
+    /// `X-OC-Source` / `X-OC-Service`; the query's win over them.
+    #[test]
+    fn headers_name_the_source_and_service_when_the_query_doesnt() {
+        let mut h = axum::http::HeaderMap::new();
+        h.insert("x-oc-source", "modal".parse().unwrap());
+        h.insert("x-oc-service", " modal-apps ".parse().unwrap());
+        assert_eq!(LogDefaults::from_request(None, &h), LogDefaults { ddsource: Some("modal".into()), service: Some("modal-apps".into()), ..Default::default() });
+        assert_eq!(LogDefaults::from_request(Some("ddsource=other&hostname=h"), &h), LogDefaults { ddsource: Some("other".into()), service: Some("modal-apps".into()), hostname: Some("h".into()), ddtags: None });
+        h.insert("x-oc-source", "".parse().unwrap());
+        h.remove("x-oc-service");
+        assert!(LogDefaults::from_request(None, &h).is_empty());
     }
 
     #[test]
