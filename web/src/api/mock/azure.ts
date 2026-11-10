@@ -1,6 +1,7 @@
 // In-browser Azure integration for mock mode (Integrations → Microsoft Azure). App registrations live in
 // memory for the session; defaults follow the server (datadog_api/azure_integration.rs).
 import type { AzureAccount, AzureAccountInput, AzureAccountStatus, AzureConfig } from '../azure/types';
+import { forgetEntraLogs } from './entra';
 
 const delay = <T>(value: T, ms = 120) => new Promise<T>((r) => setTimeout(() => r(structuredClone(value)), ms));
 const fail = (message: string): never => {
@@ -72,6 +73,8 @@ export function updateAzureAccount(id: string, input: AzureAccountInput): Promis
 
 export function deleteAzureAccount(id: string): Promise<void> {
   accounts = db().filter((a) => a.id !== id);
+  // Its Entra ID logs go with it, as the server's foreign key removes them.
+  forgetEntraLogs(id);
   return delay(undefined, 200);
 }
 

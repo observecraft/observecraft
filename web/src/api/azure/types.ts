@@ -39,3 +39,8 @@ export interface AzureResourceType {
 }
 
 export type AzureAccountStatus = components['schemas']['AzureAccountStatus'];
+
+/** An app registration's Entra ID logs (sign-ins, audits, risk detections read from Microsoft Graph). */
+export type EntraLogs = components['schemas']['EntraLogs'];
+export type EntraLogsInput = components['schemas']['EntraLogsInput'];
+export type EntraLogsTest = components['schemas']['EntraLogsTest'];

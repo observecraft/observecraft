@@ -8,6 +8,7 @@ import { authentikConnected } from './authentik';
 import { fleetdmConnected } from './fleetdm';
 import { gitlabAuditConnected } from './gitlabAudit';
 import { googleWorkspaceConnected } from './googleWorkspace';
+import { entraConnected } from './entra';
 import { netbirdConnected } from './netbird';
 import { awsConnected } from './aws';
 import { azureConnected } from './azure';
@@ -1067,6 +1068,7 @@ const CONNECTED: Record<string, () => boolean> = {
   authentik: authentikConnected,
   aws: awsConnected,
   azure: azureConnected,
+  'azure-active-directory': entraConnected,
   fleetdm: fleetdmConnected,
   'gitlab-audit-events': gitlabAuditConnected,
   'google-workspace': googleWorkspaceConnected,

@@ -9,6 +9,7 @@ import type { AzureAccount, AzureAccountInput, AzureConfig, AzureResourceType } 
 import { Empty, ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { timeAgo } from '../../../lib/format';
 import { IntegrationLogo } from '../IntegrationLogo';
+import { EntraLogsTab } from './EntraLogsTab';
 import { useAzureAccountMutations, useAzureAccountStatus, useAzureAccounts } from './queries';
 import '../../settings/settings.css';
 import '../integrations.css';
@@ -18,7 +19,8 @@ const RESOURCE_TYPES = seed.resource_types as AzureResourceType[];
 /** Resource providers of the catalog's types (`Microsoft.Compute`, …). */
 const PROVIDERS = [...new Set(RESOURCE_TYPES.map((t) => t.type.split('/')[0]))].sort();
 
-const DESCRIPTION = 'Microsoft Azure is a collection of cloud services. The integration collects Azure Monitor metrics from the subscriptions an app registration can read.';
+const DESCRIPTION =
+  "Microsoft Azure is a collection of cloud services. The integration collects Azure Monitor metrics from the subscriptions an app registration can read, and its tenant's Microsoft Entra ID logs.";
 
 export function AzurePage() {
   const [params, setParams] = useSearchParams();
@@ -125,10 +127,12 @@ function Accounts({ accounts, selected, onSelect }: { accounts: AzureAccount[]; 
   );
 }
 
-const TABS = ['Issues', 'Details', 'Metric Collection', 'Filters', 'Resource Collection'] as const;
+const TABS = ['Issues', 'Details', 'Metric Collection', 'Filters', 'Resource Collection', 'Entra ID Logs'] as const;
 
 function Detail({ account, onDeleted }: { account: AzureAccount; onDeleted: () => void }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]>('Issues');
+  // `?detail=entra`: the catalog's Microsoft Entra ID tile opens the Entra ID logs.
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState<(typeof TABS)[number]>(params.get('detail') === 'entra' ? 'Entra ID Logs' : 'Issues');
   const status = useAzureAccountStatus(account.id);
   const { update, remove } = useAzureAccountMutations();
   const save = (input: AzureAccountInput) => update.mutate({ id: account.id, input });
@@ -220,6 +224,7 @@ function Detail({ account, onDeleted }: { account: AzureAccount; onDeleted: () =
         {tab === 'Metric Collection' && <Metrics config={account.config} pending={update.isPending} onSave={save} />}
         {tab === 'Filters' && <Filters config={account.config} pending={update.isPending} onSave={save} />}
         {tab === 'Resource Collection' && <Resources config={account.config} pending={update.isPending} onSave={save} />}
+        {tab === 'Entra ID Logs' && <EntraLogsTab account={account} />}
       </div>
     </section>
   );

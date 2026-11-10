@@ -8,6 +8,7 @@ import { fleetdmLogs } from './fleetdm';
 import { authentikLogs } from './authentik';
 import { gitlabAuditLogs } from './gitlabAudit';
 import { googleWorkspaceLogs } from './googleWorkspace';
+import { entraLogs } from './entra';
 import { kubernetesToolLogs } from './kubernetesToolLogs';
 import { supplyChainFirewallLogs } from './supplyChainFirewallLogs';
 import { logField, logFieldValues, matchLog } from './match';
@@ -44,6 +45,8 @@ function logs(): LogEvent[] {
   out.push(...gitlabAuditLogs(rng(19), now));
   // The Google Workspace integration's activities (its dashboard and Logs → source:gsuite).
   out.push(...googleWorkspaceLogs(rng(23), now));
+  // A Microsoft Entra ID tenant's sign-ins, audits and risk detections (its dashboard and Logs → source:azure.activedirectory).
+  out.push(...entraLogs(rng(29), now));
   // Vault's audit log, Gatekeeper's, Argo CD's and cert-manager's (their integration dashboards).
   out.push(...kubernetesToolLogs(rng(17), now));
   // Supply Chain Firewall's runs (its integration dashboard and Logs → source:scfw).

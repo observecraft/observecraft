@@ -18,6 +18,7 @@ const { outputFiles } = require('esbuild').buildSync({
       "export * as netbird from './api/mock/netbird';",
       "export * as aws from './api/mock/aws';",
       "export * as azure from './api/mock/azure';",
+      "export * as entra from './api/mock/entra';",
       "export * as gcp from './api/mock/gcp';",
       "export * as slack from './api/mock/slack';",
     ].join('\n'),
@@ -54,6 +55,8 @@ const CASES = {
   },
   netbird: { connect: () => web.netbird.saveNetbird({ baseUrl: 'https://api.netbird.io', token }), remove: () => web.netbird.deleteNetbird() },
   aws: { remove: async () => Promise.all((await web.aws.listAwsAccounts()).map((a) => web.aws.deleteAwsAccount(a.id))) },
+  // Before azure: removing its app registrations removes their Entra ID logs too.
+  'azure-active-directory': { remove: () => web.entra.saveEntraLogs('3c2b1a09-8f7e-4d6c-9b5a-4f3e2d1c0b9a', { enabled: false }) },
   azure: { remove: async () => Promise.all((await web.azure.listAzureAccounts()).map((a) => web.azure.deleteAzureAccount(a.id))) },
   'google-cloud': { remove: async () => Promise.all((await web.gcp.listGcpAccounts()).map((a) => web.gcp.deleteGcpAccount(a.id))) },
   slack: { remove: async () => Promise.all((await web.slack.getSlackOverview()).accounts.map((a) => web.slack.disconnectSlackAccount(a.id))) },

@@ -11,6 +11,8 @@ import netbird from '../../../../server/seeds/integrations/netbird/dashboards.js
 import fleetdm from '../../../../server/seeds/integrations/fleetdm/dashboards.json';
 // ObserveCraft's own authentik dashboard (scripts/authentik-dashboard.mjs).
 import authentik from '../../../../server/seeds/integrations/authentik/dashboards.json';
+// ObserveCraft's own Microsoft Entra ID dashboard (scripts/entra-id-dashboard.mjs).
+import entraId from '../../../../server/seeds/integrations/azure-active-directory/dashboards.json';
 // ObserveCraft's own GitLab Audit Events dashboard (scripts/gitlab-audit-events-dashboard.mjs).
 import gitlabAudit from '../../../../server/seeds/integrations/gitlab-audit-events/dashboards.json';
 // ObserveCraft's own Google Workspace dashboard (scripts/google-workspace-dashboard.mjs).
@@ -36,6 +38,7 @@ export const integrationDashboards = [
   ...authentik,
   ...gitlabAudit,
   ...googleWorkspace,
+  ...entraId,
   ...observecraft,
   synthetics,
   ...core.dashboards,

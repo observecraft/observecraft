@@ -56,6 +56,8 @@ export function webhookUrl(intake: string, logSource: string): string {
 const OWN: Record<string, { to: string; label: string }> = {
   aws: { to: '/integrations/aws', label: 'Amazon Web Services' },
   azure: { to: '/integrations/azure', label: 'Microsoft Azure' },
+  // Entra ID's sign-in, audit and risk logs: read from Microsoft Graph with an Azure app registration.
+  'azure-active-directory': { to: '/integrations/azure?detail=entra', label: 'Entra ID logs' },
   'google-cloud': { to: '/integrations/gcp', label: 'Google Cloud' },
   authentik: { to: '/integrations/authentik', label: 'authentik' },
   netbird: { to: '/integrations/netbird', label: 'NetBird' },
