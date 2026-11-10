@@ -190,8 +190,9 @@ push:
     dashboard, open the zone's **Analytics & Logs → Logpush → Create a Logpush job**, choose **HTTP destination** and
     the dataset, and set the destination to
     `{{ intake }}/api/v2/logs?ddsource={{ source }}&service=cloudflare&header_DD-API-KEY={{ api_key }}`; pick JSON
-    output with RFC 3339 timestamps. Or let ObserveCraft create the job: enter the zone id and dataset with a token
-    allowed **Logs: Edit**.
+    output with RFC 3339 timestamps, sent as a JSON array per batch (output options `batch_prefix` `[`,
+    `record_delimiter` `,`, `batch_suffix` `]`). Or let ObserveCraft create the job, set up that way: enter the zone
+    id and dataset with a token allowed **Logs: Edit**.
   url: "{{ intake }}/api/v2/logs?ddsource={{ source }}&service=cloudflare&header_DD-API-KEY={{ api_key }}"
   create:
     request:
@@ -202,7 +203,8 @@ push:
         enabled: true
         dataset: "{{ config.logpush_dataset }}"
         destination_conf: "{{ push_url }}"
-        output_options: { output_type: ndjson, timestamp_format: rfc3339, field_names: [] }
+        # Each batch as a JSON array (the logs API takes arrays, not newline-delimited lines).
+        output_options: { output_type: ndjson, timestamp_format: rfc3339, field_names: [], batch_prefix: "[", batch_suffix: "]", record_delimiter: "," }
     message: "Logpush job {{ response.result.id }} created for the {{ response.result.dataset }} dataset"
     errors:
       - status: [400, 403]
