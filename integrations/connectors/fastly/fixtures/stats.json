@@ -1,0 +1,10 @@
+{
+  "status": "success", "msg": null,
+  "meta": { "from": "Mon Nov 10 10:55:00 UTC 2026", "to": "Mon Nov 10 11:55:00 UTC 2026", "by": "minute", "region": "all" },
+  "data": [
+    { "service_id": "5VqE6MOOy1QFJbgmCK41pY", "start_time": 1794311580, "requests": 48211, "hits": 41520, "miss": 6032, "pass": 659, "errors": 12, "bandwidth": 1240021133,
+      "status_2xx": 47010, "status_4xx": 1189, "status_5xx": 12, "status_200": 46500, "status_404": 1101, "status_503": 12, "origin_fetches": 6691, "hit_ratio": 0.873, "hits_time": 12.5, "miss_time": 410.2 },
+    { "service_id": "5VqE6MOOy1QFJbgmCK41pY", "start_time": 1794311640, "requests": 47950, "hits": 41110, "miss": 6210, "pass": 630, "errors": 3, "bandwidth": 1220540000,
+      "status_2xx": 46800, "status_4xx": 1147, "status_5xx": 3, "status_200": 46300, "status_404": 1050, "status_503": 3, "origin_fetches": 6840, "hit_ratio": 0.869, "hits_time": 12.1, "miss_time": 405.0 }
+  ]
+}
