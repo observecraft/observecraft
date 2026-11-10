@@ -15,11 +15,16 @@ logo: okta
 categories: [Security, SIEM, Log Collection]
 docs_url: https://developer.okta.com/docs/reference/system-log-query/
 setup: |
-  1. In the Okta Admin Console, sign in as (or create) an administrator with the **Read-Only Administrator** role:
-     its token can read the System Log and nothing else.
-  2. As that administrator, open **Security → API → Tokens** and **Create token**, e.g. `observecraft`; copy it, Okta
-     shows it once. A token unused for 30 days expires, and its requests share the administrator's rate limits.
-  3. Enter your org's Okta domain (`example.okta.com`, `example.okta-emea.com` or a custom domain).
+  1. Enter your org's Okta domain (`example.okta.com`, `example.okta-emea.com` or a custom domain) and choose how
+     ObserveCraft signs in:
+     - **OAuth service app** (recommended): in the Admin Console, **Applications → Create App Integration → API
+       Services**, e.g. `observecraft`. Under **Client Credentials** choose **Public key / Private key** and add a key
+       (Okta can generate one: copy its private key in PEM format and its key id), and turn off **Require
+       Demonstrating Proof of Possession (DPoP)**. On **Okta API Scopes** grant `okta.logs.read`, and on **Admin
+       roles** assign the **Read-Only Administrator** role. Copy the client id.
+     - **API token**: sign in as (or create) an administrator with the **Read-Only Administrator** role, open
+       **Security → API → Tokens** and **Create token**; copy it, Okta shows it once. A token unused for 30 days
+       expires, and its requests share the administrator's rate limits.
 links:
   - { label: API tokens, url: "https://{{ config.domain }}/admin/access/api/tokens" }
 instance: "{{ config.domain }}"
@@ -32,17 +37,48 @@ config:
     placeholder: example.okta.com
     pattern: "[A-Za-z0-9.-]+"
     help: Your org's domain without https:// (example.okta.com, example.oktapreview.com or a custom domain).
+  - key: auth_method
+    label: Sign in with
+    type: select
+    required: true
+    default: token
+    options:
+      - { value: oauth, label: OAuth service app }
+      - { value: token, label: API token }
   - key: api_token
     label: API token
     type: string
     secret: true
-    required: true
-    help: An API token of a Read-Only Administrator.
+    help: "API token: a Read-Only Administrator's."
+  - key: client_id
+    label: Client ID
+    type: string
+    placeholder: 0oa1b2c3d4e5f6g7h8i9
+    help: "OAuth service app: its client id."
+  - key: key_id
+    label: Key ID
+    type: string
+    help: "OAuth service app: the public key's id (kid), when the app has several keys."
+  - key: private_key
+    label: Private key
+    type: text
+    secret: true
+    placeholder: "-----BEGIN PRIVATE KEY-----"
+    help: "OAuth service app: the private key (PEM) of its public key."
 
 auth:
-  kind: api_key
-  name: Authorization
-  value: "SSWS {{ secrets.api_token }}"
+  kind: choice
+  field: auth_method
+  options:
+    token: { kind: api_key, name: Authorization, value: "SSWS {{ secrets.api_token }}" }
+    # A service app: a client assertion signed with its key (private_key_jwt) for an hour-long access token.
+    oauth:
+      kind: oauth2_client_assertion
+      token_url: "https://{{ config.domain }}/oauth2/v1/token"
+      client_id: "{{ config.client_id }}"
+      private_key: "{{ secrets.private_key }}"
+      key_id: "{{ config.key_id }}"
+      scopes: [okta.logs.read]
 
 headers:
   Accept: application/json
@@ -53,10 +89,10 @@ rate_limit: { requests_per_minute: 30 }
 errors:
   - status: [401]
     kind: auth
-    message: Okta refused the API token (revoked, expired after 30 days unused, or for another org)
+    message: Okta refused the credentials (an API token revoked, expired after 30 days unused or for another org; a service app's client id or key)
   - status: [403]
     kind: access_denied
-    message: "The token's administrator can't read the System Log: give it the Read-Only Administrator role"
+    message: "Okta refused to read the System Log: give the token's administrator (or the service app) the Read-Only Administrator role, and the app the okta.logs.read scope"
   - status: [429]
     kind: throttled
     message: "Rate limited by Okta (resets at {{ headers['x-rate-limit-reset'] ?? '?' }})"
@@ -110,16 +146,46 @@ test:
   request:
     url: "https://{{ config.domain }}/api/v1/logs"
     query: { limit: 1, since: "{{ (now - 3600000) | rfc3339 }}" }
-  message: "Connected to {{ config.domain }}: the token can read the System Log"
+  message: "Connected to {{ config.domain }}: {{ config.auth_method == 'oauth' ? 'the service app' : 'the token' }} can read the System Log"
 
 assets:
   dashboards: [assets/dashboards/overview.json]
 
 mock:
-  config: { domain: example.okta.com }
-  secrets: { api_token: 00aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789ab }
+  config: { domain: example.okta.com, auth_method: oauth, client_id: 0oa1b2c3d4e5f6g7h8i9, key_id: oc-key-1 }
+  secrets:
+    private_key: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQC3gCDdp3fiZFbq
+      oeXHYRxFDyWrZQS8Dydp7BQ/bEtjPdb0uL6SJgn27z/h2b4Wy82a14IbLDk0WGWr
+      Psc+k+4CCKD79QIQuE30bZCuL0i3q+aHp1JIejK3kjjg98+fp4co8nYSNRypp/et
+      jnnbD3FD7kkmNfrKcuRf3F4pWbAOyRSW0DeDPzNQrZmkq2xYPfpOZYRnWgHC27kr
+      CHBdnFF2sfD1Y1Pf771I7+WoC3XNf+58MFjeVhhnm+Oa8EaMeRgLKqfrQ++Zz5f2
+      qbwqIwvzVDwvTxnZSkDPJ6tWtCbp6u2G9dyguVR57gZWyOM/nJbHVCpn1j0oZJkh
+      r8y/WJ2vAgMBAAECggEACAcH6QpxeSrwjnUkqzM5XGAMQtI5gcyb6ctVG20uYxoK
+      dEw8sgIN/4p53fR7l121EegJngyyN/MCB5rIdplcGSStfjg6reaSKnY8lRImeTqA
+      7EBKnjcSTuuLp3PP1mkqxYTN24ANT/K0KBiKhiXHy7P56T0FSqP6D6OBTwfIZu0b
+      /EnYj6LJmSdW7hRqQdBvrS4AqSkJCf2lPrxLAXho+wCVP6CZsH0rUPqUgdqPTfyp
+      RGXPksbVzmDLjEX74pay342pSuXew4+SHN61oTh9ZAcyjah04B4GrfUEkh9a/WOu
+      mBGI6dj8rBmXI2M+EoTI9Cxh7QcXCcpLMiC30rBSmQKBgQDr+HqBf+qzefKy4FVb
+      IIQlNqn0MNyqYhy5sUqqd1LKQA+Rfjv70zAWOjJoIHfCiV2fg4seomXTbEVeqM1U
+      MTuw7szHxQQcdHsZlFuXnB6diwZkwEl4JdA2G9IsdVkmAi3T/KnqNob1e/BAG4n3
+      KD5o/yHUOKR52JJyTF45e6KHxQKBgQDHE4A6NhsnLVlMQSKxvn6tZF+yN/IHMQDI
+      +TPANLzaZY0wNhLHTLG9i8IXErAUuWCcj4q12dwJlWb0pNn7JSqFW7dcIECRvuHf
+      OfYOaqWjT7I+OLtLCWJlx6FYvXd6RpiUsjLbhZ5HUnAi1EIYfZ6x2Tiq4sJSGa4r
+      FOb3Dnry4wKBgQDgdafybz9OIf4e8Q3AdRm+XFUmFySQXmt8p4yiwoZaJL2qZC2i
+      yazAN/Oi4N+KiSgph/NZ3JiHmEIUXPWT1JE3KLBahqn2d0ZxepH1kWf97DTUuaQp
+      Sa7ZCXXPHIEEiqYVNA5c4ClYceCC2q9OD1XugmIngQnTbZNAbixi+ZwNEQKBgQC5
+      YStzCZdXcB9LpwwLwHxuMp36c6Zpk/RLMeRDA9ko9o/3aSMre/u3qkFfAwP9CHMy
+      12gv12PTeNCa2Dg0anOiI7oni9EU50+mc27yFdWQslIlJuciBOcgKDnTTPvJXZwQ
+      O7CoQ1EU0Wuiw02ZSMFSlBj06JxTn55Ud+5r+Yv8SQKBgQCbub+b7fP95Q4iWIXA
+      83XRkSwQ0ntTLF2tC2FgLuofGpoUPDhv1/dsOX+1g8fdN3b9gEQhujts9JtHP9Y+
+      Ze81kzFamdo6wp2+EL99LerWYyl3P6o2248l+7TdfXmpIDbXPSPo7+E5cZXJE2OV
+      Ozb36EXLi0aSD0YQOMOnjB5NgQ==
+      -----END PRIVATE KEY-----
   now: "2026-11-10T12:00:00Z"
   responses:
+    - { method: POST, url: "https://example.okta.com/oauth2/v1/token", body_contains: "client_assertion", body: { token_type: Bearer, expires_in: 3600, access_token: okta-test-access-token, scope: okta.logs.read } }
     - url: https://example.okta.com/api/v1/logs
       query: { after: "1762775700000_1" }
       file: fixtures/logs-2.json
