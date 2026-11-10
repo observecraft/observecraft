@@ -1,8 +1,28 @@
 // The Google Workspace Overview dashboard (scripts/google-workspace-dashboard.mjs) over the integration's activities.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { registerHooks } from 'node:module';
 import test from 'node:test';
 import { buildDashboard } from './google-workspace-dashboard.mjs';
+
+// The web sources use extensionless imports and JSON without attributes (bundler resolution).
+registerHooks({
+  resolve(specifier, context, next) {
+    try {
+      return next(specifier, context);
+    } catch (err) {
+      if (specifier.startsWith('.')) return next(`${specifier}.ts`, context);
+      throw err;
+    }
+  },
+  load(url, context, next) {
+    if (url.endsWith('.json')) return { format: 'module', source: `export default ${readFileSync(new URL(url), 'utf8')};`, shortCircuit: true };
+    return next(url, context);
+  },
+});
+const { mockAggregateLogs, mockSearchLogs } = await import('../web/src/api/mock/index.ts');
+const { logRequest } = await import('../web/src/api/integrations/logs.ts');
+const { searchSignals } = await import('../web/src/api/mock/security.ts');
 
 const dashboard = buildDashboard();
 const all = (widgets) => widgets.flatMap((w) => [w, ...(w.definition.type === 'group' ? all(w.definition.widgets) : [])]);
@@ -27,5 +47,21 @@ test('one dashboard with our logo and its sections, over the Google Workspace ac
   for (const q of [...[...queries('logs'), ...queries('security_signals')].map(([, q]) => q.search.query), ...streams.map((w) => w.definition.query)]) {
     assert.match(q, /^source:gsuite( |$)/, q);
     assert.doesNotMatch(q, /\(@|\) OR \(/, `the search syntax has no groups across attributes: ${q}`);
+  }
+});
+
+test('every panel and stream shows data in mock mode', async () => {
+  const to = Date.now();
+  const range = { from: to - 7 * 86_400_000, to };
+  for (const [title, q] of queries('logs')) {
+    const buckets = mockAggregateLogs(logRequest(q, (s) => s, range, false)).data.buckets;
+    assert.ok(buckets.length > 0 && buckets.some((b) => b.computes.c0 > 0), `${title}: ${q.search.query} ${JSON.stringify(q.group_by)}`);
+  }
+  for (const [title, q] of queries('security_signals')) {
+    const page = await searchSignals({ query: q.search.query, range, facets: ['@workflow.rule.name'] });
+    assert.ok(page.total > 0, `${title}: ${q.search.query}`);
+  }
+  for (const w of streams) {
+    assert.ok(mockSearchLogs({ range, query: w.definition.query }).total > 0, `${w.definition.title}: ${w.definition.query}`);
   }
 });

@@ -22,6 +22,7 @@ const OWN_PAGES: Record<string, string> = {
   netbird: '/integrations/netbird',
   fleetdm: '/integrations/fleetdm',
   'gitlab-audit-events': '/integrations/gitlab-audit-events',
+  'google-workspace': '/integrations/google-workspace',
 };
 
 const STATUSES: Option<IntegrationStatus | 'all'>[] = [

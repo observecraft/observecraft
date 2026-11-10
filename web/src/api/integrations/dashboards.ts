@@ -13,6 +13,8 @@ import fleetdm from '../../../../server/seeds/integrations/fleetdm/dashboards.js
 import authentik from '../../../../server/seeds/integrations/authentik/dashboards.json';
 // ObserveCraft's own GitLab Audit Events dashboard (scripts/gitlab-audit-events-dashboard.mjs).
 import gitlabAudit from '../../../../server/seeds/integrations/gitlab-audit-events/dashboards.json';
+// ObserveCraft's own Google Workspace dashboard (scripts/google-workspace-dashboard.mjs).
+import googleWorkspace from '../../../../server/seeds/integrations/google-workspace/dashboards.json';
 // ObserveCraft's own health (scripts/observecraft-dashboard.mjs), over the server's self-monitoring metrics.
 import observecraft from '../../../../server/seeds/integrations/observecraft/dashboards.json';
 // ObserveCraft's own dashboard over the synthetics.* metrics of synthetic API tests.
@@ -33,6 +35,7 @@ export const integrationDashboards = [
   ...fleetdm,
   ...authentik,
   ...gitlabAudit,
+  ...googleWorkspace,
   ...observecraft,
   synthetics,
   ...core.dashboards,

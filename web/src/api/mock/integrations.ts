@@ -7,6 +7,7 @@ import { rng } from './generator';
 import { authentikConnected } from './authentik';
 import { fleetdmConnected } from './fleetdm';
 import { gitlabAuditConnected } from './gitlabAudit';
+import { googleWorkspaceConnected } from './googleWorkspace';
 import { netbirdConnected } from './netbird';
 import { awsConnected } from './aws';
 import { azureConnected } from './azure';
@@ -838,6 +839,20 @@ const CURATED: Entry[] = [
     },
   },
   {
+    id: 'google-workspace',
+    name: 'Google Workspace',
+    categories: ['Security', 'Collaboration', 'Log Collection'],
+    about:
+      'Audit activities of a Google Workspace account: logins and failed or suspicious logins, 2-step verification, Admin console changes, Drive files shared outside the domain, OAuth apps authorized, groups and mobile devices, read through the Admin SDK Reports API with a service account and stored as logs, with a log pipeline, Cloud SIEM rules and a dashboard.',
+    collect: {
+      kind: 'notify',
+      settings: [
+        { key: 'subject', label: 'Administrator to act as', placeholder: 'admin@example.com' },
+        { key: 'service_account_key', label: 'Service account JSON key', placeholder: '••••', secret: true },
+      ],
+    },
+  },
+  {
     id: 'okta',
     name: 'Okta',
     categories: ['Security'],
@@ -1054,6 +1069,7 @@ const CONNECTED: Record<string, () => boolean> = {
   azure: azureConnected,
   fleetdm: fleetdmConnected,
   'gitlab-audit-events': gitlabAuditConnected,
+  'google-workspace': googleWorkspaceConnected,
   'google-cloud': gcpConnected,
   netbird: netbirdConnected,
   slack: slackConnected,

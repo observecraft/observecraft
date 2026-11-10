@@ -14,6 +14,7 @@ const { outputFiles } = require('esbuild').buildSync({
       "export * as authentik from './api/mock/authentik';",
       "export * as fleetdm from './api/mock/fleetdm';",
       "export * as gitlabAudit from './api/mock/gitlabAudit';",
+      "export * as googleWorkspace from './api/mock/googleWorkspace';",
       "export * as netbird from './api/mock/netbird';",
       "export * as aws from './api/mock/aws';",
       "export * as azure from './api/mock/azure';",
@@ -42,6 +43,15 @@ const CASES = {
   authentik: { connect: () => web.authentik.saveAuthentik({ baseUrl: 'https://auth.example.com', token }), remove: () => web.authentik.deleteAuthentik() },
   fleetdm: { connect: () => web.fleetdm.saveFleetdm({ baseUrl: 'https://fleet.example.com', token }), remove: () => web.fleetdm.deleteFleetdm() },
   'gitlab-audit-events': { connect: () => web.gitlabAudit.saveGitlabAudit({ baseUrl: 'https://gitlab.example.com', token, scope: 'instance' }), remove: () => web.gitlabAudit.deleteGitlabAudit() },
+  'google-workspace': {
+    connect: () =>
+      web.googleWorkspace.saveGoogleWorkspace({
+        serviceAccountKey: JSON.stringify({ type: 'service_account', client_email: 'reports@example-project.iam.gserviceaccount.com', private_key: 'test-only' }),
+        subject: 'admin@example.com',
+        applications: [],
+      }),
+    remove: () => web.googleWorkspace.deleteGoogleWorkspace(),
+  },
   netbird: { connect: () => web.netbird.saveNetbird({ baseUrl: 'https://api.netbird.io', token }), remove: () => web.netbird.deleteNetbird() },
   aws: { remove: async () => Promise.all((await web.aws.listAwsAccounts()).map((a) => web.aws.deleteAwsAccount(a.id))) },
   azure: { remove: async () => Promise.all((await web.azure.listAzureAccounts()).map((a) => web.azure.deleteAzureAccount(a.id))) },
