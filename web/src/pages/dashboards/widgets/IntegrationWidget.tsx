@@ -405,12 +405,12 @@ const CHECK_STATUS = [
 /** A tile per group (one for the whole cluster): its worst status, and how many runs are in each status. */
 function CheckStatusTiles({ tiles }: { tiles: CheckStatusTile[] }) {
   return (
-    <div className="cs-tiles">
+    <div className="csw-tiles">
       {tiles.map((t) => (
-        <div key={t.label} className="cs-tile" style={formatStyle(CHECK_STATUS[t.status].palette)} title={t.label || undefined}>
-          {t.label && <span className="cs-label">{t.label}</span>}
-          <span className="cs-status">{CHECK_STATUS[t.status].label}</span>
-          <span className="cs-counts">
+        <div key={t.label} className="csw-tile" style={formatStyle(CHECK_STATUS[t.status].palette)} title={t.label || undefined}>
+          {t.label && <span className="csw-label">{t.label}</span>}
+          <span className="csw-status">{CHECK_STATUS[t.status].label}</span>
+          <span className="csw-counts">
             {t.counts
               .map((n, status) => (n ? `${n} ${CHECK_STATUS[status].label}` : ''))
               .filter(Boolean)

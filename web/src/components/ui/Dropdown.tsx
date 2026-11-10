@@ -63,7 +63,11 @@ export function Select<T extends string>({ value, options, onChange, trigger, tr
   };
   return (
     <div className={`dd${label ? ' dd-labelled' : ''}`} ref={ref}>
-      {label && <span className="dd-floating-label">{label}</span>}
+      {label && (
+        <span className="dd-floating-label" title={label}>
+          {label}
+        </span>
+      )}
       <button
         type="button"
         title={title}
