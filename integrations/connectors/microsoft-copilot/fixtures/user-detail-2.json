@@ -1,0 +1,5 @@
+{
+  "value": [
+    { "reportRefreshDate": "2026-11-08", "userPrincipalName": "alex.kim@example.com", "displayName": "Alex Kim", "lastActivityDate": "", "copilotChatLastActivityDate": "", "microsoftTeamsCopilotLastActivityDate": "", "wordCopilotLastActivityDate": "", "excelCopilotLastActivityDate": "", "powerPointCopilotLastActivityDate": "", "outlookCopilotLastActivityDate": "", "oneNoteCopilotLastActivityDate": "", "loopCopilotLastActivityDate": "", "copilotActivityUserDetailsByPeriod": [ { "reportPeriod": 7 } ] }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "@odata.nextLink": "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUsageUserDetail(period='D7')?$format=application/json&$skiptoken=MDoyOg",
+  "value": [
+    { "reportRefreshDate": "2026-11-08", "userPrincipalName": "jane.doe@example.com", "displayName": "Jane Doe", "lastActivityDate": "2026-11-08", "copilotChatLastActivityDate": "2026-11-08", "microsoftTeamsCopilotLastActivityDate": "2026-11-05", "wordCopilotLastActivityDate": "2026-10-20", "excelCopilotLastActivityDate": "", "powerPointCopilotLastActivityDate": "", "outlookCopilotLastActivityDate": "2026-11-07", "oneNoteCopilotLastActivityDate": "", "loopCopilotLastActivityDate": "", "copilotActivityUserDetailsByPeriod": [ { "reportPeriod": 7 } ] },
+    { "reportRefreshDate": "2026-11-08", "userPrincipalName": "sam.rivera@example.com", "displayName": "Sam Rivera", "lastActivityDate": "2026-11-02", "copilotChatLastActivityDate": "2026-11-02", "microsoftTeamsCopilotLastActivityDate": "", "wordCopilotLastActivityDate": "", "excelCopilotLastActivityDate": "2026-11-02", "powerPointCopilotLastActivityDate": "", "outlookCopilotLastActivityDate": "", "oneNoteCopilotLastActivityDate": "", "loopCopilotLastActivityDate": "", "copilotActivityUserDetailsByPeriod": [ { "reportPeriod": 7 } ] }
+  ]
+}

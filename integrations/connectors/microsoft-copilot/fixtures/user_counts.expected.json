@@ -1,0 +1,156 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.anyapp.users.enabled",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 250.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.copilotchat.users.enabled",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 250.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.teams.users.enabled",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 250.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.word.users.enabled",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 250.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.excel.users.enabled",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 250.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.powerpoint.users.enabled",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 250.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.outlook.users.enabled",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 250.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.onenote.users.enabled",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 250.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.loop.users.enabled",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 250.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.anyapp.users.active",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 140.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.copilotchat.users.active",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 120.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.teams.users.active",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 90.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.word.users.active",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 60.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.excel.users.active",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 31.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.powerpoint.users.active",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 18.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.outlook.users.active",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 74.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.onenote.users.active",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 6.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "microsoft_copilot.loop.users.active",
+      "tags": [],
+      "time_ms": 1794312000000,
+      "value": 3.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "": {}
+    }
+  }
+}
