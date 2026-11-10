@@ -124,8 +124,18 @@ jobs:
       # without the marker makes its build script fail ("Directory not empty") whenever it reruns (a new feature).
       - name: Drop incomplete DuckDB sources restored from the cache
         run: shopt -s nullglob; for d in server/target/duckdb-sources/*/; do [ -f "$d.complete" ] || rm -rf "$d"; done
+      # The integration pipelines' upstream log samples are fetched at test time, not vendored:
+      # scripts/integration-log-samples/fetch.sh pins the revisions and their archives' SHA-256.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/observecraft/integration-log-samples
+          key: integration-log-samples-${{ hashFiles('scripts/integration-log-samples/fetch.sh') }}
+      - name: Fetch integration log samples
+        run: make integration-log-samples
       - run: cargo test --locked --workspace
         working-directory: server
+        env:
+          OC_REQUIRE_LOG_SAMPLES: "1"
       - run: cargo clippy --locked --workspace --all-targets
         working-directory: server
       - name: OpenAPI document is up to date (run `make openapi`)

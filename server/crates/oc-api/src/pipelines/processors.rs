@@ -432,7 +432,7 @@ pub fn status_of(v: &Value) -> &'static str {
 }
 
 /// A trace id as the 32 hex digits `trace_id` holds: decimal (Datadog's 64-bit ids) or hex.
-fn trace_id(s: &str) -> Option<String> {
+pub(crate) fn trace_id(s: &str) -> Option<String> {
     let s = s.trim().to_ascii_lowercase();
     if s.is_empty() {
         return None;

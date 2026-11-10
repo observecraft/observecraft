@@ -10,6 +10,8 @@ pub mod library;
 pub mod log;
 pub mod processors;
 pub mod rubyhash;
+#[cfg(test)]
+mod samples;
 pub mod xml;
 
 use serde_json::Value;
