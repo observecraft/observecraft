@@ -322,14 +322,14 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
         attrs = merge(extra, attrs);
     }
     let mut body = Value::Null;
-    // A `hostname` of the log's own JSON (its body or message) stays an attribute, as Datadog's `@hostname`; the
-    // intake envelope's (the Agent's) is only the host.
-    let mut own_hostname = false;
+    // The fields of the log's own JSON (its body or message) stay attributes after the log's status, date, service and
+    // host are read from them, as in Datadog (`@level`, `@hostname`); the intake envelope's (the Agent's) are only the log's.
+    let mut own: Vec<String> = vec![];
     if otlp {
         body = fields.get("message").cloned().unwrap_or(Value::Null);
         match &body {
             Value::Object(m) => {
-                own_hostname = m.contains_key("hostname");
+                own = m.keys().cloned().collect();
                 attrs = merge(attrs, m.clone());
                 body = Value::Null;
             }
@@ -337,7 +337,7 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
                 let b = s.trim();
                 if b.starts_with('{') {
                     if let Some(parsed) = json_object(b) {
-                        own_hostname = parsed.contains_key("hostname");
+                        own = parsed.keys().cloned().collect();
                         attrs = merge(attrs, parsed);
                         body = Value::Null;
                     }
@@ -356,8 +356,8 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
         let m = s.trim().to_string();
         if m.starts_with('{') {
             if let Some(parsed) = json_object(&m) {
-                own_hostname |= parsed.contains_key("hostname");
                 attrs.retain(|k, _| !used.contains(&k.as_str()));
+                own.extend(parsed.keys().cloned());
                 attrs = merge(attrs, parsed);
                 used.clear();
                 flat = flatten(&attrs);
@@ -368,6 +368,8 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
             }
         }
     }
+    // The field that became the message doesn't stay.
+    let message_key = used.first().copied();
     let msg = match msg.unwrap_or(body) {
         Value::String(s) => s,
         Value::Null => String::new(),
@@ -555,9 +557,6 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
         .or_else(|| r.get("host.name").and_then(to_string))
         .or_else(|| r.get("k8s.node.name").and_then(to_string))
         .unwrap_or_default();
-    if own_hostname {
-        used.retain(|k| *k != "hostname");
-    }
 
     let mut source = text_of(&flat, "ddsource");
     if !source.is_empty() {
@@ -587,7 +586,7 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
     tags.extend(r.iter().map(|(k, v)| (k.clone(), text(v))));
     tags.extend(dd);
 
-    attrs.retain(|k, _| !used.contains(&k.as_str()));
+    attrs.retain(|k, _| !used.contains(&k.as_str()) || (own.contains(k) && message_key != Some(k.as_str())));
     // A plain-text stack trace (lines the collector joined) gets Datadog's error attributes, unless set (log_stack).
     let mut attr: HashMap<String, String> = flatten(&attrs).iter().map(|(k, v)| (k.clone(), text(v))).collect();
     if !attr.contains_key("error.stack") && !attr.contains_key("exception.stacktrace") {
@@ -701,17 +700,23 @@ mod tests {
         assert!(ta < tm && tm < tz, "{tags}");
     }
 
-    /// Datadog keeps a log's own `hostname` searchable as `@hostname` after reading the host from it (Supply Chain
-    /// Firewall's dashboard groups by it); the intake envelope's `hostname` (the Agent's) is only the log's host.
+    /// Datadog keeps the fields of a log's own JSON searchable after reading the log's status, date, service and host
+    /// from them (`@level`, `@timestamp`, `@hostname`: Supply Chain Firewall's dashboard groups by it), all but the one
+    /// that became the message; the intake envelope's fields (the Agent's `hostname`, `status`) are only the log's.
     #[test]
-    fn a_json_messages_hostname_stays_an_attribute() {
-        let line = serde_json::json!({"msg": "pip install urllib3", "hostname": "dev-laptop-01"}).to_string();
-        let event = serde_json::json!({"source_type": "kafka", "_oc_kafka_headers": {"x-oc-org": "org-1"}, "message": line, "hostname": "agent-host", "ddsource": "scfw"});
+    fn a_json_messages_own_fields_stay_attributes() {
+        let line = serde_json::json!({"msg": "pip install urllib3", "hostname": "dev-laptop-01", "level": "WARN", "service": "scfw", "timestamp": "2026-11-05T10:20:30Z", "status": "DONE"}).to_string();
+        let event = serde_json::json!({"source_type": "kafka", "_oc_kafka_headers": {"x-oc-org": "org-1"}, "message": line, "hostname": "agent-host", "ddsource": "scfw", "status": "info"});
         let row = normalize(LogEvent { fields: event.as_object().unwrap().clone(), timestamp: None }, chrono::Utc::now()).unwrap();
         assert_eq!((row.host.as_str(), row.attr.get("hostname").map(String::as_str)), ("dev-laptop-01", Some("dev-laptop-01")));
-        let event = serde_json::json!({"source_type": "kafka", "_oc_kafka_headers": {"x-oc-org": "org-1"}, "message": "plain", "hostname": "agent-host", "ddsource": "scfw"});
+        assert_eq!((row.message.as_str(), row.status.as_str(), row.service.as_str(), row.ts_ms), ("pip install urllib3", "warn", "scfw", 1_793_874_030_000));
+        for (k, v) in [("level", "WARN"), ("service", "scfw"), ("timestamp", "2026-11-05T10:20:30Z"), ("status", "DONE")] {
+            assert_eq!(row.attr.get(k).map(String::as_str), Some(v), "{k}");
+        }
+        assert_eq!((row.attr.get("msg"), row.attr.get("ddsource")), (None, None));
+        let event = serde_json::json!({"source_type": "kafka", "_oc_kafka_headers": {"x-oc-org": "org-1"}, "message": "plain", "hostname": "agent-host", "ddsource": "scfw", "status": "info", "service": "scfw"});
         let row = normalize(LogEvent { fields: event.as_object().unwrap().clone(), timestamp: None }, chrono::Utc::now()).unwrap();
-        assert_eq!((row.host.as_str(), row.attr.get("hostname")), ("agent-host", None));
+        assert_eq!((row.host.as_str(), row.attr.len()), ("agent-host", 0), "{:?}", row.attr);
     }
 
     #[test]

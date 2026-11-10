@@ -20,7 +20,7 @@ const CORE: &str = "1e7420ec635aafdd33db6a1e69586de7d2e24c21";
 const EXTRAS: &str = "20d3ceeaf342b8c9f6211dc9df9ea3d382dbb692";
 
 /// Samples that pass today: the test fails when fewer do (raise it as the engine catches up).
-const PASSING: usize = 811;
+const PASSING: usize = 943;
 
 fn env(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.is_empty())
@@ -62,12 +62,15 @@ fn run(pipeline: &Pipeline, source: &str, test: &Value) -> Log {
         envelope["ddtags"] = tags.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(",").into();
     }
     let fields = envelope.as_object().unwrap().clone();
-    let mut row = crate::log_normalize::normalize(crate::log_normalize::LogEvent { fields, timestamp: None }, chrono::Utc::now()).unwrap();
+    // A row's date is the log's own when it isn't the ingest time.
+    let ingested = chrono::DateTime::from_timestamp_millis(1).unwrap();
+    let mut row = crate::log_normalize::normalize(crate::log_normalize::LogEvent { fields, timestamp: None }, ingested).unwrap();
     let mut log = Log::default();
     (log.message, log.status, log.service, log.host, log.source, log.trace_id) = (row.message, row.status, row.service, row.host, row.source, row.trace_id);
     log.tags = row.tags.into_iter().collect();
     log.attrs = std::mem::take(&mut row.attrs);
     pipeline.apply(&mut log, chrono::Utc::now().timestamp_millis());
+    log.timestamp_ms = log.timestamp_ms.or((row.ts_ms != 1).then_some(row.ts_ms));
     log
 }
 
