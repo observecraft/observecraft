@@ -101,7 +101,7 @@ export function ConnectorPage() {
           </button>
         ))}
       </nav>
-      {tab === 'data' ? <DataCollected c={c} /> : c.kind === 'push' ? <Push c={c} /> : <Configure c={c} connections={detail.data.connections} />}
+      {tab === 'data' ? <DataCollected c={c} /> : c.kind === 'push' ? <Push c={c} connections={detail.data.connections} /> : <Configure c={c} connections={detail.data.connections} />}
     </div>
   );
 }
@@ -378,7 +378,55 @@ function Configure({ c, connections }: { c: ConnectorEntry; connections: Connect
   );
 }
 
-function Push({ c }: { c: ConnectorEntry }) {
+/** A signed push's signing secret, saved as the org's connection of the package: the intake checks requests with it. */
+function SigningSecret({ c, n, connections }: { c: ConnectorEntry; n: number; connections: ConnectionView[] }) {
+  const qc = useQueryClient();
+  const { isAdmin } = useAccess();
+  const field = c.config.find((f) => f.key === c.push?.signatureSecret);
+  const current = connections[0] ?? null;
+  const [value, setValue] = useState('');
+  const save = useMutation({
+    mutationFn: () => {
+      const input = { ...inputOf(c, current ? formOf(c, current) : emptyForm(c), current?.id), secrets: { [field!.key]: value.trim() } } as ConnectionInput;
+      return current ? updateConnection(c.id, current.id, input) : createConnection(c.id, input);
+    },
+    onSuccess: () => (setValue(''), Promise.all([qc.invalidateQueries({ queryKey: ['connectors', c.id] }), qc.invalidateQueries({ queryKey: ['integrations'] })])),
+  });
+  if (!field) return null;
+  const saved = !!current?.secrets.includes(field.key);
+  return (
+    <Step n={n} title="Save the signing secret" open onToggle={() => {}} done={saved}>
+      <p className="muted">
+        {saved
+          ? `Requests without a valid ${c.push!.signatureHeader} signature are refused. Enter a new secret to replace it.`
+          : `Until it is saved, the ingest API key alone admits ${c.vendor}'s requests.`}
+      </p>
+      <Field f={field} value={value} saved={saved} disabled={!isAdmin} onChange={(v) => (setValue(String(v)), save.reset())} />
+      {save.error && <p className="form-error">{(save.error as Error).message}</p>}
+      {save.isSuccess && <p className="muted">Saved. The intake checks signatures with it within a minute.</p>}
+      <div className="rt-create-actions">
+        <button type="button" className="btn btn-primary" disabled={!isAdmin || !value.trim() || save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? 'Saving…' : 'Save secret'}
+        </button>
+        {current && (
+          <button
+            type="button"
+            className="btn btn-danger"
+            disabled={!isAdmin}
+            onClick={() =>
+              window.confirm('Remove the signing secret? Requests are then admitted by the API key alone.') &&
+              deleteConnection(c.id, current.id).then(() => qc.invalidateQueries({ queryKey: ['connectors', c.id] }))
+            }
+          >
+            Remove
+          </button>
+        )}
+      </div>
+    </Step>
+  );
+}
+
+function Push({ c, connections }: { c: ConnectorEntry; connections: ConnectionView[] }) {
   const { isAdmin } = useAccess();
   const p = c.push!;
   const vars = { intake: intakeUrl(), source: c.source, api_key: '<INGEST_API_KEY>' };
@@ -410,22 +458,25 @@ function Push({ c }: { c: ConnectorEntry }) {
         {headers && <CodeBlock code={headers} />}
         {p.signatureHeader && (
           <p className="muted">
-            ObserveCraft checks the {p.signatureHeader} signature of every request with the signing secret you enter in {c.vendor}.
+            ObserveCraft checks the {p.signatureHeader} signature of every request with the signing secret {c.vendor} gives you.
           </p>
         )}
       </Step>
+      {p.signatureSecret && <SigningSecret c={c} n={2} connections={connections} />}
       {p.canCreate && (
-        <Step n={2} title={`Or create it from here`} open onToggle={() => {}}>
-          {c.config.map((f) => (
-            <Field
-              key={f.key}
-              f={f}
-              value={f.secret ? (form.secrets[f.key] ?? '') : (form.config[f.key] ?? '')}
-              saved={false}
-              disabled={!isAdmin}
-              onChange={(v) => setForm((x) => (f.secret ? { ...x, secrets: { ...x.secrets, [f.key]: String(v) } } : { ...x, config: { ...x.config, [f.key]: v } }))}
-            />
-          ))}
+        <Step n={p.signatureSecret ? 3 : 2} title={`Or create it from here`} open onToggle={() => {}}>
+          {c.config
+            .filter((f) => f.key !== p.signatureSecret)
+            .map((f) => (
+              <Field
+                key={f.key}
+                f={f}
+                value={f.secret ? (form.secrets[f.key] ?? '') : (form.config[f.key] ?? '')}
+                saved={false}
+                disabled={!isAdmin}
+                onChange={(v) => setForm((x) => (f.secret ? { ...x, secrets: { ...x.secrets, [f.key]: String(v) } } : { ...x, config: { ...x.config, [f.key]: v } }))}
+              />
+            ))}
           {create.data && (
             <div className={create.data.ok ? 'rt-note' : 'rt-warning'}>
               {create.data.ok ? <CircleCheck size={16} /> : <AlertTriangle size={16} />}

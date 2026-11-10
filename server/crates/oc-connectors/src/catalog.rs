@@ -102,6 +102,8 @@ pub struct ConnectorPush {
     pub headers: std::collections::BTreeMap<String, String>,
     /// The header carrying the vendor's signature, when the intake checks it.
     pub signature_header: Option<String>,
+    /// The secret config field holding the signing secret, saved as a connection of the org.
+    pub signature_secret: Option<String>,
     /// Whether the page can create the push on the vendor's side (`POST /api/v1/connectors/{id}/push`).
     pub can_create: bool,
 }
@@ -238,6 +240,7 @@ pub fn entry_of(p: &Package) -> ConnectorEntry {
             url: p.url.clone(),
             headers: p.headers.clone(),
             signature_header: p.signature.as_ref().map(|s| s.header.clone()),
+            signature_secret: p.signature.as_ref().map(|s| s.secret.clone()),
             can_create: p.create.is_some(),
         }),
         dashboards: p.dashboards().iter().filter_map(|d| d["title"].as_str().map(str::to_string)).collect(),

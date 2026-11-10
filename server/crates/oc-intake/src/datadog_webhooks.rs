@@ -2,7 +2,7 @@
 //! post to (SolarWinds Orion trigger and reset actions, Prometheus Alertmanager's webhook receiver, the Zabbix
 //! media type), turned into events (`otel.otel_events`, source `<name>`) like `POST /api/v1/events`. Our own mapping
 //! of each vendor's payload; any other `<name>` becomes an event titled from the body's usual fields, its JSON as
-//! the text.
+//! the text. A connector package's webhook (`connector_push`) is mapped as the package says.
 
 use axum::body::Bytes;
 use axum::extract::{Path, State};
@@ -155,6 +155,18 @@ pub async fn post(State(st): State<Shared>, Path(name): Path<String>, headers: H
         Err(r) => return r.into_response(),
     };
     let name: String = name.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.')).take(64).collect::<String>().to_lowercase();
+    if !matches!(name.as_str(), "solarwinds" | "prometheus" | "zabbix") {
+        match crate::connector_push::webhook_def(&st, &name).await {
+            Ok(Some(def)) => {
+                return match inflate(&headers, &body) {
+                    Ok(raw) => crate::connector_push::post_webhook(&st, &org, &def, &headers, &raw).await,
+                    Err(e) => (StatusCode::BAD_REQUEST, Json(json!({ "errors": [e] }))).into_response(),
+                };
+            }
+            Ok(None) => {}
+            Err(r) => return r.into_response(),
+        }
+    }
     let v: Value = match inflate(&headers, &body).and_then(|raw| serde_json::from_slice(&raw).map_err(|e| format!("invalid JSON payload: {e}"))) {
         Ok(v) => v,
         Err(e) => return (StatusCode::BAD_REQUEST, Json(json!({ "errors": [e] }))).into_response(),

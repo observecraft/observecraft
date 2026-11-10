@@ -289,6 +289,8 @@ fn fresh_runtime(st: &AppState) -> Runtime {
 fn package(id: &str) -> Result<&'static Arc<PackageConnector>, ApiError> {
     match registry().package(id) {
         Some(p) if p.package.manifest.push.is_none() || !p.package.manifest.streams.is_empty() => Ok(p),
+        // A signed push: its connection holds the signing secret the intake checks requests with.
+        Some(p) if p.package.manifest.push.as_ref().is_some_and(|x| x.signature.is_some()) => Ok(p),
         Some(_) => Err(ApiError::BadRequest(format!("{id} is installed from its tile: it has nothing to connect"))),
         None if registry().get(id).is_some() => Err(ApiError::BadRequest(format!("{id} is set up on its own page"))),
         None => Err(ApiError::NotFound(format!("No connector {id}"))),

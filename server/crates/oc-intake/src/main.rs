@@ -27,7 +27,8 @@
 //! - `POST /intake/`, `/api/v2/host_metadata`   Datadog Agent host metadata → Postgres `datadog_hosts`; its events → events.
 //!   Its host tags are added to that host's series, sketches and service checks (see `host_tags`)
 //! - `POST /api/v1/events`, `/api/v2/events`     Datadog events (API, Agent) → otel.otel_events
-//! - `POST /intake/webhook/{name}`               vendors' alert webhooks (SolarWinds, Alertmanager, Zabbix) → events
+//! - `POST /intake/webhook/{name}`               vendors' alert webhooks (SolarWinds, Alertmanager, Zabbix) → events;
+//!   connector packages' webhooks (signature checked, mapped by the package) → logs and events (`connector_push`)
 //! - `POST /api/v2/rum`                          RUM events of the browser and mobile SDKs (client token `pub…`) → otel.otel_rum
 //! - `POST /api/v2/replay`                       Session Replay segments of the browser SDK (multipart) → otel.otel_rum_replay
 //! - `POST /api/v2/service_checks`               the Agent's service checks (as `/api/v1/check_run`)
@@ -49,12 +50,14 @@
 //! OC_INTAKE_APM_TELEMETRY_URL (http://localhost:8090/ingest/apm-telemetry),
 //! OC_INTAKE_SBOM_URL (http://localhost:8090/ingest/sbom),
 //! OC_INTAKE_CODE_SCANS_URL (http://localhost:8090/ingest/code-scans),
-//! OC_INTAKE_FLAG_EVALUATIONS_URL (http://localhost:8090/ingest/feature-flag-evaluations), OC_INTERNAL_TOKEN,
+//! OC_INTAKE_FLAG_EVALUATIONS_URL (http://localhost:8090/ingest/feature-flag-evaluations),
+//! OC_INTAKE_CONNECTORS_URL (http://localhost:8090/ingest/connectors), OC_INTERNAL_TOKEN,
 //! OC_INTAKE_MAX_BODY_MB (16), OC_INTAKE_ORG_RPS (500), OC_INTAKE_ORG_MBPS (50),
 //! OC_INTAKE_SERIES_CACHE (6000000 series × hour entries, ~20 bytes each; 0 = no series marking, see `series_cache`).
 //! It must exceed the active series a replica sees: past it, points keep rewriting their series and tags rows.
 
 mod check_messages;
+mod connector_push;
 mod datadog;
 mod datadog_apm;
 mod datadog_dns;
@@ -121,6 +124,8 @@ struct Config {
     code_scans_url: String,
     /// The server's internal listener for the Cluster Agent's external recommender calls.
     autoscaling_url: String,
+    /// The server's internal listener for connector packages' push definitions and signing secrets.
+    connectors_url: String,
     /// Bearer token of the server's internal listener (OC_INTERNAL_TOKEN), if it requires one.
     internal_token: Option<String>,
     max_body: usize,
@@ -162,6 +167,7 @@ impl Config {
             sbom_url: env("OC_INTAKE_SBOM_URL", "http://localhost:8090/ingest/sbom"),
             code_scans_url: env("OC_INTAKE_CODE_SCANS_URL", "http://localhost:8090/ingest/code-scans"),
             autoscaling_url: env("OC_INTAKE_AUTOSCALING_URL", "http://localhost:8090/ingest/autoscaling-recommendation"),
+            connectors_url: env("OC_INTAKE_CONNECTORS_URL", "http://localhost:8090/ingest/connectors").trim_end_matches('/').to_string(),
             internal_token: std::env::var("OC_INTERNAL_TOKEN")
                 .ok()
                 .filter(|t| !t.is_empty()),
@@ -259,6 +265,8 @@ struct Inner {
     series: series_cache::SeriesCache,
     /// RUM client tokens seen lately.
     rum_tokens: datadog_rum::TokenCache,
+    /// Connector packages' push definitions and orgs' signing secrets.
+    push: connector_push::PushState,
 }
 
 type Shared = Arc<Inner>;
@@ -490,6 +498,20 @@ async fn send_with(
             .into();
         content_encoding = None;
     }
+    send_prepared(st, org, sink, content_type, content_encoding, body, extra).await
+}
+
+/// [`send_with`] for a body whose logs already carry their identities (`connector_push`: a webhook's records keep
+/// theirs, so a retried delivery is stored once).
+async fn send_prepared(
+    st: &Shared,
+    org: &KeyOrg,
+    sink: Sink,
+    content_type: Option<&HeaderValue>,
+    content_encoding: Option<&HeaderValue>,
+    body: Bytes,
+    extra: &[(&str, &str)],
+) -> Result<Upstream, Rejection> {
     if let Some(kafka) = &st.kafka {
         return produce(kafka, org, sink, content_type, content_encoding, body, extra).await;
     }
@@ -704,6 +726,18 @@ async fn json_logs(State(st): State<Shared>, RawQuery(query): RawQuery, mut head
         Ok(org) => org,
         Err(r) => return r.into_response(),
     };
+    // A connector package's signed log drain (Vercel): its signature over the body as sent, uncompressed.
+    if let Some(source) = &defaults.ddsource {
+        if let Some(def) = connector_push::logs_def(&st, source).await {
+            let raw = match datadog::inflate(&headers, &body) {
+                Ok(raw) => raw,
+                Err(_) => return reject(StatusCode::BAD_REQUEST, "cannot decompress body"),
+            };
+            if let Err(r) = connector_push::check(&st, &org, &def, &headers, &raw).await {
+                return r.into_response();
+            }
+        }
+    }
     let applied = datadog::inflate(&headers, &body).map_err(|_| "cannot decompress body").and_then(|raw| defaults.apply(&raw));
     match applied {
         Ok(body) => {
@@ -762,7 +796,7 @@ async fn log_requests(req: axum::extract::Request, next: axum::middleware::Next)
 
 fn state(cfg: Config, pg: PgPool, http: reqwest::Client, kafka: Option<kafka::Kafka>) -> Shared {
     let series = series_cache::SeriesCache::new(cfg.series_cache);
-    Arc::new(Inner { cfg, pg, http, kafka, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default(), flags: ofrep::FlagState::default(), metric_rules: metric_rules::MetricRules::default(), check_messages: check_messages::CheckMessages::default(), series, rum_tokens: Mutex::default() })
+    Arc::new(Inner { cfg, pg, http, kafka, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default(), flags: ofrep::FlagState::default(), metric_rules: metric_rules::MetricRules::default(), check_messages: check_messages::CheckMessages::default(), series, rum_tokens: Mutex::default(), push: connector_push::PushState::default() })
 }
 
 /// An intake for tests: `cfg`, a Postgres pool that never connects unless used.

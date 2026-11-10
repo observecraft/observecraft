@@ -9,9 +9,11 @@
 //! - [`store`]: packages' connections, stream state and request quotas in Postgres.
 //! - [`runner`]: packages' streams on the cloud crawlers' jobs, published to Kafka.
 //! - [`net`]: the SSRF-guarded transport packages' requests go through.
+//! - [`push`]: push packages' definitions and signing secrets for the intake.
 
 pub mod native;
 pub mod net;
+pub mod push;
 pub mod runner;
 pub mod store;
 

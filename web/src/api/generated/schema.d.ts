@@ -13740,6 +13740,8 @@ export interface components {
             kind: string;
             /** @description The header carrying the vendor's signature, when the intake checks it. */
             signatureHeader?: string | null;
+            /** @description The secret config field holding the signing secret, saved as a connection of the org. */
+            signatureSecret?: string | null;
             /** @description The URL to paste (`{{ intake }}`, `{{ source }}`, `{{ api_key }}`, `{{ config.x }}` parts). */
             url?: string | null;
             webhook?: string | null;

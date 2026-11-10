@@ -8,7 +8,7 @@ use serde::Serialize;
 use serde_json::{json, Map, Value};
 
 use crate::expr::{self, text, to_ms};
-use crate::manifest::{Manifest, MetricKind, Stream};
+use crate::manifest::{Manifest, MetricKind, Output, Stream};
 use crate::template::{Template, Tree};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -172,10 +172,19 @@ fn rendered_tags(list: &[(String, Template)], scope: &Map<String, Value>) -> Vec
 
 impl Mapper {
     pub fn compile(m: &Manifest, stream: &Stream) -> Result<Mapper, String> {
-        let o = &stream.output;
+        Mapper::compile_output(m, &stream.output)
+    }
+
+    /// The mapping of an output (a stream's, or a webhook's logs and events).
+    pub fn compile_output(m: &Manifest, o: &Output) -> Result<Mapper, String> {
+        Mapper::compile_for(&m.id, m.source.as_deref().unwrap_or(&m.id), o)
+    }
+
+    /// The mapping of an output for a connector and its logs' source.
+    pub fn compile_for(connector: &str, source: &str, o: &Output) -> Result<Mapper, String> {
         Ok(Mapper {
-            connector: m.id.clone(),
-            source: m.source.clone().unwrap_or_else(|| m.id.clone()),
+            connector: connector.to_string(),
+            source: source.to_string(),
             logs: match &o.logs {
                 None => None,
                 Some(l) => Some(LogsMap {

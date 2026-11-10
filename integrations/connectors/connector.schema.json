@@ -2258,9 +2258,23 @@
           "description": "The header carrying it (`x-vercel-signature`).",
           "type": "string"
         },
+        "prefix": {
+          "description": "Text before the value in the header, dropped before comparing (`sha256=` for GitHub's `X-Hub-Signature-256`,\n`Bearer ` for a token).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "secret": {
           "description": "The config field holding the shared secret.",
           "type": "string"
+        },
+        "tolerance": {
+          "description": "Stripe: how old a signed timestamp may be (default `5m`).",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -2361,7 +2375,8 @@
         "hmac_sha1",
         "hmac_sha256",
         "stripe",
-        "pagerduty_v3"
+        "pagerduty_v3",
+        "token"
       ],
       "type": "string"
     },
@@ -2723,11 +2738,44 @@
       "additionalProperties": false,
       "description": "An inbound webhook (`/intake/webhook/<name>` on the intake), mapped like a stream's logs. `record` is each of\n`records` (template over `body`, default the body).",
       "properties": {
+        "events": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/EventsOut",
+              "description": "Each record as an event (Event Management)."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "filter": {
+          "description": "Template over `record`: records for which it is falsy are dropped (pings, test deliveries).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "logs": {
-          "$ref": "#/$defs/LogsOut"
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LogsOut",
+              "description": "Each record as a log."
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "name": {
           "description": "The URL's last segment (default the id).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "record_id": {
+          "description": "Template over `record`: the record's id (a log's identity: a delivery retried is stored once). Default: the\nrecord's JSON.",
           "type": [
             "string",
             "null"
@@ -2740,9 +2788,6 @@
           ]
         }
       },
-      "required": [
-        "logs"
-      ],
       "type": "object"
     }
   },

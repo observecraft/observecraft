@@ -81,8 +81,9 @@ API integrations: adding one should be a package, not code, and operators should
   environment.
 - The schema is a contract for package authors: changes are additive (new optional fields, kinds and filters);
   `schema_version` in the manifest guards future breaking changes.
-- Push-only vendors' intake side (webhook mappings and signature checks read from packages, Fastly's challenge, a
-  Splunk HEC endpoint) and long-lived streams (WebSockets, SQS) are extension points: the intake can load the same
-  packages, and `native` names a connector compiled into the server.
+- Push-only vendors' intake side reads the same packages: the intake asks the server's internal listener for the
+  push definitions and an org's signing secrets (cached a minute, org from the ingest key), checks signatures and maps
+  webhooks with `oc-connectors::push`, and publishes through Kafka. Long-lived streams (WebSockets, SQS) remain an
+  extension point: `native` names a connector compiled into the server.
 - `oauth` tiles need an OAuth app per install (client id and secret from the operator, redirect to ObserveCraft);
   until the authorization-code flow lands, their packages take a refresh token or an API key the user creates.

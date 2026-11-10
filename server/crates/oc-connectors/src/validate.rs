@@ -502,13 +502,34 @@ pub fn validate(m: &Manifest, files: &BTreeMap<String, String>) -> Vec<String> {
             if !c.secrets.contains(s.secret.as_str()) {
                 c.problem("push.signature.secret", format!("{} is not a secret config field", s.secret));
             }
+            c.duration("push.signature.tolerance", &s.tolerance);
         }
     }
     if let Some(w) = &m.webhook {
-        c.opt("webhook.records", &w.records, &["body"]);
-        c.template("webhook.logs.message", &w.logs.message, &["record", "body"]);
-        if let Some(a) = &w.logs.attributes {
-            c.tree("webhook.logs.attributes", a, &["record", "body"]);
+        const WEBHOOK: &[&str] = &["record", "body", "headers"];
+        c.opt("webhook.records", &w.records, &["body", "headers"]);
+        c.opt("webhook.record_id", &w.record_id, WEBHOOK);
+        c.opt("webhook.filter", &w.filter, WEBHOOK);
+        if w.logs.is_none() && w.events.is_none() {
+            c.problem("webhook", "a webhook makes logs or events");
+        }
+        if let Some(l) = &w.logs {
+            c.template("webhook.logs.message", &l.message, WEBHOOK);
+            for (k, t) in [("status", &l.status), ("service", &l.service), ("source", &l.source), ("host", &l.host), ("date", &l.date)] {
+                c.opt(&format!("webhook.logs.{k}"), t, WEBHOOK);
+            }
+            c.map("webhook.logs.tags", &l.tags, WEBHOOK);
+            if let Some(a) = &l.attributes {
+                c.tree("webhook.logs.attributes", a, WEBHOOK);
+            }
+        }
+        if let Some(e) = &w.events {
+            c.template("webhook.events.title", &e.title, WEBHOOK);
+            c.template("webhook.events.text", &e.text, WEBHOOK);
+            for (k, t) in [("alert_type", &e.alert_type), ("priority", &e.priority), ("host", &e.host), ("aggregation_key", &e.aggregation_key), ("date", &e.date)] {
+                c.opt(&format!("webhook.events.{k}"), t, WEBHOOK);
+            }
+            c.map("webhook.events.tags", &e.tags, WEBHOOK);
         }
     }
     // Assets and fixtures name files of the package.

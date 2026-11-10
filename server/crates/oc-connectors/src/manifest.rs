@@ -988,6 +988,13 @@ pub struct PushSignature {
     pub algorithm: SignatureAlgorithm,
     /// The config field holding the shared secret.
     pub secret: String,
+    /// Text before the value in the header, dropped before comparing (`sha256=` for GitHub's `X-Hub-Signature-256`,
+    /// `Bearer ` for a token).
+    #[serde(default)]
+    pub prefix: Option<String>,
+    /// Stripe: how old a signed timestamp may be (default `5m`).
+    #[serde(default)]
+    pub tolerance: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Copy, Debug, PartialEq, Eq)]
@@ -999,8 +1006,10 @@ pub enum SignatureAlgorithm {
     HmacSha256,
     /// Stripe's `t=…,v1=…` (HMAC-SHA256 of `t.body`).
     Stripe,
-    /// PagerDuty v3 `v1=…` (HMAC-SHA256 of the body).
+    /// PagerDuty v3 `v1=…` (HMAC-SHA256 of the body; several when the secret is being rotated).
     PagerdutyV3,
+    /// The header is the shared secret itself (a token the vendor sends as it is, after `prefix`).
+    Token,
 }
 
 /// An inbound webhook (`/intake/webhook/<name>` on the intake), mapped like a stream's logs. `record` is each of
@@ -1013,7 +1022,19 @@ pub struct Webhook {
     pub name: Option<String>,
     #[serde(default)]
     pub records: Option<String>,
-    pub logs: LogsOut,
+    /// Template over `record`: the record's id (a log's identity: a delivery retried is stored once). Default: the
+    /// record's JSON.
+    #[serde(default)]
+    pub record_id: Option<String>,
+    /// Template over `record`: records for which it is falsy are dropped (pings, test deliveries).
+    #[serde(default)]
+    pub filter: Option<String>,
+    /// Each record as a log.
+    #[serde(default)]
+    pub logs: Option<LogsOut>,
+    /// Each record as an event (Event Management).
+    #[serde(default)]
+    pub events: Option<EventsOut>,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Debug, Default)]

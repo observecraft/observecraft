@@ -40624,6 +40624,13 @@
             ],
             "description": "The header carrying the vendor's signature, when the intake checks it."
           },
+          "signatureSecret": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The secret config field holding the signing secret, saved as a connection of the org."
+          },
           "url": {
             "type": [
               "string",

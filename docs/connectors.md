@@ -394,11 +394,39 @@ push:
 
 They appear in the catalog as available and are installed from their tile (the tile's pipeline and dashboards); the
 page shows the URL and headers, and with `create` a form (the package's `config`) that runs the request once
-(`POST /api/v1/connectors/{id}/push`, nothing stored). `webhook` (`name`, `records`, `logs`) and `push.signature`
-describe the intake's mapping and signature check: they are validated now; the intake reading them (and Fastly's
-`/.well-known/fastly/logging/challenge`, a Splunk HEC-compatible endpoint for GitHub's audit log streaming) is not
-built yet, the extension point being the intake loading the same packages (`oc-connectors` has no server
-dependencies).
+(`POST /api/v1/connectors/{id}/push`, nothing stored).
+
+**Signatures.** `push.signature` names the header, the algorithm and the secret config field holding the signing
+secret; a package with one is connected like a polled one (the page's "Save the signing secret": a connection with
+that sealed field, no streams). The intake checks every request against the org's saved secrets (any of them, so a
+secret can be rotated) and refuses unsigned or wrongly signed ones with 401; until a secret is saved the ingest key
+alone admits them.
+
+| `algorithm` | Header value | Vendors |
+|---|---|---|
+| `hmac_sha256` | hex HMAC-SHA256 of the body (`prefix: "sha256="` for GitHub) | GitHub `X-Hub-Signature-256`, LaunchDarkly `X-LD-Signature` |
+| `hmac_sha1` | hex HMAC-SHA1 of the body | Vercel `x-vercel-signature` |
+| `stripe` | `t=<unix>,v1=<hex>…`: HMAC-SHA256 of `t.body`, at most `tolerance` old (default `5m`) | Stripe `Stripe-Signature` |
+| `pagerduty_v3` | `v1=<hex>,v1=<hex>…`: HMAC-SHA256 of the body, any one matching | PagerDuty `X-PagerDuty-Signature` |
+| `token` | the secret itself, after `prefix` (`"Bearer "`) | log streams sending a shared token (Auth0) |
+
+**Webhooks.** `/intake/webhook/<name>` (`webhook.name`, default the id; the ingest key as `?dd-api-key=`) maps the
+body as `webhook` says:
+
+```yaml
+webhook:
+  records: "{{ body.data }}"       # default the body (each item of an array)
+  record_id: "{{ record.id }}"     # with a log date, a delivery retried is stored once
+  filter: "{{ record.type != 'ping' }}"
+  logs: { message: "{{ record.type }}", date: "{{ record.created }}", attributes: { evt: { name: "{{ record.type }}" } } }
+  events: { title: "{{ record.summary }}", text: "{{ record.id }}", alert_type: "{{ record.urgency == 'high' ? 'error' : 'warning' }}" }
+```
+
+Templates read `body`, `record`, `headers` (the request's, lowercase names, keys left out) and `tables`. Logs go to
+Kafka like every other log; events to Event Management. A `push.kind: logs` package with a signature has its
+`/api/v2/logs?ddsource=<source>` requests checked the same way. The intake reads the definitions and the org's
+signing secrets from the server's internal listener (`/ingest/connectors/push`, cached for a minute; the org is the
+ingest key's), so the operator's packages work there too.
 
 ## Testing a package
 

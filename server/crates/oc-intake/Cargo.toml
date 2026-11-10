@@ -21,6 +21,7 @@ rand = "0.10"
 # Data Streams Monitoring's pathway stats (msgpack with DDSketch bytes).
 rmp-serde = "1.3"
 serde_bytes = "0.11"
+oc-connectors.workspace = true
 oc-flags.workspace = true
 oc-query.workspace = true
 reqwest.workspace = true
@@ -40,4 +41,6 @@ tracing-subscriber.workspace = true
 zstd = "0.14"
 
 [dev-dependencies]
+hmac = "0.13"
+serde_yaml_ng = "0.10"
 tower = { version = "0.5", features = ["util"] }

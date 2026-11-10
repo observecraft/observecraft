@@ -18,6 +18,7 @@ pub mod http;
 pub mod manifest;
 pub mod output;
 pub mod package;
+pub mod push;
 pub mod replay;
 pub mod request;
 pub mod schema;

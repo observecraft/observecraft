@@ -1,6 +1,7 @@
 //! The internal listener (`OC_LOGPROC_ADDR`): the log indexer, and profile uploads from the intake
 //! (`/ingest/profiles`, see `routes::profiles`) and feature flag evaluation counts
-//! (`/ingest/feature-flag-evaluations`, see `routes::feature_flags`), and the server's own metrics
+//! (`/ingest/feature-flag-evaluations`, see `routes::feature_flags`), connector packages' push definitions and
+//! signing secrets for the intake (`/ingest/connectors/push`, see `connectors::push`), and the server's own metrics
 //! (`/metrics`, Prometheus text; see `cache`).
 //!
 //! The log indexer: Vector sends every normalized log here (NDJSON, internal listener on
@@ -708,7 +709,7 @@ pub(crate) async fn insert_rows(st: &AppState, table: &str, rows: Vec<u8>) -> Re
 }
 
 /// Requests to the internal listener carry `Authorization: Bearer <OC_INTERNAL_TOKEN>` when it is set.
-fn internal_authorized(token: Option<&str>, headers: &HeaderMap) -> bool {
+pub(crate) fn internal_authorized(token: Option<&str>, headers: &HeaderMap) -> bool {
     token.is_none_or(|token| headers.get("authorization").and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")) == Some(token))
 }
 
@@ -753,6 +754,8 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
         .route("/ingest/sbom", post(crate::routes::cloud_security::ingest_sbom))
         .route("/ingest/code-scans", post(crate::routes::code_security::ingest_sarif))
         .route("/ingest/autoscaling-recommendation", post(crate::routes::kubernetes_recommender::ingest))
+        .route("/ingest/connectors/push", get(crate::connectors::push::list))
+        .route("/ingest/connectors/push/{id}/secrets", get(crate::connectors::push::secrets))
         .route("/metrics", get(internal_metrics))
         .with_state(st.clone());
     let app = Router::new()
