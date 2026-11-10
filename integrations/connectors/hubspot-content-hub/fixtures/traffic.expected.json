@@ -1,0 +1,761 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.count",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.bounce_rate",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.4217
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.bounces",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 388.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.new_visitor_session_rate",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.7717
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.pageviews_per_session",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 2.62
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.raw_views",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 2410.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.returning_visits",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 210.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.standard_views",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 2290.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.time",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 61042.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.time_per_session",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 66.35
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.visitors",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 731.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.visits",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "organic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 920.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.count",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.bounce_rate",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.4934
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.bounces",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 301.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.new_visitor_session_rate",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.741
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.pageviews_per_session",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.95
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.raw_views",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1188.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.returning_visits",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 158.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.standard_views",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1120.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.time",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 30115.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.time_per_session",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 49.37
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.visitors",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 473.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.visits",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "direct_traffic"
+        ],
+        [
+          "breakdown_type",
+          "sources"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 610.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.count",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "us"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.bounce_rate",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "us"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.4273
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.bounces",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "us"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 470.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.new_visitor_session_rate",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "us"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.76
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.pageviews_per_session",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "us"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 2.36
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.raw_views",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "us"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 2600.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.time",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "us"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 70011.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.time_per_session",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "us"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 63.65
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.visitors",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "us"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 870.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.visits",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "us"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1100.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.count",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "de"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.bounce_rate",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "de"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.5093
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.bounces",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "de"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 219.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.new_visitor_session_rate",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "de"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 0.77
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.pageviews_per_session",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "de"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 2.32
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.raw_views",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "de"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 998.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.time",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "de"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 21146.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.time_per_session",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "de"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 49.18
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.visitors",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "de"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 334.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "hubspot.content_hub.breakdown.visits",
+      "tags": [
+        [
+          "breakdown_subtype",
+          "de"
+        ],
+        [
+          "breakdown_type",
+          "geolocation"
+        ]
+      ],
+      "time_ms": 1794312000000,
+      "value": 430.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "geolocation": {},
+      "sources": {}
+    }
+  }
+}

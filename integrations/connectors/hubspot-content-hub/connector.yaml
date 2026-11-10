@@ -1,0 +1,267 @@
+# yaml-language-server: $schema=../connector.schema.json
+# HubSpot Content Hub (https://developers.hubspot.com/docs/api-reference/account-audit-logs-v3/guide): the account's
+# audit, login and security activity as the logs Datadog's integration sends (source:hubspot-content-hub, service:audit,
+# service:login, service:security, the record's fields at the top), and the web analytics reports as its
+# hubspot.content_hub.breakdown.* and .content.* metrics (integrations-core hubspot_content_hub/metadata.csv).
+# integrations-core's pipeline and six dashboards read them as they are, so this package ships none.
+#
+# The login and security activity lists have no time filter and answer newest first: their pagination stops at the
+# first page reaching past the window (`next` reads the page's last record), so a run doesn't page through the whole history.
+# Analytics come from HubSpot's legacy Analytics v2 reports (today's totals, refreshed hourly).
+schema_version: 1
+id: hubspot-content-hub
+name: HubSpot Content Hub
+publisher: ObserveCraft
+vendor: HubSpot
+description: >-
+  Audit logs (Enterprise), logins and security activity of a HubSpot account as logs, and its web traffic by source
+  and country and the views, entrances, exits and bounce rates of its landing pages, website pages, blog posts and
+  knowledge articles as metrics, read from HubSpot's APIs.
+tiles: [hubspot-content-hub]
+categories: [Log Collection, Marketing, Security]
+docs_url: https://developers.hubspot.com/docs/api-reference/account-audit-logs-v3/guide
+setup: |
+  1. In HubSpot, as a super admin, open **Settings → Integrations → Private Apps** (or **Development → Legacy apps**)
+     and create a private app, e.g. `observecraft`.
+  2. On **Scopes**, add `account-info.security.read` (audit, login and security activity), `business-intelligence`
+     (analytics reports) and `content`.
+  3. Create the app and copy its **access token**.
+  4. Audit logs need an Enterprise subscription; without one, turn the Audit logs stream off.
+links:
+  - { label: Private apps, url: "https://app.hubspot.com/l/private-apps" }
+instance: hubspot
+
+config:
+  - key: access_token
+    label: Private app access token
+    type: string
+    secret: true
+    required: true
+    placeholder: pat-na1-…
+
+auth:
+  kind: bearer
+  token: "{{ secrets.access_token }}"
+
+# Private apps: 100 requests every 10 seconds (Professional), 190 (Enterprise).
+rate_limit: { requests_per_minute: 300 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: HubSpot refused the access token
+  - status: [403]
+    kind: access_denied
+    message: >-
+      HubSpot denied access{{ ': ' + response.message ?? '' }}. The private app needs the account-info.security.read,
+      business-intelligence and content scopes; audit logs need an Enterprise subscription
+  - status: [429]
+    kind: throttled
+    message: Rate limited by HubSpot
+
+tables:
+  # Analytics v2 fields → hubspot.content_hub.breakdown.<name>
+  breakdown_metrics:
+    bounceRate: bounce_rate
+    bounces: bounces
+    newVisitorSessionRate: new_visitor_session_rate
+    pageviewsPerSession: pageviews_per_session
+    rawViews: raw_views
+    returningVisits: returning_visits
+    standardViews: standard_views
+    time: time
+    timePerSession: time_per_session
+    visitors: visitors
+    visits: visits
+  # Analytics v2 fields → hubspot.content_hub.content.<name>
+  content_metrics:
+    entrances: entrances
+    exits: exits
+    exitsPerPageview: exits_per_pageview
+    newVisitorRawViews: new_visitor_raw_views
+    pageBounceRate: page_bounce_rate
+    pageBounces: page_bounces
+    pageTime: page_time
+    rawViews: raw_views
+    standardViews: standard_views
+    timePerPageview: time_per_pageview
+  breakdowns: [sources, geolocation]
+  # Analytics v2 object types → content_type
+  content_types:
+    landing-pages: landing_pages
+    standard-pages: website_pages
+    blog-posts: blog_posts
+    knowledge-articles: knowledge_articles
+
+streams:
+  - id: audit
+    name: Audit logs
+    description: >-
+      Every audit log entry as a log (service:audit): category, subCategory, action, targetObjectId and actingUser
+      (userId, userEmail → usr.* after the tile's pipeline). Needs an Enterprise subscription.
+    interval: 5m
+    request:
+      url: "https://api.hubapi.com/account-info/v3/activity/audit-logs"
+      query:
+        occurredAfter: "{{ window.start | rfc3339 }}"
+        occurredBefore: "{{ window.end | rfc3339 }}"
+        limit: 100
+        after: "{{ page.cursor }}"
+    records: "{{ response.results }}"
+    pagination: { kind: cursor, next: "{{ response.paging.next.after }}" }
+    record_id: "{{ record.id }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.occurredAt }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 10m
+    output:
+      logs:
+        service: audit
+        message: "{{ record.actingUser.userEmail ?? 'HubSpot' }} {{ record.action | lower }} {{ record.category | lower }} {{ record.subCategory | lower }} {{ record.targetObjectId }}"
+        date: "{{ record.occurredAt }}"
+        attributes: "{{ record }}"
+
+  - id: login
+    name: Login activity
+    description: >-
+      Every login as a log (service:login): email, userId, loginSucceeded, ipAddress, location, userAgent (usr.*,
+      network.client.ip and http.useragent after the tile's pipeline). Failed logins are warnings.
+    interval: 5m
+    request:
+      url: "https://api.hubapi.com/account-info/v3/activity/login"
+      query: { limit: 100, after: "{{ page.cursor }}" }
+    records: "{{ response.results }}"
+    # No time filter, newest first: stop once a page reaches past the window.
+    pagination: { kind: cursor, next: "{{ ((records | last).loginAt | epoch_ms) < window.start ? null : response.paging.next.after }}" }
+    record_id: "{{ record.id | str }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.loginAt }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 10m
+    output:
+      logs:
+        service: login
+        message: "{{ record.loginSucceeded ? 'Login' : 'Failed login' }} of {{ record.email ?? record.userId }} from {{ record.location ?? record.ipAddress ?? 'unknown location' }}"
+        status: "{{ record.loginSucceeded == false ? 'warn' : 'info' }}"
+        date: "{{ record.loginAt }}"
+        attributes: "{{ record }}"
+
+  - id: security
+    name: Security activity
+    description: >-
+      Every security event as a log (service:security): type, actingUser, userId, ipAddress, location, objectId,
+      infoUrl.
+    interval: 5m
+    request:
+      url: "https://api.hubapi.com/account-info/v3/activity/security"
+      query: { limit: 100, after: "{{ page.cursor }}" }
+    records: "{{ response.results }}"
+    pagination: { kind: cursor, next: "{{ ((records | last).createdAt | epoch_ms) < window.start ? null : response.paging.next.after }}" }
+    record_id: "{{ record.id | str }}"
+    incremental:
+      kind: time
+      record_time: "{{ record.createdAt }}"
+      order: newest_first
+      lookback: 1d
+      overlap: 10m
+    output:
+      logs:
+        service: security
+        message: "{{ record.type }}{{ ' by ' + record.actingUser ?? '' }}"
+        date: "{{ record.createdAt }}"
+        attributes: "{{ record }}"
+
+  - id: traffic
+    name: Traffic by source and country
+    description: >-
+      Today's web traffic per source and per country as hubspot.content_hub.breakdown.* gauges (visits, visitors,
+      raw_views, bounces, bounce_rate, time_per_session, …), tagged breakdown_type (sources, geolocation) and
+      breakdown_subtype; breakdown.count is 1 per subtype.
+    interval: 1h
+    for_each: "{{ tables.breakdowns }}"
+    request:
+      url: "https://api.hubapi.com/analytics/v2/reports/{{ item }}/total"
+      query:
+        start: "{{ minute | strftime('%Y%m%d') }}"
+        end: "{{ minute | strftime('%Y%m%d') }}"
+        limit: 100
+        offset: "{{ page.offset }}"
+    records: "{{ response.breakdowns }}"
+    pagination: { kind: offset, size: 100, total: "{{ response.total }}" }
+    record_id: "{{ item + ':' + record.breakdown }}"
+    output:
+      metrics:
+        - name: hubspot.content_hub.breakdown.count
+          value: "1"
+          description: 1 per breakdown subtype (source or country); summed, the subtypes with traffic.
+          tags: &breakdown
+            breakdown_type: "{{ item }}"
+            breakdown_subtype: "{{ record.breakdown | lower }}"
+        - name: "{{ 'hubspot.content_hub.breakdown.' + tables.breakdown_metrics[entry.key] }}"
+          each: "{{ record }}"
+          value: "{{ entry.value | float }}"
+          description: An Analytics v2 field of the breakdown (fields without a Datadog name are skipped).
+          tags: *breakdown
+
+  - id: content
+    name: Content performance
+    description: >-
+      Today's views, entrances, exits, bounces and time of every landing page, website page, blog post and knowledge
+      article as hubspot.content_hub.content.* gauges, tagged content_type, content_id and content_title;
+      content.count is 1 per item.
+    interval: 1h
+    for_each: "{{ tables.content_types | keys }}"
+    request:
+      url: "https://api.hubapi.com/analytics/v2/reports/{{ item }}/total"
+      query:
+        start: "{{ minute | strftime('%Y%m%d') }}"
+        end: "{{ minute | strftime('%Y%m%d') }}"
+        limit: 100
+        offset: "{{ page.offset }}"
+    records: "{{ response.breakdowns }}"
+    pagination: { kind: offset, size: 100, total: "{{ response.total }}" }
+    record_id: "{{ item + ':' + record.breakdown }}"
+    output:
+      metrics:
+        - name: hubspot.content_hub.content.count
+          value: "1"
+          description: 1 per content item with traffic; summed, the items.
+          tags: &content
+            content_type: "{{ tables.content_types[item] }}"
+            content_id: "{{ record.breakdown | str }}"
+            content_title: "{{ record.title ?? record.meta.title ?? record.meta.name }}"
+        - name: "{{ 'hubspot.content_hub.content.' + tables.content_metrics[entry.key] }}"
+          each: "{{ record }}"
+          value: "{{ entry.value | float }}"
+          description: An Analytics v2 field of the content item (fields without a Datadog name are skipped).
+          tags: *content
+
+test:
+  stream: login
+  message: "Connected: {{ records | len }} logins in the last day"
+
+mock:
+  secrets: { access_token: pat-na1-test-token }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api.hubapi.com/account-info/v3/activity/audit-logs", file: fixtures/audit-logs.json }
+    - { url: "https://api.hubapi.com/account-info/v3/activity/login", query: { after: "MjAyNi0xMS0wOQ" }, file: fixtures/login-2.json }
+    - { url: "https://api.hubapi.com/account-info/v3/activity/login", file: fixtures/login.json }
+    - { url: "https://api.hubapi.com/account-info/v3/activity/security", file: fixtures/security.json }
+    - { url: "https://api.hubapi.com/analytics/v2/reports/sources/total", file: fixtures/sources.json }
+    - { url: "https://api.hubapi.com/analytics/v2/reports/geolocation/total", file: fixtures/geolocation.json }
+    - { url: "https://api.hubapi.com/analytics/v2/reports/landing-pages/total", file: fixtures/landing-pages.json }
+    - { url: "https://api.hubapi.com/analytics/v2/reports/blog-posts/total", file: fixtures/blog-posts.json }
+    - { url: "https://api.hubapi.com/analytics/v2/reports/standard-pages/total", body: { breakdowns: [], offset: 0, total: 0, totals: {} } }
+    - { url: "https://api.hubapi.com/analytics/v2/reports/knowledge-articles/total", body: { breakdowns: [], offset: 0, total: 0, totals: {} } }
+  expect:
+    audit: { records: 2, logs: 2, rerun: 0, golden: fixtures/audit.expected.json }
+    login: { records: 3, logs: 3, rerun: 0, golden: fixtures/login.expected.json }
+    security: { records: 2, logs: 2, rerun: 0, golden: fixtures/security.expected.json }
+    traffic: { records: 4, golden: fixtures/traffic.expected.json }
+    content: { records: 3, golden: fixtures/content.expected.json }
+    test: { ok: true, message: "logins" }

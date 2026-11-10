@@ -1,0 +1,8 @@
+{
+  "offset": 0, "total": 2,
+  "totals": { "rawViews": 1012 },
+  "breakdowns": [
+    { "breakdown": "178043830806", "title": "Winter sale", "rawViews": 812, "standardViews": 790, "entrances": 640, "exits": 512, "exitsPerPageview": 0.6305, "pageBounces": 301, "pageBounceRate": 0.4703, "pageTime": 30044, "timePerPageview": 37.0, "newVisitorRawViews": 601, "submissions": 14, "ctaViews": 220 },
+    { "breakdown": "178043830807", "title": "Free shipping", "rawViews": 200, "standardViews": 196, "entrances": 150, "exits": 140, "exitsPerPageview": 0.7, "pageBounces": 90, "pageBounceRate": 0.6, "pageTime": 5400, "timePerPageview": 27.0, "newVisitorRawViews": 170 }
+  ]
+}

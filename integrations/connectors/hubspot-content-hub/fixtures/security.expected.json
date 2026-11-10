@@ -1,0 +1,56 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bd-4220-7a2b-b251-ee19362f2c1c"
+      },
+      "actingUser": "jane@example.com",
+      "countryCode": "de",
+      "createdAt": "2026-11-10T09:15:00.000Z",
+      "date": "2026-11-10T09:15:00.000Z",
+      "ddsource": "hubspot-content-hub",
+      "host": "hubspot",
+      "id": "5002",
+      "infoUrl": "https://app.hubspot.com/personal-access-key/12345678",
+      "ipAddress": "203.0.113.24",
+      "location": "berlin, germany",
+      "message": "PERSONAL_ACCESS_KEY_CREATED by jane@example.com",
+      "objectId": "7781",
+      "regionCode": "be",
+      "service": "security",
+      "status": "info",
+      "type": "PERSONAL_ACCESS_KEY_CREATED",
+      "userId": 70700061
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c240-f780-7bde-bfbd-83607a53ed27"
+      },
+      "actingUser": "sam@example.com",
+      "countryCode": "pt",
+      "createdAt": "2026-11-09T21:40:00.000Z",
+      "date": "2026-11-09T21:40:00.000Z",
+      "ddsource": "hubspot-content-hub",
+      "host": "hubspot",
+      "id": "5001",
+      "ipAddress": "198.51.100.23",
+      "location": "lisbon, portugal",
+      "message": "TWO_FACTOR_AUTH_DISABLED by sam@example.com",
+      "regionCode": "11",
+      "service": "security",
+      "status": "info",
+      "type": "TWO_FACTOR_AUTH_DISABLED",
+      "userId": 70700058
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

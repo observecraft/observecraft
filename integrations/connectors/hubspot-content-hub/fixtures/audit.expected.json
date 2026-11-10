@@ -1,0 +1,56 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c50c-1aef-7d2d-9662-e9352f060ef2"
+      },
+      "actingUser": {
+        "userEmail": "jane@example.com",
+        "userId": 70700061
+      },
+      "action": "UPDATE",
+      "category": "CONTENT",
+      "date": "2026-11-10T10:41:07.311Z",
+      "ddsource": "hubspot-content-hub",
+      "host": "hubspot",
+      "id": "Ij8+eTA9MV8ZVkZUAfREhSRV1EGVhdSlFIQBtYMDc3bDUwIERFGkFQWkVVRxpdXUx2",
+      "message": "jane@example.com update content blog 178046197799",
+      "occurredAt": "2026-11-10T10:41:07.311Z",
+      "service": "audit",
+      "status": "info",
+      "subCategory": "BLOG",
+      "targetObjectId": "178046197799"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c484-4f7c-72ca-8670-6484d494235b"
+      },
+      "actingUser": {
+        "userEmail": "sam@example.com",
+        "userId": 70700058
+      },
+      "action": "PERFORM",
+      "category": "LOGIN",
+      "date": "2026-11-10T08:12:47.868Z",
+      "ddsource": "hubspot-content-hub",
+      "host": "hubspot",
+      "id": "LT83ZDteVkseUUdWEQUSg1",
+      "message": "sam@example.com perform login login_succeeded 1",
+      "occurredAt": "2026-11-10T08:12:47.868Z",
+      "service": "audit",
+      "status": "info",
+      "subCategory": "LOGIN_SUCCEEDED",
+      "targetObjectId": "1"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}
