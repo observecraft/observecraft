@@ -15,6 +15,10 @@ export interface CoreMetricDef {
   noise: number;
   integer?: boolean;
   max?: number;
+  /** The instances when not the integration's set (containers, service check runs). */
+  entities?: Tags[];
+  /** The catalog's tags when not the set's. */
+  tags?: string[];
 }
 
 const HOSTS = ['i-0a1b2c3d4e5f60001', 'i-0a1b2c3d4e5f60002', 'i-0a1b2c3d4e5f60003', 'i-0a1b2c3d4e5f60006'];
@@ -59,6 +63,57 @@ const LOGO_VALUES: Record<string, Record<string, string[]>> = {
     statuscode: ['200', '200', '429', '401'],
   },
 };
+/** The Kubernetes tools' tags (Vault, Gatekeeper, External Secrets, Argo CD, cert-manager): the demo's clusters, apps and certificates. */
+const CLUSTER = ['shop-prod-eks', 'shop-prod-eks', 'shop-prod-eks', 'shop-qa-eks'];
+const APPS = ['storefront-api', 'order-service', 'billing', 'catalog-service'];
+Object.assign(LOGO_VALUES, {
+  vault: {
+    vault_cluster: ['vault-prod', 'vault-prod', 'vault-prod', 'vault-qa'],
+    api_url: ['https://vault-0.vault-internal:8200', 'https://vault-1.vault-internal:8200', 'https://vault-2.vault-internal:8200', 'https://vault-0.vault-qa:8200'],
+  },
+  gatekeeper: {
+    cluster_name: CLUSTER,
+    admission_status: ['allow', 'allow', 'deny', 'allow'],
+    enforcement_action: ['deny', 'dryrun', 'warn', 'deny'],
+    kind: ['Pod', 'Deployment', 'Namespace', 'Service'],
+  },
+  'external-secrets': {
+    kube_cluster_name: CLUSTER,
+    name: ['storefront-db-credentials', 'billing-stripe-key', 'order-service-api-token', 'catalog-search-key'],
+    namespace: ['storefront', 'billing', 'checkout', 'catalog'],
+    controller: ['externalsecret', 'clustersecretstore', 'secretstore', 'clusterexternalsecret'],
+    provider: ['AWS/SecretsManager', 'AWS/SecretsManager', 'AWS/ParameterStore', 'AWS/SecretsManager'],
+    call: ['GetSecretValue', 'DescribeSecret', 'GetParameter', 'GetSecretValue'],
+    result: ['success', 'success', 'success', 'error'],
+  },
+  argocd: {
+    kube_cluster_name: CLUSTER,
+    cluster_name: CLUSTER,
+    kube_namespace: ['argocd', 'argocd', 'argocd', 'argocd'],
+    namespace: ['storefront', 'checkout', 'billing', 'catalog'],
+    name: APPS,
+    repo: [
+      'https://github.com/example-org/storefront-deploy',
+      'https://github.com/example-org/storefront-deploy',
+      'https://github.com/example-org/platform-apps',
+      'https://github.com/example-org/platform-apps',
+    ],
+    health_status: ['Healthy', 'Healthy', 'Healthy', 'Degraded'],
+    sync_status: ['Synced', 'Synced', 'OutOfSync', 'Synced'],
+    phase: ['Succeeded', 'Succeeded', 'Failed', 'Succeeded'],
+    grpc_code: ['OK', 'OK', 'OK', 'NotFound'],
+    grpc_method: ['List', 'Get', 'Watch', 'Sync'],
+    upper_bound: ['0.25', '1', '5', '+Inf'],
+  },
+  'cert-manager': {
+    cluster_name: CLUSTER,
+    name: ['storefront-example-com', 'api-example-com', 'checkout-example-com', 'internal-example-com'],
+    controller: ['certificates-issuing', 'certificates-readiness', 'orders', 'challenges'],
+    quantile: ['0.5', '0.9', '0.99', '0.5'],
+    method: ['GET', 'POST', 'POST', 'HEAD'],
+    status: ['200', '201', '200', '400'],
+  },
+});
 /** The Azure services' tags (cloudServiceDashboards.generated.json): Resource Health's status and the split dimensions. */
 const AZURE_VALUES: Record<string, string[]> = {
   status: ['Running', 'Running', 'Degraded', 'Running'],
@@ -122,16 +177,43 @@ export const CORE_METRICS: Record<string, CoreMetricDef> = {};
 const dashboards = [...(core as { dashboards: Dashboard[] }).dashboards, ...(cloudServices as { dashboards: Dashboard[] }).dashboards];
 // One set of instances per integration, tagged by every template variable of its dashboards.
 const tagsOf = new Map<string, Set<string>>();
+/** The values its queries filter on (`grpc_service:cluster.clusterservice`), per integration and tag. */
+const filteredOf = new Map<string, Map<string, Set<string>>>();
 for (const d of dashboards) {
   const tags = tagsOf.get(d.logo) ?? new Set(['host']);
+  const filtered = filteredOf.get(d.logo) ?? new Map<string, Set<string>>();
   for (const v of d.templateVariables) if (v.prefix) tags.add(v.prefix);
   // The tags its queries split by or keep (`by {rule}`, `rule:ALL`), so those charts have data too.
   const text = JSON.stringify(d.widgets);
   for (const [, keys] of text.matchAll(/ by \{([a-z0-9_.,]+)\}/g)) for (const k of keys.split(',')) tags.add(k);
-  for (const [, filters] of text.matchAll(/:[a-z][a-z0-9_.]*\{([^}]*)\}/g)) for (const f of filters.split(',')) if (/^!?[a-z][a-z0-9_]*:/.test(f)) tags.add(f.replace(/^!/, '').split(':')[0]);
+  // Check status widgets split by their group_by tags.
+  for (const [, keys] of text.matchAll(/"group_by":\[((?:"[a-z0-9_.]+",?)+)\]/g)) for (const k of keys.split(',')) tags.add(k.slice(1, -1));
+  for (const [, filters] of text.matchAll(/:[a-z][a-z0-9_.]*\{([^}]*)\}/g))
+    for (const f of filters.split(',')) {
+      const m = /^!?([a-z][a-z0-9_]*):([^*$\s]+)$/.exec(f.trim());
+      if (!m) continue;
+      tags.add(m[1]);
+      filtered.set(m[1], (filtered.get(m[1]) ?? new Set()).add(m[2]));
+    }
   tagsOf.set(d.logo, tags);
+  filteredOf.set(d.logo, filtered);
 }
-for (const [logo, tags] of tagsOf) CORE_SETS[`core_${logo}`] = HOSTS.map((host, i) => Object.fromEntries([...tags].map((t) => [t, t === 'host' ? host : (valuesOf(logo, t)?.[i] ?? `${t}-${i + 1}`)])));
+/** A tag's values: the demo's, unless the queries filter on others, then those (a boolean both ways). */
+function tagValues(logo: string, tag: string): string[] | undefined {
+  const known = valuesOf(logo, tag);
+  const filtered = [...(filteredOf.get(logo)?.get(tag) ?? [])];
+  if (!filtered.length || filtered.every((v) => known?.some((k) => k.toLowerCase() === v.toLowerCase()))) return known;
+  if (filtered.length === 1 && /^(true|false)$/.test(filtered[0])) filtered.push(filtered[0] === 'true' ? 'false' : 'true');
+  return filtered;
+}
+for (const [logo, tags] of tagsOf) {
+  const lists = new Map([...tags].map((t) => [t, tagValues(logo, t)]));
+  // Enough instances for every value a query filters on.
+  const count = Math.max(HOSTS.length, ...[...lists.values()].map((l) => l?.length ?? 0));
+  CORE_SETS[`core_${logo}`] = Array.from({ length: count }, (_, i) =>
+    Object.fromEntries([...tags].map((t) => [t, t === 'host' ? HOSTS[i % HOSTS.length] : (lists.get(t)?.[i % lists.get(t)!.length] ?? `${t}-${(i % HOSTS.length) + 1}`)])),
+  );
+}
 
 for (const d of dashboards)
   for (const [, metric] of JSON.stringify(d.widgets).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{/g)) {
@@ -155,3 +237,80 @@ for (const d of dashboards)
           ? { set: `core_${d.logo}`, description: metric, unit, noise: 0.001, base: (_e, r) => 99.5 + r() * 0.5, max: 100 }
           : { set: `core_${d.logo}`, description: metric, unit, noise: 0.2, ...base(unit) };
   }
+
+const NOW_S = Math.floor(Date.now() / 1000);
+const DAY_S = 86_400;
+/** External Secrets' conditions: met (1) for status:true; one secret is failing (status:false). */
+const condition = (e: Tags) => (e.status === 'true' ? 1 : e.status === 'false' && e.name === 'catalog-search-key' ? 1 : 0);
+/** Values that read as the integrations' own: object counts, 0/1 conditions, timestamps. */
+const OVERRIDES: Record<string, Pick<CoreMetricDef, 'base' | 'noise'> & Partial<CoreMetricDef>> = {
+  'gatekeeper.constraints': { base: () => 14, noise: 0, integer: true },
+  'gatekeeper.constraint_templates': { base: () => 9, noise: 0, integer: true },
+  'gatekeeper.mutators': { base: () => 3, noise: 0, integer: true },
+  'gatekeeper.violations': { base: (_e, r) => 2 + Math.floor(r() * 25), noise: 0.2, integer: true },
+  'gatekeeper.sync': { base: (_e, r) => 20 + r() * 300, noise: 0.05, integer: true },
+  'argocd.app_controller.app.info': { base: () => 1, noise: 0, integer: true },
+  'argocd.app_controller.kubectl.exec.pending': { base: (_e, r) => (r() < 0.5 ? 0 : 1 + r() * 3), noise: 0.6, integer: true },
+  'external_secrets.externalsecret.status_condition': { base: condition, noise: 0, integer: true },
+  'external_secrets.clustersecretstore.status_condition': { base: condition, noise: 0, integer: true },
+  'external_secrets.clusterexternalsecret.status_condition': { base: condition, noise: 0, integer: true },
+  'external_secrets.controller_runtime.active_workers': { base: (_e, r) => r() * 3, noise: 0.4, integer: true },
+  'external_secrets.controller_runtime.max_concurrent_reconciles': { base: () => 5, noise: 0, integer: true },
+  'cert_manager.certificate.ready_status': { base: (e) => (e.condition === 'true' ? 1 : 0), noise: 0, integer: true },
+  'cert_manager.certificate.expiration_timestamp': { base: (_e, r) => NOW_S + Math.round(12 + r() * 75) * DAY_S, noise: 0 },
+  'cert_manager.clock_time': { base: () => NOW_S, noise: 0 },
+};
+for (const [metric, def] of Object.entries(OVERRIDES)) if (CORE_METRICS[metric]) CORE_METRICS[metric] = { ...CORE_METRICS[metric], max: undefined, integer: undefined, ...def };
+
+/** The Process Agent's containers of Gatekeeper and cert-manager (their dashboards' pod maps). */
+const CONTAINERS: Tags[] = [
+  ...['gatekeeper-controller-manager', 'gatekeeper-controller-manager', 'gatekeeper-controller-manager', 'gatekeeper-audit'].map((deployment) => ({
+    short_image: 'gatekeeper',
+    kube_container_name: deployment === 'gatekeeper-audit' ? 'auditor' : 'manager',
+    kube_deployment: deployment,
+  })),
+  ...[
+    ['cert-manager', 'cert-manager-controller'],
+    ['cert-manager', 'cert-manager-controller'],
+    ['cert-manager-cainjector', 'cert-manager-cainjector'],
+    ['cert-manager-webhook', 'cert-manager-webhook'],
+  ].map(([deployment, image]) => ({ short_image: image, kube_container_name: deployment, kube_deployment: deployment })),
+].map((c, i) => ({
+  ...c,
+  host: HOSTS[i % HOSTS.length],
+  container_id: `c0ffee${(0x1a2b3c + i * 7919).toString(16)}`,
+  cluster_name: CLUSTER[i % CLUSTER.length],
+  kube_cluster_name: CLUSTER[i % CLUSTER.length],
+  kube_namespace: c.short_image === 'gatekeeper' ? 'gatekeeper-system' : 'cert-manager',
+}));
+CORE_METRICS['process.stat.container.cpu.total_pct'] = {
+  set: 'core_gatekeeper',
+  description: 'CPU used by the container',
+  unit: 'percent',
+  entities: CONTAINERS,
+  tags: Object.keys(CONTAINERS[0]),
+  base: (_e, r) => 2 + r() * 30,
+  noise: 0.3,
+  max: 100,
+};
+
+/** Service checks whose runs on one host aren't OK: [check, host, status]. */
+const FAILING: [string, string, number][] = [['traefik_mesh.controller.ready', HOSTS[3], 2]];
+type Def = { type: string; check?: string; widgets?: { definition: Def }[]; original?: Def };
+const checksOf = (items: { definition: Def }[]): string[] =>
+  items.flatMap(({ definition: d }) =>
+    d.type === 'group' ? checksOf(d.widgets ?? []) : d.type === 'integration' && d.original?.type === 'check_status' && d.original.check ? [d.original.check] : [],
+  );
+/** The runs of the service checks the integrations' check status widgets show: one per instance of the integration. */
+const RUNS: Tags[] = [
+  ...new Map((core as { dashboards: (Dashboard & { widgets: { definition: Def }[] })[] }).dashboards.flatMap((d) => checksOf(d.widgets).map((check) => [check, d.logo] as const))),
+].flatMap(([check, logo]) => [...new Map((CORE_SETS[`core_${logo}`] ?? []).map((e) => [e.host, { ...e, check }])).values()]);
+CORE_METRICS['service_check.status'] = {
+  set: 'core_gatekeeper',
+  description: 'Service check status (0 OK, 1 WARNING, 2 CRITICAL, 3 UNKNOWN)',
+  entities: RUNS,
+  tags: [...new Set(RUNS.flatMap((e) => Object.keys(e)))],
+  base: (e) => FAILING.find(([check, host]) => check === e.check && host === e.host)?.[2] ?? 0,
+  noise: 0,
+  integer: true,
+};
