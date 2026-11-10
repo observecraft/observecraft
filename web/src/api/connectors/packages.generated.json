@@ -2278,6 +2278,80 @@
   {
     "entry": {
       "categories": [
+        "Security",
+        "SIEM",
+        "Developer Tools",
+        "Log Collection"
+      ],
+      "config": [
+        {
+          "default": null,
+          "help": "A service account's (or a personal) token that can read the workplace.",
+          "key": "token",
+          "label": "API token",
+          "options": [],
+          "pattern": null,
+          "placeholder": "dp.sa.…",
+          "required": true,
+          "secret": true,
+          "type": "string"
+        }
+      ],
+      "dashboards": [],
+      "description": "The activity log of a Doppler workplace (secrets, configs, environments and projects changed, members and service accounts, integrations and settings) as logs, read every five minutes from Doppler's API.",
+      "docsUrl": "https://docs.doppler.com/reference/activity_logs-list",
+      "id": "doppler",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Service accounts",
+          "url": "https://dashboard.doppler.com/workplace/team/service_accounts"
+        }
+      ],
+      "logo": "doppler",
+      "monitors": [],
+      "name": "Doppler",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "1. In Doppler, open **Team → Service Accounts** and create one, e.g. `observecraft-activity`, with the workplace role\n   **Viewer** (it can read the activity log, not secrets' values).\n2. Under the service account, **Generate** an API token (`dp.sa.…`) and copy it.\n",
+      "source": "doppler",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every activity log entry as a log (source:doppler): text is the message, user the actor (usr.* after the pipeline), metadata.projectName / environment / config what it changed, link the entry in Doppler's dashboard.",
+          "events": false,
+          "id": "activity_logs",
+          "incremental": "time",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Activity log"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "doppler"
+      ],
+      "vendor": "Doppler",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {},
+      "secrets": [
+        "token"
+      ],
+      "test": "Shop Example workplace"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
         "Log Collection",
         "Security",
         "SIEM",

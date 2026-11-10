@@ -1,0 +1,33 @@
+{
+  "page": 2,
+  "logs": [
+    {
+      "id": "wpLog0020ExampleId0000",
+      "text": "Modified prd config in storefront-api",
+      "html": "Modified prd config in storefront-api",
+      "created_at": "2026-11-10T10:18:00.000Z",
+      "config": "prd",
+      "environment": "prd",
+      "project": "storefront-api",
+      "user": {
+        "name": "Dana Ortiz",
+        "email": "dana.ortiz@example.com",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      }
+    },
+    {
+      "id": "wpLogOldExampleId00000",
+      "text": "Created billing project",
+      "html": "Created billing project",
+      "created_at": "2026-11-08T09:00:00.000Z",
+      "config": null,
+      "environment": null,
+      "project": "billing",
+      "user": {
+        "name": "Dana Ortiz",
+        "email": "dana.ortiz@example.com",
+        "profile_image_url": "https://www.gravatar.com/avatar/00000000000000000000000000000001?s=500&d=retro"
+      }
+    }
+  ]
+}
