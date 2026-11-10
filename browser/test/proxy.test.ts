@@ -10,7 +10,9 @@ function listen(server: Server): Promise<number> {
 }
 
 async function target(): Promise<{ port: number; close: () => void }> {
-  const server = createServer((req, res) => res.end(`hello ${req.url}`));
+  // Answers with a fixed text per known path (never the request's own text).
+  const paths = new Set(['/page', '/tunnelled']);
+  const server = createServer((req, res) => res.end(paths.has(req.url ?? '') ? `hello ${req.url === '/page' ? '/page' : '/tunnelled'}` : 'hello'));
   const port = await listen(server);
   return { port, close: () => server.close() };
 }

@@ -213,7 +213,7 @@ test('browser network policy: only the server calls it, and pages reach no inter
   assert.ok(ok, err);
   const ingress = doc(out, 'NetworkPolicy', 'oc-observecraft-browser');
   assert.match(ingress, /port: 8095/);
-  assert.match(ingress, /app.kubernetes.io\/component: server/);
+  assert.ok(ingress.includes('app.kubernetes.io/component: server'));
   const egress = doc(out, 'NetworkPolicy', 'oc-observecraft-browser-egress');
   for (const range of ['10.0.0.0/8', '169.254.0.0/16', '172.16.0.0/12', '192.168.0.0/16', '127.0.0.0/8']) assert.ok(egress.includes(range), range);
   const open = render(['browser.enabled=true', 'networkPolicy.enabled=true', 'synthetics.allowPrivateTargets=true']);
