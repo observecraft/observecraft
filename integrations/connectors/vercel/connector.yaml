@@ -6,8 +6,9 @@
 # to the intake's /v1/traces. The vercel.* metrics Datadog derives from these logs are the log-based metrics under
 # assets/log_metrics (their names, queries and group-bys from integrations-extras' vercel/assets/logs/vercel.yaml,
 # BSD-3-Clause, Copyright Datadog, Inc.).
-# The intake doesn't check `x-vercel-signature` yet (the push signature is declared, not enforced); the ingest key in
-# the drain's headers authenticates it.
+# The intake doesn't check `x-vercel-signature` yet, and the connector page has no field to save the drain's secret
+# for a push package without `create`: the signature is declared for when it does; the ingest key in the drain's
+# headers authenticates it meanwhile.
 schema_version: 1
 id: vercel
 name: Vercel
@@ -44,8 +45,7 @@ push:
     - **Format**: JSON
     - **Custom Headers**: `DD-API-KEY: {{ api_key }}`
 
-    Keep the generated **Signature Verification Secret** and enter it here. Vercel tests the endpoint when the drain
-    is created.
+    Vercel tests the endpoint when the drain is created; the ingest key in the header authenticates its deliveries.
 
     **Traces.** Add another drain of type **Traces** for the same projects, with **Custom Endpoint**
     `{{ intake }}/v1/traces`, format **Protobuf** (or JSON) and the same header. Spans arrive as OpenTelemetry traces
