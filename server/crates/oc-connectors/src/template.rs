@@ -14,6 +14,33 @@ enum Part {
     Expr(Expr),
 }
 
+/// Where an expression's `}}` is: past its object literals' braces and its text literals.
+fn closing(s: &str) -> Option<usize> {
+    let b = s.as_bytes();
+    let (mut depth, mut i, mut quote) = (0usize, 0, None::<u8>);
+    while i < b.len() {
+        let c = b[i];
+        match quote {
+            Some(q) => {
+                if c == b'\\' {
+                    i += 1;
+                } else if c == q {
+                    quote = None;
+                }
+            }
+            None => match c {
+                b'\'' | b'"' => quote = Some(c),
+                b'{' => depth += 1,
+                b'}' if depth > 0 => depth -= 1,
+                b'}' if b.get(i + 1) == Some(&b'}') => return Some(i),
+                _ => {}
+            },
+        }
+        i += 1;
+    }
+    None
+}
+
 /// A compiled template string.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Template {
@@ -29,7 +56,7 @@ impl Template {
                 parts.push(Part::Text(rest[..open].to_string()));
             }
             let after = &rest[open + 2..];
-            let close = after.find("}}").ok_or_else(|| format!("{{{{ without }}}} in {src:?}"))?;
+            let close = closing(after).ok_or_else(|| format!("{{{{ without }}}} in {src:?}"))?;
             let e = expr::parse(&after[..close]).map_err(|e| format!("{e} in {{{{{}}}}}", &after[..close]))?;
             parts.push(Part::Expr(e));
             rest = &after[close + 2..];
@@ -169,6 +196,8 @@ mod tests {
         assert_eq!(Template::parse("plain").unwrap().render(&scope()), json!("plain"));
         assert!(Template::parse("plain").unwrap().is_static());
         assert!(Template::parse("{{ open").unwrap_err().contains("without"));
+        assert_eq!(Template::parse("{{ {a: {b: 1}} }}").unwrap().render(&scope()), json!({ "a": { "b": 1 } }), "object literals' braces");
+        assert_eq!(Template::parse("{{ '}}' }}!").unwrap().render(&scope()), json!("}}!"), "text literals");
         assert!(Template::parse("{{ a | nope }}").unwrap_err().contains("unknown filter"));
     }
 

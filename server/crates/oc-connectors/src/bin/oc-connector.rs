@@ -3,6 +3,7 @@
 //!   oc-connector validate <dir>...   the manifest and its files
 //!   oc-connector test <dir>...       validate, then replay the recorded answers (OC_CONNECTOR_UPDATE=1 rewrites golden files)
 //!   oc-connector schema              the manifest's JSON Schema
+//!   oc-connector catalog <dir>...    the packages' catalog entries and mock connections (the web's mock mode)
 
 use std::path::Path;
 use std::process::ExitCode;
@@ -29,6 +30,23 @@ async fn main() -> ExitCode {
     match cmd.as_str() {
         "schema" => {
             print!("{}", oc_connectors::schema::json_schema_text());
+            ExitCode::SUCCESS
+        }
+        "catalog" if !dirs.is_empty() => {
+            let mut out = Vec::new();
+            for dir in dirs {
+                let Ok(pkg) = load(dir) else { return ExitCode::FAILURE };
+                let mock = pkg.manifest.mock.as_ref();
+                out.push(serde_json::json!({
+                    "entry": oc_connectors::catalog::entry_of(&pkg),
+                    "mock": {
+                        "config": mock.map(oc_connectors::replay::mock_config),
+                        "secrets": mock.map(|m| m.secrets.keys().cloned().collect::<Vec<_>>()),
+                        "test": mock.and_then(|m| m.expect.get("test")).and_then(|t| t.message.clone()),
+                    },
+                }));
+            }
+            println!("{}", serde_json::to_string_pretty(&out).unwrap());
             ExitCode::SUCCESS
         }
         "validate" | "test" if !dirs.is_empty() => {

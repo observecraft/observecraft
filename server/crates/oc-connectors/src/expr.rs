@@ -604,6 +604,7 @@ pub const FILTERS: &[(&str, usize, usize)] = &[
     ("str", 0, 0),
     ("strftime", 1, 2),
     ("sum", 0, 0),
+    ("to_objects", 1, 1),
     ("trim", 0, 0),
     ("unique", 0, 0),
     ("upper", 0, 0),
@@ -893,6 +894,13 @@ fn filter(name: &str, v: Value, args: &[Value]) -> Value {
         }
         "strftime" => to_ms(&v).map_or(Value::Null, |ms| format_in(ms, &text(&arg(0)), args.get(1).and_then(|z| zone(&text(z))))),
         "sum" => number(list(v).iter().filter_map(num).sum()),
+        "to_objects" => {
+            let names: Vec<String> = list(arg(0)).iter().map(|n| match n {
+                Value::Object(o) => o.get("name").map(text).unwrap_or_default(),
+                other => text(other),
+            }).collect();
+            Value::Array(list(v).into_iter().map(|row| Value::Object(names.iter().cloned().zip(list(row)).collect())).collect())
+        }
         "trim" => s().map_or(v, |t| Value::String(t.trim().to_string())),
         "unique" => {
             let mut out: Vec<Value> = Vec::new();
@@ -1001,7 +1009,9 @@ mod tests {
         assert_eq!(eval("[3, 1, 2] | max", scope.clone()), json!(3));
         assert_eq!(eval("(0 - 5) | max(0)", scope.clone()), json!(0));
         assert_eq!(eval("-5 | max(0)", scope.clone()), json!(-5), "unary minus is looser than filters");
-        assert_eq!(eval("null | max(0)", scope), Value::Null);
+        assert_eq!(eval("null | max(0)", scope.clone()), Value::Null);
+        // Snowflake's positional rows, by the result's column metadata.
+        assert_eq!(eval("[['a', 1], ['b', 2]] | to_objects([{name: 'NAME'}, {name: 'N'}])", scope), json!([{ "NAME": "a", "N": 1 }, { "NAME": "b", "N": 2 }]));
     }
 
     #[test]

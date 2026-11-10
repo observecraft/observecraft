@@ -1,5 +1,5 @@
 //! Answer formats other than JSON: the Prometheus / OpenMetrics text format, as samples
-//! `{name, labels, value, type, help, timestamp}` (`format: prometheus`).
+//! `{name, labels, value, type, help, timestamp}` (`format: prometheus`), and CSV with a header row (`format: csv`).
 
 use std::collections::HashMap;
 
@@ -117,6 +117,38 @@ pub fn prometheus(text: &str) -> Vec<Value> {
     out
 }
 
+/// The rows of a CSV text (RFC 4180: quoted fields with `""`, separators and newlines inside quotes) as objects by the
+/// header row's names.
+pub fn csv(text: &str) -> Vec<Value> {
+    let mut rows: Vec<Vec<String>> = Vec::new();
+    let (mut row, mut field, mut quoted) = (Vec::new(), String::new(), false);
+    let mut chars = text.trim_start_matches('\u{feff}').chars().peekable();
+    while let Some(c) = chars.next() {
+        match (c, quoted) {
+            ('"', true) if chars.peek() == Some(&'"') => {
+                chars.next();
+                field.push('"');
+            }
+            ('"', true) => quoted = false,
+            ('"', false) if field.is_empty() => quoted = true,
+            (',', false) => row.push(std::mem::take(&mut field)),
+            ('\r', false) => {}
+            ('\n', false) => {
+                row.push(std::mem::take(&mut field));
+                rows.push(std::mem::take(&mut row));
+            }
+            (c, _) => field.push(c),
+        }
+    }
+    if !field.is_empty() || !row.is_empty() {
+        row.push(field);
+        rows.push(row);
+    }
+    let mut rows = rows.into_iter().filter(|r| !(r.len() == 1 && r[0].is_empty()));
+    let Some(header) = rows.next() else { return vec![] };
+    rows.map(|r| Value::Object(header.iter().cloned().zip(r.into_iter().map(Value::String)).collect())).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -131,5 +163,12 @@ mod tests {
         assert_eq!((s[0]["value"].as_f64(), s[0]["type"].as_str(), s[0]["help"].as_str()), (Some(12.5), Some("gauge"), Some("Messages in per second")));
         assert_eq!((s[1]["family"].as_str(), s[1]["type"].as_str(), s[1]["labels"]["le"].as_str()), (Some("http_request_duration_seconds"), Some("histogram"), Some("0.5")));
         assert_eq!(s[2]["timestamp"], json!(1_794_301_079_641i64));
+    }
+
+    #[test]
+    fn csv_rows_become_objects() {
+        let rows = csv("\u{feff}\"EVENT_TYPE\",\"USER_ID\",\"URI\"\r\n\"Login\",\"005xx\",\"/a,b\"\r\n\"API\",\"\",\"say \"\"hi\"\"\nthere\"\r\n");
+        assert_eq!(rows, vec![json!({ "EVENT_TYPE": "Login", "USER_ID": "005xx", "URI": "/a,b" }), json!({ "EVENT_TYPE": "API", "USER_ID": "", "URI": "say \"hi\"\nthere" })]);
+        assert!(csv("").is_empty());
     }
 }

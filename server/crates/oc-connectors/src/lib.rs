@@ -10,6 +10,7 @@
 //! - [`replay`]: a package's recorded answers as a transport, and the checks of its expectations.
 
 pub mod auth;
+pub mod catalog;
 pub mod engine;
 pub mod expr;
 pub mod formats;

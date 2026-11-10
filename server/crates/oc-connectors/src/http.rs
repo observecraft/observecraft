@@ -90,6 +90,7 @@ pub fn parse_body(body: &[u8], format: Format) -> Result<Value, String> {
         Format::Ndjson => text().lines().filter(|l| !l.trim().is_empty()).map(|l| serde_json::from_str(l).map_err(|_| "a line of the answer is not JSON".to_string())).collect::<Result<Vec<_>, _>>().map(Value::Array),
         Format::Prometheus => Ok(Value::Array(crate::formats::prometheus(&text()))),
         Format::Text => Ok(Value::String(text().into_owned())),
+        Format::Csv => Ok(Value::Array(crate::formats::csv(&text()))),
     }
 }
 

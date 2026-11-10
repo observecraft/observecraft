@@ -400,6 +400,52 @@
         },
         {
           "additionalProperties": false,
+          "description": "A JWT signed with the connection's key and sent as the bearer token, renewed before it expires (Snowflake key\npairs). `headers` (templates over `auth.jwt`) replace `Authorization: Bearer`.",
+          "properties": {
+            "claims": {},
+            "headers": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "`kind: jwt` only: the headers carrying it (templates over `auth.jwt`), instead of `Authorization: Bearer`.",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "key_id": {
+              "description": "The header's `kid` (template).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "jwt"
+              ],
+              "type": "string"
+            },
+            "lifetime": {
+              "description": "Duration, default 1h (GitHub Apps: at most 10m).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "private_key": {
+              "description": "An RSA private key in PEM, PKCS#8 or PKCS#1 (template, a secret).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "private_key",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "A login request whose answer gives a token (and other values, such as a base URL), used by the next\nrequests as `auth.<name>`; cached for `ttl` (or the answer's expiry).",
           "properties": {
             "capture": {
@@ -429,6 +475,17 @@
               },
               "type": "object"
             },
+            "jwt": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/JwtSpec",
+                  "description": "A JWT signed for the login request, as `auth.jwt` (GitHub Apps: the app's JWT gets an installation token)."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "kind": {
               "enum": [
                 "token_exchange"
@@ -437,7 +494,7 @@
             },
             "request": {
               "$ref": "#/$defs/Request",
-              "description": "The login request (templates may read `secrets`)."
+              "description": "The login request (templates may read `secrets`, and `auth.jwt` with `jwt`)."
             },
             "ttl": {
               "description": "Duration, default 1h.",
@@ -456,7 +513,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "A request signer compiled into the server: `duo_hmac_v2`, `duo_hmac_v5`, `cortex_xdr_advanced`,\n`trend_micro_apex_central`.",
+          "description": "A request signer compiled into the server: `duo_hmac_v2`, `duo_hmac_v5`, `cortex_xdr_advanced`,\n`trend_micro_apex_central`, `akamai_edgegrid`.",
           "properties": {
             "kind": {
               "enum": [
@@ -468,7 +525,7 @@
               "additionalProperties": {
                 "type": "string"
               },
-              "description": "The signer's inputs (templates): Duo `ikey`, `skey`; Cortex XDR `key_id`, `key`; Apex Central\n`application_id`, `api_key`.",
+              "description": "The signer's inputs (templates): Duo `ikey`, `skey`; Cortex XDR `key_id`, `key`; Apex Central\n`application_id`, `api_key`; EdgeGrid `client_token`, `client_secret`, `access_token`.",
               "propertyNames": {
                 "type": "string"
               },
@@ -512,6 +569,41 @@
         "month"
       ],
       "type": "string"
+    },
+    "Call": {
+      "additionalProperties": false,
+      "description": "A one-off request (a setup step): its error rules and the message shown when it worked.",
+      "properties": {
+        "errors": {
+          "items": {
+            "$ref": "#/$defs/ErrorRule"
+          },
+          "type": "array"
+        },
+        "message": {
+          "description": "Template over `response`: what the page shows.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ok_status": {
+          "description": "Statuses that also count as done (409: the subscription exists).",
+          "items": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "request": {
+          "$ref": "#/$defs/Request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "type": "object"
     },
     "ClientAuth": {
       "enum": [
@@ -785,6 +877,26 @@
       ],
       "type": "object"
     },
+    "Expand": {
+      "additionalProperties": false,
+      "properties": {
+        "records": {
+          "description": "As a stream's `records` (`parent` readable).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "request": {
+          "$ref": "#/$defs/Request",
+          "description": "Templates read `parent` (the index entry) and the stream's request variables."
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "type": "object"
+    },
     "Expectation": {
       "additionalProperties": false,
       "properties": {
@@ -874,7 +986,8 @@
         "json",
         "ndjson",
         "prometheus",
-        "text"
+        "text",
+        "csv"
       ],
       "type": "string"
     },
@@ -1085,6 +1198,45 @@
           ]
         }
       },
+      "type": "object"
+    },
+    "JwtSpec": {
+      "additionalProperties": false,
+      "description": "A JWT the engine signs (RS256). Claims are templates; `iat` and `exp` are added; `key.fingerprint` (`SHA256:` and\nthe base64 SHA-256 of the public key, as Snowflake names keys) can be read in them.",
+      "properties": {
+        "claims": {},
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "`kind: jwt` only: the headers carrying it (templates over `auth.jwt`), instead of `Authorization: Bearer`.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "key_id": {
+          "description": "The header's `kid` (template).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lifetime": {
+          "description": "Duration, default 1h (GitHub Apps: at most 10m).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "private_key": {
+          "description": "An RSA private key in PEM, PKCS#8 or PKCS#1 (template, a secret).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "private_key"
+      ],
       "type": "object"
     },
     "KeyIn": {
@@ -1352,6 +1504,13 @@
             "string",
             "null"
           ]
+        },
+        "on_connect": {
+          "description": "Requests sent once when a connection is saved (starting a subscription the API needs before it answers).",
+          "items": {
+            "$ref": "#/$defs/Call"
+          },
+          "type": "array"
         },
         "publisher": {
           "description": "Who wrote and maintains the package (`ObserveCraft` for bundled packages; a company or person otherwise).",
@@ -2028,6 +2187,27 @@
       "additionalProperties": false,
       "description": "Where a push-only vendor sends, shown on the connector page.",
       "properties": {
+        "create": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Call",
+              "description": "A request creating the push job or webhook on the vendor's side with the config entered (a Cloudflare Logpush\njob, a PagerDuty webhook subscription); `push.url` is readable as `push_url`."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Headers the vendor must send (templates; `{{ api_key }}` is the org's ingest key placeholder).",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
         "instructions": {
           "description": "Steps in the vendor's console (Markdown); `{{ intake }}` and `{{ source }}` are replaced.",
           "type": "string"
@@ -2044,6 +2224,13 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "url": {
+          "description": "The URL to paste in the vendor's console (a template over `intake`, `source`, `config`; default by kind:\n`{{ intake }}/api/v2/logs?ddsource={{ source }}`).",
+          "type": [
+            "string",
+            "null"
           ]
         }
       },
@@ -2172,7 +2359,9 @@
     "SignatureAlgorithm": {
       "enum": [
         "hmac_sha1",
-        "hmac_sha256"
+        "hmac_sha256",
+        "stripe",
+        "pagerduty_v3"
       ],
       "type": "string"
     },
@@ -2181,7 +2370,8 @@
         "duo_hmac_v2",
         "duo_hmac_v5",
         "cortex_xdr_advanced",
-        "trend_micro_apex_central"
+        "trend_micro_apex_central",
+        "akamai_edgegrid"
       ],
       "type": "string"
     },
@@ -2224,6 +2414,17 @@
             "$ref": "#/$defs/ErrorRule"
           },
           "type": "array"
+        },
+        "expand": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Expand",
+              "description": "Index-then-download: each record of the pages is an index entry (`parent`) whose `request` is read, and its\nrecords replace it (Salesforce EventLogFile CSVs, Microsoft 365 content blobs)."
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "filter": {
           "description": "Template over a record: records for which it is falsy are skipped.",
@@ -2489,9 +2690,20 @@
           },
           "type": "object"
         },
+        "jwt": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/JwtSpec",
+              "description": "A JWT signed for the login request, as `auth.jwt` (GitHub Apps: the app's JWT gets an installation token)."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "request": {
           "$ref": "#/$defs/Request",
-          "description": "The login request (templates may read `secrets`)."
+          "description": "The login request (templates may read `secrets`, and `auth.jwt` with `jwt`)."
         },
         "ttl": {
           "description": "Duration, default 1h.",

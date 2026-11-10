@@ -105,7 +105,8 @@ fn read_dir(root: &Path, dir: &Path, out: &mut BTreeMap<String, String>) -> Resu
         if name.starts_with('.') {
             continue;
         }
-        let meta = entry.metadata().map_err(|e| format!("{}: {e}", path.display()))?;
+        // Following symlinks: a Kubernetes ConfigMap's files are links.
+        let meta = std::fs::metadata(&path).map_err(|e| format!("{}: {e}", path.display()))?;
         if meta.is_dir() {
             read_dir(root, &path, out)?;
         } else if meta.is_file() && meta.len() <= MAX_FILE_BYTES {
@@ -119,7 +120,9 @@ fn read_dir(root: &Path, dir: &Path, out: &mut BTreeMap<String, String>) -> Resu
     Ok(())
 }
 
-/// Every package under `root` (one directory each): the valid ones, and the problems of the others by directory.
+/// Every package under `root`: one directory each, or flat files named `<package>__<path with __ for />` (a
+/// Kubernetes ConfigMap holds no directories: `acme-status__connector.yaml`, `acme-status__fixtures__a.json`). The
+/// valid ones, and the problems of the others by name.
 pub fn load_all(root: &Path, origin: impl Fn(&Path) -> Origin) -> (Vec<Package>, Vec<(String, Vec<String>)>) {
     let mut packages = Vec::new();
     let mut invalid = Vec::new();
@@ -127,12 +130,35 @@ pub fn load_all(root: &Path, origin: impl Fn(&Path) -> Origin) -> (Vec<Package>,
         invalid.push((root.display().to_string(), vec!["the directory can't be read".to_string()]));
         return (packages, invalid);
     };
-    let mut dirs: Vec<_> = entries.flatten().map(|e| e.path()).filter(|p| p.is_dir() && p.join(MANIFEST).is_file()).collect();
+    let mut dirs = Vec::new();
+    let mut flat: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
+    for path in entries.flatten().map(|e| e.path()) {
+        let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        if name.starts_with('.') {
+            continue;
+        }
+        if path.is_dir() {
+            if path.join(MANIFEST).is_file() {
+                dirs.push(path);
+            }
+        } else if let Some((package, rest)) = name.split_once("__") {
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                flat.entry(package.to_string()).or_default().insert(rest.replace("__", "/"), text);
+            }
+        }
+    }
     dirs.sort();
     for dir in dirs {
         match Package::from_dir(&dir, origin(&dir)) {
             Ok(p) => packages.push(p),
             Err(problems) => invalid.push((dir.display().to_string(), problems)),
+        }
+    }
+    for (name, files) in flat {
+        let at = root.join(&name);
+        match Package::from_files(files, origin(&at)) {
+            Ok(p) => packages.push(p),
+            Err(problems) => invalid.push((at.display().to_string(), problems)),
         }
     }
     (packages, invalid)

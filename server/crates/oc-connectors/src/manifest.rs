@@ -86,6 +86,9 @@ pub struct Manifest {
     /// `auth` (a data region's base URL, the tenants of a partner account).
     #[serde(default)]
     pub discover: Vec<Discovery>,
+    /// Requests sent once when a connection is saved (starting a subscription the API needs before it answers).
+    #[serde(default)]
+    pub on_connect: Vec<Call>,
     /// What is collected by polling (empty for a push-only package).
     #[serde(default)]
     pub streams: Vec<Stream>,
@@ -219,15 +222,18 @@ pub enum Auth {
     Oauth2RefreshToken(OAuthRefresh),
     /// An RS256 JWT assertion exchanged for a token (Google service accounts, customer-registered OAuth apps).
     JwtBearer(JwtBearer),
+    /// A JWT signed with the connection's key and sent as the bearer token, renewed before it expires (Snowflake key
+    /// pairs). `headers` (templates over `auth.jwt`) replace `Authorization: Bearer`.
+    Jwt(JwtSpec),
     /// A login request whose answer gives a token (and other values, such as a base URL), used by the next
     /// requests as `auth.<name>`; cached for `ttl` (or the answer's expiry).
     TokenExchange(TokenExchange),
     /// A request signer compiled into the server: `duo_hmac_v2`, `duo_hmac_v5`, `cortex_xdr_advanced`,
-    /// `trend_micro_apex_central`.
+    /// `trend_micro_apex_central`, `akamai_edgegrid`.
     Signer {
         signer: Signer,
         /// The signer's inputs (templates): Duo `ikey`, `skey`; Cortex XDR `key_id`, `key`; Apex Central
-        /// `application_id`, `api_key`.
+        /// `application_id`, `api_key`; EdgeGrid `client_token`, `client_secret`, `access_token`.
         params: BTreeMap<String, String>,
     },
 }
@@ -251,6 +257,8 @@ pub enum Signer {
     CortexXdrAdvanced,
     /// Trend Micro Apex Central: an HS256 JWT per request with the request's SHA-256 checksum.
     TrendMicroApexCentral,
+    /// Akamai EdgeGrid (`EG1-HMAC-SHA256`): `client_token`, `client_secret`, `access_token`.
+    AkamaiEdgegrid,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
@@ -338,8 +346,11 @@ pub struct JwtBearer {
 #[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct TokenExchange {
-    /// The login request (templates may read `secrets`).
+    /// The login request (templates may read `secrets`, and `auth.jwt` with `jwt`).
     pub request: Request,
+    /// A JWT signed for the login request, as `auth.jwt` (GitHub Apps: the app's JWT gets an installation token).
+    #[serde(default)]
+    pub jwt: Option<JwtSpec>,
     /// Values taken from the answer (templates over `response`, `headers`): `token`, `base_url`, `cookie`, …
     pub capture: BTreeMap<String, String>,
     /// Seconds the values are valid, from the answer (template); else `ttl`.
@@ -350,6 +361,27 @@ pub struct TokenExchange {
     pub ttl: Option<String>,
     /// Headers sent on every request (templates over `auth`, `config`, `secrets`); default `Authorization: Bearer
     /// {{ auth.token }}`.
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+}
+
+/// A JWT the engine signs (RS256). Claims are templates; `iat` and `exp` are added; `key.fingerprint` (`SHA256:` and
+/// the base64 SHA-256 of the public key, as Snowflake names keys) can be read in them.
+#[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct JwtSpec {
+    /// An RSA private key in PEM, PKCS#8 or PKCS#1 (template, a secret).
+    pub private_key: String,
+    /// The header's `kid` (template).
+    #[serde(default)]
+    pub key_id: Option<String>,
+    #[serde(default)]
+    #[schema(value_type = Value)]
+    pub claims: BTreeMap<String, Value>,
+    /// Duration, default 1h (GitHub Apps: at most 10m).
+    #[serde(default)]
+    pub lifetime: Option<String>,
+    /// `kind: jwt` only: the headers carrying it (templates over `auth.jwt`), instead of `Authorization: Bearer`.
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
 }
@@ -411,6 +443,8 @@ pub enum Format {
     Prometheus,
     /// Plain text: `response` is the text.
     Text,
+    /// CSV with a header row: `response` is a list of objects by column name (EventLogFile downloads).
+    Csv,
 }
 
 /// How a stream reads past its first page. Templates here read `response`, `headers` (lowercase names),
@@ -521,6 +555,10 @@ pub struct Stream {
     /// Template over a record: records for which it is falsy are skipped.
     #[serde(default)]
     pub filter: Option<String>,
+    /// Index-then-download: each record of the pages is an index entry (`parent`) whose `request` is read, and its
+    /// records replace it (Salesforce EventLogFile CSVs, Microsoft 365 content blobs).
+    #[serde(default)]
+    pub expand: Option<Expand>,
     /// Values computed per record (templates over the record), readable as `vars.<name>` in the output. A var can't
     /// read another var.
     #[serde(default)]
@@ -548,6 +586,16 @@ pub struct Stream {
 
 fn yes() -> bool {
     true
+}
+
+#[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct Expand {
+    /// Templates read `parent` (the index entry) and the stream's request variables.
+    pub request: Request,
+    /// As a stream's `records` (`parent` readable).
+    #[serde(default)]
+    pub records: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
@@ -883,6 +931,21 @@ pub struct CostsOut {
     pub tags: BTreeMap<String, String>,
 }
 
+/// A one-off request (a setup step): its error rules and the message shown when it worked.
+#[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct Call {
+    pub request: Request,
+    /// Template over `response`: what the page shows.
+    #[serde(default)]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub errors: Vec<ErrorRule>,
+    /// Statuses that also count as done (409: the subscription exists).
+    #[serde(default)]
+    pub ok_status: Vec<u16>,
+}
+
 /// Where a push-only vendor sends, shown on the connector page.
 #[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
 #[serde(deny_unknown_fields)]
@@ -890,9 +953,20 @@ pub struct Push {
     pub kind: PushKind,
     /// Steps in the vendor's console (Markdown); `{{ intake }}` and `{{ source }}` are replaced.
     pub instructions: String,
+    /// The URL to paste in the vendor's console (a template over `intake`, `source`, `config`; default by kind:
+    /// `{{ intake }}/api/v2/logs?ddsource={{ source }}`).
+    #[serde(default)]
+    pub url: Option<String>,
+    /// Headers the vendor must send (templates; `{{ api_key }}` is the org's ingest key placeholder).
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
     /// How the vendor signs its requests, checked by the intake when set.
     #[serde(default)]
     pub signature: Option<PushSignature>,
+    /// A request creating the push job or webhook on the vendor's side with the config entered (a Cloudflare Logpush
+    /// job, a PagerDuty webhook subscription); `push.url` is readable as `push_url`.
+    #[serde(default)]
+    pub create: Option<Call>,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Copy, Debug, PartialEq, Eq)]
@@ -923,6 +997,10 @@ pub enum SignatureAlgorithm {
     HmacSha1,
     /// Hex HMAC-SHA256 of the body.
     HmacSha256,
+    /// Stripe's `t=…,v1=…` (HMAC-SHA256 of `t.body`).
+    Stripe,
+    /// PagerDuty v3 `v1=…` (HMAC-SHA256 of the body).
+    PagerdutyV3,
 }
 
 /// An inbound webhook (`/intake/webhook/<name>` on the intake), mapped like a stream's logs. `record` is each of

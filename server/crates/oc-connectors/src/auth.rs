@@ -11,7 +11,7 @@ use sha2::Digest;
 
 use crate::expr::text;
 use crate::http::{HttpRequest, HttpResponse, Transport};
-use crate::manifest::{duration_ms, Auth, ClientAuth, KeyIn, Method, Signer};
+use crate::manifest::{duration_ms, Auth, ClientAuth, JwtSpec, KeyIn, Method, Signer};
 use crate::template::{Template, Tree};
 
 /// Tokens and other cached values, by key (connection and credentials), with their expiry (epoch ms).
@@ -260,7 +260,11 @@ pub async fn prepare(auth: &Auth, scope: &Map<String, Value>, cache_key: &str, t
             let captured = match cache.get(&key, now_ms) {
                 Some(v) => v,
                 None => {
-                    let req = crate::request::build(&x.request, scope, &[])?;
+                    let mut ls = scope.clone();
+                    if let Some(j) = &x.jwt {
+                        ls.insert("auth".into(), json!({ "jwt": jwt(j, scope, now_ms)? }));
+                    }
+                    let req = crate::request::build(&x.request, &ls, &[])?;
                     let resp = transport.send(&req).await?;
                     if !(200..300).contains(&resp.status) {
                         return Err(format!("the login request was refused (HTTP {})", resp.status));
@@ -298,6 +302,28 @@ pub async fn prepare(auth: &Auth, scope: &Map<String, Value>, cache_key: &str, t
                 out.headers.push((k.clone(), render(v, &s)?));
             }
             out.values = captured.as_object().cloned().unwrap_or_default();
+        }
+        Auth::Jwt(j) => {
+            let key = format!("{cache_key}\0jwt-auth");
+            let token = match cache.get(&key, now_ms) {
+                Some(t) => text(&t),
+                None => {
+                    let t = jwt(j, scope, now_ms)?;
+                    let lifetime = j.lifetime.as_deref().map(duration_ms).transpose()?.unwrap_or(3_600_000);
+                    cache.put(&key, Value::String(t.clone()), now_ms + (lifetime - 60_000).max(lifetime / 2));
+                    t
+                }
+            };
+            if j.headers.is_empty() {
+                out.headers = bearer(&token);
+            } else {
+                let mut s = scope.clone();
+                s.insert("auth".into(), json!({ "jwt": token }));
+                for (k, v) in &j.headers {
+                    out.headers.push((k.clone(), render(v, &s)?));
+                }
+            }
+            out.values.insert("jwt".into(), Value::String(token));
         }
         Auth::Signer { signer, params } => {
             let mut rendered = BTreeMap::new();
@@ -410,8 +436,90 @@ fn sign(signer: Signer, params: &BTreeMap<String, String>, req: &mut HttpRequest
             mac.update(signed.as_bytes());
             req.set_header("Authorization", format!("Bearer {signed}.{}", b64url(&mac.finalize().into_bytes())));
         }
+        Signer::AkamaiEdgegrid => {
+            let (client_token, client_secret, access_token) = (param(params, "client_token", "EdgeGrid")?, param(params, "client_secret", "EdgeGrid")?, param(params, "access_token", "EdgeGrid")?);
+            let timestamp = chrono::DateTime::from_timestamp_millis(now_ms).unwrap_or_default().format("%Y%m%dT%H:%M:%S+0000").to_string();
+            let mut raw = [0u8; 16];
+            ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut raw).map_err(|_| "no randomness".to_string())?;
+            let nonce = hex(&raw);
+            let header = format!("EG1-HMAC-SHA256 client_token={client_token};access_token={access_token};timestamp={timestamp};nonce={nonce};");
+            let hmac256 = |key: &[u8], msg: &[u8]| -> Result<Vec<u8>, String> {
+                let mut mac = hmac::Hmac::<sha2::Sha256>::new_from_slice(key).map_err(|e| e.to_string())?;
+                mac.update(msg);
+                Ok(mac.finalize().into_bytes().to_vec())
+            };
+            let signing_key = b64(&hmac256(client_secret.as_bytes(), timestamp.as_bytes())?);
+            let body = req.body.as_deref().unwrap_or_default();
+            let content_hash = if req.method == Method::Post && !body.is_empty() { b64(&sha2::Sha256::digest(&body[..body.len().min(131_072)])) } else { String::new() };
+            let relative = match url.query() {
+                Some(q) => format!("{}?{q}", url.path()),
+                None => url.path().to_string(),
+            };
+            let data = [method_name(req.method), url.scheme(), &host, &relative, "", &content_hash, &header].join("\t");
+            let signature = b64(&hmac256(signing_key.as_bytes(), data.as_bytes())?);
+            req.set_header("Authorization", format!("{header}signature={signature}"));
+        }
     }
     Ok(())
+}
+
+/// DER: a tag and its length-prefixed content.
+fn der(tag: u8, content: &[u8]) -> Vec<u8> {
+    let mut out = vec![tag];
+    let n = content.len();
+    if n < 0x80 {
+        out.push(n as u8);
+    } else {
+        let bytes: Vec<u8> = n.to_be_bytes().into_iter().skip_while(|b| *b == 0).collect();
+        out.push(0x80 | bytes.len() as u8);
+        out.extend(bytes);
+    }
+    out.extend_from_slice(content);
+    out
+}
+
+/// `SHA256:` and the base64 SHA-256 of the key's public part as SubjectPublicKeyInfo DER (Snowflake's fingerprint).
+pub fn public_key_fingerprint(pem: &str) -> Result<String, String> {
+    let key = rsa_key(pem)?;
+    // AlgorithmIdentifier rsaEncryption (1.2.840.113549.1.1.1) with NULL parameters.
+    let algorithm: [u8; 15] = [0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00];
+    let mut bits = vec![0u8];
+    bits.extend_from_slice(key.public().as_ref());
+    let mut content = algorithm.to_vec();
+    content.extend(der(0x03, &bits));
+    Ok(format!("SHA256:{}", b64(&sha2::Sha256::digest(der(0x30, &content)))))
+}
+
+fn rsa_key(pem: &str) -> Result<ring::signature::RsaKeyPair, String> {
+    let (label, der) = pem_der(pem)?;
+    if label == "RSA PRIVATE KEY" { ring::signature::RsaKeyPair::from_der(&der) } else { ring::signature::RsaKeyPair::from_pkcs8(&der) }.map_err(|_| "the private key is not a usable RSA key".to_string())
+}
+
+/// A JWT of `spec` signed now: claims rendered with `key.fingerprint` readable, `iat` and `exp` added.
+pub fn jwt(spec: &JwtSpec, scope: &Map<String, Value>, now_ms: i64) -> Result<String, String> {
+    let pem = render(&spec.private_key, scope)?;
+    let mut s = scope.clone();
+    s.insert("key".into(), json!({ "fingerprint": public_key_fingerprint(&pem)? }));
+    let mut claims = Map::new();
+    for (k, v) in &spec.claims {
+        let rendered = Tree::parse(v)?.render(&s, true);
+        if !crate::template::empty(&rendered) {
+            claims.insert(k.clone(), rendered);
+        }
+    }
+    let lifetime = spec.lifetime.as_deref().map(duration_ms).transpose()?.unwrap_or(3_600_000) / 1000;
+    // A minute back: clocks drift (GitHub's advice).
+    let iat = now_ms / 1000 - 60;
+    claims.insert("iat".into(), json!(iat));
+    claims.insert("exp".into(), json!(now_ms / 1000 + lifetime));
+    let mut header = json!({ "alg": "RS256", "typ": "JWT" });
+    if let Some(k) = &spec.key_id {
+        let kid = render(k, scope)?;
+        if !kid.is_empty() {
+            header["kid"] = Value::String(kid);
+        }
+    }
+    rs256(&header, &Value::Object(claims), &pem)
 }
 
 /// The DER inside a PEM block.
@@ -425,8 +533,7 @@ fn pem_der(pem: &str) -> Result<(String, Vec<u8>), String> {
 
 /// An RS256 JWT of `header` and `claims` signed with an RSA key in PEM (PKCS#8 or PKCS#1).
 pub fn rs256(header: &Value, claims: &Value, pem: &str) -> Result<String, String> {
-    let (label, der) = pem_der(pem)?;
-    let key = if label == "RSA PRIVATE KEY" { ring::signature::RsaKeyPair::from_der(&der) } else { ring::signature::RsaKeyPair::from_pkcs8(&der) }.map_err(|_| "the private key is not a usable RSA key".to_string())?;
+    let key = rsa_key(pem)?;
     let signed = format!("{}.{}", b64url(header.to_string().as_bytes()), b64url(claims.to_string().as_bytes()));
     let mut sig = vec![0u8; key.public().modulus_len()];
     key.sign(&ring::signature::RSA_PKCS1_SHA256, &ring::rand::SystemRandom::new(), signed.as_bytes(), &mut sig).map_err(|_| "signing the assertion failed".to_string())?;
@@ -471,6 +578,16 @@ mod tests {
         let claims: Value = serde_json::from_slice(&base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(jwt.split('.').nth(1).unwrap()).unwrap()).unwrap();
         assert_eq!((claims["appid"].as_str(), claims["version"].as_str(), claims["iat"].as_i64()), (Some("app-1"), Some("V1"), Some(1_794_301_079)));
         assert!(sign(Signer::CortexXdrAdvanced, &BTreeMap::new(), &mut req("https://x.example.com"), 0).unwrap_err().contains("key_id"));
+    }
+
+    #[test]
+    fn edgegrid_signs_with_the_timestamp_key() {
+        let params: BTreeMap<String, String> = [("client_token".to_string(), "akab-c".to_string()), ("client_secret".to_string(), "s3cret".to_string()), ("access_token".to_string(), "akab-a".to_string())].into();
+        let mut r = req("https://akab-host.luna.akamaiapis.net/siem/v1/configs/1?limit=10");
+        sign(Signer::AkamaiEdgegrid, &params, &mut r, 1_794_312_000_000).unwrap();
+        let auth = r.header("authorization").unwrap();
+        assert!(auth.starts_with("EG1-HMAC-SHA256 client_token=akab-c;access_token=akab-a;timestamp=20261110T12:00:00+0000;nonce="), "{auth}");
+        assert!(auth.contains(";signature="));
     }
 
     #[test]

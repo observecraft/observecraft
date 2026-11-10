@@ -506,3 +506,74 @@ fn invalid_packages_name_every_problem() {
     }
     assert!(invalid("streams: []\nnope: 1").join("\n").contains("unknown field `nope`"));
 }
+
+// ---------------------------------------------------------------- downloads, JWTs, setup calls
+
+#[tokio::test]
+async fn index_entries_are_downloaded_and_their_csv_rows_mapped() {
+    let f = fixture(&format!(
+        "{}{}",
+        "streams:\n  - id: event_log_files\n    name: Event log files\n    description: Salesforce-style index then download.\n    request: { url: '{{ config.base_url }}/query', query: { q: \"SELECT Id FROM EventLogFile\" } }\n    records: '{{ response.records }}'\n    expand:\n      request: { url: \"{{ config.base_url + parent.LogFile }}\", format: csv }\n    record_id: \"{{ parent.Id + ':' + record.REQUEST_ID }}\"\n    incremental: { kind: new_records }\n    output:\n      logs: { message: \"{{ parent.EventType + ' ' + record.URI }}\" }\n",
+        mock("    - { url: 'https://api.example.com/query', body: { records: [{ Id: f1, EventType: API, LogFile: '/files/f1' }] } }\n    - { url: 'https://api.example.com/files/f1', body: \"REQUEST_ID,URI\\nr1,/services/data\\nr2,/services/apexrest\\n\" }")
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&run), ["API /services/data", "API /services/apexrest"]);
+    let again = f.run(run.state, NOW + MIN).await.unwrap();
+    assert_eq!(again.records, 0);
+}
+
+#[tokio::test]
+async fn self_signed_jwts_carry_the_keys_fingerprint() {
+    let pem = std::fs::read_to_string(format!("{}/tests/fixtures/test-rsa-pkcs8.pem", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    let fingerprint = oc_connectors::auth::public_key_fingerprint(&pem).unwrap();
+    assert!(fingerprint.starts_with("SHA256:") && fingerprint.len() == 51, "{fingerprint}");
+    let yaml = format!(
+        "{HEAD}config:\n  - {{ key: base_url, label: URL, type: url }}\n  - {{ key: private_key, label: Key, type: text, secret: true }}\n\
+         auth:\n  kind: jwt\n  private_key: '{{{{ secrets.private_key }}}}'\n  claims: {{ iss: \"{{{{ 'SHOP.SVC.' + key.fingerprint }}}}\", sub: SHOP.SVC }}\n  headers: {{ Authorization: 'Bearer {{{{ auth.jwt }}}}', X-Snowflake-Authorization-Token-Type: KEYPAIR_JWT }}\n\
+         {}mock:\n  config: {{ base_url: 'https://api.example.com' }}\n  secrets: {{ private_key: {} }}\n  now: '2026-11-10T12:00:00Z'\n  responses:\n    - {{ url: 'https://api.example.com/v1/events', body: [{{ id: a }}] }}\n{TEST}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events' }\n"),
+        serde_json::to_string(&pem).unwrap()
+    );
+    let pkg = Package::from_files([("connector.yaml".to_string(), yaml)].into(), Origin::Bundled).unwrap_or_else(|e| panic!("{e:#?}"));
+    let transport = Arc::new(MockTransport::new(&pkg, pkg.manifest.mock.as_ref().unwrap()));
+    let rt = Runtime::new(transport.clone(), false);
+    engine::run(&pkg.manifest, &pkg.manifest.streams[0], &conn(&pkg), StreamState::default(), NOW, &rt, None).await.unwrap();
+    let reqs = transport.requests.lock().unwrap();
+    assert_eq!(reqs[0].header("x-snowflake-authorization-token-type"), Some("KEYPAIR_JWT"));
+    let jwt = reqs[0].header("authorization").unwrap().strip_prefix("Bearer ").unwrap();
+    let claims: Value = serde_json::from_slice(&base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(jwt.split('.').nth(1).unwrap()).unwrap()).unwrap();
+    assert_eq!(claims["iss"], format!("SHOP.SVC.{fingerprint}"));
+    assert_eq!(claims["exp"].as_i64(), Some(NOW / 1000 + 3600));
+}
+
+#[tokio::test]
+async fn a_token_exchange_can_sign_its_login_with_a_jwt() {
+    // GitHub Apps: the app's JWT buys an installation token.
+    let pem = std::fs::read_to_string(format!("{}/tests/fixtures/test-rsa-pkcs1.pem", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    let yaml = format!(
+        "{HEAD}config:\n  - {{ key: base_url, label: URL, type: url }}\n  - {{ key: app_id, label: App id, type: string }}\n  - {{ key: private_key, label: Key, type: text, secret: true }}\n\
+         auth:\n  kind: token_exchange\n  jwt: {{ private_key: '{{{{ secrets.private_key }}}}', claims: {{ iss: '{{{{ config.app_id }}}}' }}, lifetime: 9m }}\n  request: {{ method: POST, url: 'https://api.example.com/app/installations/7/access_tokens', headers: {{ Authorization: 'Bearer {{{{ auth.jwt }}}}' }} }}\n  capture: {{ token: '{{{{ response.token }}}}' }}\n  headers: {{ Authorization: 'token {{{{ auth.token }}}}' }}\n\
+         {}mock:\n  config: {{ base_url: 'https://api.example.com', app_id: '1234' }}\n  secrets: {{ private_key: {} }}\n  now: '2026-11-10T12:00:00Z'\n  responses:\n    - {{ method: POST, url: 'https://api.example.com/app/installations/7/access_tokens', status: 201, body: {{ token: ghs_installation }} }}\n    - {{ url: 'https://api.example.com/v1/events', body: [{{ id: a }}] }}\n{TEST}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events' }\n"),
+        serde_json::to_string(&pem).unwrap()
+    );
+    let pkg = Package::from_files([("connector.yaml".to_string(), yaml)].into(), Origin::Bundled).unwrap_or_else(|e| panic!("{e:#?}"));
+    let transport = Arc::new(MockTransport::new(&pkg, pkg.manifest.mock.as_ref().unwrap()));
+    let rt = Runtime::new(transport.clone(), false);
+    engine::run(&pkg.manifest, &pkg.manifest.streams[0], &conn(&pkg), StreamState::default(), NOW, &rt, None).await.unwrap();
+    let reqs = transport.requests.lock().unwrap();
+    assert!(reqs[0].header("authorization").unwrap().starts_with("Bearer ey"), "the app's JWT");
+    assert_eq!(reqs[1].header("authorization"), Some("token ghs_installation"));
+}
+
+#[tokio::test]
+async fn setup_calls_report_their_message_and_accept_their_ok_statuses() {
+    let pkg = package(&format!(
+        "on_connect:\n  - {{ request: {{ method: POST, url: 'https://api.example.com/subscriptions/start' }}, ok_status: [409], message: \"Subscribed ({{{{ status }}}})\" }}\n{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/events' }\n"),
+        mock("    - { method: POST, url: 'https://api.example.com/subscriptions/start', status: 409, body: { error: exists } }\n    - { url: 'https://api.example.com/v1/events', body: [] }")
+    ));
+    let rt = Runtime::new(Arc::new(MockTransport::new(&pkg, pkg.manifest.mock.as_ref().unwrap())), false);
+    let message = engine::call(&pkg.manifest, &pkg.manifest.on_connect[0], &conn(&pkg), Default::default(), NOW, &rt).await.unwrap();
+    assert_eq!(message, "Subscribed (409)");
+}

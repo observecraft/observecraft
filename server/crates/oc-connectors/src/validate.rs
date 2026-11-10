@@ -13,7 +13,7 @@ const BASE: &[&str] = &["config", "tables", "now", "minute", "source", "connecti
 const AUTH_EXTRA: &[&str] = &["secrets"];
 const REQUEST_EXTRA: &[&str] = &["secrets", "auth", "discovery", "page", "window", "cursor", "item", "lookups", "export", "chunk"];
 const ANSWER_EXTRA: &[&str] = &["secrets", "auth", "discovery", "page", "window", "cursor", "item", "lookups", "export", "chunk", "response", "headers", "status", "records", "last"];
-const RECORD_EXTRA: &[&str] = &["record", "vars", "lookups", "item", "window", "discovery", "entry"];
+const RECORD_EXTRA: &[&str] = &["record", "vars", "lookups", "item", "window", "discovery", "entry", "parent"];
 
 struct Checker<'a> {
     m: &'a Manifest,
@@ -169,7 +169,13 @@ impl<'a> Checker<'a> {
                 self.duration(&format!("{at}.lifetime"), &j.lifetime);
             }
             Auth::TokenExchange(t) => {
-                self.request(&format!("{at}.request"), &t.request, x);
+                if let Some(j) = &t.jwt {
+                    self.jwt(&format!("{at}.jwt"), j);
+                    if !j.headers.is_empty() {
+                        self.problem(&format!("{at}.jwt.headers"), "a token exchange's JWT goes in its request (auth.jwt)");
+                    }
+                }
+                self.request(&format!("{at}.request"), &t.request, &["secrets", "auth"]);
                 if t.capture.is_empty() {
                     self.problem(&format!("{at}.capture"), "captures nothing");
                 }
@@ -181,8 +187,13 @@ impl<'a> Checker<'a> {
                     self.problem(&format!("{at}.capture"), "without headers, the exchange must capture a token (sent as a bearer token)");
                 }
             }
+            Auth::Jwt(j) => {
+                self.jwt(at, j);
+                self.map(&format!("{at}.headers"), &j.headers, &["secrets", "auth"]);
+            }
             Auth::Signer { signer, params } => {
                 let needed: &[&str] = match signer {
+                    Signer::AkamaiEdgegrid => &["client_token", "client_secret", "access_token"],
                     Signer::DuoHmacV2 | Signer::DuoHmacV5 => &["ikey", "skey"],
                     Signer::CortexXdrAdvanced => &["key_id", "key"],
                     Signer::TrendMicroApexCentral => &["application_id", "api_key"],
@@ -194,6 +205,26 @@ impl<'a> Checker<'a> {
                 }
                 self.map(&format!("{at}.params"), params, x);
             }
+        }
+    }
+
+    fn jwt(&mut self, at: &str, j: &crate::manifest::JwtSpec) {
+        self.template(&format!("{at}.private_key"), &j.private_key, AUTH_EXTRA);
+        self.opt(&format!("{at}.key_id"), &j.key_id, AUTH_EXTRA);
+        for (k, v) in &j.claims {
+            self.tree(&format!("{at}.claims.{k}"), v, &["secrets", "key"]);
+        }
+        self.duration(&format!("{at}.lifetime"), &j.lifetime);
+    }
+
+    fn call(&mut self, at: &str, c: &crate::manifest::Call, extra: &[&str]) {
+        let mut vars: Vec<&str> = REQUEST_EXTRA.to_vec();
+        vars.extend(extra);
+        self.request(&format!("{at}.request"), &c.request, &vars);
+        vars.extend(["response", "status", "headers"]);
+        self.opt(&format!("{at}.message"), &c.message, &vars);
+        for (i, e) in c.errors.iter().enumerate() {
+            self.template(&format!("{at}.errors[{i}].message"), &e.message, &vars);
         }
     }
 
@@ -247,6 +278,12 @@ impl<'a> Checker<'a> {
         self.opt(&format!("{at}.for_each"), &s.for_each, &["discovery", "lookups"]);
         self.pagination(&format!("{at}.pagination"), &s.pagination);
         self.opt(&format!("{at}.records"), &s.records, ANSWER_EXTRA);
+        if let Some(x) = &s.expand {
+            let with_parent: Vec<&str> = REQUEST_EXTRA.iter().copied().chain(["parent"]).collect();
+            self.request(&format!("{at}.expand.request"), &x.request, &with_parent);
+            let answer: Vec<&str> = ANSWER_EXTRA.iter().copied().chain(["parent"]).collect();
+            self.opt(&format!("{at}.expand.records"), &x.records, &answer);
+        }
         let record: Vec<&str> = RECORD_EXTRA.iter().copied().filter(|r| *r != "vars" && *r != "entry").collect();
         self.opt(&format!("{at}.record_id"), &s.record_id, &record);
         self.opt(&format!("{at}.filter"), &s.filter, &record);
@@ -298,8 +335,8 @@ impl<'a> Checker<'a> {
             }
             self.map(&format!("{lat}.tags"), &l.tags, rec);
             if let Some(a) = &l.attributes {
-                if !a.is_object() {
-                    self.problem(&format!("{lat}.attributes"), "must be an object");
+                if !a.is_object() && !a.is_string() {
+                    self.problem(&format!("{lat}.attributes"), "must be an object, or a template giving one");
                 }
                 self.tree(&format!("{lat}.attributes"), a, rec);
             }
@@ -452,7 +489,15 @@ pub fn validate(m: &Manifest, files: &BTreeMap<String, String>) -> Vec<String> {
             }
         }
     }
+    for (i, call) in m.on_connect.iter().enumerate() {
+        c.call(&format!("on_connect[{i}]"), call, &[]);
+    }
     if let Some(p) = &m.push {
+        c.opt("push.url", &p.url, &["intake", "api_key"]);
+        c.map("push.headers", &p.headers, &["intake", "api_key"]);
+        if let Some(create) = &p.create {
+            c.call("push.create", create, &["push_url"]);
+        }
         if let Some(s) = &p.signature {
             if !c.secrets.contains(s.secret.as_str()) {
                 c.problem("push.signature.secret", format!("{} is not a secret config field", s.secret));

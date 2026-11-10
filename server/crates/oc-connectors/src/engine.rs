@@ -500,6 +500,16 @@ impl<'a> Cx<'a> {
     /// Sends a request; a failed answer becomes the issue its error rules (then the manifest's, then the defaults)
     /// make of it.
     async fn send(&mut self, req: &HttpRequest, errors: &[ErrorRule], scope: &Map<String, Value>) -> Result<HttpResponse, Issue> {
+        let resp = self.send_raw(req).await?;
+        if (200..300).contains(&resp.status) {
+            Ok(resp)
+        } else {
+            Err(self.failure(&resp, errors, scope))
+        }
+    }
+
+    /// Sends a request within the quota and the pacing; any answer is returned.
+    async fn send_raw(&mut self, req: &HttpRequest) -> Result<HttpResponse, Issue> {
         if let Some(left) = self.budget.as_mut() {
             if *left == 0 {
                 return Err(Issue { kind: IssueKind::Throttled, message: "the connection's request quota is used up for now".into() });
@@ -508,10 +518,11 @@ impl<'a> Cx<'a> {
         }
         self.pace().await;
         self.requests += 1;
-        let resp = self.rt.transport.send(req).await.map_err(|e| Issue::other(self.scrub(&e)))?;
-        if (200..300).contains(&resp.status) {
-            return Ok(resp);
-        }
+        self.rt.transport.send(req).await.map_err(|e| Issue::other(self.scrub(&e)))
+    }
+
+    /// The issue a failed answer is.
+    fn failure(&self, resp: &HttpResponse, errors: &[ErrorRule], scope: &Map<String, Value>) -> Issue {
         let body: Value = serde_json::from_slice(&resp.body).unwrap_or_else(|_| Value::String(String::from_utf8_lossy(&resp.body).chars().take(200).collect()));
         let mut s = scope.clone();
         s.insert("response".into(), body.clone());
@@ -527,7 +538,7 @@ impl<'a> Cx<'a> {
                 }
             }
             let message = Template::parse(&rule.message).map(|t| t.text(&s)).unwrap_or_default();
-            return Err(Issue { kind: rule.kind, message: self.scrub(&message) });
+            return Issue { kind: rule.kind, message: self.scrub(&message) };
         }
         let (kind, mut message) = default_message(resp.status, &self.m.name);
         if let Some(detail) = vendor_message(&body) {
@@ -538,7 +549,7 @@ impl<'a> Cx<'a> {
                 message.push_str(&format!(" (retry after {after}s)"));
             }
         }
-        Err(Issue { kind, message: self.scrub(&message) })
+        Issue { kind, message: self.scrub(&message) }
     }
 
     async fn lookups(&mut self, stream: &Stream) -> Result<(), Issue> {
@@ -616,6 +627,14 @@ fn prepare_record(f: &RecordFns, scope: &Map<String, Value>, record: Value) -> O
     // Mappings never see credentials.
     s.remove("secrets");
     s.remove("auth");
+    // An expanded record carries its index entry.
+    let record = match record {
+        Value::Object(mut o) if o.contains_key(EXPANDED) => {
+            s.insert("parent".into(), o.remove("parent").unwrap_or(Value::Null));
+            o.remove("record").unwrap_or(Value::Null)
+        }
+        other => other,
+    };
     let id = match &f.id {
         Some(t) => {
             s.insert("record".into(), record.clone());
@@ -646,6 +665,30 @@ impl Emit<'_> {
         self.f.mapper.map(&Item { scope: &rec.scope, time_ms: rec.time, id: &rec.id, instance: &self.instance, now_ms: self.now_ms }, &mut out.mapped);
         out.records += 1;
     }
+}
+
+/// Marks an expanded record (`{EXPANDED: true, parent, record}`) between [`expand`] and [`prepare_record`].
+const EXPANDED: &str = "\u{0}expanded";
+
+/// Index-then-download: each index entry's request read, its records in its place (with the entry as `parent`).
+async fn expand(cx: &mut Cx<'_>, stream: &Stream, scope: &Map<String, Value>, records: Vec<Value>) -> Result<Vec<Value>, Issue> {
+    let Some(x) = &stream.expand else { return Ok(records) };
+    let records_t = x.records.as_deref().map(Template::parse).transpose().map_err(Issue::other)?;
+    let mut out = Vec::new();
+    for parent in records {
+        let mut s = scope.clone();
+        s.insert("parent".into(), parent.clone());
+        let req = cx.build(&x.request, &s)?;
+        let resp = cx.send(&req, &stream.errors, &s).await?;
+        s.insert("response".into(), parse_body(&resp.body, x.request.format).map_err(Issue::other)?);
+        s.insert("headers".into(), resp.headers_value());
+        let children = as_list(match &records_t {
+            Some(t) => t.render(&s),
+            None => s["response"].clone(),
+        });
+        out.extend(children.into_iter().map(|record| json!({ EXPANDED: true, "parent": parent, "record": record })));
+    }
+    Ok(out)
 }
 
 /// The key of a `for_each` item's partition.
@@ -751,7 +794,14 @@ async fn partition(cx: &mut Cx<'_>, stream: &Stream, emit: &Emit<'_>, scope: Map
                         pending = Some(v);
                     }
                 }
-                for r in page.records {
+                let records = match expand(cx, stream, &s, page.records).await {
+                    Ok(r) => r,
+                    Err(issue) => {
+                        keep(out, issue);
+                        break;
+                    }
+                };
+                for r in records {
                     let Some(rec) = prepare_record(emit.f, &s, r) else { continue };
                     if new_only {
                         let h = id_hash(&rec.id);
@@ -834,7 +884,15 @@ async fn time_windows(cx: &mut Cx<'_>, stream: &Stream, req: &Request, tc: &crat
             };
             first = false;
             pages_left -= 1;
-            for r in page.records {
+            let records = match expand(cx, stream, &s, page.records).await {
+                Ok(r) => r,
+                Err(issue) => {
+                    keep(out, issue);
+                    complete = false;
+                    break;
+                }
+            };
+            for r in records {
                 let Some(rec) = prepare_record(emit.f, &s, r) else { continue };
                 if let Some(t) = rec.time {
                     if t < ws || t > we {
@@ -974,6 +1032,23 @@ async fn export(cx: &mut Cx<'_>, stream: &Stream, x: &AsyncExport, emit: &Emit<'
         e.done = done;
     }
     Ok(part)
+}
+
+/// Sends a one-off request (`on_connect`, `push.create`) for `conn`: the message it gives, or why it failed.
+/// `extra`: more variables (`push_url`).
+pub async fn call(m: &Manifest, call: &crate::manifest::Call, conn: &Connection, extra: Map<String, Value>, now_ms: i64, rt: &Runtime) -> Result<String, Issue> {
+    let mut cx = Cx::new(m, None, conn, rt, now_ms, None).await?;
+    let mut s = cx.scope.clone();
+    s.extend(extra);
+    let req = cx.build(&call.request, &s)?;
+    let resp = cx.send_raw(&req).await?;
+    if !(200..300).contains(&resp.status) && !call.ok_status.contains(&resp.status) {
+        return Err(cx.failure(&resp, &call.errors, &s));
+    }
+    s.insert("response".into(), parse_body(&resp.body, call.request.format).unwrap_or(Value::Null));
+    s.insert("status".into(), json!(resp.status));
+    let message = call.message.as_deref().map(|t| Template::parse(t).map(|t| t.text(&s))).transpose().map_err(Issue::other)?.unwrap_or_else(|| "Done".into());
+    Ok(cx.scrub(&message))
 }
 
 /// A connection test's result.
