@@ -33,7 +33,8 @@ export const integrationDashboards = [
   ...aws,
   ...azure,
   ...gcp,
-  ...connectorPackages.flatMap((p) => p.dashboards),
+  // Typed as one of ours: each package's JSON gives a different literal type (template variables or none).
+  ...connectorPackages.flatMap((p) => p.dashboards as unknown as typeof fleetdm),
   ...fleetdm,
   ...authentik,
   ...gitlabAudit,
