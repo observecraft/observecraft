@@ -56,12 +56,24 @@ pub fn glob(pattern: &str, value: &str) -> bool {
     parts.last().is_some_and(|l| l.is_empty() || v.ends_with(l))
 }
 
+/// A numeric comparison (`>46080`) of the value, as the SQL makes it; None when the pattern isn't one.
+fn compare(pattern: &str, value: &str) -> Option<bool> {
+    let (op, number) = crate::sql::comparison(pattern)?;
+    let (v, n) = (value.trim().parse::<f64>().ok()?, number.parse::<f64>().ok()?);
+    Some(match op {
+        ">" => v > n,
+        ">=" => v >= n,
+        "<" => v < n,
+        _ => v <= n,
+    })
+}
+
 pub fn matches(terms: &[Term], f: &Fields<'_>) -> bool {
     terms.iter().all(|t| match t {
         Term::Text { text, negate } => f.message.to_lowercase().contains(&text.to_lowercase()) != *negate,
         Term::Tag { key, .. } if key == "index" && f.index.is_none() => true,
         Term::Tag { key, values, negate } => {
-            let hit = f.get(key).is_some_and(|v| values.iter().any(|p| glob(p, v)));
+            let hit = f.get(key).is_some_and(|v| values.iter().any(|p| compare(p, v).unwrap_or_else(|| glob(p, v))));
             hit != *negate
         }
     })
@@ -95,6 +107,16 @@ mod tests {
         assert!(matches_any(&[parse_query("service:catalog-service"), parse_query("service:billing")], &f));
         assert!(!matches_any(&[parse_query("service:catalog-service")], &f));
         assert!(!matches_any(&[], &f), "no searches match nothing");
+    }
+
+    #[test]
+    fn numeric_comparisons_compare_numbers() {
+        let none = HashMap::new();
+        let attr = HashMap::from([("auth.token_ttl".to_string(), "2764800".to_string())]);
+        let f = Fields { service: "vault", status: "info", host: "h1", source: "vault", message: "", tags: &none, attr: &attr, index: None };
+        assert!(matches(&parse_query("@auth.token_ttl:>46080"), &f));
+        assert!(!matches(&parse_query("@auth.token_ttl:<=46080"), &f));
+        assert!(!matches(&parse_query("@missing:>1"), &f));
     }
 
     #[test]

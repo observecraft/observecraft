@@ -24,6 +24,9 @@ impl Schema for ArchiveLogsSchema {
     fn ignored(&self, key: &str) -> bool {
         key == "index"
     }
+    fn compare(&self, expr: &str, op: &str) -> String {
+        format!("TRY_CAST({expr} AS DOUBLE) {op} CAST(? AS DOUBLE)")
+    }
 }
 
 /// WHERE fragment for DuckDB with `?` placeholders (DuckDB's positional parameters).
@@ -46,6 +49,12 @@ pub fn build_any_duckdb(searches: &[Vec<Term>]) -> SqlFilter {
 mod tests {
     use super::*;
     use crate::parse_query;
+
+    #[test]
+    fn duckdb_numeric_comparisons() {
+        let f = build_where_duckdb(&parse_query("@auth.token_ttl:>=46080"));
+        assert_eq!(f.clause, "(TRY_CAST(coalesce(map_extract(attr, ?)[1], '') AS DOUBLE) >= CAST(? AS DOUBLE))");
+    }
 
     #[test]
     fn duckdb_dialect() {

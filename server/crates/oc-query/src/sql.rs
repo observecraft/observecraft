@@ -25,6 +25,16 @@ pub trait Schema: Sync {
     fn ignored(&self, _key: &str) -> bool {
         false
     }
+    /// `expr <op> ?` as numbers, the bound value a number's text (`@duration:>1000`); NULL (no match) when not a number.
+    fn compare(&self, expr: &str, op: &str) -> String {
+        format!("toFloat64OrNull({expr}) {op} toFloat64(?)")
+    }
+}
+
+/// `>46080`, `<=1.5`: a numeric comparison (operator, number text) of a search value.
+pub fn comparison(value: &str) -> Option<(&'static str, &str)> {
+    let (op, rest) = [">=", "<=", ">", "<"].iter().find_map(|op| value.strip_prefix(op).map(|rest| (*op, rest)))?;
+    rest.parse::<f64>().ok().filter(|n| n.is_finite()).map(|_| (op, rest))
 }
 
 /// `oc.logs`: reserved columns (`index` is the log index), `@attr.path` → `attr[...]`, anything else → `tags[...]`.
@@ -125,7 +135,10 @@ pub fn build_where(schema: &dyn Schema, terms: &[Term], skip_key: Option<&str>) 
                     if let Some(kp) = &key_param {
                         params.push(kp.clone());
                     }
-                    if v.contains('*') {
+                    if let Some((op, number)) = comparison(v) {
+                        ors.push(schema.compare(&expr, op));
+                        params.push(Param::Str(number.to_string()));
+                    } else if v.contains('*') {
                         ors.push(format!("{expr} ILIKE ?"));
                         params.push(Param::Str(like_pattern(v)));
                     } else {
@@ -226,6 +239,15 @@ mod tests {
         let f = build_any(&LogsSchema, &[]);
         assert_eq!(f.clause, "0");
         assert!(f.params.is_empty());
+    }
+
+    #[test]
+    fn numeric_comparisons_compare_numbers() {
+        let f = build_where(&LogsSchema, &parse_query("source:vault @auth.token_ttl:>46080 @duration:<=1.5"), None);
+        assert_eq!(f.clause, "(source = ?) AND (toFloat64OrNull(attr[?]) > toFloat64(?)) AND (toFloat64OrNull(attr[?]) <= toFloat64(?))");
+        assert_eq!(f.params[1..3], [Param::Str("auth.token_ttl".into()), Param::Str("46080".into())]);
+        // Not a number: compared as text, as before.
+        assert_eq!(build_where(&LogsSchema, &parse_query("@path:>x"), None).clause, "(attr[?] = ?)");
     }
 
     #[test]

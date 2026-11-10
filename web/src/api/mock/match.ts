@@ -33,11 +33,27 @@ export function logField(log: LogEvent, key: string): string | undefined {
   return log.tags[key];
 }
 
+/** `>46080`, `<=1.5`: a numeric comparison of the value, as the server makes it; undefined when the pattern isn't one. */
+function compare(pattern: string, actual: string): boolean | undefined {
+  const m = /^(>=|<=|>|<)(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)$/i.exec(pattern);
+  if (!m) return undefined;
+  const [v, n] = [Number(actual.trim()), Number(m[2])];
+  if (actual.trim() === '' || !Number.isFinite(v)) return false;
+  return m[1] === '>' ? v > n : m[1] === '>=' ? v >= n : m[1] === '<' ? v < n : v <= n;
+}
+
 function matchesPattern(pattern: string, actual: string): boolean {
+  const numeric = compare(pattern, actual);
+  if (numeric !== undefined) return numeric;
   const p = pattern.toLowerCase();
   const a = actual.toLowerCase();
   if (!p.includes('*')) return p === a;
-  const re = new RegExp(`^${p.split('*').map((s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+  const re = new RegExp(
+    `^${p
+      .split('*')
+      .map((s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+      .join('.*')}$`,
+  );
   return re.test(a);
 }
 
