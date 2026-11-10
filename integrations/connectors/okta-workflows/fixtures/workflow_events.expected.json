@@ -1,0 +1,297 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c10b-b14a-791c-801e-a1207ad9f8c2"
+      },
+      "date": "2026-11-09T16:02:11.402Z",
+      "ddsource": "okta-workflows",
+      "enrichment_details": {
+        "workflow_id": "01JX0000000000000000FLOW01",
+        "workflow_name": "Sync new customers to billing"
+      },
+      "host": "example.okta.com",
+      "log": {
+        "actor": {
+          "alternateId": "jane.doe@example.com",
+          "detailEntry": null,
+          "displayName": "Jane Doe",
+          "id": "00u1a2b3c4d5e6f7g8h9",
+          "type": "User"
+        },
+        "authenticationContext": {
+          "authenticationStep": 0,
+          "externalSessionId": "idx1a2b3c4d5e6f"
+        },
+        "client": {
+          "device": "Computer",
+          "geographicalContext": {
+            "city": "Portland",
+            "country": "United States",
+            "geolocation": {
+              "lat": 45.52,
+              "lon": -122.68
+            },
+            "postalCode": "97201",
+            "state": "Oregon"
+          },
+          "id": null,
+          "ipAddress": "198.51.100.23",
+          "userAgent": {
+            "browser": "CHROME",
+            "os": "Mac OS X",
+            "rawUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+          },
+          "zone": "null"
+        },
+        "debugContext": {
+          "debugData": {
+            "sessionId": "5e5e5e5e-0000-4000-8000-000000000001"
+          }
+        },
+        "device": null,
+        "displayMessage": "Flow created",
+        "eventType": "workflows.user.flow.create",
+        "legacyEventType": null,
+        "outcome": {
+          "reason": null,
+          "result": "SUCCESS"
+        },
+        "published": "2026-11-09T16:02:11.402Z",
+        "request": {
+          "ipChain": [
+            {
+              "geographicalContext": null,
+              "ip": "198.51.100.23",
+              "source": null,
+              "version": "V4"
+            }
+          ]
+        },
+        "securityContext": {},
+        "severity": "INFO",
+        "target": [
+          {
+            "alternateId": "Okta Workflows",
+            "detailEntry": null,
+            "displayName": "Okta Workflows",
+            "id": "0oa1a2b3c4d5e6f7g8h9",
+            "type": "AppInstance"
+          },
+          {
+            "alternateId": "Sync new customers to billing",
+            "detailEntry": null,
+            "displayName": "Sync new customers to billing",
+            "id": "01JX0000000000000000FLOW01",
+            "type": "Flow"
+          }
+        ],
+        "transaction": {
+          "detail": {},
+          "id": "7b7b7b7b-0000-4000-8000-000000000001",
+          "type": "WORKFLOW"
+        },
+        "uuid": "6c1e2d4a-0000-11ef-9a00-0a1b2c3d4e01",
+        "version": "0"
+      },
+      "message": "Flow created",
+      "service": "workflows",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c494-bf7e-7e35-aa0d-6b9d561f3327"
+      },
+      "date": "2026-11-10T08:30:45.118Z",
+      "ddsource": "okta-workflows",
+      "enrichment_details": {
+        "workflow_id": "01JX0000000000000000FLOW01",
+        "workflow_name": "Sync new customers to billing"
+      },
+      "host": "example.okta.com",
+      "log": {
+        "actor": {
+          "alternateId": "jane.doe@example.com",
+          "detailEntry": null,
+          "displayName": "Jane Doe",
+          "id": "00u1a2b3c4d5e6f7g8h9",
+          "type": "User"
+        },
+        "authenticationContext": {
+          "authenticationStep": 0,
+          "externalSessionId": "idx1a2b3c4d5e6f"
+        },
+        "client": {
+          "device": "Computer",
+          "geographicalContext": {
+            "city": "Portland",
+            "country": "United States",
+            "geolocation": {
+              "lat": 45.52,
+              "lon": -122.68
+            },
+            "postalCode": "97201",
+            "state": "Oregon"
+          },
+          "id": null,
+          "ipAddress": "198.51.100.23",
+          "userAgent": {
+            "browser": "CHROME",
+            "os": "Mac OS X",
+            "rawUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+          },
+          "zone": "null"
+        },
+        "debugContext": {
+          "debugData": {
+            "sessionId": "5e5e5e5e-0000-4000-8000-000000000002"
+          }
+        },
+        "device": null,
+        "displayMessage": "Flow activated",
+        "eventType": "workflows.user.flow.activate",
+        "legacyEventType": null,
+        "outcome": {
+          "reason": null,
+          "result": "SUCCESS"
+        },
+        "published": "2026-11-10T08:30:45.118Z",
+        "request": {
+          "ipChain": [
+            {
+              "geographicalContext": null,
+              "ip": "198.51.100.23",
+              "source": null,
+              "version": "V4"
+            }
+          ]
+        },
+        "securityContext": {},
+        "severity": "INFO",
+        "target": [
+          {
+            "alternateId": "Okta Workflows",
+            "detailEntry": null,
+            "displayName": "Okta Workflows",
+            "id": "0oa1a2b3c4d5e6f7g8h9",
+            "type": "AppInstance"
+          },
+          {
+            "alternateId": "Sync new customers to billing",
+            "detailEntry": null,
+            "displayName": "Sync new customers to billing",
+            "id": "01JX0000000000000000FLOW01",
+            "type": "Flow"
+          }
+        ],
+        "transaction": {
+          "detail": {},
+          "id": "7b7b7b7b-0000-4000-8000-000000000002",
+          "type": "WORKFLOW"
+        },
+        "uuid": "6c1e2d4a-0000-11ef-9a00-0a1b2c3d4e02",
+        "version": "0"
+      },
+      "message": "Flow activated",
+      "service": "workflows",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4eb-2f6e-7c82-8218-28a9bea40b38"
+      },
+      "date": "2026-11-10T10:05:09.870Z",
+      "ddsource": "okta-workflows",
+      "host": "example.okta.com",
+      "log": {
+        "actor": {
+          "alternateId": "sam.lee@example.com",
+          "detailEntry": null,
+          "displayName": "Sam Lee",
+          "id": "00u9z8y7x6w5v4u3t2s1",
+          "type": "User"
+        },
+        "authenticationContext": {
+          "authenticationStep": 0,
+          "externalSessionId": "idx1a2b3c4d5e6f"
+        },
+        "client": {
+          "device": "Computer",
+          "geographicalContext": {
+            "city": "Portland",
+            "country": "United States",
+            "geolocation": {
+              "lat": 45.52,
+              "lon": -122.68
+            },
+            "postalCode": "97201",
+            "state": "Oregon"
+          },
+          "id": null,
+          "ipAddress": "198.51.100.23",
+          "userAgent": {
+            "browser": "CHROME",
+            "os": "Mac OS X",
+            "rawUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+          },
+          "zone": "null"
+        },
+        "debugContext": {
+          "debugData": {
+            "sessionId": "5e5e5e5e-0000-4000-8000-000000000003"
+          }
+        },
+        "device": null,
+        "displayMessage": "Connection reauthorized",
+        "eventType": "workflows.user.connection.reauthorize",
+        "legacyEventType": null,
+        "outcome": {
+          "reason": null,
+          "result": "FAILURE"
+        },
+        "published": "2026-11-10T10:05:09.870Z",
+        "request": {
+          "ipChain": [
+            {
+              "geographicalContext": null,
+              "ip": "198.51.100.23",
+              "source": null,
+              "version": "V4"
+            }
+          ]
+        },
+        "securityContext": {},
+        "severity": "INFO",
+        "target": [
+          {
+            "alternateId": "Okta Workflows",
+            "detailEntry": null,
+            "displayName": "Okta Workflows",
+            "id": "0oa1a2b3c4d5e6f7g8h9",
+            "type": "AppInstance"
+          }
+        ],
+        "transaction": {
+          "detail": {},
+          "id": "7b7b7b7b-0000-4000-8000-000000000003",
+          "type": "WORKFLOW"
+        },
+        "uuid": "6c1e2d4a-0000-11ef-9a00-0a1b2c3d4e03",
+        "version": "0"
+      },
+      "message": "Connection reauthorized",
+      "service": "workflows",
+      "status": "error"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311970000
+      }
+    }
+  }
+}
