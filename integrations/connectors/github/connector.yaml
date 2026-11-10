@@ -4,8 +4,9 @@
 # visibility, which the GitHub Cloud SIEM pack reads), the enterprise's audit log with an enterprise owner's token,
 # and the open code scanning, Dependabot and secret scanning alerts as gauges. Datadog has no integrations-core tile
 # for it, so the package adds its own tile and dashboard. The organization is read with a GitHub App (a JWT
-# exchanged for an installation token); the enterprise audit log, which GitHub Apps can't read, with a classic
-# personal access token. The alert gauges' names are ours: Datadog doesn't list its own.
+# exchanged for an installation token) or an organization owner's personal access token; the enterprise audit log,
+# which GitHub Apps can't read, with a classic personal access token. GitHub Enterprise can also stream its audit log
+# to the intake's Splunk HEC endpoint (push). The alert gauges' names are ours: Datadog doesn't list its own.
 schema_version: 1
 id: github
 name: GitHub
@@ -18,13 +19,17 @@ logo: github
 categories: [Source Control, Security, SIEM, Developer Tools]
 docs_url: https://docs.github.com/en/rest/orgs/orgs#get-the-audit-log-for-an-organization
 setup: |
-  1. Create a GitHub App owned by the organization (**Settings → Developer settings → GitHub Apps → New GitHub App**),
-     e.g. `observecraft`, without a webhook, with the organization permission **Administration: Read** (the audit
-     log) and the repository permissions **Code scanning alerts**, **Dependabot alerts** and **Secret scanning
-     alerts: Read**.
-  2. **Generate a private key** (a `.pem` file) and note the App ID; install the app on the organization (all
-     repositories) and note the installation id from the installation's URL.
-  3. The audit log needs GitHub Enterprise Cloud. For the enterprise's audit log, an enterprise owner creates a
+  1. Choose how ObserveCraft signs in:
+     - **GitHub App** (recommended): create an app owned by the organization (**Settings → Developer settings →
+       GitHub Apps → New GitHub App**), e.g. `observecraft`, without a webhook, with the organization permission
+       **Administration: Read** (the audit log) and the repository permissions **Code scanning alerts**,
+       **Dependabot alerts** and **Secret scanning alerts: Read**. **Generate a private key** (a `.pem` file) and
+       note the App ID; install the app on the organization (all repositories) and note the installation id from
+       the installation's URL.
+     - **Personal access token**: an organization owner creates a classic token with `read:audit_log`, `read:org`
+       and `security_events` (or a fine-grained token on the organization with the same read permissions as the
+       app above).
+  2. The audit log needs GitHub Enterprise Cloud. For the enterprise's audit log, an enterprise owner creates a
      classic token with `read:audit_log` and turns on **Enterprise audit log** below.
 links:
   - { label: New GitHub App, url: "https://github.com/organizations/{{ config.organization }}/settings/apps/new" }
@@ -38,25 +43,39 @@ config:
     default: https://api.github.com
     help: https://api.github.com; https://api.<subdomain>.ghe.com with data residency; https://<host>/api/v3 for GitHub Enterprise Server.
   - { key: organization, label: Organization, type: string, required: true, placeholder: example-org, pattern: "[A-Za-z0-9-]+" }
-  - { key: app_id, label: App ID, type: string, required: true, pattern: "[0-9]+|Iv[0-9A-Za-z.]+", help: The App ID or its client id. }
-  - { key: installation_id, label: Installation id, type: string, required: true, pattern: "[0-9]+" }
-  - { key: private_key, label: App private key, type: text, secret: true, required: true, placeholder: "-----BEGIN RSA PRIVATE KEY-----" }
+  - key: auth_method
+    label: Sign in with
+    type: select
+    required: true
+    default: app
+    options:
+      - { value: app, label: GitHub App }
+      - { value: token, label: Personal access token }
+  - { key: app_id, label: App ID, type: string, pattern: "[0-9]+|Iv[0-9A-Za-z.]+", help: "GitHub App: the App ID or its client id." }
+  - { key: installation_id, label: Installation id, type: string, pattern: "[0-9]+", help: "GitHub App: the installation's id." }
+  - { key: private_key, label: App private key, type: text, secret: true, placeholder: "-----BEGIN RSA PRIVATE KEY-----", help: "GitHub App: its private key (.pem)." }
+  - { key: token, label: Personal access token, type: string, secret: true, help: "Personal access token: an organization owner's, with read:audit_log, read:org and security_events." }
   - { key: enterprise, label: Enterprise, type: string, placeholder: example-enterprise, help: "The enterprise's slug, for its audit log." }
   - { key: enterprise_token, label: Enterprise owner token, type: string, secret: true, help: "A classic token with read:audit_log, for the enterprise audit log." }
 
-# A GitHub App: an RS256 JWT (at most 10 minutes) exchanged for an hour-long installation token.
 auth:
-  kind: token_exchange
-  jwt:
-    private_key: "{{ secrets.private_key }}"
-    claims: { iss: "{{ config.app_id }}" }
-    lifetime: 9m
-  request:
-    method: POST
-    url: "{{ config.api_url }}/app/installations/{{ config.installation_id }}/access_tokens"
-    headers: { Authorization: "Bearer {{ auth.jwt }}", Accept: application/vnd.github+json }
-  capture: { token: "{{ response.token }}" }
-  ttl: 50m
+  kind: choice
+  field: auth_method
+  options:
+    # A GitHub App: an RS256 JWT (at most 10 minutes) exchanged for an hour-long installation token.
+    app:
+      kind: token_exchange
+      jwt:
+        private_key: "{{ secrets.private_key }}"
+        claims: { iss: "{{ config.app_id }}" }
+        lifetime: 9m
+      request:
+        method: POST
+        url: "{{ config.api_url }}/app/installations/{{ config.installation_id }}/access_tokens"
+        headers: { Authorization: "Bearer {{ auth.jwt }}", Accept: application/vnd.github+json }
+      capture: { token: "{{ response.token }}" }
+      ttl: 50m
+    token: { kind: bearer, token: "{{ secrets.token }}" }
 
 headers:
   Accept: application/vnd.github+json
@@ -68,14 +87,14 @@ rate_limit: { requests_per_minute: 25 }
 errors:
   - status: [401]
     kind: auth
-    message: "GitHub refused the app's credentials ({{ response.message ?? 'bad credentials' }}): check the App ID, installation id and private key"
+    message: "GitHub refused the credentials ({{ response.message ?? 'bad credentials' }}): check the App ID, installation id and private key, or the token"
   - status: [403, 429]
     when: "{{ headers['x-ratelimit-remaining'] == '0' || (response.message ?? '') | contains('rate limit') }}"
     kind: throttled
     message: "Rate limited by GitHub (resets at {{ headers['x-ratelimit-reset'] ?? '?' }})"
   - status: [403]
     kind: access_denied
-    message: "GitHub refused ({{ response.message ?? 'forbidden' }}): the app needs Administration read for the audit log and the alerts' read permissions"
+    message: "GitHub refused ({{ response.message ?? 'forbidden' }}): the app (or token) needs Administration read for the audit log and the alerts' read permissions"
   - status: [404]
     kind: access_denied
     message: "Not found ({{ response.message ?? 'not found' }}): the audit log needs GitHub Enterprise Cloud, the alerts GitHub Advanced Security or Dependabot turned on"
@@ -203,13 +222,30 @@ streams:
 
 test:
   request: { url: "{{ config.api_url }}/orgs/{{ config.organization }}/audit-log", query: { per_page: 1 } }
-  message: "Connected: the app reads {{ config.organization }}'s audit log"
+  message: "Connected: {{ config.auth_method == 'token' ? 'the token' : 'the app' }} reads {{ config.organization }}'s audit log"
+
+# GitHub Enterprise Cloud streams its enterprise's audit log to Splunk: the intake's HEC-compatible endpoint takes it.
+push:
+  kind: splunk_hec
+  instructions: |
+    Instead of polling the enterprise audit log, GitHub Enterprise Cloud can stream it: an enterprise owner opens
+    **Enterprise settings → Audit log → Log streaming → Configure stream → Splunk** and enters:
+
+    - **Domain**: the intake's host name (`{{ intake }}` without `https://`)
+    - **Port**: `443`
+    - **Token**: the ingest API key `{{ api_key }}`
+    - **Enable SSL verification**: on
+
+    GitHub checks and sends to `<Domain>:<Port>/services/collector`, below. Its audit fields (action, actor, repo, …)
+    are the logs' attributes, as the polled ones; GitHub's `sourcetype` is their source (the domain can't carry
+    `?ddsource=`). Turn the **Enterprise audit log** stream off when streaming: one of the two is enough.
+  url: "{{ intake }}/services/collector"
 
 assets:
   dashboards: [assets/dashboards/overview.json]
 
 mock:
-  config: { organization: example-org, app_id: "123456", installation_id: "45678901", enterprise: example-enterprise }
+  config: { organization: example-org, auth_method: app, app_id: "123456", installation_id: "45678901", enterprise: example-enterprise }
   secrets:
     enterprise_token: ghp_test0000000000000000000000000000000
     private_key: |
