@@ -3,6 +3,7 @@ import { API_MODE } from '../../api/http';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, Ban, Check, ChevronDown, Clock, ExternalLink, GitBranch, LayoutDashboard, Newspaper, Plus, Search, Siren, TriangleAlert, X } from 'lucide-react';
 import type { IntegrationDocs } from '../../api/integrations/catalog';
+import { kubernetesHint } from '../../api/integrations/kubernetesHints';
 import { unavailableReason, webhookUrl } from '../../api/integrations/collection';
 import type { IntegrationDetail, IntegrationStatus } from '../../api/integrations/types';
 import { CodeBlock } from '../../components/code/CodeBlock';
@@ -262,6 +263,28 @@ function Overview({ d, docs, onCategory }: { d: IntegrationDetail; docs: Integra
   );
 }
 
+/** Running the check on Kubernetes: the Agent's Autodiscovery annotations on the workload's pods. */
+function KubernetesHintSection({ check }: { check: string }) {
+  const hint = kubernetesHint(check);
+  if (!hint) return null;
+  return (
+    <div className="im-k8s-hint">
+      <h3>On Kubernetes</h3>
+      <p>
+        With the Datadog Agent deployed by its Helm chart or the Datadog Operator (see <Link to="/integrations/kubernetes">Kubernetes</Link>), no configuration file is needed: annotate the pods and
+        the Agent on their node runs the check against them (Autodiscovery). <code>%%host%%</code> is the pod&apos;s address.
+      </p>
+      {hint.variants.map((v) => (
+        <div key={v.label}>
+          <h4>{v.label}</h4>
+          <ReadmeMarkdown source={v.text} />
+          <CodeBlock code={v.annotations} filename="Pod annotations" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationDetail; docs: IntegrationDocs | null; installed: boolean; pending: boolean; onInstall: () => void }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const missing = d.settings.some((s) => !values[s.key]?.trim());
@@ -318,6 +341,7 @@ function Configure({ d, docs, installed, pending, onInstall }: { d: IntegrationD
         </div>
       )}
       {d.agent?.configurable && <AgentConfigForm check={d.agent.check} />}
+      {d.agent && <KubernetesHintSection check={d.agent.check} />}
 
       {d.configs.map((c) => (
         <CodeBlock
