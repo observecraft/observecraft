@@ -66,7 +66,9 @@ mod tests {
         webhook: { logs: { message: '{{ record.type }}' } }\n";
 
     fn registry_with_package() -> Registry {
-        let dir = std::env::temp_dir().join(format!("oc-push-{}", std::process::id()));
+        // One directory per call: the tests run in parallel.
+        static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let dir = std::env::temp_dir().join(format!("oc-push-{}-{}", std::process::id(), CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("example-hooks")).unwrap();
         std::fs::write(dir.join("example-hooks/connector.yaml"), PACKAGE).unwrap();
