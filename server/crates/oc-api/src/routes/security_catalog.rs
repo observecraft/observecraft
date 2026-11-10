@@ -344,6 +344,51 @@ pub const PACKS: &[ContentPack] = &[
         }],
     },
     ContentPack {
+        id: "azure-entra-id",
+        name: "Microsoft Entra ID",
+        category: "Identity",
+        platform: "Azure",
+        logo: "azure",
+        description: "Watch who signs in to your Microsoft tenant: passwords guessed for one user, sign-ins Identity Protection rates high risk, and new Global Administrators.",
+        query: "source:azure.activedirectory",
+        setup: "Turn on Entra ID logs for an app registration in Integrations → Microsoft Azure (sign-ins need Entra ID P1, risk levels P2), or forward the tenant's diagnostic settings with source `azure.activedirectory`.",
+        rules: &[
+            DefaultRule {
+                id: "def-ent-001",
+                version: 1,
+                name: "Entra ID sign-ins failing for one user",
+                message: "Sign-ins to Microsoft Entra ID failed again and again for one user: someone guessing a password, or spraying one. Check the client addresses and whether a sign-in finally succeeded.",
+                query: "source:azure.activedirectory @category:SignInLogs @properties.status.errorCode:* -@properties.status.errorCode:0",
+                group_by: &["@properties.userPrincipalName"],
+                cases: &[("a > 10", "high", ""), ("a > 4", "medium", "")],
+                window: 900,
+                tags: BRUTE_FORCE,
+            },
+            DefaultRule {
+                id: "def-ent-002",
+                version: 1,
+                name: "High-risk Entra ID sign-in",
+                message: "Identity Protection rated a sign-in, or a detection for the user, high risk (an anonymous or malicious IP address, leaked credentials, unfamiliar sign-in properties). Confirm with the user and reset their credentials if it wasn't them.",
+                query: "source:azure.activedirectory ((@category:SignInLogs (@properties.riskLevelDuringSignIn:high OR @properties.riskLevelAggregated:high)) OR (@category:UserRiskEvents @properties.riskLevel:high))",
+                group_by: &["@properties.userPrincipalName"],
+                cases: &[("a > 0", "high", "")],
+                window: 300,
+                tags: &["tactic:TA0001-initial-access", "technique:T1078.004-cloud-accounts"],
+            },
+            DefaultRule {
+                id: "def-ent-003",
+                version: 1,
+                name: "Entra ID Global Administrator role assigned",
+                message: "A principal was given Microsoft Entra ID's Global Administrator role (or made eligible for it): full control of the tenant. Confirm the change was approved.",
+                query: "source:azure.activedirectory @category:AuditLogs @operationName:Add*member\\ to\\ role* @properties.targetResources:*Global\\ Administrator*",
+                group_by: &["@properties.initiatedBy.user.userPrincipalName"],
+                cases: &[("a > 0", "high", "")],
+                window: 300,
+                tags: &["tactic:TA0004-privilege-escalation", "technique:T1098.003-additional-cloud-roles"],
+            },
+        ],
+    },
+    ContentPack {
         id: "gcp-audit",
         name: "Google Cloud Audit Logs",
         category: "Cloud Audit",
@@ -589,6 +634,37 @@ mod tests {
         assert!(matches("def-gws-004", fixtures::shared_publicly("8", at, "public_on_the_web")));
         assert!(!matches("def-gws-004", fixtures::shared_publicly("9", at, "people_within_domain_with_link")), "shared within the domain");
         assert!(matches("def-gws-005", fixtures::activity("user_accounts", "10", at, "sam.lee@example.com", "2sv_change", "2sv_disable", &[])));
+    }
+
+    /// The Entra ID rules match the Entra ID poller's logs, before or after the integration's pipeline.
+    #[test]
+    fn entra_id_rules_match_the_pollers_logs() {
+        use crate::entra::{api::Stream, fixtures, logs::log_of};
+        use crate::pipelines::{Filter, Log};
+        let pack = PACKS.iter().find(|p| p.id == "azure-entra-id").expect("the Entra ID pack");
+        let matches = |rule: &str, stream: Stream, event: serde_json::Value| {
+            let mut attrs = log_of(stream, &event, fixtures::TENANT);
+            for k in ["date", "message", "service", "ddsource", "_oc_ingest"] {
+                attrs.as_object_mut().unwrap().remove(k);
+            }
+            let row = serde_json::json!({"status": "info", "service": "azure", "source": "azure.activedirectory", "message": "", "attributes": attrs.to_string()});
+            let query = pack.rules.iter().find(|r| r.id == rule).unwrap().query;
+            Log::from_row(&row).matches(&Filter::parse(query))
+        };
+        let sign_in = |code: i64| fixtures::sign_in("s-1", "2026-11-06T10:00:00Z", "jordan.patel@example.com", code);
+        assert!(matches("def-ent-001", Stream::SignIns, sign_in(50126)));
+        assert!(!matches("def-ent-001", Stream::SignIns, sign_in(0)));
+        let mut risky = sign_in(0);
+        risky["riskLevelDuringSignIn"] = "high".into();
+        assert!(matches("def-ent-002", Stream::SignIns, risky));
+        assert!(matches("def-ent-002", Stream::Risk, fixtures::risk("r-1", "2026-11-06T10:00:00Z", "high")));
+        assert!(!matches("def-ent-002", Stream::Risk, fixtures::risk("r-2", "2026-11-06T10:00:00Z", "low")));
+        assert!(!matches("def-ent-002", Stream::SignIns, sign_in(0)));
+        assert!(matches("def-ent-003", Stream::Audits, fixtures::role_assigned("d-1", "2026-11-06T10:00:00Z", "Global Administrator")));
+        assert!(!matches("def-ent-003", Stream::Audits, fixtures::role_assigned("d-2", "2026-11-06T10:00:00Z", "Reports Reader")));
+        let mut eligible = fixtures::role_assigned("d-3", "2026-11-06T10:00:00Z", "Global Administrator");
+        eligible["activityDisplayName"] = "Add eligible member to role in PIM completed (permanent)".into();
+        assert!(matches("def-ent-003", Stream::Audits, eligible), "made eligible through Privileged Identity Management");
     }
 
     #[test]

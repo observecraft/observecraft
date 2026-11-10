@@ -367,6 +367,55 @@ const PACKS: Pack[] = [
     ],
   },
   {
+    id: 'azure-entra-id',
+    name: 'Microsoft Entra ID',
+    category: 'Identity',
+    platform: 'Azure',
+    logo: 'azure',
+    description: 'Watch who signs in to your Microsoft tenant: passwords guessed for one user, sign-ins Identity Protection rates high risk, and new Global Administrators.',
+    query: 'source:azure.activedirectory',
+    setup:
+      "Turn on Entra ID logs for an app registration in Integrations → Microsoft Azure (sign-ins need Entra ID P1, risk levels P2), or forward the tenant's diagnostic settings with source `azure.activedirectory`.",
+    rules: [
+      {
+        id: 'def-ent-001',
+        name: 'Entra ID sign-ins failing for one user',
+        message:
+          'Sign-ins to Microsoft Entra ID failed again and again for one user: someone guessing a password, or spraying one. Check the client addresses and whether a sign-in finally succeeded.',
+        query: 'source:azure.activedirectory @category:SignInLogs @properties.status.errorCode:* -@properties.status.errorCode:0',
+        groupBy: ['@properties.userPrincipalName'],
+        cases: [
+          ['a > 10', 'high', ''],
+          ['a > 4', 'medium', ''],
+        ],
+        window: 900,
+        tags: ['tactic:TA0006-credential-access', 'technique:T1110-brute-force'],
+      },
+      {
+        id: 'def-ent-002',
+        name: 'High-risk Entra ID sign-in',
+        message:
+          "Identity Protection rated a sign-in, or a detection for the user, high risk (an anonymous or malicious IP address, leaked credentials, unfamiliar sign-in properties). Confirm with the user and reset their credentials if it wasn't them.",
+        query:
+          'source:azure.activedirectory ((@category:SignInLogs (@properties.riskLevelDuringSignIn:high OR @properties.riskLevelAggregated:high)) OR (@category:UserRiskEvents @properties.riskLevel:high))',
+        groupBy: ['@properties.userPrincipalName'],
+        cases: [['a > 0', 'high', '']],
+        window: 300,
+        tags: ['tactic:TA0001-initial-access', 'technique:T1078.004-cloud-accounts'],
+      },
+      {
+        id: 'def-ent-003',
+        name: 'Entra ID Global Administrator role assigned',
+        message: "A principal was given Microsoft Entra ID's Global Administrator role (or made eligible for it): full control of the tenant. Confirm the change was approved.",
+        query: 'source:azure.activedirectory @category:AuditLogs @operationName:Add*member\\ to\\ role* @properties.targetResources:*Global\\ Administrator*',
+        groupBy: ['@properties.initiatedBy.user.userPrincipalName'],
+        cases: [['a > 0', 'high', '']],
+        window: 300,
+        tags: ['tactic:TA0004-privilege-escalation', 'technique:T1098.003-additional-cloud-roles'],
+      },
+    ],
+  },
+  {
     id: 'gcp-audit',
     name: 'Google Cloud Audit Logs',
     category: 'Cloud Audit',
