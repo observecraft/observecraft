@@ -1,0 +1,24 @@
+{
+  "users": [
+    {
+      "userId": "fc8d7d8c-0000-4000-8000-2c7df1510123",
+      "userName": "Riley Chen",
+      "email": "riley.chen@example.com",
+      "isAdmin": "False",
+      "userStatus": "Active",
+      "userType": "CompanyUser"
+    },
+    {
+      "userId": "4f5e6d7c-0000-4000-8000-000000000001",
+      "userName": "Avery Admin",
+      "email": "avery.admin@example.com",
+      "isAdmin": "True",
+      "userStatus": "Active",
+      "userType": "CompanyUser"
+    }
+  ],
+  "resultSetSize": "2",
+  "totalSetSize": "2",
+  "startPosition": "0",
+  "endPosition": "1"
+}

@@ -2278,6 +2278,144 @@
   {
     "entry": {
       "categories": [
+        "Log Collection",
+        "Security"
+      ],
+      "config": [
+        {
+          "default": "production",
+          "help": null,
+          "key": "environment",
+          "label": "Environment",
+          "options": [
+            {
+              "label": "Production (account.docusign.com)",
+              "value": "production"
+            },
+            {
+              "label": "Developer / demo (account-d.docusign.com)",
+              "value": "demo"
+            }
+          ],
+          "pattern": null,
+          "placeholder": null,
+          "required": false,
+          "secret": false,
+          "type": "select"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "integration_key",
+          "label": "Integration key",
+          "options": [],
+          "pattern": "[0-9a-fA-F-]{36}",
+          "placeholder": "0a1b2c3d-0000-4000-8000-123456789012",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "The organization administrator the app acts as (Apps and Keys → User ID).",
+          "key": "user_id",
+          "label": "User ID",
+          "options": [],
+          "pattern": "[0-9a-fA-F-]{36}",
+          "placeholder": null,
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": "One of the app's redirect URIs; the consent link returns there.",
+          "key": "redirect_uri",
+          "label": "Redirect URI",
+          "options": [],
+          "pattern": null,
+          "placeholder": "https://observecraft.example.com/",
+          "required": true,
+          "secret": false,
+          "type": "string"
+        },
+        {
+          "default": null,
+          "help": null,
+          "key": "private_key",
+          "label": "RSA private key",
+          "options": [],
+          "pattern": null,
+          "placeholder": "-----BEGIN RSA PRIVATE KEY-----",
+          "required": true,
+          "secret": true,
+          "type": "text"
+        }
+      ],
+      "dashboards": [],
+      "description": "The activity of a Docusign organization (envelopes, templates, accounts, users and logins) and Docusign Monitor's security alerts, as logs, read every five minutes from the Monitor API with the organization's own Docusign app.",
+      "docsUrl": "https://developers.docusign.com/docs/monitor-api/reference/",
+      "id": "docusign",
+      "kind": "package",
+      "links": [
+        {
+          "label": "Grant consent",
+          "url": "{{ 'https://' + tables.account[config.environment ?? 'production'] + '/oauth/auth?response_type=code&scope=signature%20impersonation&client_id='\n   + config.integration_key + '&redirect_uri=' + (config.redirect_uri | urlencode) }}"
+        },
+        {
+          "label": "Apps and keys",
+          "url": "https://admin.docusign.com/apps-and-keys"
+        }
+      ],
+      "logo": "docusign",
+      "monitors": [],
+      "name": "Docusign",
+      "oauth": null,
+      "page": null,
+      "pipeline": null,
+      "publisher": "ObserveCraft",
+      "push": null,
+      "setup": "Docusign Monitor (a paid add-on) must be enabled for the organization.\n\n1. In Docusign (**Settings → Apps and Keys**, as an organization administrator), **Add App and Integration Key**,\n   e.g. `ObserveCraft Monitor`. Copy the **integration key**.\n2. Under **Service Integration**, **Generate RSA** and copy the private key (Docusign shows it once).\n3. Add a **Redirect URI** to the app (any URL you control; Docusign only redirects there after consent), and enter\n   it below.\n4. Copy your **User ID** (the administrator's, on the same page): requests impersonate this user.\n5. Save the connection, then open **Grant consent** below as that user and accept: the app may then act for them\n   without a password (JWT grant). An organization administrator can instead grant consent for the whole\n   organization in Docusign Admin.\n6. For production accounts, the app must have passed Docusign's go-live review; demo (developer) accounts work at once.\n",
+      "source": "docusign",
+      "streams": [
+        {
+          "costs": false,
+          "defaultEnabled": true,
+          "description": "Every Monitor event as a log (source:docusign): activity_log is the event (object, action, accountId, userId, ipAddress, location, userAgent, data), user_info the user's name, type, status and whether they are an admin. Alerts (activity_log.object:Alert) take their severity as the log's status in the pipeline.",
+          "events": false,
+          "id": "monitor",
+          "incremental": "token",
+          "intervalSecs": 300,
+          "logs": true,
+          "metrics": [],
+          "name": "Activity and alerts"
+        }
+      ],
+      "testable": true,
+      "thirdParty": false,
+      "tiles": [
+        "docusign"
+      ],
+      "vendor": "Docusign",
+      "version": "1.0.0"
+    },
+    "mock": {
+      "config": {
+        "environment": "demo",
+        "integration_key": "0a1b2c3d-0000-4000-8000-123456789012",
+        "redirect_uri": "https://observecraft.example.com/",
+        "user_id": "4f5e6d7c-0000-4000-8000-000000000001"
+      },
+      "secrets": [
+        "private_key"
+      ],
+      "test": "Connected to Docusign Monitor"
+    },
+    "dashboards": []
+  },
+  {
+    "entry": {
+      "categories": [
         "Security",
         "SIEM",
         "Developer Tools",

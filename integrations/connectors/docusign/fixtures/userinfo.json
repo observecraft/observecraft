@@ -1,0 +1,19 @@
+{
+  "sub": "4f5e6d7c-0000-4000-8000-000000000001",
+  "name": "Avery Admin",
+  "email": "avery.admin@example.com",
+  "accounts": [
+    {
+      "account_id": "93a15559-0000-4000-8000-683ea233c123",
+      "is_default": true,
+      "account_name": "Example Shop",
+      "base_uri": "https://demo.docusign.net"
+    },
+    {
+      "account_id": "93a15559-0000-4000-8000-683ea233c999",
+      "is_default": false,
+      "account_name": "Example Shop EU",
+      "base_uri": "https://demo.docusign.net"
+    }
+  ]
+}

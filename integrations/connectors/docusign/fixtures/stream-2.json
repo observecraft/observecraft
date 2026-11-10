@@ -1,0 +1,84 @@
+{
+  "data": [
+    {
+      "eventId": "18f39c7c-0000-4000-8000-9aadcf98d003",
+      "timestamp": "2026-11-10T10:15:44.0000000Z",
+      "accountId": "93a15559-0000-4000-8000-683ea233c123",
+      "organizationId": "",
+      "userId": "4f5e6d7c-0000-4000-8000-000000000001",
+      "object": "Template",
+      "action": "Modified",
+      "source": "Web",
+      "ipAddress": "198.51.100.24",
+      "city": "Boston",
+      "state": "massachusetts",
+      "country": "united states",
+      "latitude": 42.36,
+      "longitude": -71.06,
+      "ipAddressLocation": {
+        "country": "united states",
+        "city": "Boston",
+        "state": "massachusetts",
+        "latitude": 42.36,
+        "longitude": -71.06
+      },
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+      "browser": "Chrome 130",
+      "os": "Windows 10",
+      "device": "Other",
+      "site": "DEMO",
+      "result": "",
+      "property": "",
+      "field": "",
+      "affectedUserId": "",
+      "referencedUserId": "",
+      "proxyStatus": "",
+      "proxyType": "",
+      "proxyLevel": "",
+      "data": {
+        "TemplateId": "2b9c0d1e-0000-4000-8000-000000000042"
+      }
+    },
+    {
+      "eventId": "18f39c7c-0000-4000-8000-9aadcf98d004",
+      "timestamp": "2026-11-10T11:30:00.0000000Z",
+      "accountId": "93a15559-0000-4000-8000-683ea233c123",
+      "organizationId": "",
+      "userId": "fc8d7d8c-0000-4000-8000-2c7df1510123",
+      "object": "Alert",
+      "action": "UnauthorizedIpAddress",
+      "source": "Web",
+      "ipAddress": "192.0.2.200",
+      "city": "unknown",
+      "state": "",
+      "country": "",
+      "latitude": 42.36,
+      "longitude": -71.06,
+      "ipAddressLocation": {
+        "country": "",
+        "city": "unknown",
+        "state": "",
+        "latitude": 42.36,
+        "longitude": -71.06
+      },
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+      "browser": "Chrome 130",
+      "os": "Windows 10",
+      "device": "Other",
+      "site": "DEMO",
+      "result": "",
+      "property": "",
+      "field": "",
+      "affectedUserId": "",
+      "referencedUserId": "",
+      "proxyStatus": "",
+      "proxyType": "",
+      "proxyLevel": "",
+      "data": {
+        "Severity": "High",
+        "AlertName": "Unauthorized IP address"
+      }
+    }
+  ],
+  "endCursor": "c3"
+}

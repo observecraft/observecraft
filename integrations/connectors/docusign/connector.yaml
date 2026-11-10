@@ -1,0 +1,209 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Docusign Monitor (https://developers.docusign.com/docs/monitor-api/): the organization's activity and security alerts
+# from the Monitor API's stream, shaped as the logs Datadog's Docusign integration sends (source:docusign;
+# activity_log = the Monitor event, user_info = the acting user from the eSignature API's users), so integrations-core's
+# pipeline, five dashboards and three monitors for the tile read them unchanged.
+# Datadog authorizes its own Docusign app; ObserveCraft has none, so the customer registers an app (an integration key)
+# in their own Docusign account and grants it consent once: requests then use the JWT grant, impersonating an
+# organization administrator. Users are looked up in the administrator's default account only.
+schema_version: 1
+id: docusign
+name: Docusign
+publisher: ObserveCraft
+vendor: Docusign
+description: >-
+  The activity of a Docusign organization (envelopes, templates, accounts, users and logins) and Docusign Monitor's
+  security alerts, as logs, read every five minutes from the Monitor API with the organization's own Docusign app.
+tiles: [docusign]
+categories: [Log Collection, Security]
+source: docusign
+docs_url: https://developers.docusign.com/docs/monitor-api/reference/
+setup: |
+  Docusign Monitor (a paid add-on) must be enabled for the organization.
+
+  1. In Docusign (**Settings → Apps and Keys**, as an organization administrator), **Add App and Integration Key**,
+     e.g. `ObserveCraft Monitor`. Copy the **integration key**.
+  2. Under **Service Integration**, **Generate RSA** and copy the private key (Docusign shows it once).
+  3. Add a **Redirect URI** to the app (any URL you control; Docusign only redirects there after consent), and enter
+     it below.
+  4. Copy your **User ID** (the administrator's, on the same page): requests impersonate this user.
+  5. Save the connection, then open **Grant consent** below as that user and accept: the app may then act for them
+     without a password (JWT grant). An organization administrator can instead grant consent for the whole
+     organization in Docusign Admin.
+  6. For production accounts, the app must have passed Docusign's go-live review; demo (developer) accounts work at once.
+links:
+  - label: Grant consent
+    url: >-
+      {{ 'https://' + tables.account[config.environment ?? 'production'] + '/oauth/auth?response_type=code&scope=signature%20impersonation&client_id='
+         + config.integration_key + '&redirect_uri=' + (config.redirect_uri | urlencode) }}
+  - { label: Apps and keys, url: "https://admin.docusign.com/apps-and-keys" }
+instance: "{{ config.integration_key }}"
+
+config:
+  - key: environment
+    label: Environment
+    type: select
+    default: production
+    options:
+      - { value: production, label: Production (account.docusign.com) }
+      - { value: demo, label: Developer / demo (account-d.docusign.com) }
+  - key: integration_key
+    label: Integration key
+    type: string
+    required: true
+    pattern: "[0-9a-fA-F-]{36}"
+    placeholder: 0a1b2c3d-0000-4000-8000-123456789012
+  - key: user_id
+    label: User ID
+    type: string
+    required: true
+    pattern: "[0-9a-fA-F-]{36}"
+    help: The organization administrator the app acts as (Apps and Keys → User ID).
+  - key: redirect_uri
+    label: Redirect URI
+    type: string
+    required: true
+    placeholder: https://observecraft.example.com/
+    help: One of the app's redirect URIs; the consent link returns there.
+  - key: private_key
+    label: RSA private key
+    type: text
+    secret: true
+    required: true
+    placeholder: "-----BEGIN RSA PRIVATE KEY-----"
+
+tables:
+  account: { production: account.docusign.com, demo: account-d.docusign.com }
+  lens: { production: "https://lens.docusign.net", demo: "https://lens-d.docusign.net" }
+
+auth:
+  kind: jwt_bearer
+  token_url: "{{ 'https://' + tables.account[config.environment ?? 'production'] + '/oauth/token' }}"
+  private_key: "{{ secrets.private_key }}"
+  claims:
+    iss: "{{ config.integration_key }}"
+    sub: "{{ config.user_id }}"
+    aud: "{{ tables.account[config.environment ?? 'production'] }}"
+  scopes: [signature, impersonation]
+
+errors:
+  - status: [400]
+    when: "{{ response.error == 'consent_required' }}"
+    kind: auth
+    message: The app has no consent to act for this user yet; open Grant consent as the user (or grant it for the organization in Docusign Admin)
+  - status: [400]
+    when: "{{ response.error in ['invalid_grant', 'invalid_client', 'no_valid_keys_or_signatures'] }}"
+    kind: auth
+    message: "Docusign refused the app's JWT ({{ response.error }}): check the integration key, the user ID and the RSA key"
+  - status: [401]
+    kind: auth
+    message: Docusign refused the access token
+  - status: [403]
+    kind: access_denied
+    message: The user can't read Docusign Monitor's data; Monitor must be enabled for the organization and the user be one of its administrators
+
+discover:
+  - name: account
+    request: { url: "{{ 'https://' + tables.account[config.environment ?? 'production'] + '/oauth/userinfo' }}" }
+    value: "{{ (response.accounts | where('is_default', true) | first) ?? (response.accounts | first) }}"
+    ttl: 6h
+
+streams:
+  - id: monitor
+    name: Activity and alerts
+    description: >-
+      Every Monitor event as a log (source:docusign): activity_log is the event (object, action, accountId, userId,
+      ipAddress, location, userAgent, data), user_info the user's name, type, status and whether they are an admin.
+      Alerts (activity_log.object:Alert) take their severity as the log's status in the pipeline.
+    interval: 5m
+    lookups:
+      - name: users
+        request:
+          url: "{{ discovery.account.base_uri + '/restapi/v2.1/accounts/' + discovery.account.account_id + '/users' }}"
+          query: { count: 100, start_position: "{{ page.offset }}" }
+        pagination: { kind: offset, size: 100, total: "{{ response.totalSetSize | int }}" }
+        records: "{{ response.users }}"
+        key: "{{ record.userId }}"
+        ttl: 1h
+    request:
+      url: "{{ tables.lens[config.environment ?? 'production'] + '/api/v2.0/datasets/monitor/stream' }}"
+      query: { cursor: "{{ page.cursor ?? cursor.token }}", limit: 2000 }
+    records: "{{ response.data }}"
+    # Caught up when the stream answers the cursor it was sent.
+    pagination:
+      kind: cursor
+      next: "{{ response.endCursor != (page.cursor ?? cursor.token) ? response.endCursor : null }}"
+    record_id: "{{ record.eventId }}"
+    incremental:
+      kind: token
+      next: "{{ response.endCursor }}"
+    vars:
+      user: "{{ lookups.users[record.userId] }}"
+    output:
+      logs:
+        message: >-
+          {{ record.object + ' ' + record.action + (' by ' + (vars.user.userName ?? record.userId) ?? '') + (' from ' + record.ipAddress ?? '') }}
+        date: "{{ record.timestamp }}"
+        attributes:
+          activity_log: "{{ record }}"
+          user_info:
+            user_name: "{{ vars.user.userName }}"
+            user_type: "{{ vars.user.userType }}"
+            is_admin: "{{ vars.user.isAdmin }}"
+            user_status: "{{ vars.user.userStatus }}"
+
+test:
+  request:
+    url: "{{ tables.lens[config.environment ?? 'production'] + '/api/v2.0/datasets/monitor/stream' }}"
+    query: { limit: 1 }
+  message: "Connected to Docusign Monitor as {{ config.user_id }}"
+
+mock:
+  config:
+    environment: demo
+    integration_key: 0a1b2c3d-0000-4000-8000-123456789012
+    user_id: 4f5e6d7c-0000-4000-8000-000000000001
+    redirect_uri: https://observecraft.example.com/
+  secrets:
+    private_key: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCoUpPbojJyq4q9
+      7T+DUuT5iuchSHR0efTueT1Fecwuc8+fRa0UZKZ39+mB9aW5q/D9Zhh50KWxb33e
+      gR8c47QDzaaveInciFWQeLjqpxbGjNERn5Zl18F7cre+yoznXgLepRGessM3A7ST
+      aAEc9dS84XBPkM5MLRci0kHG9rdiNOPvKOyrGqeJIIz9GxFrJTiUagzI6rKIXSY0
+      FjVcCOAGUu/UDRd9jdKRga+4x59aNOuTRwL4nlRL0fJcU5EHhq00392JhcCB35e4
+      G6NZkMiXEyAZG94WBvI6sv9KAzNqmohg9XZRRhtped0hCQMedu6r8HNQVuZBhScZ
+      agnfEAQFAgMBAAECggEAQNSdcmjEeXos0/4/CjuxSZQAdcdMY1hdyEQWH15MEFA2
+      1aemhEZH/8kSvSV6EUtyZIcgQjrktrS0jDC7ZQsm2Jgq7UbGApTYL+7veiGlGhA+
+      rkUDTnKNaRjEQM4O+0YwYMS/Rpqfqd7ZfDUAyMC+kYlbEqo5awmq8ZR+FT4NX9tS
+      +MGbq5wkn4Asc95lYj7+ixRUA91nIWq9mFNCXeyjh3JMtStVJEWiG/lfdzIhO3cX
+      GOfof3Abtve/1eDfe6OF9mnEplt/jivo4asu79tsjMjC5x5optXUt6z497yGQ9o3
+      3nWen/h1UKq89ej2EKkYU6XHzVlI8iKm+Q3g0vBCuQKBgQDdiLymrH48v2XRFsvx
+      VSQ3ILvRM2RFNzHmbLKiRAQ1TNIZPEj943KdZ+k45MT0Xu90ZhWF30psRv7dsXik
+      G+xqt3kqhp/eNY8KCeu3w5lzZCtH3fuvli5+7yn3/vtkYQAiU9yT4S5tesC2LiRf
+      c3Hx5ERKX1ZmJeJDLK0XLksm7wKBgQDCgoe7sDJACJ73VI/60YCPwuEiNQ/b5S4Z
+      T2w6iy25/1JD8ojzIL3G/FPkDMSoC2TB6/3P3OWIAWG6PyRMRMJihLS9b5OIgXaY
+      SwUOBFNqncRUxhiT3U7E+3qUevx4XJQiQZ3ky3/8N0wxL3svUyjB/Yt337rDIYr8
+      JXutK44kSwKBgFM3S/YoEXtsQijasV1EKEh1CVg6P84oP5xY9Hkzp4kGBF3qYVjN
+      mX47TEZM2RcamkRVHHyfNeuad557TeAHhTVJGkC5NVBZOhQBSgRLe1b3J7LlVefN
+      OEYCPPelVnWMYmqCqfb6vV/unnlQt+ULDqBYqLZvPZs9W9Lz80kj4KMNAoGBAJTm
+      y/W4ip9OejMovxfpbZugOiyvpjZWGZYyoM2oYhbzCA0QDBrjQ6Si4a3AwINMRZPW
+      jvSjS+tz81Zao/Tm5k/4+0vRsIVdZmZrd7ElSp5hrDyhcYswbe6J/WrRQ5j4dkZL
+      KQ5PYui3hFJa4Nh3tsnayPu5gAWFFhq0rxsALs5FAoGBAK/RImHV/BVLhYSyuW23
+      6uHSdA/mhfXWZHB7ej2gTIzjOASEl0QeCYJ4ima5srtwop5VlZwAQe4REHo82ECk
+      z9LrDZv9ogiRxDdXZz6esKj/5UE6m1FHXNK+gSdCCy4E9kAR4nq4Z+Kjc8oMkVO6
+      TGKzyHKtxtyomH7c/wPbgU52
+      -----END PRIVATE KEY-----
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://account-d.docusign.com/oauth/token", body_contains: "jwt-bearer", body: { access_token: ds-test-access-token, token_type: Bearer, expires_in: 3600 } }
+    - { url: "https://account-d.docusign.com/oauth/userinfo", file: fixtures/userinfo.json }
+    - { url: "https://demo.docusign.net/restapi/v2.1/accounts/93a15559-0000-4000-8000-683ea233c123/users", file: fixtures/users.json }
+    - { url: "https://lens-d.docusign.net/api/v2.0/datasets/monitor/stream", query: { cursor: "c2" }, file: fixtures/stream-2.json }
+    # Caught up: the first run's last page, then the rerun's only one.
+    - { url: "https://lens-d.docusign.net/api/v2.0/datasets/monitor/stream", query: { cursor: "c3" }, body: { data: [], endCursor: "c3" } }
+    - { url: "https://lens-d.docusign.net/api/v2.0/datasets/monitor/stream", query: { cursor: "c3" }, body: { data: [], endCursor: "c3" } }
+    - { url: "https://lens-d.docusign.net/api/v2.0/datasets/monitor/stream", file: fixtures/stream-1.json }
+  expect:
+    monitor: { records: 4, logs: 4, rerun: 0, golden: fixtures/monitor.expected.json }
+    test: { ok: true, message: "Connected to Docusign Monitor" }
