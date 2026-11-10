@@ -1,0 +1,172 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c484-4060-7f34-b751-b9e7bc6debb6"
+      },
+      "category": "credentials_failed",
+      "client": {
+        "app_name": "1Password Browser Extension",
+        "app_version": "81090003",
+        "ip_address": "198.51.100.12",
+        "os_name": "MacOSX",
+        "os_version": "15.1",
+        "platform_name": "Chrome",
+        "platform_version": "141.0"
+      },
+      "country": "RO",
+      "date": "2026-11-10T08:12:44Z",
+      "ddsource": "1password",
+      "details": null,
+      "evt": {
+        "name": "credentials_failed",
+        "outcome": "failure"
+      },
+      "host": "events.1password.com",
+      "location": {
+        "city": "Bucharest",
+        "country": "RO",
+        "latitude": 44.43,
+        "longitude": 26.1,
+        "region": "Bucuresti"
+      },
+      "message": "Sign-in credentials_failed for jordan.patel@example.com",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": "Bucharest",
+            "country": "RO",
+            "latitude": 44.43,
+            "longitude": 26.1,
+            "region": "Bucuresti"
+          },
+          "ip": "198.51.100.12"
+        }
+      },
+      "service": "signinattempts",
+      "session_uuid": "A5K6COGVRVEJXJW3XQZGS7VAMM",
+      "status": "warn",
+      "target_user": {
+        "email": "jordan.patel@example.com",
+        "name": "Jordan Patel",
+        "uuid": "IR7VJHJ36JHINBFAD7V2T5MP3E"
+      },
+      "timestamp": "2026-11-10T08:12:44Z",
+      "type": "password_secret_bad",
+      "usr": {
+        "email": "jordan.patel@example.com",
+        "id": "IR7VJHJ36JHINBFAD7V2T5MP3E",
+        "name": "Jordan Patel"
+      },
+      "uuid": "56YE2TYN2VFYRLNSHKPW5NVT5E"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c484-86b0-72b9-a9ad-8c3c98bd55b1"
+      },
+      "category": "success",
+      "client": {
+        "app_name": "1Password Browser Extension",
+        "ip_address": "198.51.100.12",
+        "platform_name": "Chrome"
+      },
+      "country": "RO",
+      "date": "2026-11-10T08:13:02Z",
+      "ddsource": "1password",
+      "evt": {
+        "name": "success",
+        "outcome": "success"
+      },
+      "host": "events.1password.com",
+      "location": {
+        "city": "Bucharest",
+        "country": "RO"
+      },
+      "message": "Sign-in success for jordan.patel@example.com",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": "Bucharest",
+            "country": "RO"
+          },
+          "ip": "198.51.100.12"
+        }
+      },
+      "service": "signinattempts",
+      "session_uuid": "B6L7DPHWSWFKYKY4YRUAT8WBNN",
+      "status": "info",
+      "target_user": {
+        "email": "jordan.patel@example.com",
+        "name": "Jordan Patel",
+        "uuid": "IR7VJHJ36JHINBFAD7V2T5MP3E"
+      },
+      "timestamp": "2026-11-10T08:13:02Z",
+      "type": "credentials_ok",
+      "usr": {
+        "email": "jordan.patel@example.com",
+        "id": "IR7VJHJ36JHINBFAD7V2T5MP3E",
+        "name": "Jordan Patel"
+      },
+      "uuid": "7HXF3UZP3WGZSMOTIQLX6OWU6F"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c50b-5e38-79fa-ae03-e4f2dda438ec"
+      },
+      "category": "mfa_failed",
+      "client": {
+        "app_name": "1Password for Web",
+        "ip_address": "203.0.113.77",
+        "platform_name": "Firefox"
+      },
+      "country": "NG",
+      "date": "2026-11-10T10:40:19Z",
+      "ddsource": "1password",
+      "evt": {
+        "name": "mfa_failed",
+        "outcome": "failure"
+      },
+      "host": "events.1password.com",
+      "location": {
+        "city": "Lagos",
+        "country": "NG"
+      },
+      "message": "Sign-in mfa_failed for sam.lee@example.com",
+      "network": {
+        "client": {
+          "geoip": {
+            "city": "Lagos",
+            "country": "NG"
+          },
+          "ip": "203.0.113.77"
+        }
+      },
+      "service": "signinattempts",
+      "session_uuid": "C7M8EQIXTXGLZLZ5ZSVBU9XCOO",
+      "status": "warn",
+      "target_user": {
+        "email": "sam.lee@example.com",
+        "name": "Sam Lee",
+        "uuid": "JS8WKIK47KIJOCGBE8W3U6NQ4F"
+      },
+      "timestamp": "2026-11-10T10:40:19Z",
+      "type": "mfa_wrong",
+      "usr": {
+        "email": "sam.lee@example.com",
+        "id": "JS8WKIK47KIJOCGBE8W3U6NQ4F",
+        "name": "Sam Lee"
+      },
+      "uuid": "8JYG4VAQ4XHATNPUJRMY7PXV7G"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794312000000
+      }
+    }
+  }
+}

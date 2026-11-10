@@ -1,0 +1,160 @@
+# yaml-language-server: $schema=../connector.schema.json
+# 1Password Events API (https://developer.1password.com/docs/events-api/reference/): a Business account's sign-in
+# attempts, item usages and audit events, as the logs Datadog's 1Password integration sends (source:1password, one
+# service per feed, 1Password's event fields at the top level). Datadog has no integrations-core tile for it, so the
+# package adds its own tile and dashboard.
+schema_version: 1
+id: 1password
+name: 1Password
+publisher: ObserveCraft
+vendor: 1Password
+description: >-
+  A 1Password Business account's sign-in attempts, item usages (fills, reveals, copies, shares) and audit events
+  (vault, group, user and policy changes) as logs, read every minute through the 1Password Events API.
+categories: [Security, SIEM, Log Collection]
+docs_url: https://developer.1password.com/docs/events-api/reference/
+setup: |
+  1. In 1Password, open **Integrations → Directory → Other** (Events Reporting) and add an integration named
+     `ObserveCraft`.
+  2. Create a bearer token with the events you want (sign-in attempts, item usage, audit events) and copy it.
+  3. Pick the region of your account's sign-in address (1password.com, ent.1password.com, 1password.ca or
+     1password.eu).
+links:
+  - { label: Events Reporting, url: "https://start.1password.com/integrations/directory" }
+instance: "{{ config.region }}"
+
+config:
+  - key: region
+    label: Account region
+    type: select
+    required: true
+    default: events.1password.com
+    options:
+      - { value: events.1password.com, label: "1password.com" }
+      - { value: events.ent.1password.com, label: "ent.1password.com (Enterprise)" }
+      - { value: events.1password.ca, label: "1password.ca" }
+      - { value: events.1password.eu, label: "1password.eu" }
+  - key: token
+    label: Events API token
+    type: string
+    secret: true
+    required: true
+    help: An Events Reporting integration's bearer token.
+
+auth:
+  kind: bearer
+  token: "{{ secrets.token }}"
+
+# 600 requests a minute and 30,000 an hour per token.
+rate_limit: { requests_per_minute: 120 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: 1Password refused the Events API token (revoked or expired)
+  - status: [403]
+    kind: access_denied
+    message: "The token isn't allowed this feed: create a token including it in the Events Reporting integration"
+
+streams:
+  - id: signinattempts
+    name: Sign-in attempts
+    description: >-
+      Every sign-in attempt as a log (service:signinattempts): evt.name is the category (success,
+      credentials_failed, mfa_failed, …), usr.* the target user, network.client.* the client's IP and location.
+      Failures are warnings.
+    request:
+      method: POST
+      url: "https://{{ config.region }}/api/v2/signinattempts"
+      # The first request of a window starts a cursor from its times; the following ones send only the cursor.
+      body: "{{ page.cursor ? {cursor: page.cursor} : {limit: 1000, start_time: window.start | rfc3339_s, end_time: window.end | rfc3339_s} }}"
+    records: "{{ response.items }}"
+    pagination: &pages { kind: cursor, next: "{{ response.has_more ? response.cursor : null }}" }
+    record_id: "{{ record.uuid }}"
+    incremental: &time { kind: time, record_time: "{{ record.timestamp }}", order: oldest_first, lookback: 1d, overlap: 2m }
+    output:
+      logs:
+        service: signinattempts
+        message: "Sign-in {{ record.category }} for {{ record.target_user.email ?? record.target_user.name ?? 'an unknown user' }}"
+        status: "{{ record.category == 'success' ? 'info' : 'warn' }}"
+        date: "{{ record.timestamp }}"
+        attributes: >-
+          {{ record + {
+               evt: {name: record.category, outcome: record.category == 'success' ? 'success' : 'failure'},
+               usr: {id: record.target_user.uuid, name: record.target_user.name, email: record.target_user.email},
+               network: {client: {ip: record.client.ip_address, geoip: record.location}}
+             } }}
+
+  - id: itemusages
+    name: Item usages
+    description: >-
+      Every use of an item in a shared vault as a log (service:itemusages): evt.name is the action (fill, reveal,
+      secure-copy, share, …), usr.* the user, with the vault and item ids.
+    request:
+      method: POST
+      url: "https://{{ config.region }}/api/v2/itemusages"
+      body: "{{ page.cursor ? {cursor: page.cursor} : {limit: 1000, start_time: window.start | rfc3339_s, end_time: window.end | rfc3339_s} }}"
+    records: "{{ response.items }}"
+    pagination: *pages
+    record_id: "{{ record.uuid }}"
+    incremental: *time
+    output:
+      logs:
+        service: itemusages
+        message: "{{ record.user.email ?? record.user.name }}: {{ record.action }} of item {{ record.item_uuid }} in vault {{ record.vault_uuid }}"
+        date: "{{ record.timestamp }}"
+        attributes: >-
+          {{ record + {
+               evt: {name: record.action},
+               usr: {id: record.user.uuid, name: record.user.name, email: record.user.email},
+               network: {client: {ip: record.client.ip_address, geoip: record.location}}
+             } }}
+
+  - id: auditevents
+    name: Audit events
+    description: >-
+      Every action of a team member on the account as a log (service:auditevents): evt.name is the action (create,
+      grant, revoke, suspend, …), with the object's type and id and the actor.
+    request:
+      method: POST
+      url: "https://{{ config.region }}/api/v2/auditevents"
+      body: "{{ page.cursor ? {cursor: page.cursor} : {limit: 1000, start_time: window.start | rfc3339_s, end_time: window.end | rfc3339_s} }}"
+    records: "{{ response.items }}"
+    pagination: *pages
+    record_id: "{{ record.uuid }}"
+    incremental: *time
+    output:
+      logs:
+        service: auditevents
+        message: "{{ record.actor_details.email ?? record.actor_uuid }}: {{ record.action }} {{ record.object_type }} {{ record.object_details.name ?? record.object_uuid }}"
+        status: "{{ record.action in ['delete', 'suspend', 'revoke', 'purge', 'disable', 'reauth'] ? 'warn' : 'info' }}"
+        date: "{{ record.timestamp }}"
+        attributes: >-
+          {{ record + {
+               evt: {name: record.object_type + '.' + record.action},
+               usr: {id: record.actor_uuid, name: record.actor_details.name, email: record.actor_details.email},
+               network: {client: {ip: record.session.ip, geoip: record.location}}
+             } }}
+
+test:
+  request: { url: "https://{{ config.region }}/api/v2/auth/introspect" }
+  message: "Connected: the token reads {{ response.features | join(', ') }}"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { region: events.1password.com }
+  secrets: { token: eyJhbGciOiJFUzI1NiIsImtpZCI6Im9jLXRlc3QifQ.test }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://events.1password.com/api/v2/signinattempts", body_contains: "c2lnbmluLTI", file: fixtures/signinattempts-2.json }
+    - { method: POST, url: "https://events.1password.com/api/v2/signinattempts", file: fixtures/signinattempts-1.json }
+    - { method: POST, url: "https://events.1password.com/api/v2/itemusages", file: fixtures/itemusages.json }
+    - { method: POST, url: "https://events.1password.com/api/v2/auditevents", file: fixtures/auditevents.json }
+    - { url: "https://events.1password.com/api/v2/auth/introspect", body: { uuid: "OK41XEGLRTH4YKO5YRTCPNX3IU", issued_at: "2026-10-01T09:00:00Z", features: [auditevents, itemusages, signinattempts], account_uuid: "M4E2SWNZAZFTRGQGDNS2E5A4MU" } }
+  expect:
+    signinattempts: { records: 3, logs: 3, rerun: 0, golden: fixtures/signinattempts.expected.json }
+    itemusages: { records: 2, logs: 2, rerun: 0, golden: fixtures/itemusages.expected.json }
+    auditevents: { records: 2, logs: 2, rerun: 0, golden: fixtures/auditevents.expected.json }
+    test: { ok: true, message: "auditevents, itemusages, signinattempts" }

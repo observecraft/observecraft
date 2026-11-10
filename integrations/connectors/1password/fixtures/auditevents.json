@@ -1,0 +1,16 @@
+{
+  "cursor": "YXVkaXQtMg", "has_more": false,
+  "items": [
+    { "uuid": "56YE2TYN2VFYRLNSHKPW5NVT5F", "timestamp": "2026-11-10T08:14:00Z", "actor_uuid": "GLF6WUEKS5CSNDJ2OG6TCZD3M4",
+      "actor_details": { "uuid": "GLF6WUEKS5CSNDJ2OG6TCZD3M4", "name": "Alex Morgan", "email": "alex.morgan@example.com" },
+      "action": "grant", "object_type": "vault", "object_uuid": "jaqxqf5qylslqiitnduawrndc5", "object_details": { "name": "Storefront production" },
+      "aux_id": 17, "aux_uuid": "IR7VJHJ36JHINBFAD7V2T5MP3E", "aux_info": "r",
+      "session": { "uuid": "ODOHXUYQCJBUJKRGZNNPBJURPE", "login_time": "2026-11-10T08:00:00Z", "device_uuid": "rqtd557fn2husnstp5nc66w2xa", "ip": "198.51.100.30" },
+      "location": { "country": "RO", "city": "Bucharest" } },
+    { "uuid": "67ZF3UZO3WGZSMOTIQLX6OWU6G", "timestamp": "2026-11-10T10:05:00Z", "actor_uuid": "GLF6WUEKS5CSNDJ2OG6TCZD3M4",
+      "actor_details": { "uuid": "GLF6WUEKS5CSNDJ2OG6TCZD3M4", "name": "Alex Morgan", "email": "alex.morgan@example.com" },
+      "action": "suspend", "object_type": "user", "object_uuid": "KT9XLJL58LJKPDHCF9X4V7ORGG", "object_details": { "name": "Casey Kim", "email": "casey.kim@example.com" },
+      "session": { "uuid": "ODOHXUYQCJBUJKRGZNNPBJURPE", "ip": "198.51.100.30" },
+      "location": { "country": "RO", "city": "Bucharest" } }
+  ]
+}
