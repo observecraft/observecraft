@@ -77,7 +77,8 @@ impl Log {
     pub fn peek(&self, path: &str) -> Option<std::borrow::Cow<'_, Value>> {
         use std::borrow::Cow;
         if path == "message" {
-            return Some(Cow::Owned(Value::from(self.message.as_str())));
+            // A parser's `message` attribute, else the log's message.
+            return Some(self.attrs.get("message").map_or_else(|| Cow::Owned(Value::from(self.message.as_str())), Cow::Borrowed));
         }
         if let Some(v) = lookup(&self.attrs, path) {
             return Some(Cow::Borrowed(v));
@@ -100,6 +101,23 @@ impl Log {
         }
         self.flat = None;
         set_in(&mut self.attrs, path, v);
+    }
+
+    /// Sets what a parser extracted: `message` is an attribute of that name, leaving the log's message as it is
+    /// (Datadog's engine does the same; a message remapper makes it the message).
+    pub fn set_parsed(&mut self, path: &str, v: Value) {
+        if path == "message" {
+            self.flat = None;
+            self.attrs.insert(path.to_string(), v);
+        } else {
+            self.set(path, v);
+        }
+    }
+
+    /// Removes a top-level attribute (not the log's message).
+    pub fn remove_attr(&mut self, key: &str) -> Option<Value> {
+        self.flat = None;
+        self.attrs.remove(key)
     }
 
     pub fn remove(&mut self, path: &str) -> Option<Value> {

@@ -74,7 +74,8 @@ class Log {
     this.s = s;
   }
   get(path: string): JsonValue | undefined {
-    if (path === 'message') return this.s.message;
+    // A parser's `message` attribute, else the log's message.
+    if (path === 'message') return Object.hasOwn(this.s.attributes, 'message') ? this.s.attributes.message : this.s.message;
     const v = lookup(this.s.attributes, path);
     if (v !== undefined) return v;
     if (path === 'service' || path === 'status' || path === 'host' || path === 'source') return this.s[path] || undefined;
@@ -83,6 +84,11 @@ class Log {
   set(path: string, v: JsonValue) {
     if (path === 'message') this.s.message = text(v);
     else setIn(this.s.attributes, path, v);
+  }
+  /** What a parser extracted: `message` is an attribute of that name, leaving the log's message (as Datadog's engine). */
+  setParsed(path: string, v: JsonValue) {
+    if (path === 'message') this.s.attributes.message = v;
+    else this.set(path, v);
   }
   remove(path: string) {
     if (path === 'message') this.s.message = '';
@@ -543,8 +549,8 @@ export function grokParse(rules: Rule[], input: string, nowMs: number): { rule: 
 
 function place(log: Log, values: [string, JsonValue][]) {
   for (const [path, v] of values) {
-    if (path) log.set(path, v);
-    else if (isObj(v)) for (const [k, x] of Object.entries(v)) log.set(k, x);
+    if (path) log.setParsed(path, v);
+    else if (isObj(v)) for (const [k, x] of Object.entries(v)) log.setParsed(k, x);
   }
 }
 
@@ -692,8 +698,11 @@ function compileStep(p: Processor, depth: number): Step | null {
       };
     case 'message-remapper':
       return (log) => {
-        const v = first(log, p.sources);
-        if (v !== undefined) log.s.message = text(v);
+        const source = p.sources.find((s) => log.get(s) !== undefined);
+        if (source === undefined) return;
+        log.s.message = text(log.get(source));
+        // A parsed `message` attribute became the message.
+        if (source === 'message') delete log.s.attributes.message;
       };
     case 'trace-id-remapper':
       return (log) => {

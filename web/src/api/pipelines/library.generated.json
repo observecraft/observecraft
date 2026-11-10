@@ -1,5 +1,58 @@
 [
   {
+    "id": "clickhouse",
+    "integration": "clickhouse",
+    "name": "ClickHouse",
+    "filter": "source:clickhouse",
+    "processors": [
+      {
+        "type": "grok-parser",
+        "name": "Parsing ClickHouse logs",
+        "enabled": true,
+        "source": "message",
+        "grok": {
+          "supportRules": "_date %{date(\"yyyy.MM.dd HH:mm:ss.SSSSSS\"):timestamp}\n_pid %{integer:pid}\n_level %{word:level}\n_service_common %{notSpace:clickhouse.service}\n_service_verbose %{regex(\".+?\"):clickhouse.service}\n_app \\(%{regex(\"[^)]+\"):clickhouse.application.id}\\)\n_uuid %{regex(\"[^}]*\")}\n",
+          "matchRules": "clickhouse %{_date} \\[ %{_pid} \\] \\{%{_uuid}\\} <%{_level}> (%{_service_common}( %{_app})?|%{_service_verbose}): %{data:message}\n"
+        },
+        "samples": [
+          "2025.09.01 13:39:22.975130 [ 81 ] {} <Warning> Application: Integrity check of the executable skipped because the reference checksum could not be read.",
+          "2025.09.01 14:09:28.195723 [ 1110 ] {} <Information> system.query_log (fedb888e-9036-4aa8-b24d-0e8bd6840a33) (MergerMutator): Selected 6 parts from 202509_1_84_17 to 202509_89_89_0. Merge selecting phase took: 0ms",
+          "2025.09.01 14:09:28.208450 [ 1355 ] {fedb888e-9036-4aa8-b24d-0e8bd6840a33::202509_1_89_18} <Information> system.query_log (fedb888e-9036-4aa8-b24d-0e8bd6840a33) (MergerMutator): Merged 6 parts: [202509_1_84_17, 202509_89_89_0] -> 202509_1_89_18"
+        ]
+      },
+      {
+        "type": "date-remapper",
+        "name": "Define `timestamp` as the official date of the log",
+        "enabled": true,
+        "sources": [
+          "timestamp"
+        ]
+      },
+      {
+        "type": "status-remapper",
+        "name": "Define `level` as the official status of the log",
+        "enabled": true,
+        "sources": [
+          "level"
+        ]
+      },
+      {
+        "type": "message-remapper",
+        "name": "Define `message` as the official message of the log",
+        "enabled": true,
+        "sources": [
+          "message"
+        ]
+      }
+    ],
+    "source": {
+      "repository": "DataDog/integrations-core",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
+      "path": "clickhouse/assets/logs/clickhouse.yaml",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
     "id": "coredns",
     "integration": "coredns",
     "name": "CoreDNS",
@@ -508,6 +561,93 @@
       "repository": "DataDog/integrations-core",
       "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "nginx_ingress_controller/assets/logs/nginx-ingress-controller.yaml",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "id": "pgbouncer",
+    "integration": "pgbouncer",
+    "name": "Pgbouncer",
+    "filter": "source:pgbouncer",
+    "processors": [
+      {
+        "type": "grok-parser",
+        "name": "Parsing Pgbouncer logs",
+        "enabled": true,
+        "source": "message",
+        "samples": [
+          "2019-06-13 11:37:29.314 12 LOG process up: pgbouncer 1.8.1, libevent 2.0.21-stable (epoll), adns: c-ares 1.10.0, tls: OpenSSL 1.0.2g  1 Mar 2016",
+          "2019-06-13 11:37:31.382 12 LOG C-0xa845e0: datadog_test/postgres@172.25.0.1:34884 login attempt: db=datadog_test user=postgres tls=no",
+          "2019-06-13 12:54:30.775 13049 WARNING C-0x5562e9990540: (nodb)/(nouser)@127.0.0.1:42798 Pooler Error: No such database: postgres",
+          "2019-06-13 11:38:29.250 12 LOG Stats: 0 xacts/s, 0 queries/s, in 0 B/s, out 0 B/s, xact 0 us, query 0 us wait time 52 us",
+          "2019-06-13 13:04:01.893 47 ERROR fill_defaults fail"
+        ],
+        "grok": {
+          "supportRules": "_date %{date(\"yyyy-MM-dd HH:mm:ss.SSS\"):date}\n_pid %{integer:logger.thread_id}\n_hostname %{ip:network.destination.ip}:%{integer:network.destination.port}\n_dbname db\\s*=\\s*%{notSpace:db.real_instance}\n_dbuser user\\s*=\\s*%{notSpace:db.real_user}\n_dbtls tls\\s*=\\s*%{word:db.tls}\n# PGBouncer v1.11+ date format\n_date_z %{date(\"yyyy-MM-dd HH:mm:ss.SSS z\"):date}\n",
+          "matchRules": "rule_stats %{_date}\\s%{_pid}\\s%{notSpace:level}\\sStats:\\s%{number:db.xact.rate}\\sxacts\\/s,\\s%{number:db.query.rate}\\squeries\\/s,\\sin\\s%{number:db.write.rate}\\sB\\/s,\\sout\\s%{number:db.read.rate}\\sB\\/s,\\sxact\\s%{number:db.xact.us}\\sus,\\squery\\s%{number:db.query.us}\\sus wait time\\s%{number:db.wait_time}\\sus\nrule_connection_login %{_date}\\s%{_pid}\\s%{notSpace:level}\\s%{notSpace}:\\s%{notSpace:db.instance}\\/%{notSpace:db.user}\\@%{_hostname}\\s%{data:error.message}:\\s%{_dbname}(\\s%{_dbuser})?(\\s%{_dbtls})?\nrule_connection_default %{_date}\\s%{_pid}\\s%{notSpace:level}\\s%{notSpace}:\\s%{notSpace:db.instance}\\/%{notSpace:db.user}\\@%{_hostname}\\s%{data:description}\nrule_default %{_date}\\s%{_pid}\\s%{notSpace:level}\\s%{data:description}\n\n# PGBouncer 1.11+ rules\nrule_stats_2 %{_date_z}\\s\\[%{_pid}\\]\\s%{notSpace:level}\\sStats:\\s%{number:db.xact.rate}\\sxacts\\/s,\\s%{number:db.query.rate}\\squeries\\/s,\\sin\\s%{number:db.write.rate}\\sB\\/s,\\sout\\s%{number:db.read.rate}\\sB\\/s,\\sxact\\s%{number:db.xact.us}\\sus,\\squery\\s%{number:db.query.us}\\sus\\swait time\\s%{number:db.wait_time}\\sus\nrule_connection_login_2 %{_date_z}\\s\\[%{_pid}\\]\\s%{notSpace:level}\\s%{notSpace}:\\s%{notSpace:db.instance}\\/%{notSpace:db.user}\\@%{_hostname}\\s%{data:error.message}:\\s%{_dbname}(\\s%{_dbuser})?(\\s%{_dbtls})?\nrule_connection_default_2 %{_date_z}\\s\\[%{_pid}\\]\\s%{notSpace:level}\\s%{notSpace}:\\s%{notSpace:db.instance}\\/%{notSpace:db.user}\\@%{_hostname}\\s%{data:description}\nrule_default_2 %{_date_z}\\s\\[%{_pid}\\]\\s%{notSpace:level}\\s%{data:description}\n\n# Extra samples:\n# 2019-06-13 11:37:29.313 12 LOG listening on 0.0.0.0:6432\n\n# 2019-06-13 11:37:31.382 12 LOG C-0xa845e0: (nodb)/(nouser)@172.25.0.1:34884 registered new auto-database: db = datadog_test\n\n# 2019-06-13 11:37:31.382 12 LOG C-0xa845e0: datadog_test/postgres@172.25.0.1:34884 login attempt: db=datadog_test user=postgres tls=no\n\n# 2019-06-13 12:54:30.775 13049 WARNING C-0x5562e9990540: (nodb)/(nouser)@127.0.0.1:42798 Pooler Error: No such database: postgres\n\n# 2019-06-13 11:38:29.250 12 LOG Stats: 0 xacts/s, 0 queries/s, in 0 B/s, out 0 B/s, xact 0 us, query 0 us wait time 52 us\n\n# 2019-06-13 13:04:01.893 47 ERROR fill_defaults fail\n\n# PGBouncer 1.11+ samples:\n# 2019-06-13 11:37:29.314 UTC [12] LOG process up: pgbouncer 1.8.1, libevent 2.0.21-stable (epoll), adns: c-ares 1.10.0, tls: OpenSSL 1.0.2g  1 Mar 2016\n\n# 2019-06-13 11:37:31.382 UTC [12] LOG C-0xa845e0: datadog_test/postgres@172.25.0.1:34884 login attempt: db=datadog_test user=postgres tls=no\n\n# 2019-06-13 12:54:30.775 UTC [13049] WARNING C-0x5562e9990540: (nodb)/(nouser)@127.0.0.1:42798 Pooler Error: No such database: postgres\n\n# 2021-03-02 22:03:52.934 UTC [1] LOG stats: 51 xacts/s, 51 queries/s, in 14276 B/s, out 10695 B/s, xact 1209 us, query 1209 us, wait 8 us\n\n# 2019-06-13 13:04:01.893 UTC [47] ERROR fill_defaults fail\n\n# 2019-06-13 11:37:29.313 UTC [12] LOG listening on 0.0.0.0:6432\n\n# 2019-06-13 11:37:31.382 UTC [12] LOG C-0xa845e0: (nodb)/(nouser)@172.25.0.1:34884 registered new auto-database: db = datadog_test\n"
+        }
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `db.real_instance` to `db.instance`",
+        "enabled": true,
+        "sources": [
+          "db.real_instance"
+        ],
+        "target": "db.instance",
+        "preserveSource": false,
+        "overrideOnConflict": true,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "attribute-remapper",
+        "name": "Map `db.real_user` to `db.user`",
+        "enabled": true,
+        "sources": [
+          "db.real_user"
+        ],
+        "target": "db.user",
+        "preserveSource": false,
+        "overrideOnConflict": true,
+        "sourceType": "attribute",
+        "targetType": "attribute"
+      },
+      {
+        "type": "category-processor",
+        "name": "Set the severity level",
+        "enabled": true,
+        "categories": [
+          {
+            "filter": {
+              "query": "@level:\"LOG\""
+            },
+            "name": "INFO"
+          }
+        ],
+        "target": "level"
+      },
+      {
+        "type": "status-remapper",
+        "name": "Define `level` as the official status of the log",
+        "enabled": true,
+        "sources": [
+          "level"
+        ]
+      },
+      {
+        "type": "date-remapper",
+        "name": "Define `date` as the official date of the log",
+        "enabled": true,
+        "sources": [
+          "date"
+        ]
+      }
+    ],
+    "source": {
+      "repository": "DataDog/integrations-core",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
+      "path": "pgbouncer/assets/logs/pgbouncer.yaml",
       "license": "BSD-3-Clause"
     }
   },

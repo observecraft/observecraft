@@ -303,6 +303,84 @@ mod tests {
         assert_eq!((log.get("ide_shepherd.activity_name"), log.get("ide_shepherd.class_name"), log.timestamp_ms), (Some(json!("Update")), Some(json!("Application Security Posture Finding")), Some(1_769_418_941_951)));
     }
 
+    /// The leaves of an expected result's attributes, by dotted path.
+    fn leaves(prefix: &str, v: &Value, out: &mut Vec<(String, Value)>) {
+        match v.as_object() {
+            Some(o) if !o.is_empty() => {
+                for (k, v) in o {
+                    leaves(&if prefix.is_empty() { k.clone() } else { format!("{prefix}.{k}") }, v, out);
+                }
+            }
+            _ => out.push((prefix.to_string(), v.clone())),
+        }
+    }
+
+    /// Equal as Datadog's test results compare them: numbers by value (`12` and `12.0`).
+    fn same(a: &Value, b: &Value) -> bool {
+        match (a.as_f64(), b.as_f64()) {
+            (Some(x), Some(y)) => (x - y).abs() < 1e-6 * x.abs().max(1.0),
+            _ => match (a, b) {
+                (Value::Array(x), Value::Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(x, y)| same(x, y)),
+                _ => a == b,
+            },
+        }
+    }
+
+    /// Runs every sample of integrations-core's own tests of an integration pipeline (`assets/logs/<name>_tests.yaml`,
+    /// BSD-3-Clause, vendored in `tests/fixtures/pipelines` with its LICENSE) through ours, a raw line of `source`
+    /// as the Agent tails it, and lists how the result differs from the one Datadog's engine gives: the attributes,
+    /// the message, the status (ours: error, warn, info, debug) and the date (when the sample's has a year).
+    fn upstream_differences(id: &str, source: &str, yaml: &str) -> Vec<String> {
+        let doc: serde_yaml_ng::Value = serde_yaml_ng::from_str(yaml).unwrap();
+        let doc: Value = serde_json::to_value(doc).unwrap();
+        let mut out = Vec::new();
+        let tests = doc["tests"].as_array().unwrap();
+        assert!(tests.len() >= 3, "{id}: {} samples", tests.len());
+        for (i, t) in tests.iter().enumerate() {
+            let sample = t["sample"].as_str().map(str::to_string).unwrap_or_else(|| t["sample"].to_string());
+            let log = run(id, source, &sample);
+            let r = &t["result"];
+            let mut expected = Vec::new();
+            leaves("", &r["custom"], &mut expected);
+            // Datadog's harness reads a date without a year in 1970; ours, in the current year.
+            let yearless = r["timestamp"].as_i64().filter(|ms| *ms < 946_684_800_000);
+            for (path, want) in expected.into_iter().filter(|(_, v)| yearless.is_none() || v.as_i64() != yearless) {
+                let got = log.get(&path).unwrap_or(Value::Null);
+                if !same(&got, &want) {
+                    out.push(format!("#{i} @{path}: {got} instead of {want}"));
+                }
+            }
+            if let Some(want) = r["message"].as_str() {
+                if log.message != want {
+                    out.push(format!("#{i} message: {:?} instead of {want:?}", log.message));
+                }
+            }
+            if let Some(want) = r["status"].as_str() {
+                if log.status != super::super::processors::status_of(&Value::from(want)) {
+                    out.push(format!("#{i} status: {} instead of {want}", log.status));
+                }
+            }
+            if let Some(want) = r["timestamp"].as_i64().filter(|ms| *ms > 946_684_800_000) {
+                if log.timestamp_ms != Some(want) {
+                    out.push(format!("#{i} timestamp: {:?} instead of {want}", log.timestamp_ms));
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn datastore_pipelines_give_integrations_cores_results() {
+        for (id, source, yaml) in [
+            ("postgres", "postgresql", include_str!("../../tests/fixtures/pipelines/postgresql_tests.yaml")),
+            ("pgbouncer", "pgbouncer", include_str!("../../tests/fixtures/pipelines/pgbouncer_tests.yaml")),
+            ("redisdb", "redis", include_str!("../../tests/fixtures/pipelines/redis_tests.yaml")),
+            ("clickhouse", "clickhouse", include_str!("../../tests/fixtures/pipelines/clickhouse_tests.yaml")),
+        ] {
+            assert_eq!(upstream_differences(id, source, yaml), Vec::<String>::new(), "{id}");
+        }
+    }
+
     #[test]
     fn google_workspace_activities_get_categories_and_the_pollers_statuses() {
         use crate::google_workspace::{fixtures, logs::logs_of};
@@ -407,17 +485,20 @@ mod tests {
     #[test]
     fn redis_and_etcd_statuses() {
         // Redis marks severities with a symbol: '#' is a warning.
-        let log = run("redisdb", "redis", "1:M 25 Oct 2026 12:59:58.000 # WARNING overcommit_memory is set to 0");
-        assert_eq!((log.status.as_str(), log.message.as_str()), ("warn", "WARNING overcommit_memory is set to 0"));
+        // The parsed text is the `message` attribute; the log's message stays the line, as Datadog's engine leaves it.
+        let line = "1:M 25 Oct 2026 12:59:58.000 # WARNING overcommit_memory is set to 0";
+        let log = run("redisdb", "redis", line);
+        assert_eq!((log.status.as_str(), log.message.as_str()), ("warn", line));
+        assert_eq!(log.attrs.get("message"), Some(&serde_json::json!("WARNING overcommit_memory is set to 0")));
         let log = run("redisdb", "redis", "1:M 25 Oct 2026 12:59:58.000 * Ready to accept connections");
         assert_eq!(log.status, "info");
         let log = run("etcd", "etcd", "2026-10-25 12:59:58.123456 E | rafthttp: failed to dial peer");
-        assert_eq!((log.status.as_str(), log.message.as_str()), ("error", "failed to dial peer"));
-        assert_eq!(log.get("package"), Some(serde_json::json!("rafthttp")));
+        assert_eq!((log.status.as_str(), log.message.as_str()), ("error", "failed to dial peer"), "its message remapper takes the parsed `message`");
+        assert_eq!((log.get("package"), log.attrs.get("message")), (Some(serde_json::json!("rafthttp")), None));
     }
 
     /// The pipelines the mock offers too: every sample of theirs parses.
-    const CURATED: [&str; 8] = ["coredns", "etcd", "kube_scheduler", "mysql", "nginx", "nginx_ingress_controller", "postgres", "redisdb"];
+    const CURATED: [&str; 10] = ["clickhouse", "coredns", "etcd", "kube_scheduler", "mysql", "nginx", "nginx_ingress_controller", "pgbouncer", "postgres", "redisdb"];
 
     #[test]
     fn integration_pipelines_compile_and_parse_their_samples() {

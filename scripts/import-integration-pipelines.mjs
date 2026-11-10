@@ -9,7 +9,7 @@ import { EXTRAS_REVISION, PINNED_REVISION } from './import-integration-dashboard
 const yaml = createRequire(new URL('../web/package.json', import.meta.url))('js-yaml');
 
 /** The pipelines the in-browser mock offers (web/src/api/pipelines/library.generated.json); the server offers them all. */
-export const MOCK_PIPELINES = ['coredns', 'etcd', 'kube_scheduler', 'mysql', 'nginx', 'nginx_ingress_controller', 'postgres', 'redisdb'];
+export const MOCK_PIPELINES = ['clickhouse', 'coredns', 'etcd', 'kube_scheduler', 'mysql', 'nginx', 'nginx_ingress_controller', 'pgbouncer', 'postgres', 'redisdb'];
 
 /** OCSF sub-pipelines map logs onto Datadog's security schema (schema-processor), which we don't have. */
 const isOcsf = (p) => p.type === 'pipeline' && p.ocsf?.isOcsf === true;

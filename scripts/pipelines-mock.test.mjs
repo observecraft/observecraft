@@ -145,3 +145,16 @@ test('the mock runs the imported nginx pipeline on an access log', () => {
   assert.equal(out.log.status, 'error');
   assert.equal(out.log.date, '2026-10-25T12:59:58.000Z');
 });
+
+test('a parsed `message` is an attribute; a message remapper makes it the message (as Datadog’s engine)', () => {
+  const redis = mock.libraryPipeline('redisdb');
+  const line = '1:M 25 Oct 2026 12:59:58.000 # WARNING overcommit_memory is set to 0';
+  const out = mock.testPipeline({ filter: redis.filter, processors: redis.processors, log: sample(line, {}, { source: 'redis' }) });
+  assert.equal(out.log.message, line);
+  assert.equal(out.log.attributes.message, 'WARNING overcommit_memory is set to 0');
+  assert.equal(out.log.status, 'warn');
+  const etcd = mock.libraryPipeline('etcd');
+  const parsed = mock.testPipeline({ filter: etcd.filter, processors: etcd.processors, log: sample('2026-10-25 12:59:58.123456 E | rafthttp: failed to dial peer', {}, { source: 'etcd' }) });
+  assert.equal(parsed.log.message, 'failed to dial peer');
+  assert.equal(parsed.log.attributes.message, undefined);
+});
