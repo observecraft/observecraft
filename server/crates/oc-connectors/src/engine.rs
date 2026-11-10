@@ -842,6 +842,20 @@ pub async fn run(m: &Manifest, stream: &Stream, conn: &Connection, state: Stream
     Ok(out)
 }
 
+/// Whether the stream's `truncated` says the API cut this page short.
+fn cut_short(stream: &Stream, scope: &Map<String, Value>, page: &Page) -> bool {
+    let Some(t) = stream.truncated.as_deref().and_then(|t| Template::parse(t).ok()) else { return false };
+    let mut s = scope.clone();
+    s.insert("response".into(), page.response.clone());
+    s.insert("headers".into(), page.headers.clone());
+    s.insert("records".into(), Value::Array(page.records.clone()));
+    truthy(&t.render(&s))
+}
+
+fn truncated_issue() -> Issue {
+    Issue::other("The API's answer was truncated: some records may be missing (it answers fewer than there are; read more often)")
+}
+
 /// The issue of a page after the first: kept as the run's warning, the progress saved.
 fn keep(out: &mut Run, issue: Issue) {
     if out.warning.is_none() {
@@ -886,6 +900,9 @@ async fn partition(cx: &mut Cx<'_>, stream: &Stream, emit: &Emit<'_>, scope: Map
                     }
                 };
                 pages += 1;
+                if cut_short(stream, &s, &page) {
+                    keep(out, truncated_issue());
+                }
                 if let Some(t) = &token_next {
                     let mut ps = s.clone();
                     ps.insert("response".into(), page.response.clone());
@@ -924,6 +941,10 @@ async fn partition(cx: &mut Cx<'_>, stream: &Stream, emit: &Emit<'_>, scope: Map
             }
             if pager.capped {
                 keep(out, Issue::other("more records than the API pages through: the rest were skipped"));
+            }
+            // A list read again every run, cut at max_pages: its rest is never read.
+            if !pager.done && pages >= max_pages && token_next.is_none() && !stop_at_seen {
+                keep(out, Issue::other(format!("More than {max_pages} pages: the rest was skipped (raise the stream's max_pages)")));
             }
             if let Incremental::NewRecords { max_seen, .. } = kind {
                 let cap = max_seen.map_or(MAX_SEEN, |n| n as usize);
@@ -993,6 +1014,7 @@ async fn time_windows(cx: &mut Cx<'_>, stream: &Stream, req: &Request, tc: &crat
             };
             first = false;
             pages_left -= 1;
+            let page_meta = Page { response: page.response.clone(), headers: page.headers.clone(), records: if stream.truncated.is_some() { page.records.clone() } else { vec![] } };
             let early = std::cell::Cell::new(false);
             let listed = before_expand(
                 emit.f,
@@ -1031,6 +1053,9 @@ async fn time_windows(cx: &mut Cx<'_>, stream: &Stream, req: &Request, tc: &crat
                 }
                 part.seen.push(Seen { id: h, t: rec.time });
                 emit.emit(&rec, out);
+            }
+            if !older && cut_short(stream, &s, &page_meta) {
+                keep(out, truncated_issue());
             }
             // Newest first: a record older than the window means the rest of the list is too.
             if older && tc.order == Order::NewestFirst {

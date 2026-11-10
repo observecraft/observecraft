@@ -316,6 +316,7 @@ impl<'a> Checker<'a> {
             self.opt(&format!("{at}.expand.records"), &x.records, &answer);
         }
         let record: Vec<&str> = RECORD_EXTRA.iter().copied().filter(|r| *r != "vars" && *r != "entry").collect();
+        self.opt(&format!("{at}.truncated"), &s.truncated, ANSWER_EXTRA);
         self.opt(&format!("{at}.record_id"), &s.record_id, &record);
         self.opt(&format!("{at}.filter"), &s.filter, &record);
         self.map(&format!("{at}.vars"), &s.vars, &record);

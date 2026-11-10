@@ -366,6 +366,11 @@ rate_limit: { requests_per_minute: 60 }        # or min_interval: 2s
 budget: { requests: 10000, per: day }          # hour, day, month; the manifest's for the connection, a stream's for itself
 ```
 
+**Truncated runs** are warnings on the stream's status: a list read again every run (`none`, `new_records`) with more
+pages than `max_pages`, and an answer the stream's `truncated` template says was cut short (`truncated: "{{ records |
+len >= 10000 }}"` for an API answering its newest 10,000 records) that doesn't reach back past the window. Time
+windows out of pages aren't truncated: they carry on next run.
+
 A rule naming a 2xx status (`status: [200]`) with a `when` reads successful answers too: GraphQL APIs answering
 errors with 200 (`when: "{{ response.errors | len > 0 }}"`).
 

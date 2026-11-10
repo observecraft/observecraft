@@ -2786,7 +2786,7 @@
           "type": "array"
         },
         "max_pages": {
-          "description": "Pages read per run (default 20); a time window not read to its end carries on next run.",
+          "description": "Pages read per run (default 20); a time window not read to its end carries on next run. A list read again\nevery run (`none`, `new_records`) that has more pages warns that the rest was skipped.",
           "format": "int32",
           "minimum": 0,
           "type": [
@@ -2837,6 +2837,13 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "truncated": {
+          "description": "Template over a page (`response`, `headers`, `records`): true when the API cut its answer short (a list capped\nat its newest 10,000 records). The run then warns that records may be missing, unless the page already reaches\npast the window (older records: nothing missed).",
+          "type": [
+            "string",
+            "null"
           ]
         },
         "vars": {

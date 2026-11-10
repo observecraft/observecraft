@@ -664,9 +664,15 @@ pub struct Stream {
     /// What a run reads again and what it skips.
     #[serde(default)]
     pub incremental: Incremental,
-    /// Pages read per run (default 20); a time window not read to its end carries on next run.
+    /// Pages read per run (default 20); a time window not read to its end carries on next run. A list read again
+    /// every run (`none`, `new_records`) that has more pages warns that the rest was skipped.
     #[serde(default)]
     pub max_pages: Option<u32>,
+    /// Template over a page (`response`, `headers`, `records`): true when the API cut its answer short (a list capped
+    /// at its newest 10,000 records). The run then warns that records may be missing, unless the page already reaches
+    /// past the window (older records: nothing missed).
+    #[serde(default)]
+    pub truncated: Option<String>,
     /// Replaces the manifest's rate limit.
     #[serde(default)]
     pub rate_limit: Option<RateLimit>,

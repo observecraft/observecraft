@@ -61,6 +61,8 @@ streams:
     # NetBird answers its newest 10,000 events in one list, with no time filter: a run keeps those since its window.
     request:
       url: "{{ config.base_url }}/api/events/audit"
+    # A full list may not reach back to the last run: the run then warns that events may be missing.
+    truncated: "{{ records | len >= 10000 }}"
     record_id: "{{ record.id | str }}"
     incremental:
       kind: time

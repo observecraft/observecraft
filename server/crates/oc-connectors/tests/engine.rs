@@ -829,3 +829,38 @@ async fn the_consent_page_and_the_code_exchange_carry_pkce() {
     let req = transport.requests.lock().unwrap()[0].clone();
     assert_eq!(String::from_utf8(req.body.unwrap()).unwrap(), format!("grant_type=authorization_code&code=the-code&redirect_uri=https%3A%2F%2Foc.example.com%2Fcb&code_verifier={verifier}"));
 }
+
+// ---------------------------------------------------------------- truncated runs
+
+#[tokio::test]
+async fn a_capped_answer_that_doesnt_reach_the_window_warns() {
+    // The API answers its newest 2 records only (`truncated` when the list is full).
+    let f = fixture(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/audit' }\n    truncated: '{{ records | len >= 2 }}'\n    record_id: '{{ record.id }}'\n    incremental: { kind: time, record_time: '{{ record.time }}', order: newest_first, lookback: 1h }\n"),
+        mock(&format!(
+            "    - {{ url: 'https://api.example.com/v1/audit', body: {} }}\n    - {{ url: 'https://api.example.com/v1/audit', body: {} }}",
+            json!([{ "id": "e2", "time": NOW - MIN }, { "id": "e1", "time": NOW - 2 * MIN }]),
+            json!([{ "id": "e3", "time": NOW }, { "id": "e2", "time": NOW - MIN }])
+        ))
+    ));
+    let first = f.run(StreamState::default(), NOW).await.unwrap();
+    assert!(first.warning.as_ref().is_some_and(|w| w.message.contains("truncated")), "{:?}", first.warning);
+    // The next answer reaches back past the cursor (e2 was read): nothing missed, no warning.
+    let second = f.run(first.state.clone(), NOW + 30_000).await.unwrap();
+    assert_eq!(ids(&second), ["e3"]);
+    assert!(second.warning.is_none(), "{:?}", second.warning);
+}
+
+#[tokio::test]
+async fn a_snapshot_with_more_pages_than_it_reads_warns() {
+    let page = |p: &str, next: &str| format!("    - {{ url: 'https://api.example.com/v1/peers', query: {{ p: '{p}' }}, body: {{ items: [{{ id: p{p} }}], next: {next} }} }}");
+    let f = fixture(&format!(
+        "{}{}",
+        stream("    request: { url: '{{ config.base_url }}/v1/peers', query: { p: '{{ page.cursor ?? 1 }}' } }\n    records: '{{ response.items }}'\n    pagination: { kind: cursor, next: '{{ response.next }}' }\n    max_pages: 2\n"),
+        mock(&[page("1", "'2'"), page("2", "'3'"), page("3", "null")].join("\n"))
+    ));
+    let run = f.run(StreamState::default(), NOW).await.unwrap();
+    assert_eq!(ids(&run), ["p1", "p2"]);
+    assert!(run.warning.is_some_and(|w| w.message.contains("max_pages")));
+}
