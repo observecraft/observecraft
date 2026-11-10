@@ -710,8 +710,10 @@ pub fn to_ms_in(v: &Value, tz: Option<Zone>) -> Option<i64> {
                     return local_ms(t, tz);
                 }
             }
-            if let Ok(t) = chrono::DateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f %z") {
-                return Some(t.timestamp_millis());
+            for fmt in ["%Y-%m-%d %H:%M:%S%.f %z", "%Y-%m-%dT%H:%M:%S%.f%z"] {
+                if let Ok(t) = chrono::DateTime::parse_from_str(s, fmt) {
+                    return Some(t.timestamp_millis());
+                }
             }
             if let Ok(d) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
                 return d.and_hms_opt(0, 0, 0).and_then(|t| local_ms(t, tz));
@@ -1049,6 +1051,9 @@ mod tests {
             (json!(1_794_301_079_641i64), 1_794_301_079_641),
             (json!("1794301079641000"), 1_794_301_079_641),
             (json!("Tue, 10 Nov 2026 08:57:59 +0000"), 1_794_301_079_000),
+            // ISO 8601's basic offset, without a colon (Mimecast).
+            (json!("2026-11-10T10:57:59+0200"), 1_794_301_079_000),
+            (json!("2026-11-10T08:57:59.641+0000"), 1_794_301_079_641),
         ] {
             assert_eq!(to_ms(&text), Some(ms), "{text}");
         }
