@@ -1,0 +1,102 @@
+{
+ "resultSetMetaData": {
+  "numRows": 2,
+  "format": "jsonv2",
+  "partitionInfo": [
+   {
+    "rowCount": 2
+   }
+  ],
+  "rowType": [
+   {
+    "name": "EVENT_ID",
+    "type": "text"
+   },
+   {
+    "name": "EVENT_TIMESTAMP",
+    "type": "text"
+   },
+   {
+    "name": "EVENT_TYPE",
+    "type": "text"
+   },
+   {
+    "name": "USER_NAME",
+    "type": "text"
+   },
+   {
+    "name": "CLIENT_IP",
+    "type": "text"
+   },
+   {
+    "name": "REPORTED_CLIENT_TYPE",
+    "type": "text"
+   },
+   {
+    "name": "REPORTED_CLIENT_VERSION",
+    "type": "text"
+   },
+   {
+    "name": "FIRST_AUTHENTICATION_FACTOR",
+    "type": "text"
+   },
+   {
+    "name": "SECOND_AUTHENTICATION_FACTOR",
+    "type": "text"
+   },
+   {
+    "name": "IS_SUCCESS",
+    "type": "text"
+   },
+   {
+    "name": "ERROR_CODE",
+    "type": "text"
+   },
+   {
+    "name": "ERROR_MESSAGE",
+    "type": "text"
+   },
+   {
+    "name": "CONNECTION",
+    "type": "text"
+   }
+  ]
+ },
+ "data": [
+  [
+   "1234567890123",
+   "2026-11-10T08:12:00.000+00:00",
+   "LOGIN",
+   "JORDAN_PATEL",
+   "198.51.100.7",
+   "SNOWFLAKE_UI",
+   "",
+   "PASSWORD",
+   "OKTA_VERIFY",
+   "YES",
+   null,
+   null,
+   null
+  ],
+  [
+   "1234567890124",
+   "2026-11-10T09:01:30.000+00:00",
+   "LOGIN",
+   "SAM_LEE",
+   "203.0.113.77",
+   "PYTHON_DRIVER",
+   "3.12.2",
+   "PASSWORD",
+   null,
+   "NO",
+   "390100",
+   "INCORRECT_USERNAME_PASSWORD",
+   null
+  ]
+ ],
+ "code": "090001",
+ "statementStatusUrl": "/api/v2/statements/01b8a2c4-0000-1a2b-0000-00000000abcd",
+ "statementHandle": "01b8a2c4-0000-1a2b-0000-00000000abcd",
+ "message": "Statement executed successfully.",
+ "createdOn": 1794312000000
+}

@@ -1,0 +1,286 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Snowflake SQL API (https://docs.snowflake.com/en/developer-guide/sql-api/index) with key-pair authentication: an
+# account's ACCOUNT_USAGE views read with SQL, as the logs and metrics Datadog's Snowflake integration collects
+# (source:snowflake; query and login history as logs, warehouse credits and storage as snowflake.* gauges, names as
+# Datadog lists them, not checked against its metadata). Datadog has no integrations-core tile for it, so the
+# package adds its own tile and dashboard. ACCOUNT_USAGE lags (45 minutes for queries, up to 3 hours for metering),
+# so windows end that far behind; each query runs on the configured warehouse and uses its credits.
+# Limits: a result larger than the SQL API's first partition is cut to it (windows are an hour, which keeps them
+# small), and a statement still running after the request's timeout (an HTTP 202) is read again next run.
+schema_version: 1
+id: snowflake
+name: Snowflake
+publisher: ObserveCraft
+vendor: Snowflake
+description: >-
+  A Snowflake account's query history and login history as logs, and its warehouses' credit usage and storage as
+  metrics, read from the ACCOUNT_USAGE views through the SQL API with a key-pair service user.
+logo: snowflake
+categories: [Data Stores, Cost Management, Security, Log Collection]
+docs_url: https://docs.snowflake.com/en/developer-guide/sql-api/index
+setup: |
+  1. As ACCOUNTADMIN, create a role and a service user for ObserveCraft, with a small warehouse:
+
+     ```sql
+     create role observecraft_monitor;
+     grant database role snowflake.usage_viewer to role observecraft_monitor;
+     grant database role snowflake.security_viewer to role observecraft_monitor;
+     create warehouse observecraft_wh warehouse_size = xsmall auto_suspend = 30;
+     grant usage on warehouse observecraft_wh to role observecraft_monitor;
+     create user observecraft type = service default_role = observecraft_monitor default_warehouse = observecraft_wh;
+     grant role observecraft_monitor to user observecraft;
+     ```
+  2. Make a key pair (`openssl genrsa 2048 | openssl pkcs8 -topk8 -nocrypt -out observecraft.p8`, then
+     `openssl rsa -in observecraft.p8 -pubout`) and set the public key:
+     `alter user observecraft set rsa_public_key = 'MIIB…';`. Paste the private key below.
+  3. The account identifier is the first part of your account URL (`exampleorg-analytics` in
+     `https://exampleorg-analytics.snowflakecomputing.com`).
+instance: "{{ config.account | lower }}"
+
+config:
+  - { key: account, label: Account identifier, type: string, required: true, placeholder: exampleorg-analytics, pattern: "[A-Za-z0-9_.-]+" }
+  - { key: user, label: User, type: string, required: true, default: OBSERVECRAFT }
+  - { key: role, label: Role, type: string, required: true, default: OBSERVECRAFT_MONITOR }
+  - { key: warehouse, label: Warehouse, type: string, required: true, default: OBSERVECRAFT_WH }
+  - { key: private_key, label: Private key, type: text, secret: true, required: true, placeholder: "-----BEGIN PRIVATE KEY-----", help: "The user's unencrypted PKCS#8 private key." }
+
+# Key-pair authentication: an RS256 JWT issued as ACCOUNT.USER.SHA256:<public key fingerprint>, at most an hour.
+auth:
+  kind: jwt
+  private_key: "{{ secrets.private_key }}"
+  lifetime: 59m
+  claims:
+    iss: "{{ (config.account | upper | replace('.', '-')) + '.' + (config.user | upper) + '.' + key.fingerprint }}"
+    sub: "{{ (config.account | upper | replace('.', '-')) + '.' + (config.user | upper) }}"
+  headers:
+    Authorization: "Bearer {{ auth.jwt }}"
+    X-Snowflake-Authorization-Token-Type: KEYPAIR_JWT
+
+headers:
+  Accept: application/json
+
+errors:
+  - status: [401]
+    kind: auth
+    message: "Snowflake refused the key pair ({{ response.message ?? 'JWT token is invalid' }}): check the account identifier, the user and its rsa_public_key"
+  - status: [403]
+    kind: access_denied
+    message: "Snowflake refused ({{ response.message ?? 'forbidden' }})"
+  - status: [422]
+    kind: access_denied
+    message: "The statement failed ({{ response.message }}): the role needs the SNOWFLAKE database roles USAGE_VIEWER and SECURITY_VIEWER and the warehouse's usage"
+  - status: [429]
+    kind: throttled
+    message: Rate limited by Snowflake
+
+streams:
+  - id: query_history
+    name: Query history
+    description: >-
+      Every finished query as a log (source:snowflake, service:query_history): user, role, warehouse, query type,
+      status and error, elapsed and execution times, bytes scanned, rows produced; failed queries are errors. The
+      query text is kept as Snowflake records it.
+    interval: 15m
+    request: &sql
+      method: POST
+      url: "https://{{ config.account | lower }}.snowflakecomputing.com/api/v2/statements"
+      body:
+        statement: >-
+          select query_id, query_text, database_name, schema_name, query_type, session_id, user_name, role_name,
+          warehouse_name, warehouse_size, execution_status, error_code, error_message,
+          to_varchar(start_time, 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM') as start_time,
+          to_varchar(end_time, 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM') as end_time,
+          total_elapsed_time, execution_time, compilation_time, queued_overload_time, bytes_scanned, rows_produced,
+          credits_used_cloud_services
+          from snowflake.account_usage.query_history
+          where end_time >= to_timestamp_ltz(?) and end_time < to_timestamp_ltz(?) order by end_time limit 10000
+        bindings:
+          "1": { type: FIXED, value: "{{ window.start | epoch_s | str }}" }
+          "2": { type: FIXED, value: "{{ window.end | epoch_s | str }}" }
+        warehouse: "{{ config.warehouse }}"
+        role: "{{ config.role }}"
+        timeout: 60
+    records: "{{ response.data | to_objects(response.resultSetMetaData.rowType) }}"
+    max_pages: 30
+    record_id: "{{ record.QUERY_ID }}"
+    incremental: { kind: time, record_time: "{{ record.END_TIME }}", order: oldest_first, lookback: 1d, settle: 1h, overlap: 30m, slice: 1h, max_window: 1d }
+    output:
+      logs:
+        service: query_history
+        message: "{{ record.QUERY_TYPE }} by {{ record.USER_NAME }} on {{ record.WAREHOUSE_NAME ?? 'no warehouse' }}: {{ record.EXECUTION_STATUS }}{{ ' (' + record.ERROR_MESSAGE + ')' ?? '' }}"
+        status: "{{ record.EXECUTION_STATUS == 'SUCCESS' ? 'info' : 'error' }}"
+        date: "{{ record.END_TIME }}"
+        attributes:
+          query_id: "{{ record.QUERY_ID }}"
+          query_text: "{{ record.QUERY_TEXT }}"
+          query_type: "{{ record.QUERY_TYPE }}"
+          database_name: "{{ record.DATABASE_NAME }}"
+          schema_name: "{{ record.SCHEMA_NAME }}"
+          session_id: "{{ record.SESSION_ID }}"
+          user_name: "{{ record.USER_NAME }}"
+          role_name: "{{ record.ROLE_NAME }}"
+          warehouse_name: "{{ record.WAREHOUSE_NAME }}"
+          warehouse_size: "{{ record.WAREHOUSE_SIZE }}"
+          execution_status: "{{ record.EXECUTION_STATUS }}"
+          start_time: "{{ record.START_TIME }}"
+          end_time: "{{ record.END_TIME }}"
+          total_elapsed_time: "{{ record.TOTAL_ELAPSED_TIME | float }}"
+          execution_time: "{{ record.EXECUTION_TIME | float }}"
+          compilation_time: "{{ record.COMPILATION_TIME | float }}"
+          queued_overload_time: "{{ record.QUEUED_OVERLOAD_TIME | float }}"
+          bytes_scanned: "{{ record.BYTES_SCANNED | float }}"
+          rows_produced: "{{ record.ROWS_PRODUCED | float }}"
+          credits_used_cloud_services: "{{ record.CREDITS_USED_CLOUD_SERVICES | float }}"
+          usr: { name: "{{ record.USER_NAME }}" }
+          error: { code: "{{ record.ERROR_CODE }}", message: "{{ record.ERROR_MESSAGE }}" }
+          duration: "{{ (record.TOTAL_ELAPSED_TIME | float) * 1000000 }}"
+
+  - id: login_history
+    name: Login history
+    description: >-
+      Every login attempt as a log (source:snowflake, service:login_history): evt.outcome success or failure, the
+      user, client IP, client type and authentication factors; failures are warnings.
+    interval: 15m
+    request:
+      method: POST
+      url: "https://{{ config.account | lower }}.snowflakecomputing.com/api/v2/statements"
+      body:
+        statement: >-
+          select event_id, to_varchar(event_timestamp, 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM') as event_timestamp,
+          event_type, user_name, client_ip, reported_client_type, reported_client_version, first_authentication_factor,
+          second_authentication_factor, is_success, error_code, error_message, connection
+          from snowflake.account_usage.login_history
+          where event_timestamp >= to_timestamp_ltz(?) and event_timestamp < to_timestamp_ltz(?) order by event_timestamp limit 10000
+        bindings:
+          "1": { type: FIXED, value: "{{ window.start | epoch_s | str }}" }
+          "2": { type: FIXED, value: "{{ window.end | epoch_s | str }}" }
+        warehouse: "{{ config.warehouse }}"
+        role: "{{ config.role }}"
+        timeout: 60
+    records: "{{ response.data | to_objects(response.resultSetMetaData.rowType) }}"
+    max_pages: 30
+    record_id: "{{ record.EVENT_ID }}"
+    incremental: { kind: time, record_time: "{{ record.EVENT_TIMESTAMP }}", order: oldest_first, lookback: 1d, settle: 2h, overlap: 30m, slice: 1h, max_window: 1d }
+    output:
+      logs:
+        service: login_history
+        message: "Login {{ record.IS_SUCCESS == 'YES' ? 'succeeded' : 'failed' }} for {{ record.USER_NAME }} from {{ record.CLIENT_IP }}{{ ' (' + record.ERROR_MESSAGE + ')' ?? '' }}"
+        status: "{{ record.IS_SUCCESS == 'YES' ? 'info' : 'warn' }}"
+        date: "{{ record.EVENT_TIMESTAMP }}"
+        attributes: >-
+          {{ record + {
+               evt: {name: record.EVENT_TYPE, outcome: record.IS_SUCCESS == 'YES' ? 'success' : 'failure'},
+               usr: {name: record.USER_NAME},
+               network: {client: {ip: record.CLIENT_IP}}
+             } }}
+
+  - id: warehouse_metering
+    name: Warehouse credits
+    description: >-
+      Credits each warehouse used per hour (snowflake.billing.warehouse.*: total, compute, cloud services), at the
+      hour's start; read three hours behind as Snowflake finalizes them.
+    interval: 1h
+    request:
+      method: POST
+      url: "https://{{ config.account | lower }}.snowflakecomputing.com/api/v2/statements"
+      body:
+        statement: >-
+          select warehouse_name, to_varchar(start_time, 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM') as start_time,
+          credits_used, credits_used_compute, credits_used_cloud_services
+          from snowflake.account_usage.warehouse_metering_history
+          where start_time >= to_timestamp_ltz(?) and start_time < to_timestamp_ltz(?) order by start_time
+        bindings:
+          "1": { type: FIXED, value: "{{ window.start | epoch_s | str }}" }
+          "2": { type: FIXED, value: "{{ window.end | epoch_s | str }}" }
+        warehouse: "{{ config.warehouse }}"
+        role: "{{ config.role }}"
+        timeout: 60
+    records: "{{ response.data | to_objects(response.resultSetMetaData.rowType) }}"
+    record_id: "{{ record.WAREHOUSE_NAME + '|' + record.START_TIME }}"
+    incremental: { kind: time, record_time: "{{ record.START_TIME }}", order: oldest_first, lookback: 2d, settle: 3h, overlap: 1h }
+    output:
+      metrics:
+        - { name: snowflake.billing.warehouse.total_credit.sum, value: "{{ record.CREDITS_USED | float }}", time: "{{ record.START_TIME }}", description: Credits the warehouse used in the hour., tags: &wh { warehouse: "{{ record.WAREHOUSE_NAME }}", snowflake_account: "{{ connection.instance }}" } }
+        - { name: snowflake.billing.warehouse.virtual_warehouse.sum, value: "{{ record.CREDITS_USED_COMPUTE | float }}", time: "{{ record.START_TIME }}", description: Compute credits in the hour., tags: *wh }
+        - { name: snowflake.billing.warehouse.cloud_service.sum, value: "{{ record.CREDITS_USED_CLOUD_SERVICES | float }}", time: "{{ record.START_TIME }}", description: Cloud services credits in the hour., tags: *wh }
+
+  - id: storage_usage
+    name: Storage
+    description: >-
+      The account's storage per day (snowflake.storage.*: tables, stages, Fail-safe), in bytes, read once a day for
+      the days ACCOUNT_USAGE has finished.
+    interval: 6h
+    request:
+      method: POST
+      url: "https://{{ config.account | lower }}.snowflakecomputing.com/api/v2/statements"
+      body:
+        statement: >-
+          select to_varchar(usage_date, 'YYYY-MM-DD') as usage_date, storage_bytes, stage_bytes, failsafe_bytes
+          from snowflake.account_usage.storage_usage where usage_date >= dateadd(day, -3, current_date()) order by usage_date
+        warehouse: "{{ config.warehouse }}"
+        role: "{{ config.role }}"
+        timeout: 60
+    records: "{{ response.data | to_objects(response.resultSetMetaData.rowType) }}"
+    record_id: "{{ record.USAGE_DATE }}"
+    incremental: { kind: new_records, max_seen: 1000 }
+    output:
+      metrics:
+        - { name: snowflake.storage.storage_bytes.total, value: "{{ record.STORAGE_BYTES | float }}", time: "{{ record.USAGE_DATE }}", unit: byte, description: Bytes of table storage., tags: &acct { snowflake_account: "{{ connection.instance }}" } }
+        - { name: snowflake.storage.stage_bytes.total, value: "{{ record.STAGE_BYTES | float }}", time: "{{ record.USAGE_DATE }}", unit: byte, description: Bytes in internal stages., tags: *acct }
+        - { name: snowflake.storage.failsafe_bytes.total, value: "{{ record.FAILSAFE_BYTES | float }}", time: "{{ record.USAGE_DATE }}", unit: byte, description: Bytes in Fail-safe., tags: *acct }
+
+test:
+  request:
+    method: POST
+    url: "https://{{ config.account | lower }}.snowflakecomputing.com/api/v2/statements"
+    body: { statement: "select current_account(), current_role(), current_warehouse()", warehouse: "{{ config.warehouse }}", role: "{{ config.role }}", timeout: 30 }
+  message: "Connected to account {{ (response.data | first)[0] }} as {{ (response.data | first)[1] }} on {{ (response.data | first)[2] }}"
+
+assets:
+  dashboards: [assets/dashboards/overview.json]
+
+mock:
+  config: { account: exampleorg-analytics }
+  secrets:
+    private_key: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQC3gCDdp3fiZFbq
+      oeXHYRxFDyWrZQS8Dydp7BQ/bEtjPdb0uL6SJgn27z/h2b4Wy82a14IbLDk0WGWr
+      Psc+k+4CCKD79QIQuE30bZCuL0i3q+aHp1JIejK3kjjg98+fp4co8nYSNRypp/et
+      jnnbD3FD7kkmNfrKcuRf3F4pWbAOyRSW0DeDPzNQrZmkq2xYPfpOZYRnWgHC27kr
+      CHBdnFF2sfD1Y1Pf771I7+WoC3XNf+58MFjeVhhnm+Oa8EaMeRgLKqfrQ++Zz5f2
+      qbwqIwvzVDwvTxnZSkDPJ6tWtCbp6u2G9dyguVR57gZWyOM/nJbHVCpn1j0oZJkh
+      r8y/WJ2vAgMBAAECggEACAcH6QpxeSrwjnUkqzM5XGAMQtI5gcyb6ctVG20uYxoK
+      dEw8sgIN/4p53fR7l121EegJngyyN/MCB5rIdplcGSStfjg6reaSKnY8lRImeTqA
+      7EBKnjcSTuuLp3PP1mkqxYTN24ANT/K0KBiKhiXHy7P56T0FSqP6D6OBTwfIZu0b
+      /EnYj6LJmSdW7hRqQdBvrS4AqSkJCf2lPrxLAXho+wCVP6CZsH0rUPqUgdqPTfyp
+      RGXPksbVzmDLjEX74pay342pSuXew4+SHN61oTh9ZAcyjah04B4GrfUEkh9a/WOu
+      mBGI6dj8rBmXI2M+EoTI9Cxh7QcXCcpLMiC30rBSmQKBgQDr+HqBf+qzefKy4FVb
+      IIQlNqn0MNyqYhy5sUqqd1LKQA+Rfjv70zAWOjJoIHfCiV2fg4seomXTbEVeqM1U
+      MTuw7szHxQQcdHsZlFuXnB6diwZkwEl4JdA2G9IsdVkmAi3T/KnqNob1e/BAG4n3
+      KD5o/yHUOKR52JJyTF45e6KHxQKBgQDHE4A6NhsnLVlMQSKxvn6tZF+yN/IHMQDI
+      +TPANLzaZY0wNhLHTLG9i8IXErAUuWCcj4q12dwJlWb0pNn7JSqFW7dcIECRvuHf
+      OfYOaqWjT7I+OLtLCWJlx6FYvXd6RpiUsjLbhZ5HUnAi1EIYfZ6x2Tiq4sJSGa4r
+      FOb3Dnry4wKBgQDgdafybz9OIf4e8Q3AdRm+XFUmFySQXmt8p4yiwoZaJL2qZC2i
+      yazAN/Oi4N+KiSgph/NZ3JiHmEIUXPWT1JE3KLBahqn2d0ZxepH1kWf97DTUuaQp
+      Sa7ZCXXPHIEEiqYVNA5c4ClYceCC2q9OD1XugmIngQnTbZNAbixi+ZwNEQKBgQC5
+      YStzCZdXcB9LpwwLwHxuMp36c6Zpk/RLMeRDA9ko9o/3aSMre/u3qkFfAwP9CHMy
+      12gv12PTeNCa2Dg0anOiI7oni9EU50+mc27yFdWQslIlJuciBOcgKDnTTPvJXZwQ
+      O7CoQ1EU0Wuiw02ZSMFSlBj06JxTn55Ud+5r+Yv8SQKBgQCbub+b7fP95Q4iWIXA
+      83XRkSwQ0ntTLF2tC2FgLuofGpoUPDhv1/dsOX+1g8fdN3b9gEQhujts9JtHP9Y+
+      Ze81kzFamdo6wp2+EL99LerWYyl3P6o2248l+7TdfXmpIDbXPSPo7+E5cZXJE2OV
+      Ozb36EXLi0aSD0YQOMOnjB5NgQ==
+      -----END PRIVATE KEY-----
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { method: POST, url: "https://exampleorg-analytics.snowflakecomputing.com/api/v2/statements", body_contains: "query_history", file: fixtures/query_history.json }
+    - { method: POST, url: "https://exampleorg-analytics.snowflakecomputing.com/api/v2/statements", body_contains: "login_history", file: fixtures/login_history.json }
+    - { method: POST, url: "https://exampleorg-analytics.snowflakecomputing.com/api/v2/statements", body_contains: "warehouse_metering_history", file: fixtures/warehouse_metering.json }
+    - { method: POST, url: "https://exampleorg-analytics.snowflakecomputing.com/api/v2/statements", body_contains: "storage_usage", file: fixtures/storage_usage.json }
+    - { method: POST, url: "https://exampleorg-analytics.snowflakecomputing.com/api/v2/statements", body_contains: "current_account", body: { resultSetMetaData: { numRows: 1, rowType: [ { name: "CURRENT_ACCOUNT()" }, { name: "CURRENT_ROLE()" }, { name: "CURRENT_WAREHOUSE()" } ] }, data: [ [ AB12345, OBSERVECRAFT_MONITOR, OBSERVECRAFT_WH ] ], code: "090001", statementHandle: 01b8a2c4-0000-1a2b-0000-00000000aaaa } }
+  expect:
+    query_history: { records: 2, logs: 2, rerun: 0, golden: fixtures/query_history.expected.json }
+    login_history: { records: 2, logs: 2, rerun: 0, golden: fixtures/login_history.expected.json }
+    warehouse_metering: { records: 2, metrics: 6, rerun: 0, golden: fixtures/warehouse_metering.expected.json }
+    storage_usage: { records: 2, metrics: 6, rerun: 0 }
+    test: { ok: true, message: "Connected to account AB12345 as OBSERVECRAFT_MONITOR on OBSERVECRAFT_WH" }
