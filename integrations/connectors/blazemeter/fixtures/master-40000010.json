@@ -1,0 +1,1 @@
+{ "api_version": 4, "error": null, "result": { "id": 40000010, "name": "Order API smoke", "ended": 1794301440, "executionMode": "functional", "gridSummary": { "testCasesCount": 40, "passedTestCasesCount": 36, "failedTestCasesCount": 3, "brokenTestCasesCount": 1, "undefinedTestCasesCount": 0, "passedPercent": 90, "uniqueSuitesCount": 4, "uniqueTestCasesCount": 40 } } }

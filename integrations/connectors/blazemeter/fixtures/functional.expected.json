@@ -1,0 +1,220 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.functional.gridSummary_brokenTestCasesCount",
+      "tags": [
+        [
+          "masterid",
+          "40000010"
+        ],
+        [
+          "projectid",
+          "800002"
+        ],
+        [
+          "testid",
+          "9000010"
+        ],
+        [
+          "testname",
+          "Order API smoke"
+        ]
+      ],
+      "time_ms": 1794301440000,
+      "value": 1.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.functional.gridSummary_failedTestCasesCount",
+      "tags": [
+        [
+          "masterid",
+          "40000010"
+        ],
+        [
+          "projectid",
+          "800002"
+        ],
+        [
+          "testid",
+          "9000010"
+        ],
+        [
+          "testname",
+          "Order API smoke"
+        ]
+      ],
+      "time_ms": 1794301440000,
+      "value": 3.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.functional.gridSummary_passedPercent",
+      "tags": [
+        [
+          "masterid",
+          "40000010"
+        ],
+        [
+          "projectid",
+          "800002"
+        ],
+        [
+          "testid",
+          "9000010"
+        ],
+        [
+          "testname",
+          "Order API smoke"
+        ]
+      ],
+      "time_ms": 1794301440000,
+      "value": 90.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.functional.gridSummary_passedTestCasesCount",
+      "tags": [
+        [
+          "masterid",
+          "40000010"
+        ],
+        [
+          "projectid",
+          "800002"
+        ],
+        [
+          "testid",
+          "9000010"
+        ],
+        [
+          "testname",
+          "Order API smoke"
+        ]
+      ],
+      "time_ms": 1794301440000,
+      "value": 36.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.functional.gridSummary_testCasesCount",
+      "tags": [
+        [
+          "masterid",
+          "40000010"
+        ],
+        [
+          "projectid",
+          "800002"
+        ],
+        [
+          "testid",
+          "9000010"
+        ],
+        [
+          "testname",
+          "Order API smoke"
+        ]
+      ],
+      "time_ms": 1794301440000,
+      "value": 40.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.functional.gridSummary_undefinedTestCasesCount",
+      "tags": [
+        [
+          "masterid",
+          "40000010"
+        ],
+        [
+          "projectid",
+          "800002"
+        ],
+        [
+          "testid",
+          "9000010"
+        ],
+        [
+          "testname",
+          "Order API smoke"
+        ]
+      ],
+      "time_ms": 1794301440000,
+      "value": 0.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.functional.gridSummary_uniqueSuitesCount",
+      "tags": [
+        [
+          "masterid",
+          "40000010"
+        ],
+        [
+          "projectid",
+          "800002"
+        ],
+        [
+          "testid",
+          "9000010"
+        ],
+        [
+          "testname",
+          "Order API smoke"
+        ]
+      ],
+      "time_ms": 1794301440000,
+      "value": 4.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.functional.gridSummary_uniqueTestCasesCount",
+      "tags": [
+        [
+          "masterid",
+          "40000010"
+        ],
+        [
+          "projectid",
+          "800002"
+        ],
+        [
+          "testid",
+          "9000010"
+        ],
+        [
+          "testname",
+          "Order API smoke"
+        ]
+      ],
+      "time_ms": 1794301440000,
+      "value": 40.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "123456": {
+        "cursor": 1794312000000,
+        "seen": [
+          {
+            "id": "98c5a99253c56678",
+            "t": 1794301200000
+          }
+        ]
+      }
+    }
+  }
+}

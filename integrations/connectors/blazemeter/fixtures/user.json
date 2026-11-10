@@ -1,0 +1,1 @@
+{ "api_version": 4, "error": null, "result": { "id": 2200001, "email": "qa-lead@example.com", "firstName": "Quinn", "lastName": "Avery", "defaultProject": { "id": 800001, "name": "Storefront", "accountId": 654321, "workspaceId": 123456 } } }

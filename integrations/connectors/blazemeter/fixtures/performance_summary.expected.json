@@ -1,0 +1,345 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [],
+  "metrics": [
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_avg",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 210.5
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_bytes",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 98000000.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_concurrency",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 500.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_duration",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 1800.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_failed",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 240.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_hits",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 120000.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_hits_avg",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 66.7
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_latency",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 45.2
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_max",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 4210.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_maxUsers",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 500.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_min",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 18.0
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_stDev",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 95.25
+    },
+    {
+      "host": null,
+      "kind": "gauge",
+      "name": "blazemeter.performance.summary_tp90",
+      "tags": [
+        [
+          "masterid",
+          "40000001"
+        ],
+        [
+          "projectid",
+          "800001"
+        ],
+        [
+          "testid",
+          "9000001"
+        ],
+        [
+          "testname",
+          "Checkout load test"
+        ]
+      ],
+      "time_ms": 1794299400000,
+      "value": 380.0
+    }
+  ],
+  "state": {
+    "partitions": {
+      "123456": {
+        "cursor": 1794312000000,
+        "seen": [
+          {
+            "id": "25088c07171c77a7",
+            "t": 1794297600000
+          }
+        ]
+      }
+    }
+  }
+}

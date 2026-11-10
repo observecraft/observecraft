@@ -1,0 +1,251 @@
+# yaml-language-server: $schema=../connector.schema.json
+# BlazeMeter (https://help.blazemeter.com/apidocs/performance/): the reports of every finished test run (a "master") of
+# the chosen workspaces, as the gauges Datadog's integration sends once per run: blazemeter.performance.summary_*
+# (the default report's summary), .request_* per label (request statistics), .errors_* / .assertions_failures (error
+# statistics) and blazemeter.functional.gridSummary_* (functional runs), tagged masterid, projectid, testname and
+# labelid / labelname. The tile's integrations-core dashboards and monitors read them, so this package ships none.
+#
+# Each stream lists the runs created in its window (a day back, so runs that end later are caught) and reads the
+# reports of those that ended; a run's points are sent once, timed at its end.
+schema_version: 1
+id: blazemeter
+name: BlazeMeter
+publisher: ObserveCraft
+vendor: Perforce BlazeMeter
+description: >-
+  The results of every finished BlazeMeter performance test (response times, percentiles, throughput, errors and
+  failed assertions, overall and per request label) and functional test (passed, failed and broken test cases) as
+  metrics, read from the BlazeMeter API.
+tiles: [blazemeter]
+categories: [Metrics]
+docs_url: https://help.blazemeter.com/apidocs/performance/
+setup: |
+  1. In BlazeMeter, open **Settings → Personal → API Keys** and **Generate** a key (an expiry of up to a year).
+  2. Copy its **API Key ID** and **API Key Secret**; BlazeMeter shows the secret once. The key reads what its user can
+     see: the user needs at least the **Viewer** role in each workspace to collect.
+  3. Optionally list the workspace IDs to collect (in the URL of the workspace's page); by default the user's default
+     workspace is read.
+instance: "{{ 'blazemeter:' + config.api_key_id }}"
+
+config:
+  - key: api_key_id
+    label: API key ID
+    type: string
+    required: true
+  - key: api_key_secret
+    label: API key secret
+    type: string
+    secret: true
+    required: true
+  - key: workspace_ids
+    label: Workspace IDs
+    type: list
+    pattern: "[0-9]+"
+    help: Leave empty for the API key user's default workspace.
+
+auth:
+  kind: basic
+  username: "{{ config.api_key_id }}"
+  password: "{{ secrets.api_key_secret }}"
+
+rate_limit: { requests_per_minute: 120 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: BlazeMeter refused the API key ID and secret (or the key expired)
+  - status: [403]
+    kind: access_denied
+    message: The API key's user can't read this workspace's test runs (it needs the Viewer role or higher)
+
+discover:
+  - name: workspace
+    request: { url: "https://a.blazemeter.com/api/v4/user" }
+    value: "{{ response.result.defaultProject.workspaceId ?? response.result.activeWorkspaceId }}"
+    ttl: 24h
+
+# Datadog's names for the summary's fields.
+tables:
+  summary:
+    avg: blazemeter.performance.summary_avg
+    bytes: blazemeter.performance.summary_bytes
+    concurrency: blazemeter.performance.summary_concurrency
+    duration: blazemeter.performance.summary_duration
+    failed: blazemeter.performance.summary_failed
+    hits: blazemeter.performance.summary_hits
+    hits_avg: blazemeter.performance.summary_hits_avg
+    latency: blazemeter.performance.summary_latency
+    max: blazemeter.performance.summary_max
+    maxUsers: blazemeter.performance.summary_maxUsers
+    min: blazemeter.performance.summary_min
+    stDev: blazemeter.performance.summary_stDev
+    tp90: blazemeter.performance.summary_tp90
+  request:
+    90line: blazemeter.performance.request_90line
+    95line: blazemeter.performance.request_95line
+    99line: blazemeter.performance.request_99line
+    avgBytes: blazemeter.performance.request_avgBytes
+    avgLatency: blazemeter.performance.request_avgLatency
+    avgResponseTime: blazemeter.performance.request_avgResponseTime
+    avgThroughput: blazemeter.performance.request_avgThroughput
+    concurrency: blazemeter.performance.request_concurrency
+    duration: blazemeter.performance.request_duration
+    errorsRate: blazemeter.performance.request_errorRate
+    errorsCount: blazemeter.performance.request_errorsCount
+    maxResponseTime: blazemeter.performance.request_maxResponseTime
+    medianResponseTime: blazemeter.performance.request_medianResponseTime
+    minResponseTime: blazemeter.performance.request_minResponseTime
+    samples: blazemeter.performance.request_samples
+    stDev: blazemeter.performance.request_stDev
+  grid:
+    brokenTestCasesCount: blazemeter.functional.gridSummary_brokenTestCasesCount
+    failedTestCasesCount: blazemeter.functional.gridSummary_failedTestCasesCount
+    passedPercent: blazemeter.functional.gridSummary_passedPercent
+    passedTestCasesCount: blazemeter.functional.gridSummary_passedTestCasesCount
+    testCasesCount: blazemeter.functional.gridSummary_testCasesCount
+    undefinedTestCasesCount: blazemeter.functional.gridSummary_undefinedTestCasesCount
+    uniqueSuitesCount: blazemeter.functional.gridSummary_uniqueSuitesCount
+    uniqueTestCasesCount: blazemeter.functional.gridSummary_uniqueTestCasesCount
+
+streams:
+  - id: performance_summary
+    name: Performance summaries
+    description: The summary of each finished performance test run (blazemeter.performance.summary_*).
+    interval: 15m
+    for_each: &workspaces "{{ config.workspace_ids ?? [discovery.workspace] }}"
+    request: &masters
+      url: https://a.blazemeter.com/api/v4/masters
+      query:
+        workspaceId: "{{ item }}"
+        platform: performance
+        startTime: "{{ (window.start / 1000) | floor }}"
+        endTime: "{{ (window.end / 1000) | floor }}"
+        limit: 50
+        skip: "{{ page.offset }}"
+    # Runs still going are left for a later run (their window comes back while it overlaps).
+    records: &ended "{{ response.result | where('ended') }}"
+    pagination: &pages { kind: offset, size: 50 }
+    incremental: &window { kind: time, record_time: "{{ parent.created ?? record.created }}", order: unordered, lookback: 1d, overlap: 1d }
+    expand:
+      request: { url: "{{ 'https://a.blazemeter.com/api/v4/masters/' + (parent.id | str) + '/reports/default/summary' }}" }
+      records: "{{ response.result.summary }}"
+    record_id: "{{ (parent.id | str) + ':' + (record.id ?? 'ALL') }}"
+    output:
+      metrics:
+        - name: "{{ tables.summary[entry.key] }}"
+          each: "{{ record }}"
+          value: "{{ entry.value }}"
+          time: "{{ parent.ended }}"
+          tags: &run { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testid: "{{ parent.testId | str }}", testname: "{{ parent.name }}" }
+
+  - id: request_stats
+    name: Request statistics
+    description: Each finished performance run's statistics per request label (blazemeter.performance.request_*), tagged labelid and labelname.
+    interval: 15m
+    for_each: *workspaces
+    request: *masters
+    records: *ended
+    pagination: *pages
+    incremental: *window
+    expand:
+      request: { url: "{{ 'https://a.blazemeter.com/api/v4/masters/' + (parent.id | str) + '/reports/aggregatereport/data' }}" }
+      records: "{{ response.result }}"
+    record_id: "{{ (parent.id | str) + ':' + record.labelId }}"
+    output:
+      metrics:
+        - name: "{{ tables.request[entry.key] }}"
+          each: "{{ record }}"
+          value: "{{ entry.value }}"
+          time: "{{ parent.ended }}"
+          tags: &label { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testid: "{{ parent.testId | str }}", testname: "{{ parent.name }}", labelid: "{{ record.labelId }}", labelname: "{{ record.labelName ?? record.name }}" }
+
+  - id: errors
+    name: Errors and assertions
+    description: >-
+      Each finished performance run's errors per label, response code and message (errors_count), failing URLs
+      (errors_url_count), failed embedded resources and failed assertions (assertions_failures).
+    interval: 15m
+    for_each: *workspaces
+    request: *masters
+    records: *ended
+    pagination: *pages
+    incremental: *window
+    expand:
+      request: { url: "{{ 'https://a.blazemeter.com/api/v4/masters/' + (parent.id | str) + '/reports/errorsreport/data' }}" }
+      records: "{{ response.result }}"
+    record_id: "{{ (parent.id | str) + ':' + (record.labelId ?? record.name) }}"
+    output:
+      metrics:
+        - name: blazemeter.performance.errors_count
+          each: "{{ record.errors }}"
+          value: "{{ entry.count }}"
+          time: "{{ parent.ended }}"
+          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ record.labelId }}", labelname: "{{ record.name }}", rc: "{{ entry.rc }}", message: "{{ entry.m }}" }
+        - name: blazemeter.performance.errors_url_count
+          each: "{{ record.urls }}"
+          value: "{{ entry.count }}"
+          time: "{{ parent.ended }}"
+          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ record.labelId }}", labelname: "{{ record.name }}", url: "{{ entry.url }}" }
+        - name: blazemeter.performance.failedEmbeddedResources_count
+          each: "{{ record.failedEmbeddedResources }}"
+          value: "{{ entry.count }}"
+          time: "{{ parent.ended }}"
+          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ record.labelId }}", labelname: "{{ record.name }}", rc: "{{ entry.rc }}", message: "{{ entry.rm }}" }
+        - name: blazemeter.performance.assertions_failures
+          each: "{{ record.assertions }}"
+          value: "{{ entry.failures }}"
+          time: "{{ parent.ended }}"
+          tags: { masterid: "{{ parent.id | str }}", projectid: "{{ parent.projectId | str }}", testname: "{{ parent.name }}", labelid: "{{ record.labelId }}", labelname: "{{ record.name }}", assertion: "{{ entry.name }}", message: "{{ entry.failureMessage }}" }
+
+  - id: functional
+    name: Functional test results
+    description: Each finished functional test run's test case counts and pass rate (blazemeter.functional.gridSummary_*).
+    interval: 15m
+    for_each: *workspaces
+    request:
+      url: https://a.blazemeter.com/api/v4/masters
+      query:
+        workspaceId: "{{ item }}"
+        platform: functional
+        startTime: "{{ (window.start / 1000) | floor }}"
+        endTime: "{{ (window.end / 1000) | floor }}"
+        limit: 50
+        skip: "{{ page.offset }}"
+    records: *ended
+    pagination: *pages
+    incremental: *window
+    expand:
+      request: { url: "{{ 'https://a.blazemeter.com/api/v4/masters/' + (parent.id | str) }}" }
+      records: "{{ response.result.gridSummary }}"
+    record_id: "{{ parent.id | str }}"
+    output:
+      metrics:
+        - name: "{{ tables.grid[entry.key] }}"
+          each: "{{ record }}"
+          value: "{{ entry.value }}"
+          time: "{{ parent.ended }}"
+          tags: *run
+
+test:
+  request: { url: "https://a.blazemeter.com/api/v4/user" }
+  success: "{{ response.result.id }}"
+  message: "Connected as {{ response.result.email }}"
+
+mock:
+  config: { api_key_id: 0a1b2c3d4e5f60718293a4b5 }
+  secrets: { api_key_secret: bzm-test-secret }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://a.blazemeter.com/api/v4/user", file: fixtures/user.json }
+    - { url: "https://a.blazemeter.com/api/v4/masters", query: { platform: performance }, file: fixtures/masters-performance.json }
+    - { url: "https://a.blazemeter.com/api/v4/masters", query: { platform: functional }, file: fixtures/masters-functional.json }
+    - { url: "https://a.blazemeter.com/api/v4/masters/40000001/reports/default/summary", file: fixtures/summary-40000001.json }
+    - { url: "https://a.blazemeter.com/api/v4/masters/40000001/reports/aggregatereport/data", file: fixtures/aggregate-40000001.json }
+    - { url: "https://a.blazemeter.com/api/v4/masters/40000001/reports/errorsreport/data", file: fixtures/errors-40000001.json }
+    - { url: "https://a.blazemeter.com/api/v4/masters/40000010", file: fixtures/master-40000010.json }
+  expect:
+    performance_summary: { records: 1, metrics: 13, rerun: 0, golden: fixtures/performance_summary.expected.json }
+    request_stats: { records: 2, metrics: 32, rerun: 0, golden: fixtures/request_stats.expected.json }
+    errors: { records: 2, metrics: 5, rerun: 0, golden: fixtures/errors.expected.json }
+    functional: { records: 1, metrics: 8, rerun: 0, golden: fixtures/functional.expected.json }
+    test: { ok: true, message: "qa-lead@example.com" }

@@ -1,0 +1,8 @@
+{
+  "api_version": 4,
+  "error": null,
+  "result": [
+    { "labelId": "3b6d1bf0989a1c2d", "name": "POST /api/checkout", "_id": "POST /api/checkout", "errors": [ { "rc": "500", "m": "Internal Server Error", "count": 180 }, { "rc": "504", "m": "Gateway Timeout", "count": 20 } ], "assertions": [ { "name": "Order id present", "failureMessage": "Test failed: text expected to contain /orderId/", "failures": 40 } ], "failedEmbeddedResources": [], "urls": [ { "url": "https://shop.example.com/api/checkout", "count": 200 } ] },
+    { "labelId": "5c7e2a10b3d4e5f6", "name": "GET /api/cart", "_id": "GET /api/cart", "errors": [], "assertions": [], "failedEmbeddedResources": [ { "rc": "502", "rm": "Bad Gateway", "count": 1 } ], "urls": [] }
+  ]
+}
