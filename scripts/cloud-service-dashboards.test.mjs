@@ -10,6 +10,9 @@ import { AZURE_LAYOUTS } from './azure-service-layouts.mjs';
 import { GCP_LAYOUTS } from './gcp-service-layouts.mjs';
 import { gcpPage, withDatadogNamespaces } from './import-cloud-metrics.mjs';
 
+/** `s` matched literally in a RegExp. */
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const seed = (path) => JSON.parse(readFileSync(new URL(`../server/seeds/${path}`, import.meta.url), 'utf8'));
 const aws = seed('integrations/cloud/aws-metrics.json');
 const azure = seed('integrations/cloud/azure-metrics.json');
@@ -560,7 +563,7 @@ test('the most used Azure services have a dashboard designed for them', () => {
       `${type}: counts its resources`,
     );
     const summary = inAbout.find((w) => w.type === 'monitor_summary');
-    assert.match(summary?.query ?? '', new RegExp(`^tag:\\(integration:azure_[a-z0-9_]+\\) OR ${prefix.replace(/\./g, '\\.')}\\.$`), `${type}: its monitors`);
+    assert.match(summary?.query ?? '', new RegExp(`^tag:\\(integration:azure_[a-z0-9_]+\\) OR ${escapeRegExp(prefix)}\\.$`), `${type}: its monitors`);
     assert.ok(groups.filter((g) => g.definition.type === 'group').length >= 3, `${type}: themed groups`);
     assert.ok(new Set(widgetsOf(d).map(kind)).size >= 3, `${type}: more than one kind of widget`);
     assert.deepEqual(
