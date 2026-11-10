@@ -1696,4 +1696,691 @@ export const AZURE_LAYOUTS = {
       };
     },
   },
+
+  'Microsoft.Compute/disks': {
+    vars: [],
+    monitor: 'azure_disk',
+    note: 'Managed disks on their own, whatever VM they are attached to: operations and throughput per second as the disk sees them, and the on-demand burst operations premium disks draw on above their provisioned IOPS.',
+    build: (q) => {
+      const { sum, avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Disks available'),
+          qv('Reads per second', sum('composite_disk_read_operations_sec'), { precision: 1 }),
+          qv('Writes per second', sum('composite_disk_write_operations_sec'), { precision: 1 }),
+          qv('Read throughput', sum('composite_disk_read_bytes_sec')),
+          qv('Write throughput', sum('composite_disk_write_bytes_sec')),
+        ],
+        groups: [
+          g('Disk operations', [
+            ts('Operations per second', [sum('composite_disk_read_operations_sec'), sum('composite_disk_write_operations_sec')], { alias: ['reads', 'writes'], w: 8 }),
+            top('Busiest disks (operations)', sum('composite_disk_write_operations_sec', 'name'), { agg: 'avg', w: 4 }),
+            heat('Write operations across disks', avg('composite_disk_write_operations_sec', 'name'), { w: 12 }),
+          ]),
+          g('Disk throughput', [
+            mirror('Bytes read and written per second', sum('composite_disk_read_bytes_sec'), sum('composite_disk_write_bytes_sec'), { w: 6 }),
+            ts('Write throughput by disk', avg('composite_disk_write_bytes_sec', 'name'), { w: 6 }),
+            tree('Share of bytes read', sum('composite_disk_read_bytes_sec', 'name'), { agg: 'avg', w: 6 }),
+            top('Most read disks', avg('composite_disk_read_bytes_sec', 'name'), { w: 6 }),
+          ]),
+          g('On-demand bursting', [
+            txt('Premium SSDs above 512 GiB can burst beyond their provisioned IOPS on demand; each burst operation is billed. A disk bursting all day is a candidate for a larger tier.', { w: 4 }),
+            ts('Burst operations by disk', sum('disk_paid_burst_iops', 'name'), { display: 'bars', palette: 'warm', w: 4 }),
+            top('Disks bursting most', max('disk_paid_burst_iops', 'name'), { w: 4 }),
+          ]),
+          g('Disks by health', [byStatus(count, 'Disks by health status', { w: 12 })]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Web/hostingEnvironments': {
+    vars: [],
+    monitor: 'azure_app_service_environment',
+    note: 'App Service Environments: the dedicated front ends that route traffic into the environment, and the CPU, memory and disk queues of its workers (per environment: instances aren’t split out). The apps and plans inside have their own dashboards.',
+    logs: [['App Service Environment logs', 'source:azure.web']],
+    build: (q) => {
+      const { avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Environments running'),
+          qv('Front ends', avg('total_front_ends'), { agg: 'last' }),
+          qv('Avg CPU', avg('cpu_percentage'), { precision: 1 }),
+          qv('Busiest instance CPU', max('cpu_percentage'), { precision: 1 }),
+          qv('Avg memory', avg('memory_percentage'), { precision: 1 }),
+        ],
+        groups: [
+          g('Front ends', [ts('Front ends by environment', avg('total_front_ends', 'name'), { display: 'bars', w: 8 }), byStatus(count, 'Environments by health status', { w: 4 })]),
+          g('Instance load', [
+            ts('CPU by environment', avg('cpu_percentage', 'name'), { w: 6 }),
+            ts('Memory by environment', avg('memory_percentage', 'name'), { w: 6 }),
+            top('Busiest environments (CPU)', max('cpu_percentage', 'name'), { w: 4 }),
+            top('Environments using most memory', max('memory_percentage', 'name'), { w: 4 }),
+            heat('CPU spread across environments', avg('cpu_percentage', 'name'), { w: 4 }),
+          ]),
+          g('Disk queues', [ts('Disk queue length by environment', avg('disk_queue_length', 'name'), { w: 8 }), top('Longest disk queues', max('disk_queue_length', 'name'), { w: 4 })]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Sql/servers/elasticPools': {
+    vars: [],
+    monitor: 'azure_sql_elastic_pool',
+    note: 'Elastic pools: the eDTUs or vCores their databases share, against the pool’s limit, the storage they fill, and the sessions, workers, log writes and tempdb that throttle a pool before CPU does.',
+    logs: [['SQL logs', 'source:azure.sql']],
+    build: (q) => {
+      const { sum, avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Pools online'),
+          qv('Avg CPU', avg('cpu_percent'), { precision: 1 }),
+          qv('Peak eDTU', max('dtu_consumption_percent.max'), { precision: 1 }),
+          qv('Fullest pool storage', max('storage_percent'), { precision: 1 }),
+          qv('Peak workers', max('workers_percent.max'), { precision: 1 }),
+        ],
+        groups: [
+          g('Pool compute against its limit', [
+            ts('CPU by pool', avg('cpu_percent', 'name'), { w: 4 }),
+            ts('eDTU by pool', avg('dtu_consumption_percent', 'name'), { w: 4 }),
+            ts('vCores used and limit', [sum('cpu_used'), sum('cpu_limit')], { alias: ['used', 'limit'], w: 4 }),
+            ts('eDTUs used and limit', [sum('e_dtu_used'), sum('e_dtu_limit')], { alias: ['used', 'limit'], w: 4 }),
+            top('Busiest pools', max('cpu_percent.max', 'name'), { w: 4 }),
+            ts('SQL instance CPU and memory', [avg('sql_instance_cpu_percent'), avg('sql_instance_memory_percent')], { alias: ['CPU %', 'memory %'], w: 4 }),
+          ]),
+          g('Pool storage', [
+            ts('Data space used and allocated', [sum('storage_used'), sum('allocated_data_storage'), sum('storage_limit')], { alias: ['used', 'allocated', 'max size'], w: 6 }),
+            top('Fullest pools', max('storage_percent', 'name'), { w: 6 }),
+            tbl(
+              'Pools',
+              [
+                ['Used %', avg('storage_percent', 'name')],
+                ['Allocated %', avg('allocated_data_storage_percent', 'name')],
+                ['In-memory OLTP %', max('xtp_storage_percent', 'name'), 'max'],
+                ['Sessions', max('sessions_count', 'name'), 'max'],
+              ],
+              { w: 12, h: 3 },
+            ),
+          ]),
+          g('Sessions, workers and I/O', [
+            ts('Sessions and workers (% of limit)', [max('sessions_percent'), max('workers_percent')], { alias: ['sessions', 'workers'], palette: 'warm', w: 4 }),
+            ts('Data and log I/O (% of limit)', [max('physical_data_read_percent'), max('log_write_percent')], { alias: ['data reads', 'log writes'], w: 4 }),
+            ts('Tempdb log used', max('tempdb_log_used_percent', 'name'), { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Cdn/profiles': {
+    vars: ['endpoint', 'httpstatusgroup'],
+    monitor: 'azure_cdn',
+    note: 'Front Door Standard / Premium and CDN profiles: requests at the edge by status group and endpoint, cache hits, latency to clients and to origins, origin health, WebSockets and the Web Application Firewall.',
+    logs: [['CDN and Front Door logs', 'source:azure.cdn']],
+    build: (q) => {
+      const { sum, avg, max, min, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Profiles running'),
+          qv('Requests', sum('request_count')),
+          qv('Avg 5xx share', avg('percentage5xx'), { precision: 2, bad: true }),
+          qv('Byte hit ratio', avg('byte_hit_ratio'), { precision: 1 }),
+          qv('Avg total latency', avg('total_latency'), { precision: 1 }),
+        ],
+        groups: [
+          g('Edge traffic', [
+            ts('Requests by status group', sum('request_count', 'httpstatusgroup'), { display: 'bars', w: 6 }),
+            ts('Requests by endpoint', sum('request_count', 'endpoint'), { w: 6 }),
+            ts('4xx and 5xx share', [avg('percentage4xx'), avg('percentage5xx')], { alias: ['4xx %', '5xx %'], palette: 'warm', w: 4 }),
+            top('Endpoints with most 5xx', avg('percentage5xx', 'endpoint'), { palette: 'warm', w: 4 }),
+            mirror('Request and response bytes', sum('request_size'), sum('response_size'), { w: 4 }),
+          ]),
+          g('Cache and origins', [
+            ts('Byte hit ratio by endpoint', avg('byte_hit_ratio', 'endpoint'), { w: 4 }),
+            ts('Origin requests by status group', sum('origin_request_count', 'httpstatusgroup'), { display: 'bars', w: 4 }),
+            ts('Origin health', min('origin_health_percentage', 'name'), { w: 4 }),
+          ]),
+          g('Latency to clients and origins', [
+            ts('Total and origin latency', [avg('total_latency'), avg('origin_latency')], { alias: ['total', 'origin'], w: 6 }),
+            top('Slowest endpoints', avg('total_latency', 'endpoint'), { w: 6 }),
+          ]),
+          g('WebSockets and WAF', [
+            ts('WebSocket connections', [sum('web_socket_connections'), sum('active_web_socket_connections')], { alias: ['opened', 'active'], w: 4 }),
+            ts('WAF requests', sum('web_application_firewall_request_count', 'name'), { palette: 'warm', w: 4 }),
+            ts('WAF challenges', [sum('web_application_firewall_captcha_request_count'), sum('web_application_firewall_js_request_count')], { alias: ['CAPTCHA', 'JS challenge'], w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Network/trafficManagerProfiles': {
+    vars: [],
+    monitor: 'azure_traffic_manager',
+    note: 'Traffic Manager profiles: the DNS answers each profile returns and whether its probes see the endpoints up. Endpoint names aren’t split out, so charts are per profile.',
+    build: (q) => {
+      const { sum, min, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Profiles enabled'),
+          qv('Queries answered', sum('qps_by_endpoint')),
+          qv('Lowest endpoint status', min('probe_agent_current_endpoint_state_by_profile_resource_id'), { agg: 'min' }),
+        ],
+        groups: [
+          g('DNS answers', [ts('Queries answered by profile', sum('qps_by_endpoint', 'name'), { display: 'bars', w: 8 }), tree('Share of queries', sum('qps_by_endpoint', 'name'), { w: 4 })]),
+          g('Endpoint probes', [
+            txt('Probes report 1 while an endpoint is up and 0 when it is degraded; a profile at 0 is answering with its remaining endpoints, or none.', { w: 4 }),
+            ts('Endpoint status by profile', min('probe_agent_current_endpoint_state_by_profile_resource_id', 'name'), { w: 4 }),
+            top('Profiles with endpoints down', min('probe_agent_current_endpoint_state_by_profile_resource_id', 'name'), { order: 'asc', w: 4 }),
+          ]),
+          g('Profiles by health', [byStatus(count, 'Profiles by health status', { w: 12 })]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Logic/workflows': {
+    vars: [],
+    monitor: 'azure_logic_app',
+    note: 'Logic Apps (Consumption) workflows: runs and how they end, the triggers that start them and the actions inside, their latency, throttling, and the executions billed.',
+    logs: [['Logic Apps logs', 'source:azure.logic']],
+    build: (q) => {
+      const { sum, avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Workflows enabled'),
+          qv('Runs started', sum('runs_started')),
+          qv('Runs failed', sum('runs_failed'), { bad: true }),
+          qv('Avg run latency', avg('run_latency'), { precision: 2 }),
+          qv('Billable executions', sum('total_billable_executions')),
+        ],
+        groups: [
+          g('Runs', [
+            ts('Run outcomes', [sum('runs_succeeded'), sum('runs_failed'), sum('runs_cancelled')], { alias: ['succeeded', 'failed', 'cancelled'], display: 'bars', w: 6 }),
+            rate('Run failure rate by workflow', sum('runs_failed', 'name'), sum('runs_completed', 'name'), { w: 6 }),
+            top('Workflows failing most', sum('runs_failed', 'name'), { palette: 'warm', w: 4 }),
+            ts('Run latency by workflow', avg('run_latency', 'name'), { w: 4 }),
+            top('Slowest workflows', max('run_latency', 'name'), { agg: 'avg', w: 4 }),
+          ]),
+          g('Triggers', [
+            ts('Trigger outcomes', [sum('triggers_fired'), sum('triggers_skipped'), sum('triggers_failed')], { alias: ['fired', 'skipped', 'failed'], display: 'bars', w: 6 }),
+            ts('Trigger and fire latency', [avg('trigger_latency'), avg('trigger_fire_latency')], { alias: ['trigger', 'fire'], w: 6 }),
+          ]),
+          g('Actions', [
+            ts('Action outcomes', [sum('actions_succeeded'), sum('actions_failed'), sum('actions_skipped')], { alias: ['succeeded', 'failed', 'skipped'], display: 'bars', w: 6 }),
+            top('Workflows with most failed actions', sum('actions_failed', 'name'), { palette: 'warm', w: 3 }),
+            ts('Action latency', avg('action_latency', 'name'), { w: 3 }),
+          ]),
+          g('Throttling and billing', [
+            ts('Throttled events', [sum('run_throttled_events'), sum('run_start_throttled_events'), sum('trigger_throttled_events'), sum('action_throttled_events')], {
+              alias: ['runs', 'run starts', 'triggers', 'actions'],
+              palette: 'warm',
+              w: 6,
+            }),
+            ts('Billable executions', [sum('billable_action_executions'), sum('billable_trigger_executions')], { alias: ['actions', 'triggers'], display: 'bars', w: 3 }),
+            tree('Billable executions by workflow', sum('total_billable_executions', 'name'), { w: 3 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Automation/automationAccounts': {
+    vars: [],
+    monitor: 'azure_automation',
+    note: 'Automation accounts: runbook jobs, Update Management deployment runs and the hybrid workers that check in. Runbooks and job statuses aren’t split out, so charts are per account.',
+    logs: [['Automation logs', 'source:azure.automation']],
+    build: (q) => {
+      const { sum, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Accounts available'),
+          qv('Runbook jobs', sum('total_job')),
+          qv('Update deployment runs', sum('total_update_deployment_runs')),
+          qv('Hybrid worker pings', sum('hybrid_worker_ping')),
+        ],
+        groups: [
+          g('Runbook jobs', [
+            ts('Jobs by account', sum('total_job', 'name'), { display: 'bars', w: 8 }),
+            top('Busiest accounts', sum('total_job', 'name'), { w: 4 }),
+            chg('Jobs against the week before', sum('total_job', 'name'), { w: 12 }),
+          ]),
+          g('Update Management', [
+            ts('Deployment runs', sum('total_update_deployment_runs', 'name'), { display: 'bars', w: 6 }),
+            ts('Machine runs', sum('total_update_deployment_machine_runs', 'name'), { display: 'bars', w: 6 }),
+          ]),
+          g('Hybrid workers', [
+            txt('Each hybrid runbook worker pings its account regularly; an account whose pings stop has workers that can no longer pick up jobs.', { w: 4 }),
+            ts('Worker pings by account', sum('hybrid_worker_ping', 'name'), { w: 8 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.HDInsight/clusters': {
+    vars: [],
+    monitor: 'azure_hd_insight',
+    note: 'HDInsight clusters: requests through the cluster gateway, YARN’s pending CPU and memory and its active workers, and, for Kafka clusters, the REST proxy’s producer and consumer traffic, failures and latency.',
+    logs: [['HDInsight logs', 'source:azure.hdinsight']],
+    build: (q) => {
+      const { sum, avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Clusters running'),
+          qv('Gateway requests', sum('gateway_requests')),
+          qv('Active workers', sum('num_active_workers'), { agg: 'last' }),
+          qv('Pending CPU', max('pending_cpu')),
+          qv('Pending memory', max('pending_memory')),
+        ],
+        groups: [
+          g('Gateway', [ts('Gateway requests by cluster', sum('gateway_requests', 'name'), { display: 'bars', w: 8 }), top('Busiest gateways', sum('categorized_gateway_requests', 'name'), { w: 4 })]),
+          g('YARN capacity', [
+            ts('Active workers by cluster', avg('num_active_workers', 'name'), { w: 4 }),
+            ts('Pending CPU by cluster', max('pending_cpu', 'name'), { palette: 'warm', w: 4 }),
+            ts('Pending memory by cluster', max('pending_memory', 'name'), { palette: 'warm', w: 4 }),
+          ]),
+          g('Kafka REST proxy', [
+            ts('Messages produced and consumed', [sum('kafka_rest_proxy_messages_in_m1_delta'), sum('kafka_rest_proxy_messages_out_m1_delta')], { alias: ['in', 'out'], w: 4 }),
+            ts('Failed producer and consumer requests', [sum('kafka_rest_proxy_producer_request_fail_m1_delta'), sum('kafka_rest_proxy_consumer_request_fail_m1_delta')], {
+              alias: ['producer', 'consumer'],
+              palette: 'warm',
+              w: 4,
+            }),
+            ts('Open connections', sum('kafka_rest_proxy_open_connections', 'name'), { w: 4 }),
+            ts('Request latency (p95)', [max('kafka_rest_proxy_producer_request_time_p95'), max('kafka_rest_proxy_consumer_request_time_p95')], { alias: ['producer', 'consumer'], w: 6 }),
+            ts('Time requests wait in queue (p95)', [max('kafka_rest_proxy_producer_request_waiting_in_queue_time_p95'), max('kafka_rest_proxy_consumer_request_waiting_in_queue_time_p95')], {
+              alias: ['producer', 'consumer'],
+              w: 6,
+            }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.StreamAnalytics/streamingjobs': {
+    vars: [],
+    monitor: 'azure_stream_analytics',
+    note: 'Stream Analytics jobs: events in and out, how far processing falls behind (watermark delay and backlogged inputs), streaming unit memory and CPU, and the events lost to deserialization, conversion, ordering and runtime errors.',
+    logs: [['Stream Analytics logs', 'source:azure.streamanalytics']],
+    build: (q) => {
+      const { sum, avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Jobs running'),
+          qv('Input events', sum('input_events')),
+          qv('Output events', sum('output_events')),
+          qv('Max watermark delay', max('output_watermark_delay_seconds.max'), { precision: 1 }),
+          qv('Runtime errors', sum('errors'), { bad: true }),
+          qv('Peak SU memory', max('resource_utilization.max'), { precision: 1 }),
+        ],
+        groups: [
+          g('Events in and out', [
+            mirror('Input and output events', sum('input_events'), sum('output_events'), { w: 6 }),
+            ts('Input bytes by job', sum('input_event_bytes', 'name'), { w: 6 }),
+            ts('Input sources received', sum('input_events_sources_per_second', 'name'), { w: 6 }),
+            ts('Late, early and out-of-order events', [sum('late_input_events'), sum('early_input_events'), sum('dropped_or_adjusted_events')], { alias: ['late', 'early', 'out of order'], w: 6 }),
+          ]),
+          g('Falling behind', [
+            ts('Watermark delay by job', max('output_watermark_delay_seconds', 'name'), { w: 6 }),
+            ts('Backlogged input events', max('input_events_sources_backlogged', 'name'), { palette: 'warm', w: 3 }),
+            top('Jobs furthest behind', max('output_watermark_delay_seconds.max', 'name'), { w: 3 }),
+          ]),
+          g('Streaming units', [
+            ts('SU memory by job', avg('resource_utilization', 'name'), { w: 4 }),
+            ts('CPU by job', avg('process_cpuusage_percentage', 'name'), { w: 4 }),
+            top('Most loaded jobs', max('resource_utilization.max', 'name'), { w: 4 }),
+          ]),
+          g('Lost and failed events', [
+            ts('Errors by kind', [sum('errors'), sum('deserialization_error'), sum('conversion_errors')], {
+              alias: ['runtime', 'deserialization', 'conversion'],
+              display: 'bars',
+              palette: 'warm',
+              w: 6,
+            }),
+            ts('Function calls and failures', [sum('amlcallout_requests'), sum('amlcallout_failed_requests')], { alias: ['requests', 'failed'], w: 6 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.AppConfiguration/configurationStores': {
+    vars: [],
+    monitor: 'azure_app_configuration',
+    note: 'App Configuration stores: requests from applications and how long they take, the throttling once a store spends its request quota, daily storage used, snapshots and replication to replicas.',
+    build: (q) => {
+      const { sum, avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Stores available'),
+          qv('Requests', sum('http_incoming_request_count')),
+          qv('Throttled requests', sum('throttled_http_request_count'), { bad: true }),
+          qv('Peak request quota used', max('request_quota_usage.max'), { precision: 1 }),
+          qv('Avg request duration', avg('http_incoming_request_duration'), { precision: 1 }),
+        ],
+        groups: [
+          g('Store requests', [
+            ts('Requests by store', sum('http_incoming_request_count', 'name'), { display: 'bars', w: 6 }),
+            ts('Request duration by store', avg('http_incoming_request_duration', 'name'), { w: 6 }),
+          ]),
+          g('Quota and throttling', [
+            ts('Request quota used', max('request_quota_usage.max', 'name'), { w: 4 }),
+            rate('Throttled share of requests', sum('throttled_http_request_count', 'name'), sum('http_incoming_request_count', 'name'), { w: 4 }),
+            top('Stores throttled most', sum('throttled_http_request_count', 'name'), { palette: 'warm', w: 4 }),
+          ]),
+          g('Storage and replicas', [
+            ts('Daily storage used', max('daily_storage_usage.max', 'name'), { w: 4 }),
+            ts('Snapshot storage', max('snapshot_storage_size.max', 'name'), { w: 4 }),
+            ts('Replication latency', avg('replication_latency', 'name'), { w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.SignalRService/SignalR': {
+    vars: [],
+    monitor: 'azure_signalr',
+    note: 'SignalR Service instances: client connections against the unit quota, connections opened and closed, messages and traffic, server load, the latency of app server connections and the share of errors on the service and the users’ side.',
+    logs: [['SignalR logs', 'source:azure.signalrservice']],
+    build: (q) => {
+      const { sum, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Instances running'),
+          qv('Connections', sum('connection_count'), { agg: 'max' }),
+          qv('Messages', sum('message_count')),
+          qv('Peak server load', max('server_load.max'), { precision: 1 }),
+          qv('Peak connection quota used', max('connection_quota_utilization.max'), { precision: 1 }),
+          qv('Worst system errors', max('system_errors'), { precision: 2, bad: true }),
+        ],
+        groups: [
+          g('Client connections', [
+            ts('Connections by instance', max('connection_count', 'name'), { w: 6 }),
+            ts('Opened and closed', [sum('connection_open_count'), sum('connection_close_count')], { alias: ['opened', 'closed'], display: 'bars', w: 6 }),
+            top('Closest to the connection quota', max('connection_quota_utilization.max', 'name'), { w: 6 }),
+            ts('Server connection latency', max('server_connection_latency.max', 'name'), { w: 6 }),
+          ]),
+          g('Messages and traffic', [
+            ts('Messages by instance', sum('message_count', 'name'), { display: 'bars', w: 4 }),
+            mirror('Inbound and outbound traffic', sum('inbound_traffic'), sum('outbound_traffic'), { w: 4 }),
+            tree('Share of messages', sum('message_count', 'name'), { w: 4 }),
+          ]),
+          g('Load and errors', [
+            ts('Server load by instance', max('server_load.max', 'name'), { w: 4 }),
+            ts('System and user errors', [max('system_errors'), max('user_errors')], { alias: ['system %', 'user %'], palette: 'warm', w: 4 }),
+            top('Instances with most user errors', max('user_errors', 'name'), { palette: 'warm', w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Devices/IotHubs': {
+    vars: [],
+    monitor: 'azure_iot_hub',
+    note: 'IoT hubs: devices registered and connected, telemetry sent by devices and where routing delivers it (or drops it), cloud-to-device messages and direct methods, device twins, jobs, throttling and the daily message quota.',
+    build: (q) => {
+      const { sum, avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Hubs active'),
+          qv('Connected devices', sum('connected_device_count'), { agg: 'last' }),
+          qv('Telemetry messages sent', sum('d2c_telemetry_ingress_success')),
+          qv('Telemetry dropped', sum('d2c_telemetry_egress_dropped'), { bad: true }),
+          qv('Throttling errors', sum('d2c_telemetry_ingress_send_throttle'), { bad: true }),
+          qv('Messages used today', max('daily_message_quota_used'), { agg: 'last' }),
+        ],
+        groups: [
+          g('Devices', [
+            ts('Connected and registered devices', [sum('connected_device_count'), sum('total_device_count')], { alias: ['connected', 'registered'], w: 6 }),
+            ts('Successful connects', sum('connect_success', 'name'), { display: 'bars', w: 6 }),
+          ]),
+          g('Telemetry from devices', [
+            ts('Send attempts and messages sent', [sum('d2c_telemetry_ingress_all_protocol'), sum('d2c_telemetry_ingress_success')], { alias: ['attempts', 'sent'], w: 6 }),
+            ts('Messages used of the daily quota', max('daily_message_quota_used', 'name'), { w: 6 }),
+            top('Hubs receiving most telemetry', sum('d2c_telemetry_ingress_success', 'name'), { w: 6 }),
+            ts('Throttled sends and requests', [sum('d2c_telemetry_ingress_send_throttle'), sum('throttled_requests')], { alias: ['telemetry', 'requests'], palette: 'warm', w: 6 }),
+          ]),
+          g('Message routing', [
+            ts(
+              'Delivered to endpoints',
+              [sum('d2c_endpoints_egress_built_in_events'), sum('d2c_endpoints_egress_event_hubs'), sum('d2c_endpoints_egress_service_bus_queues'), sum('d2c_endpoints_egress_storage')],
+              { alias: ['built-in', 'Event Hubs', 'Service Bus', 'storage'], display: 'bars', w: 6 },
+            ),
+            ts(
+              'Dropped, orphaned, invalid and fallback',
+              [sum('d2c_telemetry_egress_dropped'), sum('d2c_telemetry_egress_orphaned'), sum('d2c_telemetry_egress_invalid'), sum('d2c_telemetry_egress_fallback')],
+              { alias: ['dropped', 'orphaned', 'invalid', 'fallback'], palette: 'warm', w: 6 },
+            ),
+            ts('Routing latency', [avg('d2c_endpoints_latency_built_in_events'), avg('d2c_endpoints_latency_event_hubs'), avg('d2c_endpoints_latency_storage')], {
+              alias: ['built-in', 'Event Hubs', 'storage'],
+              w: 12,
+            }),
+          ]),
+          g('Cloud to device', [
+            ts('C2D messages', [sum('c2d_commands_egress_complete_success'), sum('c2d_commands_egress_abandon_success'), sum('c2d_commands_egress_reject_success'), sum('c2dmessages_expired')], {
+              alias: ['completed', 'abandoned', 'rejected', 'expired'],
+              display: 'bars',
+              w: 6,
+            }),
+            ts('Direct methods', [sum('c2d_methods_success'), sum('c2d_methods_failure')], { alias: ['succeeded', 'failed'], w: 6 }),
+          ]),
+          g('Twins and jobs', [
+            ts('Twin reads and updates failed', [sum('d2c_twin_read_failure'), sum('d2c_twin_update_failure'), sum('c2d_twin_read_failure'), sum('c2d_twin_update_failure')], {
+              alias: ['device reads', 'device updates', 'back-end reads', 'back-end updates'],
+              palette: 'warm',
+              w: 6,
+            }),
+            ts('Jobs completed and failed', [sum('jobs_completed'), sum('jobs_failed')], { alias: ['completed', 'failed'], display: 'bars', w: 6 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Batch/batchAccounts': {
+    vars: [],
+    monitor: 'azure_batch',
+    note: 'Batch accounts: dedicated and low-priority (Spot) nodes and cores, the nodes by state (idle, running, starting, preempted, unusable), tasks and jobs as they start, finish and fail, pool resizes and the account’s API.',
+    logs: [['Batch logs', 'source:azure.batch']],
+    build: (q) => {
+      const { sum, avg, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Accounts available'),
+          qv('Dedicated cores', sum('core_count'), { agg: 'last' }),
+          qv('Low-priority cores', sum('low_priority_core_count'), { agg: 'last' }),
+          qv('Tasks completed', sum('task_complete_event')),
+          qv('Tasks failed', sum('task_fail_event'), { bad: true }),
+          qv('Unusable nodes', sum('unusable_node_count'), { agg: 'last', bad: true }),
+        ],
+        groups: [
+          g('Nodes by state', [
+            ts('Nodes by state', [sum('running_node_count'), sum('idle_node_count'), sum('starting_node_count'), sum('creating_node_count'), sum('leaving_pool_node_count')], {
+              alias: ['running', 'idle', 'starting', 'creating', 'leaving'],
+              display: 'area',
+              w: 8,
+            }),
+            ts('Nodes in trouble', [sum('unusable_node_count'), sum('start_task_failed_node_count'), sum('offline_node_count'), sum('preempted_node_count'), sum('unknown_state_node_count')], {
+              alias: ['unusable', 'start task failed', 'offline', 'preempted', 'unknown'],
+              palette: 'warm',
+              w: 4,
+            }),
+          ]),
+          g('Cores and nodes', [
+            ts('Dedicated and low-priority cores', [sum('core_count'), sum('low_priority_core_count')], { alias: ['dedicated', 'low-priority'], w: 6 }),
+            ts('Dedicated and low-priority nodes', [sum('total_node_count'), sum('total_low_priority_node_count')], { alias: ['dedicated', 'low-priority'], w: 6 }),
+            top('Accounts with most cores', sum('core_count', 'name'), { agg: 'avg', w: 12 }),
+          ]),
+          g('Tasks and jobs', [
+            ts('Tasks started, completed and failed', [sum('task_start_event'), sum('task_complete_event'), sum('task_fail_event')], {
+              alias: ['started', 'completed', 'failed'],
+              display: 'bars',
+              w: 6,
+            }),
+            ts('Requeued and unschedulable tasks', [sum('task_requeue_event'), sum('task_schedule_fail_event')], { alias: ['requeued', 'schedule failed'], palette: 'warm', w: 6 }),
+            ts('Jobs started and terminated', [sum('job_start_event'), sum('job_terminate_complete_event')], { alias: ['started', 'terminated'], w: 6 }),
+            ts('Pool resizes', [sum('pool_resize_start_event'), sum('pool_resize_complete_event')], { alias: ['started', 'completed'], w: 6 }),
+          ]),
+          g('Batch API', [ts('API requests by account', sum('api_count', 'name'), { display: 'bars', w: 6 }), ts('API request duration', avg('api_duration', 'name'), { w: 6 })]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.NetApp/netAppAccounts/capacityPools/volumes': {
+    vars: [],
+    monitor: 'azure_netapp_files',
+    note: 'Azure NetApp Files volumes: IOPS and throughput against the volume’s QoS limit, read and write latency, space and inodes consumed, snapshots, backups and cross-region replication.',
+    build: (q) => {
+      const { sum, avg, max, min, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Volumes available'),
+          qv('Total IOPS', sum('total_iops'), { precision: 0 }),
+          qv('Total throughput', sum('total_throughput')),
+          qv('Avg read latency', avg('average_read_latency'), { precision: 2 }),
+          qv('Fullest volume', max('volume_consumed_size_percentage'), { precision: 1 }),
+          qv('Max replication lag', max('xregion_replication_lag_time')),
+        ],
+        groups: [
+          g('Volume performance', [
+            ts('IOPS', [sum('read_iops'), sum('write_iops'), sum('other_iops')], { alias: ['read', 'write', 'other'], w: 4 }),
+            ts('Throughput', [sum('read_throughput'), sum('write_throughput'), sum('other_throughput')], { alias: ['read', 'write', 'other'], w: 4 }),
+            ts('Latency', [avg('average_read_latency'), avg('average_write_latency'), avg('average_other_latency')], { alias: ['read', 'write', 'other'], w: 4 }),
+            top('Busiest volumes', avg('total_iops', 'name'), { w: 4 }),
+            ts('Hitting the throughput limit', max('throughput_limit_reached', 'name'), { palette: 'warm', w: 4 }),
+            ts('Latency added by QoS', avg('qos_latency_delta', 'name'), { w: 4 }),
+          ]),
+          g('Space and inodes', [
+            top('Fullest volumes', max('volume_consumed_size_percentage', 'name'), { w: 4 }),
+            ts('Consumed against allocated', [sum('volume_logical_size'), sum('volume_allocated_size')], { alias: ['consumed', 'allocated'], w: 4 }),
+            ts('Inodes used', max('volume_inodes_percentage', 'name'), { w: 4 }),
+            ts('Snapshot size by volume', avg('volume_snapshot_size', 'name'), { w: 6 }),
+            ts('Cool tier size by volume', avg('volume_cool_tier_size', 'name'), { w: 6 }),
+          ]),
+          g('Backup and replication', [
+            ts('Replication lag by volume', max('xregion_replication_lag_time', 'name'), { w: 4 }),
+            top('Unhealthy replication', min('xregion_replication_healthy', 'name'), { order: 'asc', w: 4 }),
+            ts('Replication transfer size', avg('xregion_replication_last_transfer_size', 'name'), { w: 4 }),
+            ts('Backup bytes by volume', avg('cbs_volume_logical_backup_bytes', 'name'), { w: 6 }),
+            top('Volumes without backup', min('cbs_volume_protected', 'name'), { order: 'asc', w: 6 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.AnalysisServices/servers': {
+    vars: [],
+    monitor: 'azure_analysis_services',
+    note: 'Analysis Services servers: QPU used by queries and processing, memory against its limits and thrashing, the query and processing thread pools and their queues, connections and their failures, and processing rows.',
+    logs: [['Analysis Services logs', 'source:azure.analysisservices']],
+    build: (q) => {
+      const { sum, avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Servers running'),
+          qv('Avg QPU', avg('qpu_metric'), { precision: 1 }),
+          qv('Memory', sum('memory_metric'), { agg: 'avg' }),
+          qv('Peak memory thrashing', max('memory_thrashing_metric'), { precision: 1, bad: true }),
+          qv('Connection failures', sum('total_connection_failures'), { bad: true }),
+          qv('Current sessions', sum('current_user_sessions'), { agg: 'last' }),
+        ],
+        groups: [
+          g('QPU and memory', [
+            ts('QPU by server', avg('qpu_metric', 'name'), { w: 4 }),
+            ts('Memory used and limits', [sum('memory_usage'), sum('memory_limit_high'), sum('memory_limit_hard')], { alias: ['used', 'high limit', 'hard limit'], w: 4 }),
+            ts('Memory thrashing by server', max('memory_thrashing_metric', 'name'), { palette: 'warm', w: 4 }),
+            ts('VertiPaq memory', [sum('verti_paq_paged'), sum('verti_paq_nonpaged')], { alias: ['paged', 'nonpaged'], w: 6 }),
+            ts('M engine memory and QPU', [sum('mashup_engine_memory_metric'), sum('mashup_engine_qpu_metric')], { alias: ['memory', 'QPU'], w: 6 }),
+          ]),
+          g('Thread pools', [
+            ts('Query pool threads and queue', [avg('query_pool_busy_threads'), avg('query_pool_idle_threads'), avg('query_pool_job_queue_length')], { alias: ['busy', 'idle', 'queued'], w: 6 }),
+            ts('Processing pool queues', [avg('processing_pool_job_queue_length'), avg('processing_pool_iojob_queue_length')], { alias: ['jobs', 'I/O jobs'], w: 6 }),
+            top('Longest command queues', max('command_pool_job_queue_length', 'name'), { w: 12 }),
+          ]),
+          g('Connections and processing', [
+            ts('Connection requests and failures', [sum('total_connection_requests'), sum('total_connection_failures')], { alias: ['requests', 'failures'], w: 4 }),
+            ts('Current connections by server', avg('current_connections', 'name'), { w: 4 }),
+            ts('Rows read, converted and written', [avg('rows_read_per_sec'), avg('rows_converted_per_sec'), avg('rows_written_per_sec')], { alias: ['read', 'converted', 'written'], w: 4 }),
+          ]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.PowerBIDedicated/capacities': {
+    vars: [],
+    monitor: 'azure_power_bi_embedded',
+    note: 'Power BI Embedded (Gen2) capacities: how much of the capacity’s CPU reports and refreshes use, and when the capacity is overloaded and starts delaying interactive requests.',
+    build: (q) => {
+      const { avg, max, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Capacities active'),
+          qv('Avg CPU', avg('cpu_metric'), { precision: 1 }),
+          qv('Peak CPU', max('cpu_metric'), { precision: 1 }),
+          qv('Overloaded', max('overload_metric'), { agg: 'max', bad: true }),
+        ],
+        groups: [
+          g('Capacity CPU', [ts('CPU by capacity', avg('cpu_metric', 'name'), { w: 8 }), top('Busiest capacities', max('cpu_metric', 'name'), { w: 4 })]),
+          g('Overload', [
+            txt(
+              'A capacity is overloaded (1) when its CPU use exceeds what it is sized for; interactive requests are then delayed until the load drops. Overloads that recur call for a larger SKU or autoscale.',
+              { w: 4 },
+            ),
+            ts('Overload by capacity', max('overload_metric', 'name'), { display: 'bars', palette: 'warm', w: 8 }),
+          ]),
+          g('Capacities by health', [byStatus(count, 'Capacities by health status', { w: 12 })]),
+        ],
+      };
+    },
+  },
+
+  'Microsoft.Relay/namespaces': {
+    vars: [],
+    monitor: 'azure_relay',
+    note: 'Relay namespaces (WCF and hybrid connections): listeners waiting for senders, active connections, bytes relayed, and connection attempts and disconnects on both sides with their client and server errors.',
+    logs: [['Relay logs', 'source:azure.relay']],
+    build: (q) => {
+      const { sum, count } = on(q);
+      return {
+        kpis: [
+          ...health(count, 'Namespaces active'),
+          qv('Active listeners', sum('active_listeners'), { agg: 'last' }),
+          qv('Active connections', sum('active_connections'), { agg: 'last' }),
+          qv('Bytes relayed', sum('bytes_transferred')),
+          qv('Server errors', sum('listener_connections_server_error'), { bad: true }),
+        ],
+        groups: [
+          g('Listeners and connections', [
+            ts('Active listeners and connections', [sum('active_listeners'), sum('active_connections')], { alias: ['listeners', 'connections'], w: 6 }),
+            ts('Bytes relayed by namespace', sum('bytes_transferred', 'name'), { display: 'bars', w: 6 }),
+          ]),
+          g('Listener side', [
+            ts('Listener connection results', [sum('listener_connections_success'), sum('listener_connections_client_error'), sum('listener_connections_server_error')], {
+              alias: ['success', 'client error', 'server error'],
+              display: 'bars',
+              w: 6,
+            }),
+            rate('Listener failure rate', sum('listener_connections_server_error', 'name'), sum('listener_connections_total_requests', 'name'), { w: 3 }),
+            ts('Listener disconnects', sum('listener_disconnects', 'name'), { w: 3 }),
+          ]),
+          g('Sender side', [
+            ts('Sender connection results', [sum('sender_connections_success'), sum('sender_connections_client_error'), sum('sender_connections_server_error')], {
+              alias: ['success', 'client error', 'server error'],
+              display: 'bars',
+              w: 6,
+            }),
+            top('Namespaces with most sender errors', sum('sender_connections_client_error', 'name'), { palette: 'warm', w: 3 }),
+            ts('Sender disconnects', sum('sender_disconnects', 'name'), { w: 3 }),
+          ]),
+        ],
+      };
+    },
+  },
 };

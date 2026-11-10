@@ -250,7 +250,7 @@ test('mock mode shows the dashboards of the services its demo account collects',
   const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/cloudServiceDashboards.generated.json', import.meta.url), 'utf8'));
   assert.deepEqual(mock.dashboards.map((d) => d.logo).sort(), [...MOCK_SERVICES].sort());
   assert.ok(MOCK_SERVICES.includes('tile:aws-sqs'));
-  for (const id of ['aws-autoscaling', 'aws-docdb']) assert.ok(MOCK_SERVICES.includes(`tile:${id}`), id);
+  for (const id of ['aws-autoscaling', 'aws-docdb', 'azure-sql-servers-elasticpools', 'azure-cdn-profiles']) assert.ok(MOCK_SERVICES.includes(`tile:${id}`), id);
   for (const id of ['gcp-gce', 'gcp-run', 'gcp-cloudsql', 'gcp-gcs', 'gcp-pubsub']) assert.ok(MOCK_SERVICES.includes(`tile:${id}`), id);
   assert.equal(mock.units['azure.vm.percentage_cpu'], 'percent');
 });
@@ -435,8 +435,8 @@ test('services without a design get their key numbers and their metrics grouped 
   const [about] = d.widgets;
   assert.ok(about.definition.widgets.some((w) => w.definition.type === 'monitor_summary'));
   assert.ok(about.definition.widgets.filter((w) => kind(w.definition) === 'query_value').length >= 2);
-  const relay = bundle().find((l) => l.logo === 'tile:azure-relay-namespaces').dashboards[0];
-  assert.ok(relay.widgets.filter((w) => w.definition.type === 'group').length >= 3);
+  const mediatailor = awsLine('AWS/MediaTailor').dashboards[0];
+  assert.ok(mediatailor.widgets.filter((w) => w.definition.type === 'group').length >= 3);
 });
 
 test('designed dashboards’ metrics carry their units', () => {
@@ -502,6 +502,23 @@ const DESIGNED_AZURE = [
   'Microsoft.Synapse/workspaces',
   'Microsoft.DataFactory/factories',
   'Microsoft.Insights/dataCollectionRules',
+  'Microsoft.Compute/disks',
+  'Microsoft.Web/hostingEnvironments',
+  'Microsoft.Sql/servers/elasticPools',
+  'Microsoft.Cdn/profiles',
+  'Microsoft.Network/trafficManagerProfiles',
+  'Microsoft.Logic/workflows',
+  'Microsoft.Automation/automationAccounts',
+  'Microsoft.HDInsight/clusters',
+  'Microsoft.StreamAnalytics/streamingjobs',
+  'Microsoft.AppConfiguration/configurationStores',
+  'Microsoft.SignalRService/SignalR',
+  'Microsoft.Devices/IotHubs',
+  'Microsoft.Batch/batchAccounts',
+  'Microsoft.NetApp/netAppAccounts/capacityPools/volumes',
+  'Microsoft.AnalysisServices/servers',
+  'Microsoft.PowerBIDedicated/capacities',
+  'Microsoft.Relay/namespaces',
 ];
 
 test('the most used Azure services have a dashboard designed for them', () => {

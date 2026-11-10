@@ -60,6 +60,12 @@ const LOGO_VALUES: Record<string, Record<string, string[]>> = {
   'tile:azure-web-sites': { name: ['storefront-web', 'api-gateway', 'order-functions', 'storefront-web'] },
   'tile:azure-sql-servers-databases': { name: ['orders', 'catalog', 'billing', 'orders'] },
   'tile:azure-storage-storageaccounts': { name: ['storefrontassets', 'orderexports', 'storefrontassets', 'orderexports'] },
+  'tile:azure-sql-servers-elasticpools': { name: ['storefront-pool', 'storefront-pool', 'billing-pool', 'storefront-pool'] },
+  'tile:azure-cdn-profiles': {
+    name: ['storefront-cdn', 'storefront-cdn', 'assets-cdn', 'storefront-cdn'],
+    endpoint: ['storefront-example.azureedge.net', 'images-example.azureedge.net', 'assets-example.azureedge.net', 'storefront-example.azureedge.net'],
+    httpstatusgroup: ['2xx', '2xx', '4xx', '5xx'],
+  },
   'tile:azure-keyvault-vaults': {
     name: ['storefront-secrets', 'billing-keys', 'order-service-kv', 'storefront-secrets'],
     statuscode: ['200', '200', '429', '401'],

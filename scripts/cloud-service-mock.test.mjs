@@ -51,6 +51,8 @@ test('every chart of the demo accounts’ AWS, Azure and Google Cloud service da
     'tile:azure-storage-storageaccounts',
     'tile:azure-sql-servers-databases',
     'tile:azure-keyvault-vaults',
+    'tile:azure-sql-servers-elasticpools',
+    'tile:azure-cdn-profiles',
     'tile:gcp-gce',
     'tile:gcp-run',
     'tile:gcp-cloudsql',
