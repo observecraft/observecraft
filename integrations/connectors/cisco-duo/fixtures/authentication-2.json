@@ -1,0 +1,16 @@
+{
+  "stat": "OK",
+  "response": {
+    "authlogs": [
+      {
+        "txid": "7a3f0000-0000-4000-8000-000000000003", "timestamp": 1794310320, "isotimestamp": "2026-11-10T10:52:00.000000+00:00",
+        "event_type": "authentication", "result": "fraud", "reason": "user_marked_fraud", "factor": "duo_push",
+        "user": { "name": "jdoe", "key": "DU0A1B2C3D4E5F6G7H8I", "groups": ["Engineering (from AD sync)"] }, "email": "jane.doe@example.com", "alias": "",
+        "application": { "name": "Storefront Admin SSO", "key": "DI0A1B2C3D4E5F6G7H8I" },
+        "access_device": { "ip": "192.0.2.200", "location": { "city": "-", "state": "-", "country": "-" } },
+        "auth_device": { "name": "iPhone (+40 7XX XXX 001)", "key": "DP0A1B2C3D4E5F6G7H8I" }
+      }
+    ],
+    "metadata": { "next_offset": null, "total_objects": 3 }
+  }
+}

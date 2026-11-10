@@ -1,0 +1,16 @@
+{
+  "stat": "OK",
+  "response": {
+    "items": [
+      {
+        "activity_id": "5b1c0000-0000-4000-8000-000000000001", "ts": "2026-11-10T09:45:03.639784+00:00", "akey": "DA0A1B2C3D4E5F6G7H8I",
+        "action": { "name": "phone_activation_code_regenerated" },
+        "actor": { "name": "admin", "type": "admin", "key": "DE0A1B2C3D4E5F6G7H8I", "details": "{\"email\": \"admin@example.com\"}" },
+        "target": { "name": "+1 555-0100", "type": "phone", "key": "DP0A1B2C3D4E5F6G7H9J", "details": "{\"os\": \"Android\", \"os_version\": \"15\"}" },
+        "access_device": { "browser": "Firefox", "browser_version": "144.0", "os": "Windows", "os_version": "11", "ip": { "address": "203.0.113.41" }, "location": { "city": "Bucharest", "state": "Bucharest", "country": "Romania" } },
+        "application": null
+      }
+    ],
+    "metadata": { "next_offset": null, "total_objects": { "relation": "eq", "value": 1 } }
+  }
+}

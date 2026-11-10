@@ -1,0 +1,25 @@
+{
+  "stat": "OK",
+  "response": {
+    "authlogs": [
+      {
+        "txid": "7a3f0000-0000-4000-8000-000000000001", "timestamp": 1794301353, "isotimestamp": "2026-11-10T09:02:33.314482+00:00",
+        "event_type": "authentication", "result": "success", "reason": "user_approved", "factor": "duo_push",
+        "user": { "name": "jdoe", "key": "DU0A1B2C3D4E5F6G7H8I", "groups": ["Engineering (from AD sync)"] }, "email": "jane.doe@example.com", "alias": "",
+        "application": { "name": "Storefront Admin SSO", "key": "DI0A1B2C3D4E5F6G7H8I" },
+        "access_device": { "ip": "203.0.113.40", "browser": "Chrome", "browser_version": "141.0.0.0", "os": "Mac OS X", "os_version": "14.6", "location": { "city": "Bucharest", "state": "Bucharest", "country": "Romania" } },
+        "auth_device": { "name": "iPhone (+40 7XX XXX 001)", "key": "DP0A1B2C3D4E5F6G7H8I", "ip": "198.51.100.41", "location": { "city": "Bucharest", "state": "Bucharest", "country": "Romania" } },
+        "trusted_endpoint_status": "trusted", "ood_software": null
+      },
+      {
+        "txid": "7a3f0000-0000-4000-8000-000000000002", "timestamp": 1794304800, "isotimestamp": "2026-11-10T10:00:00.000000+00:00",
+        "event_type": "authentication", "result": "denied", "reason": "user_mistake", "factor": "duo_push",
+        "user": { "name": "slee", "key": "DU0A1B2C3D4E5F6G7H9J", "groups": [] }, "email": "sam.lee@example.com", "alias": "",
+        "application": { "name": "VPN", "key": "DI0A1B2C3D4E5F6G7H9J" },
+        "access_device": { "ip": "192.0.2.15", "location": { "city": "-", "state": "-", "country": "-" } },
+        "auth_device": { "name": "Pixel (+1 555-0100)", "key": "DP0A1B2C3D4E5F6G7H9J" }
+      }
+    ],
+    "metadata": { "next_offset": ["1794304800000", "7a3f0000-0000-4000-8000-000000000002"], "total_objects": 3 }
+  }
+}

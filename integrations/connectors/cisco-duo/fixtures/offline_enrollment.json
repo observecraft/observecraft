@@ -1,0 +1,6 @@
+{
+  "stat": "OK",
+  "response": [
+    { "timestamp": 1794297619, "isotimestamp": "2026-11-10T08:00:19+00:00", "username": "jdoe", "action": "o2fa_user_provisioned", "object": "Windows Logon - Staff", "description": "{\"user_agent\": \"DuoCredProv/5.0.0 (Windows NT 10.0.22631; x64; Workstation)\", \"hostname\": \"LAPTOP-JDOE\", \"factor\": \"duo_otp\"}" }
+  ]
+}

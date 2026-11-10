@@ -1,0 +1,48 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4a6-5ec0-7664-a421-de7a2dd1c87a"
+      },
+      "action": "admin_login",
+      "date": "2026-11-10T08:50:00+00:00",
+      "ddsource": "cisco-duo",
+      "description": "{\"ip_address\": \"203.0.113.41\", \"device\": \"555-0100\", \"factor\": \"push\", \"primary_auth_method\": \"Password\"}",
+      "host": "api-0a1b2c3d.duosecurity.com",
+      "isotimestamp": "2026-11-10T08:50:00+00:00",
+      "message": "admin_login by admin",
+      "object": null,
+      "service": "administrator",
+      "status": "info",
+      "timestamp": 1794300600,
+      "username": "admin"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4a8-3380-7565-84a6-b3f2916d5d01"
+      },
+      "action": "group_create",
+      "date": "2026-11-10T08:52:00+00:00",
+      "ddsource": "cisco-duo",
+      "description": "{\"desc\": \"Pager rotation\", \"name\": \"Storefront on-call\"}",
+      "host": "api-0a1b2c3d.duosecurity.com",
+      "isotimestamp": "2026-11-10T08:52:00+00:00",
+      "message": "group_create by admin on Storefront on-call",
+      "object": "Storefront on-call",
+      "service": "administrator",
+      "status": "info",
+      "timestamp": 1794300720,
+      "username": "admin"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311880000
+      }
+    }
+  }
+}

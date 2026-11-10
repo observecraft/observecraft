@@ -1,0 +1,9 @@
+{
+  "stat": "OK",
+  "response": {
+    "items": [
+      { "telephony_id": "9c2d0000-0000-4000-8000-000000000001", "txid": "7a3f0000-0000-4000-8000-000000000009", "ts": "2026-11-10T09:08:15.097338+00:00", "type": "sms", "context": "authentication", "credits": 1, "phone": "+15555550100" }
+    ],
+    "metadata": { "next_offset": null }
+  }
+}

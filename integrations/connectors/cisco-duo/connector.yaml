@@ -1,0 +1,204 @@
+# yaml-language-server: $schema=../connector.schema.json
+# Cisco Duo (https://duo.com/docs/adminapi#logs): the Admin API's five logs, as the logs Datadog's integration sends
+# (source:cisco-duo, service authentication, activity, telephony, administrator or offline_enrollment, the log
+# record as Duo answers it). Requests are signed with Duo's HMAC scheme (the duo_hmac_v5 signer).
+# integrations-core's log pipeline and its five dashboards for the tile read them as they are.
+schema_version: 1
+id: cisco-duo
+name: Cisco Duo
+publisher: ObserveCraft
+vendor: Cisco
+description: >-
+  Cisco Duo's authentication log (results, factors, devices, applications), activity log, telephony usage,
+  administrator actions and offline enrollments, one log per record, read from Duo's Admin API.
+tiles: [cisco-duo]
+categories: [Log Collection, Security, SIEM]
+source: cisco-duo
+docs_url: https://duo.com/docs/adminapi#logs
+setup: |
+  1. In the Duo Admin Panel, open **Applications → Protect an Application**, find **Admin API** and **Protect** it.
+  2. Under **Permissions**, keep only **Grant read log**; save.
+  3. Copy the integration key, the secret key and the API hostname (`api-XXXXXXXX.duosecurity.com`).
+instance: "{{ config.api_host }}"
+
+config:
+  - key: api_host
+    label: API hostname
+    type: string
+    required: true
+    pattern: "api-[a-z0-9]+\\.duosecurity\\.com"
+    placeholder: api-xxxxxxxx.duosecurity.com
+  - key: integration_key
+    label: Integration key
+    type: string
+    required: true
+    placeholder: DI…
+  - key: secret_key
+    label: Secret key
+    type: string
+    secret: true
+    required: true
+
+auth:
+  kind: signer
+  signer: duo_hmac_v5
+  params: { ikey: "{{ config.integration_key }}", skey: "{{ secrets.secret_key }}" }
+
+# Duo asks log readers to stay around one request a minute per log; five streams every 5 minutes stay well under.
+rate_limit: { requests_per_minute: 20 }
+
+errors:
+  - status: [401]
+    kind: auth
+    message: Duo refused the integration key, secret key or signature (check the server's clock too)
+  - status: [403]
+    kind: access_denied
+    message: The Admin API application lacks the Grant read log permission
+  - status: [429]
+    kind: throttled
+    message: Rate limited by Duo
+
+streams:
+  - id: authentication
+    name: Authentication log
+    description: >-
+      Every authentication attempt as a log (service:authentication): result, reason, factor, user, application,
+      access_device, auth_device, email.
+    interval: 5m
+    request:
+      url: "https://{{ config.api_host }}/admin/v2/logs/authentication"
+      query:
+        mintime: "{{ window.start }}"
+        maxtime: "{{ window.end }}"
+        limit: 1000
+        sort: "ts:asc"
+        next_offset: "{{ page.cursor }}"
+    records: "{{ response.response.authlogs }}"
+    pagination: { kind: cursor, next: "{{ response.response.metadata.next_offset | join(',') }}" }
+    record_id: "{{ record.txid }}"
+    incremental: &v2
+      kind: time
+      record_time: "{{ record.isotimestamp ?? record.ts }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 2m
+      # Duo's logs are complete two minutes after the fact.
+      settle: 2m
+    output:
+      logs:
+        service: authentication
+        message: "{{ 'Authentication ' + record.result + ' for ' + (record.user.name ?? record.email ?? 'unknown user') + (' to ' + record.application.name ?? '') + (' (' + record.reason + ')' ?? '') }}"
+        status: "{{ record.result == 'success' ? 'info' : (record.result == 'fraud' ? 'error' : 'warn') }}"
+        date: "{{ record.isotimestamp }}"
+        attributes: "{{ record }}"
+
+  - id: activity
+    name: Activity log
+    description: Every activity record (admin and user actions, enrollments, policy changes) as a log (service:activity).
+    interval: 5m
+    request:
+      url: "https://{{ config.api_host }}/admin/v2/logs/activity"
+      query:
+        mintime: "{{ window.start }}"
+        maxtime: "{{ window.end }}"
+        limit: 1000
+        sort: "ts:asc"
+        next_offset: "{{ page.cursor }}"
+    records: "{{ response.response.items }}"
+    pagination: { kind: cursor, next: "{{ response.response.metadata.next_offset }}" }
+    record_id: "{{ record.activity_id }}"
+    incremental: *v2
+    output:
+      logs:
+        service: activity
+        message: "{{ record.action.name + (' by ' + record.actor.name ?? '') + (' on ' + record.target.name ?? '') }}"
+        date: "{{ record.ts }}"
+        attributes: "{{ record }}"
+
+  - id: telephony
+    name: Telephony log
+    description: Every SMS or phone call Duo sent, with its credits, as a log (service:telephony).
+    interval: 5m
+    request:
+      url: "https://{{ config.api_host }}/admin/v2/logs/telephony"
+      query:
+        mintime: "{{ window.start }}"
+        maxtime: "{{ window.end }}"
+        limit: 1000
+        sort: "ts:asc"
+        next_offset: "{{ page.cursor }}"
+    records: "{{ response.response.items }}"
+    pagination: { kind: cursor, next: "{{ response.response.metadata.next_offset }}" }
+    record_id: "{{ record.telephony_id }}"
+    incremental: *v2
+    output:
+      logs:
+        service: telephony
+        message: "{{ record.type + ' for ' + record.context + ' (' + (record.credits | str) + ' credits)' }}"
+        date: "{{ record.ts }}"
+        attributes: "{{ record }}"
+
+  - id: administrator
+    name: Administrator log
+    description: Every administrator action (logins, user, group, policy and application changes) as a log (service:administrator).
+    interval: 5m
+    # The v1 log answers its oldest 1,000 records from mintime (seconds): the next page starts after the last one.
+    request:
+      url: "https://{{ config.api_host }}/admin/v1/logs/administrator"
+      query: { mintime: "{{ page.cursor ?? ((window.start / 1000) | floor) }}" }
+    records: "{{ response.response }}"
+    pagination: { kind: cursor, next: "{{ (records | len) >= 1000 ? last.timestamp + 1 : null }}" }
+    # Records carry no id: the record's JSON is its identity.
+    incremental: &v1
+      kind: time
+      record_time: "{{ record.timestamp }}"
+      order: oldest_first
+      lookback: 1d
+      overlap: 2m
+      settle: 2m
+    output:
+      logs:
+        service: administrator
+        message: "{{ record.action + (' by ' + record.username ?? '') + (' on ' + record.object ?? '') }}"
+        date: "{{ record.isotimestamp ?? record.timestamp }}"
+        attributes: "{{ record }}"
+
+  - id: offline_enrollment
+    name: Offline enrollment log
+    description: Every offline enrollment of Duo Authentication for Windows Logon as a log (service:offline_enrollment).
+    interval: 5m
+    request:
+      url: "https://{{ config.api_host }}/admin/v1/logs/offline_enrollment"
+      query: { mintime: "{{ page.cursor ?? ((window.start / 1000) | floor) }}" }
+    records: "{{ response.response }}"
+    pagination: { kind: cursor, next: "{{ (records | len) >= 1000 ? last.timestamp + 1 : null }}" }
+    incremental: *v1
+    output:
+      logs:
+        service: offline_enrollment
+        message: "{{ record.action + (' by ' + record.username ?? '') + (' on ' + record.object ?? '') }}"
+        date: "{{ record.isotimestamp ?? record.timestamp }}"
+        attributes: "{{ record }}"
+
+test:
+  stream: authentication
+  message: "Connected to {{ config.api_host }}: the authentication log is readable"
+
+mock:
+  config: { api_host: api-0a1b2c3d.duosecurity.com, integration_key: DIWJ8X6AEYOR5OMC6TQ1 }
+  secrets: { secret_key: test-duo-secret-key-0000000000000000000000 }
+  now: "2026-11-10T12:00:00Z"
+  responses:
+    - { url: "https://api-0a1b2c3d.duosecurity.com/admin/v2/logs/authentication", query: { next_offset: "1794304800000,7a3f0000-0000-4000-8000-000000000002" }, file: fixtures/authentication-2.json }
+    - { url: "https://api-0a1b2c3d.duosecurity.com/admin/v2/logs/authentication", file: fixtures/authentication-1.json }
+    - { url: "https://api-0a1b2c3d.duosecurity.com/admin/v2/logs/activity", file: fixtures/activity.json }
+    - { url: "https://api-0a1b2c3d.duosecurity.com/admin/v2/logs/telephony", file: fixtures/telephony.json }
+    - { url: "https://api-0a1b2c3d.duosecurity.com/admin/v1/logs/administrator", file: fixtures/administrator.json }
+    - { url: "https://api-0a1b2c3d.duosecurity.com/admin/v1/logs/offline_enrollment", file: fixtures/offline_enrollment.json }
+  expect:
+    authentication: { records: 3, logs: 3, rerun: 0, golden: fixtures/authentication.expected.json }
+    activity: { records: 1, logs: 1, rerun: 0, golden: fixtures/activity.expected.json }
+    telephony: { records: 1, logs: 1, rerun: 0, golden: fixtures/telephony.expected.json }
+    administrator: { records: 2, logs: 2, rerun: 0, golden: fixtures/administrator.expected.json }
+    offline_enrollment: { records: 1, logs: 1, rerun: 0, golden: fixtures/offline_enrollment.expected.json }
+    test: { ok: true, message: "authentication log is readable" }

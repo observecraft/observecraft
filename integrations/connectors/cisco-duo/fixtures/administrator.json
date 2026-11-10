@@ -1,0 +1,7 @@
+{
+  "stat": "OK",
+  "response": [
+    { "timestamp": 1794300600, "isotimestamp": "2026-11-10T08:50:00+00:00", "username": "admin", "action": "admin_login", "object": null, "description": "{\"ip_address\": \"203.0.113.41\", \"device\": \"555-0100\", \"factor\": \"push\", \"primary_auth_method\": \"Password\"}" },
+    { "timestamp": 1794300720, "isotimestamp": "2026-11-10T08:52:00+00:00", "username": "admin", "action": "group_create", "object": "Storefront on-call", "description": "{\"desc\": \"Pager rotation\", \"name\": \"Storefront on-call\"}" }
+  ]
+}

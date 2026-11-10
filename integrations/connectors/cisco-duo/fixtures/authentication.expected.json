@@ -1,0 +1,153 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4b1-dd62-72af-80fe-79855e457483"
+      },
+      "access_device": {
+        "browser": "Chrome",
+        "browser_version": "141.0.0.0",
+        "ip": "203.0.113.40",
+        "location": {
+          "city": "Bucharest",
+          "country": "Romania",
+          "state": "Bucharest"
+        },
+        "os": "Mac OS X",
+        "os_version": "14.6"
+      },
+      "alias": "",
+      "application": {
+        "key": "DI0A1B2C3D4E5F6G7H8I",
+        "name": "Storefront Admin SSO"
+      },
+      "auth_device": {
+        "ip": "198.51.100.41",
+        "key": "DP0A1B2C3D4E5F6G7H8I",
+        "location": {
+          "city": "Bucharest",
+          "country": "Romania",
+          "state": "Bucharest"
+        },
+        "name": "iPhone (+40 7XX XXX 001)"
+      },
+      "date": "2026-11-10T09:02:33.314482+00:00",
+      "ddsource": "cisco-duo",
+      "email": "jane.doe@example.com",
+      "event_type": "authentication",
+      "factor": "duo_push",
+      "host": "api-0a1b2c3d.duosecurity.com",
+      "isotimestamp": "2026-11-10T09:02:33.314482+00:00",
+      "message": "Authentication success for jdoe to Storefront Admin SSO (user_approved)",
+      "ood_software": null,
+      "reason": "user_approved",
+      "result": "success",
+      "service": "authentication",
+      "status": "info",
+      "timestamp": 1794301353,
+      "trusted_endpoint_status": "trusted",
+      "txid": "7a3f0000-0000-4000-8000-000000000001",
+      "user": {
+        "groups": [
+          "Engineering (from AD sync)"
+        ],
+        "key": "DU0A1B2C3D4E5F6G7H8I",
+        "name": "jdoe"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4e6-7500-7462-aed7-28467416a1f8"
+      },
+      "access_device": {
+        "ip": "192.0.2.15",
+        "location": {
+          "city": "-",
+          "country": "-",
+          "state": "-"
+        }
+      },
+      "alias": "",
+      "application": {
+        "key": "DI0A1B2C3D4E5F6G7H9J",
+        "name": "VPN"
+      },
+      "auth_device": {
+        "key": "DP0A1B2C3D4E5F6G7H9J",
+        "name": "Pixel (+1 555-0100)"
+      },
+      "date": "2026-11-10T10:00:00.000000+00:00",
+      "ddsource": "cisco-duo",
+      "email": "sam.lee@example.com",
+      "event_type": "authentication",
+      "factor": "duo_push",
+      "host": "api-0a1b2c3d.duosecurity.com",
+      "isotimestamp": "2026-11-10T10:00:00.000000+00:00",
+      "message": "Authentication denied for slee to VPN (user_mistake)",
+      "reason": "user_mistake",
+      "result": "denied",
+      "service": "authentication",
+      "status": "warn",
+      "timestamp": 1794304800,
+      "txid": "7a3f0000-0000-4000-8000-000000000002",
+      "user": {
+        "groups": [],
+        "key": "DU0A1B2C3D4E5F6G7H9J",
+        "name": "slee"
+      }
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c516-1080-7615-86ae-b044b2f31211"
+      },
+      "access_device": {
+        "ip": "192.0.2.200",
+        "location": {
+          "city": "-",
+          "country": "-",
+          "state": "-"
+        }
+      },
+      "alias": "",
+      "application": {
+        "key": "DI0A1B2C3D4E5F6G7H8I",
+        "name": "Storefront Admin SSO"
+      },
+      "auth_device": {
+        "key": "DP0A1B2C3D4E5F6G7H8I",
+        "name": "iPhone (+40 7XX XXX 001)"
+      },
+      "date": "2026-11-10T10:52:00.000000+00:00",
+      "ddsource": "cisco-duo",
+      "email": "jane.doe@example.com",
+      "event_type": "authentication",
+      "factor": "duo_push",
+      "host": "api-0a1b2c3d.duosecurity.com",
+      "isotimestamp": "2026-11-10T10:52:00.000000+00:00",
+      "message": "Authentication fraud for jdoe to Storefront Admin SSO (user_marked_fraud)",
+      "reason": "user_marked_fraud",
+      "result": "fraud",
+      "service": "authentication",
+      "status": "error",
+      "timestamp": 1794310320,
+      "txid": "7a3f0000-0000-4000-8000-000000000003",
+      "user": {
+        "groups": [
+          "Engineering (from AD sync)"
+        ],
+        "key": "DU0A1B2C3D4E5F6G7H8I",
+        "name": "jdoe"
+      }
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311880000
+      }
+    }
+  }
+}
