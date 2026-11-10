@@ -184,6 +184,10 @@ New filters are added over time; an unknown filter or a wrong number of argument
 | `token_exchange` | `request`, `capture: {name: template}`, `expires_in?`, `ttl` (default 1h), `headers`, `jwt?` | a login request; the values captured from its answer (`response`, `headers`) are `auth.<name>` in later requests (a token, a base URL, a cookie), and `headers` (default `Authorization: Bearer {{ auth.token }}`) go on every request. Covers short-lived JWTs (Greenhouse), logon calls returning a manager URL (CyberArk EPM), password → token (ZeroFox), cookie sessions (`capture: {cookie: "{{ headers['set-cookie'] }}"}`). With `jwt` (a `jwt` block as above, without `headers`), the login request can read `auth.jwt`: GitHub Apps (`Authorization: Bearer {{ auth.jwt }}` on `POST /app/installations/{id}/access_tokens`, `capture: {token: "{{ response.token }}"}`) |
 | `signer` | `signer`, `params` | a signer compiled into the server signs each request: `duo_hmac_v2` / `duo_hmac_v5` (`ikey`, `skey`), `cortex_xdr_advanced` (`key_id`, `key`), `trend_micro_apex_central` (`application_id`, `api_key`), `akamai_edgegrid` (`client_token`, `client_secret`, `access_token`). A new scheme is a small Rust function in `oc-connectors/src/auth.rs` plus its name in the schema. |
 
+**Choices.** `{kind: choice, field: method, options: {token: {kind: api_key, …}, oauth: {kind:
+oauth2_client_credentials, …}}}` lets the connection pick (a select config field, every option of it covered): an Okta
+SSWS token or OAuth, a Shopify token or an app.
+
 A stream can override it with its own `auth` (an API needing two credentials). Tokens are cached per connection and
 forgotten when its secrets change; tests never reuse a cached token.
 
@@ -214,11 +218,11 @@ request:
 |---|---|---|
 | `none` | | one page |
 | `cursor` | `next` | `page.cursor` = `next` (any JSON value: `{pit: headers['pit-id'], after: headers['search-after']}` works); stops when it is `null`/"" or the page has no records |
-| `next_url` | `next` | the URL `next` gives (absolute or relative); stops when `null`/"" or no records |
+| `next_url` | `next`, `method?` | the URL `next` gives (absolute or relative); stops when `null`/"" or no records. `method: GET` after a first `POST` (a query whose result chunks are links) sends the next pages without the body |
 | `link_header` | | the `Link` header's `rel="next"` |
 | `offset` | `size`, `start` (0), `total?`, `max?` | `page.offset` += `size` (`page.size` = `size`); stops on a short page or when the offset reaches `total`. `max`: the largest offset the API accepts; a time window reaching it is split in two and read again (Cisco Umbrella) |
 | `page` | `size`, `start` (1), `total_pages?` | `page.number` += 1; stops on a short page or after `total_pages` |
-| `async_export` | `create`, `id`, `status`, `ready`, `failed?`, `chunks`, `chunk` | an export flow across runs: `create` starts it (`export.id` = `id` of its answer), each run polls `status` until `ready`, then reads every chunk of `chunks` with `chunk` (variable `chunk`); the stream's `request` isn't used (Tenable) |
+| `async_export` | `create`, `id`, `status`, `ready`, `failed?`, `chunks`, `chunk` | an export flow across runs: `create` starts it (`export.id` = `id` of its answer), each run polls `status` until `ready`, then reads every chunk of `chunks` with `chunk` (variable `chunk`); the stream's `request` isn't used (Tenable). Records outside the export's window are skipped, and ids sent stay remembered across exports |
 
 A next page never leaves the first request's host (credentials never go elsewhere); one that would is refused with a
 warning. A run reads at most `max_pages` pages (default 20) per partition.
@@ -230,7 +234,7 @@ warning. A run reads at most `max_pages` pages (default 20) per partition.
 | Kind | Fields | For |
 |---|---|---|
 | `none` | | snapshots (state as gauges): everything every run |
-| `new_records` | `max_seen` (100 000) | lists without times: only records whose `record_id` wasn't sent before (breached accounts, findings, finished test runs) |
+| `new_records` | `max_seen` (100 000), `order?` | lists without times: only records whose `record_id` wasn't sent before (breached accounts, findings, finished test runs). `order: newest_first`: a page with a record sent before ends the paging |
 | `time` | `record_time`, `order`, `lookback` (1d), `overlap` (0s), `settle` (0s), `slice?`, `max_window?`, `cursor: window_end\|last_record` | event logs |
 | `token` | `next`, `initial?` | APIs that hand out a checkpoint (`since` tokens, `nextpagetoken` kept across runs): `cursor.token` |
 
@@ -244,17 +248,26 @@ records:
 - `order: newest_first` or `unordered`: the run keeps the window and the page it stopped at (the backlog); the next
   run carries on from there, and the cursor moves only once the window is read.
 - `order: oldest_first`: the cursor moves to the last record read; the next window starts there.
+- `order: newest_first` lists the request can't filter by time stop at the first record older than the window: the
+  window is complete, nothing older is paged through.
 
 Without `record_id`, the record's JSON is its identity. The cursor and the backlog are saved only after the run's
 records are stored in Kafka, so a failed publish reads them again.
 
 `for_each` gives every item its own cursor (a partition); items that disappear from the list lose their state.
 
+**Bucketed APIs revising settled buckets** (usage per hour, still counted for a while): emit a `gauge` per bucket
+(`time: "{{ record.start }}"`), read the recent buckets again with `overlap`, and put the value in the `record_id`
+(`"{{ record.start + ':' + record.count }}"`): a revised bucket is sent again at its own time, an unchanged one never.
+Don't use `type: count` for buckets (a delta over the run).
+
 ## Records
 
 ```yaml
 discover:                          # before every stream, cached for ttl (default 1h)
   - { name: whoami, request: { url: "…/whoami" }, value: "{{ response.apiHosts.dataRegion }}" }
+  - { name: tenants, request: { url: "…/tenants", query: { page: "{{ page.number }}" } }, pagination: { kind: page, size: 100 },
+      records: "{{ response.data }}", value: "{{ records | pluck('id') }}" }   # every page's records as `records`
 streams:
   - id: events                     # ^[a-z][a-z0-9_]*$, the job's scope
     name: Events
@@ -264,6 +277,8 @@ streams:
     for_each: "{{ config.projects ?? discovery.projects }}"     # item
     lookups:                       # read once per run, cached for ttl: lookups.<name>[key]
       - { name: members, request: { url: "…/members" }, records: "{{ response.data }}", key: "{{ record.id }}", value: "{{ record.name }}" }
+      # reading `item`: per for_each item; `when` (over config, item) false: not read, lookups.<name> is {}
+      - { name: owners, when: "{{ config.with_owners }}", request: { url: "…/projects/{{ item }}/owners" }, key: "{{ record.id }}" }
     request: …
     records: "{{ response.data }}" # default: the answer (an object is one record)
     record_id: "{{ record.id }}"
@@ -279,7 +294,9 @@ streams:
 - Index-then-download (Salesforce EventLogFile CSVs, Microsoft 365 content blobs): the pages list index entries and
   `expand: {request: {url: "{{ config.base_url + parent.LogFile }}", format: csv}, records: …}` reads each one; its
   records take the entry's place, with the entry as `parent` in the record's templates (`record_id: "{{ parent.Id +
-  ':' + record.REQUEST_ID }}"`).
+  ':' + record.REQUEST_ID }}"`). With a `record_id` (and `record_time`) reading only `parent`, entries sent before or
+  outside the window are skipped before their download (per-record detail requests aren't sent again every run).
+- YAML anchors and merge keys (`- <<: *events`) work for streams that share most of their fields.
 - Positional rows (Snowflake's SQL API): `records: "{{ response.data | to_objects(response.resultSetMetaData.rowType) }}"`.
 
 ## Output
@@ -306,7 +323,9 @@ logs:
 
 Use Datadog's standard attributes (`usr.*`, `network.client.ip`, `http.*`, `evt.name`, `evt.outcome`,
 `error.*`) so facets, Cloud SIEM rules and the tile's dashboard work. `attributes` may also be one template giving an
-object (`"{{ record + {user_details: {…}} }}"`). Every log gets an identity from the instance, the `record_id` and the
+object (`"{{ record + {user_details: {…}} }}"`), pruned the same way. A record's own `status` attribute stays
+`@status`, apart from the log's status (it travels in the log's JSON message, whose fields the log ingester keeps as
+attributes). Every log gets an identity from the instance, the `record_id` and the
 connector, timed at its date: a record read again rewrites the same row.
 
 **Metrics** (`oc.otlp-json.metrics`, resource `cloud.provider = <id>`):
@@ -322,7 +341,9 @@ metrics:
     host: …                        # none by default: accounts aren't hosts
     time: "{{ record.timestamp }}" # default the run's minute
     filter: …
-    unit: second                   # Datadog unit names: the metric catalog and dashboards read them
+    unit: second                   # Datadog unit names (a template for families: "{{ tables.units[entry.key] }}"), sent as the points' unit
+    aggregate: max                 # sum, min, max, avg, count, p50, p75, p90, p95, p99: the run's points of a series and time as one
+    examples: [vendor.queue.depth] # the names a templated name gives, for Data Collected (default: a tables.<t>[…] name's table values)
     description: …
 ```
 
@@ -343,6 +364,9 @@ errors:                            # the stream's, then the manifest's, then the
 rate_limit: { requests_per_minute: 60 }        # or min_interval: 2s
 budget: { requests: 10000, per: day }          # hour, day, month; the manifest's for the connection, a stream's for itself
 ```
+
+A rule naming a 2xx status (`status: [200]`) with a `when` reads successful answers too: GraphQL APIs answering
+errors with 200 (`when: "{{ response.errors | len > 0 }}"`).
 
 Kinds: `auth` (credentials refused: retried at the stream's interval), `access_denied` (permission or plan: interval),
 `throttled` (exponential backoff), `disabled` (daily), `other` (exponential). Defaults: 401 `auth`, 403 and 404
@@ -386,7 +410,7 @@ Vercel drains, Stripe / PagerDuty / LaunchDarkly webhooks) have no streams:
 
 ```yaml
 push:
-  kind: logs                     # logs (Datadog's logs API), otlp, webhook (the intake's /intake/webhook/<name>)
+  kind: logs                     # logs (Datadog's logs API), otlp, webhook (the intake's /intake/webhook/<name>), splunk_hec
   instructions: |                # Markdown; {{ intake }}, {{ source }}, {{ api_key }} are replaced on the page
     In Cloudflare, create a Logpush job with an HTTP destination …
   url: "{{ intake }}/api/v2/logs?ddsource={{ source }}&dd-api-key={{ api_key }}"    # default by kind
@@ -400,6 +424,10 @@ push:
 They appear in the catalog as available and are installed from their tile (the tile's pipeline and dashboards); the
 page shows the URL and headers, and with `create` a form (the package's `config`) that runs the request once
 (`POST /api/v1/connectors/{id}/push`, nothing stored).
+
+`push.endpoints` lists more endpoints the vendor sends to (`{label: Traces, kind: otlp, url: …, headers, instructions}`),
+each shown with its URL. OTLP logs take `?ddsource=<source>&service=…` on `/v1/logs` (`url: "{{ intake }}/v1/logs?ddsource={{
+source }}"`): every record without its own gets them, so the package's pipeline matches.
 
 **Signatures.** `push.signature` names the header, the algorithm and the secret config field holding the signing
 secret; a package with one is connected like a polled one (the page's "Save the signing secret": a connection with
@@ -448,7 +476,7 @@ mock:
   config: { base_url: "https://api.example.com" }
   secrets: { token: test-token }
   now: "2026-11-10T12:00:00Z"
-  responses:                       # first unused match; the last match repeats
+  responses:                       # the most specific (query, body_contains) unused match, else the most specific: reruns get the first run's answers
     - { url: "https://api.example.com/v1/events", query: { cursor: c2 }, file: fixtures/events-2.json }
     - { url: "https://api.example.com/v1/events", file: fixtures/events-1.json, headers: { Link: "…" } }
     - { method: POST, url: "https://login.example.com/token", body_contains: "client_credentials", body: { access_token: t } }
@@ -462,6 +490,7 @@ mock:
 - Each stream runs once from an empty state at `now`, then (`rerun`) again a minute later with the state it left,
   against the same answers: `rerun: 0` proves incremental reading skips what was sent.
 - `golden` files hold the run's logs, metrics, events, costs and state; `OC_CONNECTOR_UPDATE=1` rewrites them.
+- `dist/` is committed (the server compiles it in): run `node scripts/connector.mjs build` after changing a dashboard.
 - `node scripts/connector.mjs validate <dir>` checks the manifest; `test <dir>` replays; both run the server's own
   code (`oc-connector`). `cargo test -p oc-connectors` covers the engine; `cargo test -p oc-api connectors` replays
   every bundled package.

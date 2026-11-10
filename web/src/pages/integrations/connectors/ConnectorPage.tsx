@@ -426,19 +426,19 @@ function SigningSecret({ c, n, connections }: { c: ConnectorEntry; n: number; co
   );
 }
 
+/** Where a push of `kind` sends by default (a package's `push.url` replaces it). */
+function defaultPushUrl(kind: string, webhook: string): string {
+  if (kind === 'otlp') return '{{ intake }}';
+  if (kind === 'webhook') return `{{ intake }}/intake/webhook/${webhook}?api_key={{ api_key }}`;
+  if (kind === 'splunk_hec') return '{{ intake }}/services/collector?ddsource={{ source }}';
+  return '{{ intake }}/api/v2/logs?ddsource={{ source }}&dd-api-key={{ api_key }}';
+}
+
 function Push({ c, connections }: { c: ConnectorEntry; connections: ConnectionView[] }) {
   const { isAdmin } = useAccess();
   const p = c.push!;
   const vars = { intake: intakeUrl(), source: c.source, api_key: '<INGEST_API_KEY>' };
-  const url = fill(
-    p.url ??
-      (p.kind === 'otlp'
-        ? '{{ intake }}'
-        : p.kind === 'webhook'
-          ? `{{ intake }}/intake/webhook/${p.webhook ?? c.id}?api_key={{ api_key }}`
-          : '{{ intake }}/api/v2/logs?ddsource={{ source }}&dd-api-key={{ api_key }}'),
-    vars,
-  );
+  const url = fill(p.url ?? defaultPushUrl(p.kind, p.webhook ?? c.id), vars);
   const [form, setForm] = useState<Form>(() => emptyForm(c));
   const create = useMutation({ mutationFn: () => createPush(c.id, { ...inputOf(c, form), pushUrl: url } as ConnectionInput) });
   const headers = useMemo(
@@ -456,6 +456,25 @@ function Push({ c, connections }: { c: ConnectorEntry; connections: ConnectionVi
         </div>
         <CodeBlock code={url} />
         {headers && <CodeBlock code={headers} />}
+        {p.kind === 'splunk_hec' && <CodeBlock code={`Authorization: Splunk ${vars.api_key}`} />}
+        {p.endpoints.map((e) => (
+          <div key={e.label}>
+            <h4>{e.label}</h4>
+            {e.instructions && (
+              <div className="muted">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{fill(e.instructions, vars)}</ReactMarkdown>
+              </div>
+            )}
+            <CodeBlock code={fill(e.url ?? defaultPushUrl(e.kind, p.webhook ?? c.id), vars)} />
+            {Object.keys(e.headers).length > 0 && (
+              <CodeBlock
+                code={Object.entries(e.headers)
+                  .map(([k, v]) => `${k}: ${fill(v, vars)}`)
+                  .join('\n')}
+              />
+            )}
+          </div>
+        ))}
         {p.signatureHeader && (
           <p className="muted">
             ObserveCraft checks the {p.signatureHeader} signature of every request with the signing secret {c.vendor} gives you.

@@ -33,11 +33,24 @@ pub const MANIFEST: &str = "connector.yaml";
 /// Files larger than this are not read.
 pub const MAX_FILE_BYTES: u64 = 8 << 20;
 
+/// A manifest's YAML: read directly (errors name their line), or with merge keys (`<<: *anchor`) applied first.
+pub fn parse_manifest(text: &str) -> Result<Manifest, String> {
+    match serde_yaml_ng::from_str::<Manifest>(text) {
+        Ok(m) => Ok(m),
+        Err(e) if text.contains("<<") => {
+            let mut v: serde_yaml_ng::Value = serde_yaml_ng::from_str(text).map_err(|_| e.to_string())?;
+            v.apply_merge().map_err(|m| m.to_string())?;
+            serde_yaml_ng::from_value(v).map_err(|m| m.to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 impl Package {
     /// A package from its files; `Err` lists every problem.
     pub fn from_files(files: BTreeMap<String, String>, origin: Origin) -> Result<Package, Vec<String>> {
         let text = files.get(MANIFEST).ok_or_else(|| vec![format!("{MANIFEST} is missing")])?;
-        let manifest: Manifest = serde_yaml_ng::from_str(text).map_err(|e| vec![format!("{MANIFEST}: {e}")])?;
+        let manifest = parse_manifest(text).map_err(|e| vec![format!("{MANIFEST}: {e}")])?;
         let problems = crate::validate::validate(&manifest, &files);
         if !problems.is_empty() {
             return Err(problems);

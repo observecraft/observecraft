@@ -110,6 +110,8 @@ pub async fn prepare(auth: &Auth, scope: &Map<String, Value>, cache_key: &str, t
     let mut out = Prepared::default();
     match auth {
         Auth::None => {}
+        // Resolved before (`Auth::chosen`).
+        Auth::Choice { .. } => return Err("the connection's authentication method is not chosen".into()),
         Auth::ApiKey { location, name, value } => {
             let v = render(value, scope)?;
             match location {

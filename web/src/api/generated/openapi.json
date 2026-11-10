@@ -40592,12 +40592,20 @@
           "kind",
           "instructions",
           "headers",
-          "canCreate"
+          "canCreate",
+          "endpoints"
         ],
         "properties": {
           "canCreate": {
             "type": "boolean",
             "description": "Whether the page can create the push on the vendor's side (`POST /api/v1/connectors/{id}/push`)."
+          },
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorPushEndpoint"
+            },
+            "description": "More endpoints (a trace drain beside a log drain)."
           },
           "headers": {
             "type": "object",
@@ -40639,6 +40647,45 @@
             "description": "The URL to paste (`{{ intake }}`, `{{ source }}`, `{{ api_key }}`, `{{ config.x }}` parts)."
           },
           "webhook": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ConnectorPushEndpoint": {
+        "type": "object",
+        "description": "Another endpoint of a push package.",
+        "required": [
+          "label",
+          "kind",
+          "headers"
+        ],
+        "properties": {
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "description": "logs | otlp | webhook | splunk_hec"
+          },
+          "label": {
+            "type": "string"
+          },
+          "url": {
             "type": [
               "string",
               "null"

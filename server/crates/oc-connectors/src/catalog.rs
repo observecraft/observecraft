@@ -106,6 +106,20 @@ pub struct ConnectorPush {
     pub signature_secret: Option<String>,
     /// Whether the page can create the push on the vendor's side (`POST /api/v1/connectors/{id}/push`).
     pub can_create: bool,
+    /// More endpoints (a trace drain beside a log drain).
+    pub endpoints: Vec<ConnectorPushEndpoint>,
+}
+
+/// Another endpoint of a push package.
+#[derive(Serialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectorPushEndpoint {
+    pub label: String,
+    /// logs | otlp | webhook | splunk_hec
+    pub kind: String,
+    pub url: Option<String>,
+    pub headers: std::collections::BTreeMap<String, String>,
+    pub instructions: Option<String>,
 }
 
 /// A connector: its package's catalog entry, or a native connector's.
@@ -159,6 +173,35 @@ fn kind_name(k: FieldKind) -> &'static str {
     }
 }
 
+/// The names a metric output gives: its name, its `examples` for a templated one, else the values of the table a
+/// `{{ tables.<t>[…] }}` name reads (shown raw when none of these apply).
+pub fn metric_names(m: &crate::manifest::Manifest, mo: &crate::manifest::MetricOut) -> Vec<String> {
+    if !mo.name.contains("{{") {
+        return vec![mo.name.clone()];
+    }
+    if !mo.examples.is_empty() {
+        return mo.examples.clone();
+    }
+    static TABLE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = TABLE.get_or_init(|| regex::Regex::new(r"^\{\{\s*tables\.([a-z_][a-z0-9_]*)\[[^\]]*\]\s*\}\}$").expect("regex"));
+    let names: Vec<String> = re
+        .captures(mo.name.trim())
+        .and_then(|c| m.tables.get(&c[1]))
+        .and_then(|t| t.as_object())
+        .map(|t| {
+            let mut v: Vec<String> = t.values().filter_map(|v| v.as_str()).filter(|v| !v.is_empty()).map(str::to_string).collect();
+            v.sort();
+            v.dedup();
+            v
+        })
+        .unwrap_or_default();
+    if names.is_empty() {
+        vec![mo.name.clone()]
+    } else {
+        names
+    }
+}
+
 /// A package's catalog entry.
 pub fn entry_of(p: &Package) -> ConnectorEntry {
     let m = &p.manifest;
@@ -166,6 +209,7 @@ pub fn entry_of(p: &Package) -> ConnectorEntry {
         PushKind::Logs => "logs",
         PushKind::Otlp => "otlp",
         PushKind::Webhook => "webhook",
+        PushKind::SplunkHec => "splunk_hec",
     };
     ConnectorEntry {
         id: m.id.clone(),
@@ -214,12 +258,15 @@ pub fn entry_of(p: &Package) -> ConnectorEntry {
                     .output
                     .metrics
                     .iter()
-                    .map(|mo| ConnectorMetric {
-                        name: mo.name.clone(),
-                        kind: if mo.kind == MetricKind::Count { "count" } else { "gauge" }.into(),
-                        unit: mo.unit.clone(),
-                        description: mo.description.clone(),
-                        tags: mo.tags.keys().cloned().collect(),
+                    .flat_map(|mo| {
+                        let unit = mo.unit.clone().filter(|u| !u.contains("{{"));
+                        metric_names(m, mo).into_iter().map(move |name| ConnectorMetric {
+                            name,
+                            kind: if mo.kind == MetricKind::Count { "count" } else { "gauge" }.into(),
+                            unit: unit.clone(),
+                            description: mo.description.clone(),
+                            tags: mo.tags.keys().cloned().collect(),
+                        })
                     })
                     .collect(),
                 events: s.output.events.is_some(),
@@ -242,6 +289,7 @@ pub fn entry_of(p: &Package) -> ConnectorEntry {
             signature_header: p.signature.as_ref().map(|s| s.header.clone()),
             signature_secret: p.signature.as_ref().map(|s| s.secret.clone()),
             can_create: p.create.is_some(),
+            endpoints: p.endpoints.iter().map(|e| ConnectorPushEndpoint { label: e.label.clone(), kind: push_kind(e.kind).into(), url: e.url.clone(), headers: e.headers.clone(), instructions: e.instructions.clone() }).collect(),
         }),
         dashboards: p.dashboards().iter().filter_map(|d| d["title"].as_str().map(str::to_string)).collect(),
         pipeline: p.pipeline().and_then(|v| v["name"].as_str().map(str::to_string)),
@@ -250,3 +298,22 @@ pub fn entry_of(p: &Package) -> ConnectorEntry {
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn templated_metric_names_are_listed_by_their_tables_or_examples() {
+        let m: crate::manifest::Manifest = serde_yaml_ng::from_str(
+            "schema_version: 1\nid: example\nname: Example\npublisher: Example\nvendor: Example\ndescription: Test.\n\
+             tables: { metrics: { nOffered: example.offered, nHandled: example.handled, nGone: '' } }\n",
+        )
+        .unwrap();
+        let mo = |name: &str, examples: &[&str]| crate::manifest::MetricOut { name: name.into(), kind: MetricKind::Gauge, value: "1".into(), each: None, tags: Default::default(), tags_from: None, host: None, time: None, filter: None, unit: None, aggregate: None, examples: examples.iter().map(|s| s.to_string()).collect(), description: None };
+        assert_eq!(metric_names(&m, &mo("{{ tables.metrics[entry.key] }}", &[])), ["example.handled", "example.offered"]);
+        assert_eq!(metric_names(&m, &mo("example.{{ entry.key }}", &["example.a", "example.b"])), ["example.a", "example.b"]);
+        assert_eq!(metric_names(&m, &mo("example.{{ entry.key }}", &[])), ["example.{{ entry.key }}"]);
+        assert_eq!(metric_names(&m, &mo("example.fixed", &["x"])), ["example.fixed"]);
+    }
+}

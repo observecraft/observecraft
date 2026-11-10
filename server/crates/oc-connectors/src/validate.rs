@@ -205,6 +205,26 @@ impl<'a> Checker<'a> {
                 }
                 self.map(&format!("{at}.params"), params, x);
             }
+            Auth::Choice { field, options } => {
+                match self.m.config.iter().find(|f| &f.key == field) {
+                    None => self.problem(&format!("{at}.field"), format!("{field} is not a config field")),
+                    Some(f) if f.secret => self.problem(&format!("{at}.field"), format!("{field} is a secret field")),
+                    Some(f) => {
+                        for o in f.options.iter().filter(|o| !options.contains_key(&o.value)) {
+                            self.problem(&format!("{at}.options"), format!("no auth for {field} = {}", o.value));
+                        }
+                    }
+                }
+                if options.is_empty() {
+                    self.problem(&format!("{at}.options"), "empty");
+                }
+                for (k, a) in options {
+                    if matches!(a, Auth::Choice { .. }) {
+                        self.problem(&format!("{at}.options.{k}"), "a choice can't hold another choice");
+                    }
+                    self.auth(&format!("{at}.options.{k}"), a);
+                }
+            }
         }
     }
 
@@ -230,7 +250,7 @@ impl<'a> Checker<'a> {
 
     fn pagination(&mut self, at: &str, p: &Pagination) {
         match p {
-            Pagination::Cursor { next } | Pagination::NextUrl { next } => self.template(&format!("{at}.next"), next, ANSWER_EXTRA),
+            Pagination::Cursor { next } | Pagination::NextUrl { next, .. } => self.template(&format!("{at}.next"), next, ANSWER_EXTRA),
             Pagination::Offset { size, total, .. } => {
                 if *size == 0 {
                     self.problem(&format!("{at}.size"), "must be at least 1");
@@ -300,6 +320,7 @@ impl<'a> Checker<'a> {
             self.template(&format!("{lat}.key"), &l.key, &["record"]);
             self.opt(&format!("{lat}.value"), &l.value, &["record"]);
             self.duration(&format!("{lat}.ttl"), &l.ttl);
+            self.opt(&format!("{lat}.when"), &l.when, &["item", "discovery"]);
         }
         match &s.incremental {
             Incremental::NewRecords { .. } if s.record_id.is_none() => self.problem(&format!("{at}.incremental"), "new_records needs the stream's record_id"),
@@ -348,7 +369,7 @@ impl<'a> Checker<'a> {
                 self.problem(&format!("{mat}.name"), format!("{:?} is not a metric name (letters, digits, _ and .)", mo.name));
             }
             self.template(&format!("{mat}.value"), &mo.value, rec);
-            for (name, t) in [("each", &mo.each), ("tags_from", &mo.tags_from), ("host", &mo.host), ("time", &mo.time), ("filter", &mo.filter)] {
+            for (name, t) in [("each", &mo.each), ("tags_from", &mo.tags_from), ("host", &mo.host), ("time", &mo.time), ("filter", &mo.filter), ("unit", &mo.unit)] {
                 self.opt(&format!("{mat}.{name}"), t, rec);
             }
             self.map(&format!("{mat}.tags"), &mo.tags, rec);
@@ -454,9 +475,11 @@ pub fn validate(m: &Manifest, files: &BTreeMap<String, String>) -> Vec<String> {
         if !key_ok(&d.name) || !names.insert(&d.name) {
             c.problem(&format!("discover[{i}].name"), format!("{:?} must be unique, lowercase letters, digits and _", d.name));
         }
-        c.request(&format!("discover[{i}].request"), &d.request, &["secrets", "auth", "discovery"]);
+        c.request(&format!("discover[{i}].request"), &d.request, &["secrets", "auth", "discovery", "page"]);
         c.opt(&format!("discover[{i}].value"), &d.value, ANSWER_EXTRA);
         c.duration(&format!("discover[{i}].ttl"), &d.ttl);
+        c.pagination(&format!("discover[{i}].pagination"), &d.pagination);
+        c.opt(&format!("discover[{i}].records"), &d.records, ANSWER_EXTRA);
     }
     let mut ids = BTreeSet::new();
     for (i, s) in m.streams.iter().enumerate() {
@@ -497,6 +520,10 @@ pub fn validate(m: &Manifest, files: &BTreeMap<String, String>) -> Vec<String> {
         c.map("push.headers", &p.headers, &["intake", "api_key"]);
         if let Some(create) = &p.create {
             c.call("push.create", create, &["push_url"]);
+        }
+        for (i, e) in p.endpoints.iter().enumerate() {
+            c.opt(&format!("push.endpoints[{i}].url"), &e.url, &["intake", "api_key"]);
+            c.map(&format!("push.endpoints[{i}].headers"), &e.headers, &["intake", "api_key"]);
         }
         if let Some(s) = &p.signature {
             if !c.secrets.contains(s.secret.as_str()) {

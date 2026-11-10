@@ -24,7 +24,7 @@ use crate::expr::{text, to_ms, truthy};
 use crate::http::{parse_body, ClientTls, HttpRequest, HttpResponse, Transport};
 use crate::manifest::{duration_ms, AsyncExport, Auth, CursorValue, ErrorRule, Incremental, IssueKind, Manifest, Order, Pagination, RateLimit, Request, Stream};
 use crate::output::{id_hash, Item, Mapped, Mapper};
-use crate::template::Template;
+use crate::template::{Template, Tree};
 
 pub const USER_AGENT: &str = "ObserveCraft-Connectors/1.0";
 /// Pages a run reads unless the stream says otherwise.
@@ -265,6 +265,13 @@ impl<'a> Pager<'a> {
         let mut req = cx.build(self.req, &s)?;
         if let PageAt::Url(u) = &self.at {
             req.url = u.clone();
+            if let Pagination::NextUrl { method: Some(method), .. } = self.pagination {
+                if *method != req.method {
+                    req.method = *method;
+                    req.body = None;
+                    req.headers.retain(|(k, _)| !k.eq_ignore_ascii_case("content-type"));
+                }
+            }
             cx.reapply(&mut req)?;
         }
         let origin = crate::request::origin(&req.url);
@@ -291,7 +298,7 @@ impl<'a> Pager<'a> {
                 let c = render(next)?;
                 (!missing(&c) && !records.is_empty()).then_some(PageAt::Cursor(c))
             }
-            Pagination::NextUrl { next } => {
+            Pagination::NextUrl { next, .. } => {
                 let u = text(&render(next)?);
                 (!u.is_empty() && !records.is_empty()).then(|| crate::request::resolve(&req.url, &u)).flatten().map(PageAt::Url)
             }
@@ -410,6 +417,7 @@ impl<'a> Cx<'a> {
             Some(a) => (a, format!("{}\0{}", conn.id, stream.map(|s| s.id.as_str()).unwrap_or_default())),
             None => (&m.auth, conn.id.clone()),
         };
+        let auth = auth.chosen(&conn.config).map_err(|message| Issue { kind: IssueKind::Auth, message })?;
         let prepared = auth::prepare(auth, &cx.scope, &key, rt.transport.as_ref(), &rt.cache, now_ms).await.map_err(|e| Issue { kind: IssueKind::Auth, message: cx.scrub_with(&e, &secrets) })?;
         secrets.extend(prepared.secrets());
         cx.secrets = secrets;
@@ -447,12 +455,29 @@ impl<'a> Cx<'a> {
                 None => {
                     let mut s = self.scope.clone();
                     s.insert("discovery".into(), Value::Object(found.clone()));
-                    let req = self.build(&d.request, &s)?;
-                    let resp = self.send(&req, &[], &s).await?;
-                    s.insert("response".into(), parse_body(&resp.body, d.request.format).map_err(Issue::other)?);
-                    s.insert("headers".into(), resp.headers_value());
+                    let paged = !matches!(d.pagination, Pagination::None);
+                    if paged {
+                        // Every page's records, as `records`; the last page's answer as `response`.
+                        let mut pager = Pager::new(&d.request, &d.pagination, &d.records, PageAt::Start)?;
+                        let (mut all, mut pages) = (Vec::new(), 0);
+                        let scope = s.clone();
+                        while !pager.done && pages < d.max_pages.unwrap_or(MAX_PAGES) {
+                            let page = pager.fetch(self, &scope, &[]).await?;
+                            pages += 1;
+                            s.insert("response".into(), page.response);
+                            s.insert("headers".into(), page.headers);
+                            all.extend(page.records);
+                        }
+                        s.insert("records".into(), Value::Array(all));
+                    } else {
+                        let req = self.build(&d.request, &s)?;
+                        let resp = self.send(&req, &[], &s).await?;
+                        s.insert("response".into(), parse_body(&resp.body, d.request.format).map_err(Issue::other)?);
+                        s.insert("headers".into(), resp.headers_value());
+                    }
                     let v = match &d.value {
                         Some(t) => Template::parse(t).map_err(Issue::other)?.render(&s),
+                        None if paged => s["records"].clone(),
                         None => s["response"].clone(),
                     };
                     let ttl = d.ttl.as_deref().map(duration_ms).transpose().map_err(Issue::other)?.unwrap_or(3_600_000);
@@ -502,10 +527,27 @@ impl<'a> Cx<'a> {
     async fn send(&mut self, req: &HttpRequest, errors: &[ErrorRule], scope: &Map<String, Value>) -> Result<HttpResponse, Issue> {
         let resp = self.send_raw(req).await?;
         if (200..300).contains(&resp.status) {
-            Ok(resp)
+            match self.failure_2xx(&resp, errors, scope) {
+                Some(issue) => Err(issue),
+                None => Ok(resp),
+            }
         } else {
             Err(self.failure(&resp, errors, scope))
         }
+    }
+
+    /// An error in a successful answer (GraphQL's `errors` with 200): a rule naming the 2xx status with a `when`.
+    fn failure_2xx(&self, resp: &HttpResponse, errors: &[ErrorRule], scope: &Map<String, Value>) -> Option<Issue> {
+        let mut rules = errors.iter().chain(&self.m.errors).filter(|r| r.when.is_some() && r.status.contains(&resp.status)).peekable();
+        rules.peek()?;
+        let body: Value = serde_json::from_slice(&resp.body).unwrap_or(Value::Null);
+        let mut s = scope.clone();
+        s.insert("response".into(), body);
+        s.insert("status".into(), json!(resp.status));
+        s.insert("headers".into(), resp.headers_value());
+        let rule = rules.find(|r| r.when.as_deref().and_then(|w| Template::parse(w).ok()).is_some_and(|t| truthy(&t.render(&s))))?;
+        let message = Template::parse(&rule.message).map(|t| t.text(&s)).unwrap_or_default();
+        Some(Issue { kind: rule.kind, message: self.scrub(&message) })
     }
 
     /// Sends a request within the quota and the pacing; any answer is returned.
@@ -552,17 +594,28 @@ impl<'a> Cx<'a> {
         Issue { kind, message: self.scrub(&message) }
     }
 
-    async fn lookups(&mut self, stream: &Stream) -> Result<(), Issue> {
-        let mut out = Map::new();
+    /// The stream's lookups that read `item` (`per_item`) or don't, into `lookups` of `scope`.
+    async fn lookups(&mut self, stream: &Stream, scope: &mut Map<String, Value>, per_item: bool) -> Result<(), Issue> {
+        let mut out = scope.get("lookups").and_then(Value::as_object).cloned().unwrap_or_default();
+        let item_key = scope.get("item").map(partition_key).unwrap_or_default();
         for l in &stream.lookups {
-            let key = format!("{}\0lookup\0{}\0{}", self.conn.id, stream.id, l.name);
+            if reads_item(l) != per_item {
+                continue;
+            }
+            if let Some(w) = &l.when {
+                if !truthy(&Template::parse(w).map_err(Issue::other)?.render(scope)) {
+                    out.insert(l.name.clone(), Value::Object(Map::new()));
+                    continue;
+                }
+            }
+            let key = format!("{}\0lookup\0{}\0{}\0{}", self.conn.id, stream.id, l.name, if per_item { item_key.as_str() } else { "" });
             let table = match self.rt.cache.get(&key, self.now_ms) {
                 Some(v) => v,
                 None => {
                     let mut table = Map::new();
                     let key_t = Template::parse(&l.key).map_err(Issue::other)?;
                     let value_t = l.value.as_deref().map(Template::parse).transpose().map_err(Issue::other)?;
-                    let scope = self.scope.clone();
+                    let scope = scope.clone();
                     let mut pager = Pager::new(&l.request, &l.pagination, &l.records, PageAt::Start)?;
                     let mut pages = 0;
                     while !pager.done && pages < l.max_pages.unwrap_or(MAX_PAGES) {
@@ -585,9 +638,21 @@ impl<'a> Cx<'a> {
             };
             out.insert(l.name.clone(), table);
         }
-        self.scope.insert("lookups".into(), Value::Object(out));
+        scope.insert("lookups".into(), Value::Object(out));
         Ok(())
     }
+}
+
+/// Whether a lookup's request (or `when`) reads the `for_each` item: it is then read per item.
+fn reads_item(l: &crate::manifest::Lookup) -> bool {
+    let mut roots = std::collections::BTreeSet::new();
+    if let Ok(t) = serde_json::to_value(&l.request).as_ref().map_err(|_| ()).and_then(|v| Tree::parse(v).map_err(|_| ())) {
+        t.roots(&mut roots);
+    }
+    if let Some(t) = l.when.as_deref().and_then(|w| Template::parse(w).ok()) {
+        t.roots(&mut roots);
+    }
+    roots.contains("item")
 }
 
 /// A stream's per-record templates, compiled.
@@ -667,6 +732,34 @@ impl Emit<'_> {
     }
 }
 
+/// Before index entries are downloaded (`expand`): the entries whose id and time read only `parent` (the entry) are
+/// checked with `skip(id, time)` first, so records sent before or outside the window aren't requested again. `hit`
+/// is set when one is skipped. Without `expand`, or templates reading the downloaded `record`, nothing is skipped.
+fn before_expand(f: &RecordFns, stream: &Stream, scope: &Map<String, Value>, entries: Vec<Value>, skip: impl Fn(&str, Option<i64>) -> bool, hit: &mut bool) -> Vec<Value> {
+    let reads_parent_only = |t: &Option<Template>| {
+        t.as_ref().is_none_or(|t| {
+            let mut roots = std::collections::BTreeSet::new();
+            t.roots(&mut roots);
+            !roots.contains("record")
+        })
+    };
+    if stream.expand.is_none() || f.id.is_none() || !reads_parent_only(&f.id) || !reads_parent_only(&f.time) {
+        return entries;
+    }
+    entries
+        .into_iter()
+        .filter(|entry| {
+            let mut s = scope.clone();
+            s.insert("parent".into(), entry.clone());
+            let id = f.id.as_ref().map(|t| t.text(&s)).unwrap_or_default();
+            let time = f.time.as_ref().and_then(|t| to_ms(&t.render(&s)));
+            let skipped = skip(&id, time);
+            *hit |= skipped;
+            !skipped
+        })
+        .collect()
+}
+
 /// Marks an expanded record (`{EXPANDED: true, parent, record}`) between [`expand`] and [`prepare_record`].
 const EXPANDED: &str = "\u{0}expanded";
 
@@ -704,7 +797,9 @@ fn partition_key(item: &Value) -> String {
 /// Runs `stream` once for `conn` from `state`. `budget`: requests left in the connection's (and stream's) quota.
 pub async fn run(m: &Manifest, stream: &Stream, conn: &Connection, state: StreamState, now_ms: i64, rt: &Runtime, budget: Option<u32>) -> Result<Run, Issue> {
     let mut cx = Cx::new(m, Some(stream), conn, rt, now_ms, budget).await?;
-    cx.lookups(stream).await?;
+    let mut base = cx.scope.clone();
+    cx.lookups(stream, &mut base, false).await?;
+    cx.scope = base;
     let items = match &stream.for_each {
         Some(t) => as_list(Template::parse(t).map_err(Issue::other)?.render(&cx.scope)),
         None => vec![Value::Null],
@@ -720,7 +815,12 @@ pub async fn run(m: &Manifest, stream: &Stream, conn: &Connection, state: Stream
         if !item.is_null() {
             scope.insert("item".into(), item.clone());
         }
-        match partition(&mut cx, stream, &emit, scope, part.clone(), &mut out).await {
+        let looked_up = if item.is_null() { Ok(()) } else { cx.lookups(stream, &mut scope, true).await };
+        let result = match looked_up {
+            Ok(()) => partition(&mut cx, stream, &emit, scope, part.clone(), &mut out).await,
+            Err(issue) => Err(issue),
+        };
+        match result {
             Ok(p) => {
                 out.state.partitions.insert(key, p);
             }
@@ -738,6 +838,7 @@ pub async fn run(m: &Manifest, stream: &Stream, conn: &Connection, state: Stream
     }
     out.requests = cx.requests;
     out.rotated = std::mem::take(&mut cx.rotated);
+    out.mapped.points = crate::output::aggregate(std::mem::take(&mut out.mapped.points));
     Ok(out)
 }
 
@@ -758,6 +859,8 @@ async fn partition(cx: &mut Cx<'_>, stream: &Stream, emit: &Emit<'_>, scope: Map
         Incremental::Time(tc) => time_windows(cx, stream, req, tc, emit, scope, part, out).await,
         kind => {
             let new_only = matches!(kind, Incremental::NewRecords { .. });
+            // Newest first: a page with a record sent before ends the paging.
+            let stop_at_seen = matches!(kind, Incremental::NewRecords { order: Order::NewestFirst, .. });
             let mut seen: HashSet<String> = if new_only { part.seen.iter().map(|s| s.id.clone()).collect() } else { HashSet::new() };
             let mut s = scope.clone();
             let token_next = match kind {
@@ -794,7 +897,9 @@ async fn partition(cx: &mut Cx<'_>, stream: &Stream, emit: &Emit<'_>, scope: Map
                         pending = Some(v);
                     }
                 }
-                let records = match expand(cx, stream, &s, page.records).await {
+                let mut known = false;
+                let listed = if new_only { before_expand(emit.f, stream, &s, page.records, |id, _| seen.contains(&id_hash(id)), &mut known) } else { page.records };
+                let records = match expand(cx, stream, &s, listed).await {
                     Ok(r) => r,
                     Err(issue) => {
                         keep(out, issue);
@@ -806,17 +911,21 @@ async fn partition(cx: &mut Cx<'_>, stream: &Stream, emit: &Emit<'_>, scope: Map
                     if new_only {
                         let h = id_hash(&rec.id);
                         if !seen.insert(h.clone()) {
+                            known = true;
                             continue;
                         }
                         part.seen.push(Seen { id: h, t: None });
                     }
                     emit.emit(&rec, out);
                 }
+                if stop_at_seen && known {
+                    break;
+                }
             }
             if pager.capped {
                 keep(out, Issue::other("more records than the API pages through: the rest were skipped"));
             }
-            if let Incremental::NewRecords { max_seen } = kind {
+            if let Incremental::NewRecords { max_seen, .. } = kind {
                 let cap = max_seen.map_or(MAX_SEEN, |n| n as usize);
                 if part.seen.len() > cap {
                     part.seen.drain(..part.seen.len() - cap);
@@ -884,7 +993,20 @@ async fn time_windows(cx: &mut Cx<'_>, stream: &Stream, req: &Request, tc: &crat
             };
             first = false;
             pages_left -= 1;
-            let records = match expand(cx, stream, &s, page.records).await {
+            let early = std::cell::Cell::new(false);
+            let listed = before_expand(
+                emit.f,
+                stream,
+                &s,
+                page.records,
+                |id, t| {
+                    early.set(early.get() || t.is_some_and(|t| t < ws));
+                    seen.contains(&id_hash(id)) || t.is_some_and(|t| t < ws || t > we)
+                },
+                &mut false,
+            );
+            let mut older = early.get();
+            let records = match expand(cx, stream, &s, listed).await {
                 Ok(r) => r,
                 Err(issue) => {
                     keep(out, issue);
@@ -895,6 +1017,9 @@ async fn time_windows(cx: &mut Cx<'_>, stream: &Stream, req: &Request, tc: &crat
             for r in records {
                 let Some(rec) = prepare_record(emit.f, &s, r) else { continue };
                 if let Some(t) = rec.time {
+                    if t < ws {
+                        older = true;
+                    }
                     if t < ws || t > we {
                         continue;
                     }
@@ -906,6 +1031,11 @@ async fn time_windows(cx: &mut Cx<'_>, stream: &Stream, req: &Request, tc: &crat
                 }
                 part.seen.push(Seen { id: h, t: rec.time });
                 emit.emit(&rec, out);
+            }
+            // Newest first: a record older than the window means the rest of the list is too.
+            if older && tc.order == Order::NewestFirst {
+                pager.capped = false;
+                break;
             }
             if pager.capped {
                 if we - ws > 1000 {
@@ -1015,6 +1145,12 @@ async fn export(cx: &mut Cx<'_>, stream: &Stream, x: &AsyncExport, emit: &Emit<'
         });
         for r in records {
             let Some(rec) = prepare_record(emit.f, &s, r) else { continue };
+            // Records outside the export's window (APIs exporting whole days) aren't its.
+            if let (Some(t), Some(start), Some(end)) = (rec.time, ex.start, ex.end) {
+                if t < start || t > end {
+                    continue;
+                }
+            }
             let h = id_hash(&rec.id);
             if !seen.insert(h.clone()) {
                 continue;
@@ -1027,7 +1163,10 @@ async fn export(cx: &mut Cx<'_>, stream: &Stream, x: &AsyncExport, emit: &Emit<'
     if chunks.iter().all(|c| done.contains(&text(c))) {
         part.cursor = part.cursor.max(ex.end);
         part.export = None;
-        part.seen.clear();
+        // Ids stay (an API exporting again what overlaps sends nothing twice), the oldest forgotten first.
+        if part.seen.len() > MAX_SEEN {
+            part.seen.drain(..part.seen.len() - MAX_SEEN);
+        }
     } else if let Some(e) = part.export.as_mut() {
         e.done = done;
     }
@@ -1072,12 +1211,14 @@ pub async fn test(m: &Manifest, conn: &Connection, now_ms: i64, rt: &Runtime) ->
     let mut s = cx.scope.clone();
     let (response, records) = match (stream, &t.request) {
         (Some(stream), _) => {
-            if let Err(issue) = cx.lookups(stream).await {
+            if let Err(issue) = cx.lookups(stream, &mut s, false).await {
                 return failed(issue.message);
             }
-            s = cx.scope.clone();
             if let Some(item) = stream.for_each.as_deref().and_then(|t| Template::parse(t).ok()).map(|t| as_list(t.render(&s))).and_then(|l| l.into_iter().next()) {
                 s.insert("item".into(), item);
+                if let Err(issue) = cx.lookups(stream, &mut s, true).await {
+                    return failed(issue.message);
+                }
             }
             if let Incremental::Time(tc) = &stream.incremental {
                 let lookback = tc.lookback.as_deref().and_then(|d| duration_ms(d).ok()).unwrap_or(86_400_000);

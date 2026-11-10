@@ -165,7 +165,7 @@ pub fn unit(metric: &str) -> Option<String> {
                 .iter()
                 .flat_map(|p| p.package.manifest.streams.iter().flat_map(|s| s.output.metrics.iter()))
                 .filter(|m| !m.name.contains("{{"))
-                .filter_map(|m| Some((m.name.clone(), m.unit.clone()?)))
+                .filter_map(|m| Some((m.name.clone(), m.unit.clone().filter(|u| !u.contains("{{"))?)))
                 .collect()
         })
         .get(metric)
@@ -210,6 +210,33 @@ mod tests {
             let report = oc_connectors::replay::replay(&p.package, false).await;
             assert!(report.problems.is_empty(), "{}: {:#?}", m.id, report.problems);
         }
+    }
+
+    /// A record's own `status` reaches the log store as the `status` attribute, apart from the log's status.
+    #[test]
+    fn a_records_status_stays_an_attribute_after_normalizing() {
+        let m: oc_connectors::manifest::Manifest = serde_yaml_ng::from_str(
+            "schema_version: 1\nid: example-jobs\nname: Example Jobs\npublisher: Example\nvendor: Example\ndescription: Jobs.\n\
+             streams:\n  - id: jobs\n    name: Jobs\n    description: Jobs.\n    request: { url: 'https://jobs.example.com/api/jobs' }\n    output:\n\
+             \x20     logs: { message: '{{ record.name }} finished', status: \"{{ record.failed ? 'error' : 'info' }}\", attributes: \"{{ record }}\" }\n",
+        )
+        .unwrap();
+        let mapper = oc_connectors::output::Mapper::compile(&m, &m.streams[0]).unwrap();
+        let normalized = |record: serde_json::Value| {
+            let mut scope = serde_json::Map::new();
+            scope.insert("record".into(), record);
+            let mut out = oc_connectors::output::Mapped::default();
+            mapper.map(&oc_connectors::output::Item { scope: &scope, time_ms: None, id: "1", instance: "jobs.example.com", now_ms: 1_794_312_000_000 }, &mut out);
+            let mut fields = out.logs.remove(0).as_object().unwrap().clone();
+            fields.insert("source_type".into(), serde_json::json!("kafka"));
+            fields.insert("_oc_kafka_headers".into(), serde_json::json!({ "x-oc-org": "org-1" }));
+            crate::log_normalize::normalize(crate::log_normalize::LogEvent { fields, timestamp: None }, chrono::Utc::now()).unwrap()
+        };
+        let row = normalized(serde_json::json!({ "name": "nightly-export", "failed": true, "status": "DONE", "rows": 12 }));
+        assert_eq!((row.message.as_str(), row.status.as_str(), row.service.as_str()), ("nightly-export finished", "error", "example-jobs"));
+        assert_eq!((row.attr.get("status").map(String::as_str), row.attr.get("rows").map(String::as_str), row.attr.get("level")), (Some("DONE"), Some("12"), None));
+        let row = normalized(serde_json::json!({ "name": "nightly-export", "failed": false }));
+        assert_eq!((row.message.as_str(), row.status.as_str(), row.attr.get("status")), ("nightly-export finished", "info", None));
     }
 
     #[test]

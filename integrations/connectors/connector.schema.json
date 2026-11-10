@@ -513,6 +513,37 @@
         },
         {
           "additionalProperties": false,
+          "description": "One of several authentications, picked by a config field's value (a Shopify token or OAuth, Okta's SSWS\ntoken or OAuth): `options` maps each value of `field` to its auth.",
+          "properties": {
+            "field": {
+              "description": "A (select) config field.",
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "choice"
+              ],
+              "type": "string"
+            },
+            "options": {
+              "additionalProperties": {
+                "type": "object"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "field",
+            "options",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "A request signer compiled into the server: `duo_hmac_v2`, `duo_hmac_v5`, `cortex_xdr_advanced`,\n`trend_micro_apex_central`, `akamai_edgegrid`.",
           "properties": {
             "kind": {
@@ -754,9 +785,28 @@
     "Discovery": {
       "additionalProperties": false,
       "properties": {
+        "max_pages": {
+          "format": "int32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "name": {
           "description": "`discovery.<name>`.",
           "type": "string"
+        },
+        "pagination": {
+          "$ref": "#/$defs/Pagination",
+          "description": "Pages of a list (tenants, projects): their records are gathered as `records`."
+        },
+        "records": {
+          "description": "As a stream's `records`.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "request": {
           "$ref": "#/$defs/Request"
@@ -769,7 +819,7 @@
           ]
         },
         "value": {
-          "description": "Template over `response`, `headers`: what is kept (default the answer).",
+          "description": "Template over `response`, `headers` (and `records`, every page's, when paginated): what is kept (default the\nanswer, or the records when paginated).",
           "type": [
             "string",
             "null"
@@ -1028,6 +1078,10 @@
                 "integer",
                 "null"
               ]
+            },
+            "order": {
+              "$ref": "#/$defs/Order",
+              "description": "`newest_first`: a page with a record already sent ends the run's paging (the rest was sent before)."
             }
           },
           "required": [
@@ -1065,7 +1119,7 @@
             },
             "order": {
               "$ref": "#/$defs/Order",
-              "description": "The order the API answers in: `newest_first` and `unordered` windows not read to their end carry on next run\nfrom where they stopped (the cursor moves only once a window is read); `oldest_first` ones move the cursor to\nthe last record read."
+              "description": "The order the API answers in: `newest_first` and `unordered` windows not read to their end carry on next run\nfrom where they stopped (the cursor moves only once a window is read); `oldest_first` ones move the cursor to\nthe last record read. A `newest_first` page with a record older than the window ends the window (lists the\nrequest doesn't filter by time)."
             },
             "overlap": {
               "description": "How far before the cursor each window starts (late data); records already sent are skipped by id. Duration,\ndefault 0s.",
@@ -1377,6 +1431,13 @@
             "string",
             "null"
           ]
+        },
+        "when": {
+          "description": "Template over `config` (and `item`): the lookup is read only when truthy (else `lookups.<name>` is empty). A\nlookup whose templates read `item` is read per `for_each` item.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -1636,6 +1697,21 @@
       ],
       "type": "string"
     },
+    "MetricAggregate": {
+      "enum": [
+        "sum",
+        "min",
+        "max",
+        "avg",
+        "count",
+        "p50",
+        "p75",
+        "p90",
+        "p95",
+        "p99"
+      ],
+      "type": "string"
+    },
     "MetricKind": {
       "enum": [
         "gauge",
@@ -1647,6 +1723,17 @@
       "additionalProperties": false,
       "description": "One metric from each record (or from each entry of `each`). Templates read the record context and `entry`.",
       "properties": {
+        "aggregate": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MetricAggregate",
+              "description": "Combines the run's points of the same name, tags, host and time into one (min/max across entities, a\nlatency percentile over the records): `sum`, `min`, `max`, `avg`, `count`, `p50`, `p75`, `p90`, `p95`, `p99`."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "description": {
           "type": [
             "string",
@@ -1659,6 +1746,13 @@
             "string",
             "null"
           ]
+        },
+        "examples": {
+          "description": "Metric names a templated `name` gives, for the catalog's Data Collected tab (default: a `tables.<t>[…]` name's\ntable values).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "filter": {
           "description": "Template over the record: points for which it is falsy are skipped.",
@@ -1706,7 +1800,7 @@
           "$ref": "#/$defs/MetricKind"
         },
         "unit": {
-          "description": "Datadog unit name (`second`, `byte`), for the metric catalog and dashboards.",
+          "description": "Datadog unit name (`second`, `byte`), for the metric catalog and dashboards; sent as the points' OTLP unit. A\ntemplate for families (`{{ tables.units[entry.key] }}`).",
           "type": [
             "string",
             "null"
@@ -2025,6 +2119,17 @@
               ],
               "type": "string"
             },
+            "method": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Method",
+                  "description": "The next pages' method when it isn't the first request's (`GET` after a `POST` that started the query);\nthey are then sent without the first request's body."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "next": {
               "description": "Template.",
               "type": "string"
@@ -2198,6 +2303,13 @@
             }
           ]
         },
+        "endpoints": {
+          "description": "More endpoints the vendor sends to (a Vercel trace drain beside its log drain), each shown with its URL.",
+          "items": {
+            "$ref": "#/$defs/PushEndpoint"
+          },
+          "type": "array"
+        },
         "headers": {
           "additionalProperties": {
             "type": "string"
@@ -2240,11 +2352,53 @@
       ],
       "type": "object"
     },
+    "PushEndpoint": {
+      "additionalProperties": false,
+      "description": "Another endpoint of a push package.",
+      "properties": {
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "instructions": {
+          "description": "Markdown shown with it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/PushKind"
+        },
+        "label": {
+          "description": "What is sent there (`Traces`).",
+          "type": "string"
+        },
+        "url": {
+          "description": "As `push.url` (default by kind).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "label",
+        "kind"
+      ],
+      "type": "object"
+    },
     "PushKind": {
       "enum": [
         "logs",
         "otlp",
-        "webhook"
+        "webhook",
+        "splunk_hec"
       ],
       "type": "string"
     },
@@ -2624,7 +2778,7 @@
         },
         "order": {
           "$ref": "#/$defs/Order",
-          "description": "The order the API answers in: `newest_first` and `unordered` windows not read to their end carry on next run\nfrom where they stopped (the cursor moves only once a window is read); `oldest_first` ones move the cursor to\nthe last record read."
+          "description": "The order the API answers in: `newest_first` and `unordered` windows not read to their end carry on next run\nfrom where they stopped (the cursor moves only once a window is read); `oldest_first` ones move the cursor to\nthe last record read. A `newest_first` page with a record older than the window ends the window (lists the\nrequest doesn't filter by time)."
         },
         "overlap": {
           "description": "How far before the cursor each window starts (late data); records already sent are skipped by id. Duration,\ndefault 0s.",

@@ -151,6 +151,7 @@ impl Tree {
     /// Renders every leaf; with `prune`, `null` and "" leaves and the objects left empty are dropped (log attributes).
     pub fn render(&self, scope: &Map<String, Value>, prune: bool) -> Value {
         match self {
+            Tree::Str(t) if prune => pruned(t.render(scope)),
             Tree::Str(t) => t.render(scope),
             Tree::Other(v) => v.clone(),
             Tree::List(items) => Value::Array(items.iter().map(|t| t.render(scope, prune)).collect()),
@@ -166,6 +167,14 @@ impl Tree {
                 Value::Object(out)
             }
         }
+    }
+}
+
+/// An object a template gave, pruned like a tree: its `null` and "" members and the objects left empty dropped.
+fn pruned(v: Value) -> Value {
+    match v {
+        Value::Object(o) => Value::Object(o.into_iter().map(|(k, v)| (k, pruned(v))).filter(|(_, v)| !empty(v)).collect()),
+        other => other,
     }
 }
 

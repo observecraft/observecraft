@@ -52,7 +52,7 @@ impl PushDef {
 
     /// Whether logs sent to `/api/v2/logs?ddsource=<source>` are this package's, signed.
     pub fn signs_logs(&self) -> bool {
-        self.push.as_ref().is_some_and(|p| p.kind == PushKind::Logs && p.signature.is_some())
+        self.push.as_ref().is_some_and(|p| p.signature.is_some() && (p.kind == PushKind::Logs || p.endpoints.iter().any(|e| e.kind == PushKind::Logs)))
     }
 
     /// Whether `/intake/webhook/<name>` is this package's.

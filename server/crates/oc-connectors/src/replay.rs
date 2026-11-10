@@ -62,7 +62,11 @@ impl Transport for MockTransport {
         self.requests.lock().unwrap().push(req.clone());
         let candidates: Vec<usize> = (0..self.responses.len()).filter(|i| Self::matches(&self.responses[*i].0, req)).collect();
         let mut used = self.used.lock().unwrap();
-        let Some(&i) = candidates.iter().find(|i| used[**i] == 0).or(candidates.last()) else {
+        // The most specific answer (most query and body conditions) first: unused ones in their order, else the
+        // last of the most specific (a rerun gets the answers the first run got).
+        let specific = |i: usize| self.responses[i].0.query.len() + usize::from(self.responses[i].0.body_contains.is_some());
+        let unused = candidates.iter().copied().filter(|i| used[*i] == 0).max_by_key(|i| (specific(*i), std::cmp::Reverse(*i)));
+        let Some(i) = unused.or_else(|| candidates.iter().copied().max_by_key(|i| (specific(*i), *i))) else {
             return Err(format!("no recorded answer for {:?} {}", req.method, req.url));
         };
         used[i] += 1;

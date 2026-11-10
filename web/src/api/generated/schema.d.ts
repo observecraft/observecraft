@@ -13730,6 +13730,8 @@ export interface components {
         ConnectorPush: {
             /** @description Whether the page can create the push on the vendor's side (`POST /api/v1/connectors/{id}/push`). */
             canCreate: boolean;
+            /** @description More endpoints (a trace drain beside a log drain). */
+            endpoints: components["schemas"]["ConnectorPushEndpoint"][];
             /** @description Headers the vendor must send. */
             headers: {
                 [key: string]: string;
@@ -13745,6 +13747,17 @@ export interface components {
             /** @description The URL to paste (`{{ intake }}`, `{{ source }}`, `{{ api_key }}`, `{{ config.x }}` parts). */
             url?: string | null;
             webhook?: string | null;
+        };
+        /** @description Another endpoint of a push package. */
+        ConnectorPushEndpoint: {
+            headers: {
+                [key: string]: string;
+            };
+            instructions?: string | null;
+            /** @description logs | otlp | webhook | splunk_hec */
+            kind: string;
+            label: string;
+            url?: string | null;
         };
         ConnectorStream: {
             costs: boolean;

@@ -228,6 +228,14 @@ pub enum Auth {
     /// A login request whose answer gives a token (and other values, such as a base URL), used by the next
     /// requests as `auth.<name>`; cached for `ttl` (or the answer's expiry).
     TokenExchange(TokenExchange),
+    /// One of several authentications, picked by a config field's value (a Shopify token or OAuth, Okta's SSWS
+    /// token or OAuth): `options` maps each value of `field` to its auth.
+    Choice {
+        /// A (select) config field.
+        field: String,
+        #[schema(value_type = std::collections::BTreeMap<String, Object>)]
+        options: BTreeMap<String, Auth>,
+    },
     /// A request signer compiled into the server: `duo_hmac_v2`, `duo_hmac_v5`, `cortex_xdr_advanced`,
     /// `trend_micro_apex_central`, `akamai_edgegrid`.
     Signer {
@@ -236,6 +244,19 @@ pub enum Auth {
         /// `application_id`, `api_key`; EdgeGrid `client_token`, `client_secret`, `access_token`.
         params: BTreeMap<String, String>,
     },
+}
+
+impl Auth {
+    /// The auth a connection uses: a `choice`'s option for the connection's value of its field.
+    pub fn chosen<'a>(&'a self, config: &serde_json::Map<String, Value>) -> Result<&'a Auth, String> {
+        match self {
+            Auth::Choice { field, options } => {
+                let value = config.get(field).and_then(Value::as_str).unwrap_or_default();
+                options.get(value).ok_or_else(|| format!("{field}: choose one of {}", options.keys().cloned().collect::<Vec<_>>().join(", ")))?.chosen(config)
+            }
+            other => Ok(other),
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -465,6 +486,10 @@ pub enum Pagination {
     NextUrl {
         /// Template.
         next: String,
+        /// The next pages' method when it isn't the first request's (`GET` after a `POST` that started the query);
+        /// they are then sent without the first request's body.
+        #[serde(default)]
+        method: Option<Method>,
     },
     /// The `Link` header's `rel="next"` URL (GitHub, Okta, Shopify).
     LinkHeader,
@@ -619,6 +644,10 @@ pub struct Lookup {
     pub ttl: Option<String>,
     #[serde(default)]
     pub max_pages: Option<u32>,
+    /// Template over `config` (and `item`): the lookup is read only when truthy (else `lookups.<name>` is empty). A
+    /// lookup whose templates read `item` is read per `for_each` item.
+    #[serde(default)]
+    pub when: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
@@ -627,12 +656,21 @@ pub struct Discovery {
     /// `discovery.<name>`.
     pub name: String,
     pub request: Request,
-    /// Template over `response`, `headers`: what is kept (default the answer).
+    /// Template over `response`, `headers` (and `records`, every page's, when paginated): what is kept (default the
+    /// answer, or the records when paginated).
     #[serde(default)]
     pub value: Option<String>,
     /// Duration, default 1h.
     #[serde(default)]
     pub ttl: Option<String>,
+    /// Pages of a list (tenants, projects): their records are gathered as `records`.
+    #[serde(default)]
+    pub pagination: Pagination,
+    /// As a stream's `records`.
+    #[serde(default)]
+    pub records: Option<String>,
+    #[serde(default)]
+    pub max_pages: Option<u32>,
 }
 
 /// What a run reads again and what it skips.
@@ -647,6 +685,9 @@ pub enum Incremental {
         /// Ids remembered (oldest forgotten first). Default 100000.
         #[serde(default)]
         max_seen: Option<u32>,
+        /// `newest_first`: a page with a record already sent ends the run's paging (the rest was sent before).
+        #[serde(default)]
+        order: Order,
     },
     /// A time window from the cursor: `window.start` .. `window.end` (epoch ms) in request templates.
     Time(TimeCursor),
@@ -668,7 +709,8 @@ pub struct TimeCursor {
     pub record_time: String,
     /// The order the API answers in: `newest_first` and `unordered` windows not read to their end carry on next run
     /// from where they stopped (the cursor moves only once a window is read); `oldest_first` ones move the cursor to
-    /// the last record read.
+    /// the last record read. A `newest_first` page with a record older than the window ends the window (lists the
+    /// request doesn't filter by time).
     #[serde(default)]
     pub order: Order,
     /// How far back the first run reads. Duration, default 1d.
@@ -862,11 +904,35 @@ pub struct MetricOut {
     /// Template over the record: points for which it is falsy are skipped.
     #[serde(default)]
     pub filter: Option<String>,
-    /// Datadog unit name (`second`, `byte`), for the metric catalog and dashboards.
+    /// Datadog unit name (`second`, `byte`), for the metric catalog and dashboards; sent as the points' OTLP unit. A
+    /// template for families (`{{ tables.units[entry.key] }}`).
     #[serde(default)]
     pub unit: Option<String>,
+    /// Combines the run's points of the same name, tags, host and time into one (min/max across entities, a
+    /// latency percentile over the records): `sum`, `min`, `max`, `avg`, `count`, `p50`, `p75`, `p90`, `p95`, `p99`.
+    #[serde(default)]
+    pub aggregate: Option<MetricAggregate>,
+    /// Metric names a templated `name` gives, for the catalog's Data Collected tab (default: a `tables.<t>[…]` name's
+    /// table values).
+    #[serde(default)]
+    pub examples: Vec<String>,
     #[serde(default)]
     pub description: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, ToSchema, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MetricAggregate {
+    Sum,
+    Min,
+    Max,
+    Avg,
+    Count,
+    P50,
+    P75,
+    P90,
+    P95,
+    P99,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -967,6 +1033,26 @@ pub struct Push {
     /// job, a PagerDuty webhook subscription); `push.url` is readable as `push_url`.
     #[serde(default)]
     pub create: Option<Call>,
+    /// More endpoints the vendor sends to (a Vercel trace drain beside its log drain), each shown with its URL.
+    #[serde(default)]
+    pub endpoints: Vec<PushEndpoint>,
+}
+
+/// Another endpoint of a push package.
+#[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct PushEndpoint {
+    /// What is sent there (`Traces`).
+    pub label: String,
+    pub kind: PushKind,
+    /// As `push.url` (default by kind).
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+    /// Markdown shown with it.
+    #[serde(default)]
+    pub instructions: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Copy, Debug, PartialEq, Eq)]
@@ -978,6 +1064,8 @@ pub enum PushKind {
     Otlp,
     /// The intake's webhook endpoint (`/intake/webhook/<name>`), mapped by `webhook`.
     Webhook,
+    /// The intake's Splunk HEC-compatible endpoint (`/services/collector`, the ingest key as the HEC token).
+    SplunkHec,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, Clone, Debug)]
