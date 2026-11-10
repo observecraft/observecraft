@@ -24,7 +24,8 @@ setup: |
   1. In [sanity.io/manage](https://www.sanity.io/manage), open the project, then **API → Tokens → Add API token**
      with the **Viewer** permission (the log shows only the activity the token's user can see; an organization
      admin's token sees the organization's events too).
-  2. Document changes: in **API → Webhooks**, create a webhook to ObserveCraft's intake
+  2. Document changes (not collected yet: ObserveCraft's intake doesn't serve package webhooks so far; this is the
+     webhook to create once it does): in **API → Webhooks**, create a webhook to ObserveCraft's intake
      (`/intake/webhook/sanity` with your ingest key as `?dd-api-key=`), trigger on **Create, Update, Delete**, filter
      empty for every document, HTTP method POST, API version `v2021-03-25` or later, **Drafts** off, and this
      projection:
