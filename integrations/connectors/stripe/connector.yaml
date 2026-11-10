@@ -2,9 +2,9 @@
 # Stripe (https://docs.stripe.com/api/events): an account's events (charges, payment intents, invoices, payouts,
 # disputes, customers, subscriptions) as the logs Datadog's Stripe integration makes of Stripe's webhook events
 # (source:stripe, the event object at the top level). Datadog receives them by webhook; this package polls the
-# Events API (30 days kept) and offers the webhook as the push alternative, which the page can create (the intake
-# side of webhooks isn't built yet, docs/connectors.md). Datadog has no integrations-core tile for it, so the package
-# adds its own tile and dashboard.
+# Events API (30 days kept) and offers the webhook as the push alternative, which the page can create and the intake
+# maps to the same logs (signature-checked). Datadog has no integrations-core tile for it, so the package adds its own
+# tile and dashboard.
 schema_version: 1
 id: stripe
 name: Stripe
@@ -107,14 +107,19 @@ push:
       form: { url: "{{ push_url }}", "enabled_events[]": "*", description: ObserveCraft }
     message: "Webhook endpoint {{ response.id }} created: copy its signing secret ({{ response.secret }}) into the connection"
 
+# The webhook's body is the event: the same log as the Events stream gives.
 webhook:
   name: stripe
+  record_id: "{{ record.id }}"
   logs:
     service: stripe
-    message: "{{ record.type }} {{ record.data.object.id }}"
-    status: "{{ (record.type | matches('failed$')) ? 'error' : 'info' }}"
+    message: "{{ record.type }} {{ record.data.object.id }}{{ ' (' + record.data.object.failure_message + ')' ?? '' }}"
+    status: >-
+      {{ (record.type | matches('(failed|payment_failed)$')) ? 'error'
+         : (record.type | matches('^(charge\\.dispute|charge\\.refund|radar\\.early_fraud_warning|review\\.opened)')) ? 'warn'
+         : 'info' }}
     date: "{{ record.created | rfc3339 }}"
-    attributes: "{{ record + {evt: {name: record.type}} }}"
+    attributes: "{{ record + {evt: {name: record.type, outcome: (record.type | matches('failed$')) ? 'failure' : 'success'}} }}"
 
 assets:
   dashboards: [assets/dashboards/overview.json]
