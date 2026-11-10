@@ -1,0 +1,113 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c52f-b300-7df1-9f37-cf9272c46325"
+      },
+      "date": 1794309600000,
+      "ddsource": "zero-networks",
+      "fields_mapping": {
+        "dst": {
+          "assetSrc": "Active directory"
+        },
+        "protocol": "TCP",
+        "src": {
+          "assetSrc": "Active directory"
+        },
+        "state": "2",
+        "trafficType": "Internal"
+      },
+      "host": "portal.zeronetworks.com",
+      "message": "{\"fields_mapping\":{\"dst\":{\"assetSrc\":\"Active directory\"},\"protocol\":\"TCP\",\"src\":{\"assetSrc\":\"Active directory\"},\"state\":\"2\",\"trafficType\":\"Internal\"},\"record\":{\"dst\":{\"assetId\":\"a:a:Hn7Ub2Qe\",\"assetSrc\":3,\"assetType\":2,\"fqdn\":\"billing-db.example.com\",\"ip\":\"10.0.2.9\",\"ipThreatScore\":0,\"port\":5432,\"processName\":\"postgres\"},\"protocol\":6,\"reason\":3,\"src\":{\"assetId\":\"a:a:Pq8Wn3Lk\",\"assetSrc\":3,\"assetType\":2,\"fqdn\":\"storefront-api-1.example.com\",\"ip\":\"10.0.1.5\",\"ipThreatScore\":0,\"port\":51522,\"processName\":\"node\",\"userName\":\"svc-storefront\"},\"state\":2,\"timestamp\":1794309600000,\"trafficType\":1}}",
+      "record": {
+        "dst": {
+          "assetId": "a:a:Hn7Ub2Qe",
+          "assetSrc": 3,
+          "assetType": 2,
+          "fqdn": "billing-db.example.com",
+          "ip": "10.0.2.9",
+          "ipThreatScore": 0,
+          "port": 5432,
+          "processName": "postgres"
+        },
+        "protocol": 6,
+        "reason": 3,
+        "src": {
+          "assetId": "a:a:Pq8Wn3Lk",
+          "assetSrc": 3,
+          "assetType": 2,
+          "fqdn": "storefront-api-1.example.com",
+          "ip": "10.0.1.5",
+          "ipThreatScore": 0,
+          "port": 51522,
+          "processName": "node",
+          "userName": "svc-storefront"
+        },
+        "state": 2,
+        "timestamp": 1794309600000,
+        "trafficType": 1
+      },
+      "service": "network-activities",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c542-0280-7e3e-acf7-e787b72ce228"
+      },
+      "date": 1794310800000,
+      "ddsource": "zero-networks",
+      "fields_mapping": {
+        "dst": {
+          "assetSrc": "Active directory"
+        },
+        "protocol": "UDP",
+        "src": {
+          "assetSrc": "Active directory"
+        },
+        "state": "Established",
+        "trafficType": "Internal"
+      },
+      "host": "portal.zeronetworks.com",
+      "message": "{\"fields_mapping\":{\"dst\":{\"assetSrc\":\"Active directory\"},\"protocol\":\"UDP\",\"src\":{\"assetSrc\":\"Active directory\"},\"state\":\"Established\",\"trafficType\":\"Internal\"},\"record\":{\"dst\":{\"assetId\":\"a:a:Dc1Xx0Aa\",\"assetSrc\":3,\"assetType\":2,\"fqdn\":\"dc01.example.com\",\"ip\":\"10.0.0.4\",\"ipThreatScore\":0,\"port\":123,\"processName\":\"svchost.exe (W32Time)\"},\"protocol\":17,\"reason\":1,\"src\":{\"assetId\":\"a:a:Zt4Rv6Mc\",\"assetSrc\":3,\"assetType\":2,\"fqdn\":\"order-service-2.example.com\",\"ip\":\"10.0.1.17\",\"ipThreatScore\":0,\"port\":123,\"processName\":\"chronyd\"},\"state\":3,\"timestamp\":1794310800000,\"trafficType\":1}}",
+      "record": {
+        "dst": {
+          "assetId": "a:a:Dc1Xx0Aa",
+          "assetSrc": 3,
+          "assetType": 2,
+          "fqdn": "dc01.example.com",
+          "ip": "10.0.0.4",
+          "ipThreatScore": 0,
+          "port": 123,
+          "processName": "svchost.exe (W32Time)"
+        },
+        "protocol": 17,
+        "reason": 1,
+        "src": {
+          "assetId": "a:a:Zt4Rv6Mc",
+          "assetSrc": 3,
+          "assetType": 2,
+          "fqdn": "order-service-2.example.com",
+          "ip": "10.0.1.17",
+          "ipThreatScore": 0,
+          "port": 123,
+          "processName": "chronyd"
+        },
+        "state": 3,
+        "timestamp": 1794310800000,
+        "trafficType": 1
+      },
+      "service": "network-activities",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "items": [
+    {
+      "auditType": 73,
+      "enforcementSource": 4,
+      "userRole": 1,
+      "isoTimestamp": "2026-11-10T09:15:00.120Z",
+      "timestamp": 1794302100120,
+      "performedBy": { "id": "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b", "name": "Jane Doe" },
+      "reportedObjectId": "",
+      "parentObjectId": "",
+      "details": "{\"publicIp\":\"198.51.100.23\",\"idp\":1,\"role\":1}",
+      "destinationEntitiesList": [ { "id": "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b", "name": "Jane Doe" } ]
+    },
+    {
+      "auditType": 33,
+      "enforcementSource": 6,
+      "userRole": 5,
+      "isoTimestamp": "2026-11-10T10:20:00.000Z",
+      "timestamp": 1794306000000,
+      "performedBy": { "id": "t:automation-0001", "name": "ci-automation" },
+      "reportedObjectId": "r:i:Kq3mP9xZ",
+      "parentObjectId": "a:a:Hn7Ub2Qe",
+      "details": "{\"localEntityId\":\"a:a:Hn7Ub2Qe\",\"remoteEntityIdsList\":[\"b:110001\"],\"localProcessesList\":[\"*\"],\"ports\":\"5432\"}",
+      "destinationEntitiesList": [ { "id": "a:a:Hn7Ub2Qe", "name": "i-0a1b2c3d4e5f60004" } ]
+    }
+  ],
+  "scrollCursor": "1794306000000"
+}

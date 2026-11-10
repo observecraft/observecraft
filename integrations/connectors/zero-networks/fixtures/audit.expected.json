@@ -1,0 +1,82 @@
+{
+  "costs": [],
+  "events": [],
+  "logs": [
+    {
+      "_oc_ingest": {
+        "id": "01a1c4bd-4298-7235-ac0e-4b6947d30bb1"
+      },
+      "date": 1794302100120,
+      "ddsource": "zero-networks",
+      "fields_mapping": {
+        "auditType": "Admin portal logon"
+      },
+      "host": "portal.zeronetworks.com",
+      "message": "{\"fields_mapping\":{\"auditType\":\"Admin portal logon\"},\"record\":{\"auditType\":73,\"destinationEntitiesList\":[{\"id\":\"6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b\",\"name\":\"Jane Doe\"}],\"details\":\"{\\\"publicIp\\\":\\\"198.51.100.23\\\",\\\"idp\\\":1,\\\"role\\\":1}\",\"enforcementSource\":4,\"isoTimestamp\":\"2026-11-10T09:15:00.120Z\",\"parentObjectId\":\"\",\"performedBy\":{\"id\":\"6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b\",\"name\":\"Jane Doe\"},\"reportedObjectId\":\"\",\"timestamp\":1794302100120,\"userRole\":1}}",
+      "record": {
+        "auditType": 73,
+        "destinationEntitiesList": [
+          {
+            "id": "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b",
+            "name": "Jane Doe"
+          }
+        ],
+        "details": "{\"publicIp\":\"198.51.100.23\",\"idp\":1,\"role\":1}",
+        "enforcementSource": 4,
+        "isoTimestamp": "2026-11-10T09:15:00.120Z",
+        "parentObjectId": "",
+        "performedBy": {
+          "id": "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b",
+          "name": "Jane Doe"
+        },
+        "reportedObjectId": "",
+        "timestamp": 1794302100120,
+        "userRole": 1
+      },
+      "service": "audit",
+      "status": "info"
+    },
+    {
+      "_oc_ingest": {
+        "id": "01a1c4f8-c480-70f6-b3f0-e4b36c26ae10"
+      },
+      "date": 1794306000000,
+      "ddsource": "zero-networks",
+      "fields_mapping": {
+        "auditType": "Inbound block rule created"
+      },
+      "host": "portal.zeronetworks.com",
+      "message": "{\"fields_mapping\":{\"auditType\":\"Inbound block rule created\"},\"record\":{\"auditType\":33,\"destinationEntitiesList\":[{\"id\":\"a:a:Hn7Ub2Qe\",\"name\":\"i-0a1b2c3d4e5f60004\"}],\"details\":\"{\\\"localEntityId\\\":\\\"a:a:Hn7Ub2Qe\\\",\\\"remoteEntityIdsList\\\":[\\\"b:110001\\\"],\\\"localProcessesList\\\":[\\\"*\\\"],\\\"ports\\\":\\\"5432\\\"}\",\"enforcementSource\":6,\"isoTimestamp\":\"2026-11-10T10:20:00.000Z\",\"parentObjectId\":\"a:a:Hn7Ub2Qe\",\"performedBy\":{\"id\":\"t:automation-0001\",\"name\":\"ci-automation\"},\"reportedObjectId\":\"r:i:Kq3mP9xZ\",\"timestamp\":1794306000000,\"userRole\":5}}",
+      "record": {
+        "auditType": 33,
+        "destinationEntitiesList": [
+          {
+            "id": "a:a:Hn7Ub2Qe",
+            "name": "i-0a1b2c3d4e5f60004"
+          }
+        ],
+        "details": "{\"localEntityId\":\"a:a:Hn7Ub2Qe\",\"remoteEntityIdsList\":[\"b:110001\"],\"localProcessesList\":[\"*\"],\"ports\":\"5432\"}",
+        "enforcementSource": 6,
+        "isoTimestamp": "2026-11-10T10:20:00.000Z",
+        "parentObjectId": "a:a:Hn7Ub2Qe",
+        "performedBy": {
+          "id": "t:automation-0001",
+          "name": "ci-automation"
+        },
+        "reportedObjectId": "r:i:Kq3mP9xZ",
+        "timestamp": 1794306000000,
+        "userRole": 5
+      },
+      "service": "audit",
+      "status": "info"
+    }
+  ],
+  "metrics": [],
+  "state": {
+    "partitions": {
+      "": {
+        "cursor": 1794311940000
+      }
+    }
+  }
+}

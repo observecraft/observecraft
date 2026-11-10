@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "timestamp": 1794309600000,
+      "protocol": 6,
+      "trafficType": 1,
+      "state": 2,
+      "reason": 3,
+      "src": { "assetId": "a:a:Pq8Wn3Lk", "assetType": 2, "assetSrc": 3, "fqdn": "storefront-api-1.example.com", "ip": "10.0.1.5", "port": 51522, "processName": "node", "userName": "svc-storefront", "ipThreatScore": 0 },
+      "dst": { "assetId": "a:a:Hn7Ub2Qe", "assetType": 2, "assetSrc": 3, "fqdn": "billing-db.example.com", "ip": "10.0.2.9", "port": 5432, "processName": "postgres", "ipThreatScore": 0 }
+    },
+    {
+      "timestamp": 1794310800000,
+      "protocol": 17,
+      "trafficType": 1,
+      "state": 3,
+      "reason": 1,
+      "src": { "assetId": "a:a:Zt4Rv6Mc", "assetType": 2, "assetSrc": 3, "fqdn": "order-service-2.example.com", "ip": "10.0.1.17", "port": 123, "processName": "chronyd", "ipThreatScore": 0 },
+      "dst": { "assetId": "a:a:Dc1Xx0Aa", "assetType": 2, "assetSrc": 3, "fqdn": "dc01.example.com", "ip": "10.0.0.4", "port": 123, "processName": "svchost.exe (W32Time)", "ipThreatScore": 0 }
+    }
+  ],
+  "scrollCursor": "1794310800000"
+}
