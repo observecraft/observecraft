@@ -68,7 +68,8 @@ jobs:
     needs: languages
     if: needs.languages.outputs.matrix != '[]'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Rust analysis alone takes about 30 minutes now.
+    timeout-minutes: 60
     permissions:
       contents: read
       security-events: write
