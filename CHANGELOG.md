@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.2](https://github.com/observecraft/observecraft/compare/v0.21.1...v0.21.2) (2026-11-11)
+
+
+### Bug fixes
+
+* **helm:** run ClickHouse with a read-only root filesystem ([#137](https://github.com/observecraft/observecraft/issues/137)) ([0869a62](https://github.com/observecraft/observecraft/commit/0869a6284cac94858cb38ef575d978e262e1e439))
+* **store:** connect to Postgres over TLS (sslmode=require), for managed Postgres ([#138](https://github.com/observecraft/observecraft/issues/138)) ([14c7d98](https://github.com/observecraft/observecraft/commit/14c7d98acd19b00c45244bfd211686b12f9d3442))
+
 ## [0.21.1](https://github.com/observecraft/observecraft/compare/v0.21.0...v0.21.1) (2026-11-11)
 
 
