@@ -151,6 +151,7 @@ spec:
           image: {{ include "oc.imageOf" (list . $ch.bundled.image) }}
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities: { drop: [ALL] }
           env:
             - { name: CLICKHOUSE_SKIP_USER_SETUP, value: "1" }
@@ -183,12 +184,16 @@ spec:
           volumeMounts:
             - { name: data, mountPath: /var/lib/clickhouse }
             - { name: logs, mountPath: /var/log/clickhouse-server }
+            # The entrypoint copies users.xml here even with CLICKHOUSE_SKIP_USER_SETUP=1.
+            - { name: tmp, mountPath: /tmp }
             - { name: config, mountPath: /etc/clickhouse-server/config.d/observecraft-config.xml, subPath: observecraft-config.xml }
             - { name: config, mountPath: /etc/clickhouse-server/users.d/observecraft-users.xml, subPath: observecraft-users.xml }
       volumes:
         - name: config
           configMap: { name: {{ $fullname }}-clickhouse }
         - name: logs
+          emptyDir: {}
+        - name: tmp
           emptyDir: {}
   volumeClaimTemplates:
     - metadata:

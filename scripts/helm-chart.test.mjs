@@ -25,6 +25,16 @@ function doc(out, kind, name) {
 const valkey = (out) => doc(out, 'Deployment', 'oc-observecraft-valkey');
 const server = (out) => doc(out, 'Deployment', 'oc-observecraft-server');
 
+test('bundled ClickHouse: a read-only root with writable entrypoint scratch space', { skip: !hasHelm }, () => {
+  const r = render([], ['clickhouse']);
+  assert.ok(r.ok, r.err);
+  const sts = doc(r.out, 'StatefulSet', 'oc-observecraft-clickhouse');
+  assert.match(sts, /readOnlyRootFilesystem: true/);
+  assert.match(sts, /name: CLICKHOUSE_SKIP_USER_SETUP, value: "1"/);
+  assert.match(sts, /name: tmp, mountPath: \/tmp/);
+  assert.match(sts, /name: tmp\n\s+emptyDir: \{\}/);
+});
+
 test('ingestion profile waits for shards and buffers HTTP errors until query completion', { skip: !hasHelm }, () => {
   const r = render();
   assert.ok(r.ok, r.err);
