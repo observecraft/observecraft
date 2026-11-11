@@ -2,8 +2,9 @@
 //! billing month an export last delivered, which files its manifest lists, and their rows summed per day
 //! into [`BillLine`]s (DuckDB over the downloaded files).
 //!
-//! - **Layout**: `<container>/<path>/<export>/<yyyymmdd-yyyymmdd>/<runId>/manifest.json` and the files it
-//!   lists (`blobs[].blobName`); without overwrite, every daily run of a month is a new `runId` folder,
+//! - **Layout**: `<container>/<path>/<export>/<yyyymmdd-yyyymmdd>/[<yyyyMMddHHmm>/]<runId>/manifest.json`
+//!   (the 2023-07 API adds the run's time folder) and the files it lists (`blobs[].blobName`); without
+//!   overwrite, every daily run of a month is a new `runId` folder,
 //!   and the latest one (by its manifest's last modification) has the month to date. Exports of the classic
 //!   API have no manifest: each run is one more file of the month's folder, the latest one is read.
 //! - **Columns** are matched however the dataset version spells them (`CostInBillingCurrency`,
@@ -33,6 +34,8 @@ pub fn month_runs(blobs: Vec<(String, i64)>, path: &str, export: &str) -> BTreeM
         let parts: Vec<&str> = rest.split('/').collect();
         let (range, manifest, run) = match parts.as_slice() {
             [range, run, "manifest.json"] => (*range, true, run.to_string()),
+            // The 2023-07 API adds a folder named for the run's time (yyyyMMddHHmm) before the run id.
+            [range, stamp, run, "manifest.json"] if stamp.len() == 12 && stamp.bytes().all(|b| b.is_ascii_digit()) => (*range, true, run.to_string()),
             // The file can change under the same name (read while the export was still writing it).
             [range, file] if [".csv", ".csv.gz", ".parquet"].iter().any(|x| file.ends_with(x)) => (*range, false, format!("{file}@{modified}")),
             _ => continue,
@@ -46,6 +49,20 @@ pub fn month_runs(blobs: Vec<(String, i64)>, path: &str, export: &str) -> BTreeM
         }
     }
     latest.into_iter().map(|(month, (_, _, name, run))| (month, (name, run))).collect()
+}
+
+/// Why an export that delivered files yields no month: none of them is laid out as [`month_runs`] reads,
+/// so the import would otherwise succeed with nothing (named after one of the files, to show the layout).
+pub fn unread_layout(blobs: &[(String, i64)], path: &str, export: &str) -> Option<String> {
+    let first = blobs.first()?;
+    if !month_runs(blobs.to_vec(), path, export).is_empty() {
+        return None;
+    }
+    Some(format!(
+        "The export {export} has {} file(s), none in a layout ObserveCraft reads (<export>/<yyyymmdd-yyyymmdd>/[<yyyyMMddHHmm>/]<runId>/manifest.json), e.g. {}",
+        blobs.len(),
+        first.0
+    ))
 }
 
 /// The blobs a run's manifest lists.
@@ -195,6 +212,36 @@ mod tests {
                 ])
             );
         }
+    }
+
+    #[test]
+    fn files_in_a_layout_we_dont_read_are_reported() {
+        let unknown = vec![("p/observecraft-actual/2026/11/run/part_0_0001.csv".to_string(), 1)];
+        let message = unread_layout(&unknown, "p", "observecraft-actual").expect("reported");
+        assert!(message.contains("p/observecraft-actual/2026/11/run/part_0_0001.csv"), "{message}");
+        // Nothing delivered yet, or a layout we read: nothing to report.
+        assert_eq!(unread_layout(&[], "p", "observecraft-actual"), None);
+        let known = vec![("p/observecraft-actual/20261101-20261130/run-1/manifest.json".to_string(), 1)];
+        assert_eq!(unread_layout(&known, "p", "observecraft-actual"), None);
+    }
+
+    #[test]
+    fn runs_under_a_timestamp_folder_are_read() {
+        // Exports of the 2023-07 API put each run under a folder named for its time (yyyyMMddHHmm) inside the month's.
+        let base = "actual/ed33eded-52f5-4336-af3e-662fd012d9ab/observecraft-actual/20261101-20261130";
+        let blobs = vec![
+            (format!("{base}/202611100445/afae5b51-7058-43c0-ae48-52cc296f698f/manifest.json"), 100),
+            (format!("{base}/202611100445/afae5b51-7058-43c0-ae48-52cc296f698f/part_0_0001.csv"), 100),
+            (format!("{base}/202611110444/e1beaf65-40ce-4563-9a5a-434aeb9c8b44/manifest.json"), 200),
+            (format!("{base}/202611110444/e1beaf65-40ce-4563-9a5a-434aeb9c8b44/part_0_0001.csv"), 200),
+        ];
+        assert_eq!(
+            month_runs(blobs, "actual/ed33eded-52f5-4336-af3e-662fd012d9ab", "observecraft-actual"),
+            BTreeMap::from([(
+                "2026-11".to_string(),
+                (format!("{base}/202611110444/e1beaf65-40ce-4563-9a5a-434aeb9c8b44/manifest.json"), "e1beaf65-40ce-4563-9a5a-434aeb9c8b44".to_string())
+            )])
+        );
     }
 
     #[test]
