@@ -304,7 +304,7 @@ impl Crawler for AzureBills {
         };
         let creds = Credentials { tenant_id: c.account_id.clone(), client_id, client_secret };
         let first = first_month(now_ms, c.months);
-        let (mut months, mut rows) = (0, 0);
+        let (mut months, mut rows, mut warning) = (0, 0, None);
         for dataset in DATASETS {
             let bill = &c.config[dataset];
             let text = |k: &str| bill[k].as_str().unwrap_or_default().to_string();
@@ -315,6 +315,9 @@ impl Crawler for AzureBills {
                 Ok(b) => b,
                 Err(e) => return Ok(Outcome::Failed(crate::azure::crawler::issue(&e))),
             };
+            if let Some(message) = super::azure::unread_layout(&blobs, path, &export) {
+                warning = Some(Issue { kind: "other", message, missing_action: None, backoff: Backoff::Interval });
+            }
             for (month, (manifest, run)) in super::azure::month_runs(blobs, path, &export).into_iter().filter(|(m, _)| *m >= first) {
                 let imported_key = format!("{dataset}:{month}");
                 if c.imported[&imported_key].as_str() == Some(run.as_str()) {
@@ -357,7 +360,7 @@ impl Crawler for AzureBills {
                 rows += lines.len();
             }
         }
-        Ok(Outcome::Collected { end_ms: now_ms, metrics: months, points: rows, warning: None })
+        Ok(Outcome::Collected { end_ms: now_ms, metrics: months, points: rows, warning })
     }
 }
 
