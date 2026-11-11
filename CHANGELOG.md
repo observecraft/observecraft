@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.1](https://github.com/observecraft/observecraft/compare/v0.21.0...v0.21.1) (2026-11-11)
+
+
+### Bug fixes
+
+* **cloud-cost:** read Azure exports that put each run under a time folder ([#134](https://github.com/observecraft/observecraft/issues/134)) ([7a2fa9a](https://github.com/observecraft/observecraft/commit/7a2fa9ace2f0c685b22e3711baf0a3bd1806b5ef))
+
 ## [0.21.0](https://github.com/observecraft/observecraft/compare/v0.20.0...v0.21.0) (2026-11-10)
 
 
