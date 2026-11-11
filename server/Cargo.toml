@@ -19,7 +19,9 @@ rskafka = { version = "0.6", default-features = false, features = ["compression-
 reqwest = { version = "0.12", default-features = false, features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "postgres", "migrate", "macros"] }
+# tls-rustls-aws-lc-rs: managed Postgres (Amazon RDS, Azure, Cloud SQL) requires TLS (sslmode=require); aws-lc-rs is
+# the provider rustls already uses here.
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "postgres", "migrate", "macros", "tls-rustls-aws-lc-rs"] }
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
