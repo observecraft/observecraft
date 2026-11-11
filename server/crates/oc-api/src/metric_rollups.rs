@@ -409,6 +409,12 @@ mod tests {
     const MIN: i64 = 60_000;
     const LATE: i64 = 2 * MIN;
 
+    /// The start of the hour three hours ago: the live tests' samples must be younger than their raw retention
+    /// (15 days), or ClickHouse's TTL drops them and the tests start failing on a calendar date.
+    fn recent_hour() -> i64 {
+        (crate::routes::metrics::now_ms() / HOUR_MS - 3) * HOUR_MS
+    }
+
     #[test]
     fn a_five_minute_bucket_is_rolled_up_once_closed_and_past_the_lateness_window() {
         // 10:06: 10:00–10:05 ended a minute ago, still within the window.
@@ -560,6 +566,7 @@ mod tests {
         let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("rollup-job-{}-{}", std::process::id(), crate::routes::metrics::now_ms());
         let ch = live.client.clone().with_setting("param_oc_org", &org);
+        let t = recent_hour();
         // Two series, a point every 10 s for 2 hours; tiers 15 / 180 / 760 days.
         let insert = |from_s: i64, n: u64, value: &str| {
             format!(
@@ -569,12 +576,12 @@ mod tests {
                         'system.cpu.utilization', map('state', 'user'), toDateTime64({from_s} + intDiv(number, 2) * 10, 3), {value} FROM numbers({n})"
             )
         };
-        let start = T / 1000;
+        let start = t / 1000;
         ch.query(&insert(start, 1440, "(number % 17) / 17")).execute().await.expect("insert");
-        for (from, to) in [(T, T + HOUR_MS), (T + HOUR_MS, T + 2 * HOUR_MS)] {
+        for (from, to) in [(t, t + HOUR_MS), (t + HOUR_MS, t + 2 * HOUR_MS)] {
             roll(&ch, live.cluster(), Tier::FiveMinutes, from, to).await.expect("5m");
         }
-        roll(&ch, live.cluster(), Tier::Hour, T, T + 2 * HOUR_MS).await.expect("1h");
+        roll(&ch, live.cluster(), Tier::Hour, t, t + 2 * HOUR_MS).await.expect("1h");
 
         let raw = |step: i64| {
             format!(
@@ -614,8 +621,8 @@ mod tests {
 
         // A late point in 10:00–10:05, then the bucket and its hour rolled up again: replaced, not added.
         ch.query(&insert(start + 30, 2, "1000")).execute().await.expect("late");
-        roll(&ch, live.cluster(), Tier::FiveMinutes, T, T + FIVE_MINUTES_MS).await.expect("re-roll 5m");
-        roll(&ch, live.cluster(), Tier::Hour, T, T + HOUR_MS).await.expect("re-roll 1h");
+        roll(&ch, live.cluster(), Tier::FiveMinutes, t, t + FIVE_MINUTES_MS).await.expect("re-roll 5m");
+        roll(&ch, live.cluster(), Tier::Hour, t, t + HOUR_MS).await.expect("re-roll 1h");
         let five = fetch(rolled("metrics_rollup_5m")).await;
         assert_eq!(five.len(), 2 * 24);
         close(&five, &fetch(raw(300)).await, "5m after a re-roll");
@@ -639,19 +646,25 @@ mod tests {
         let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("rollup-dist-{}-{}", std::process::id(), crate::routes::metrics::now_ms());
         let ch = live.client.clone().with_setting("param_oc_org", &org);
+        let t = recent_hour();
+        let at = |seconds: i64| format!("toDateTime64({}, 3)", t / 1000 + seconds);
         // A cumulative histogram: 3 points in 10:00–10:05, one at 10:07.
         ch.query(&format!(
             "INSERT INTO otel.metrics_ingest_histogram (ResourceAttributes, MetricName, Attributes, TimeUnix, Count, Sum, BucketCounts, ExplicitBounds, Min, Max, AggregationTemporality) VALUES \
-             (map('oc.org_id', '{org}'), 'http.server.duration', map(), '2026-10-27 10:00:10', 4, 40, [1, 3], [10.], 1, 9, 2), \
-             (map('oc.org_id', '{org}'), 'http.server.duration', map(), '2026-10-27 10:01:10', 6, 70, [2, 4], [10.], 2, 30, 2), \
-             (map('oc.org_id', '{org}'), 'http.server.duration', map(), '2026-10-27 10:02:10', 9, 100, [2, 7], [10.], 3, 8, 2), \
-             (map('oc.org_id', '{org}'), 'http.server.duration', map(), '2026-10-27 10:07:10', 12, 150, [3, 9], [10.], 1, 12, 2)"
+             (map('oc.org_id', '{org}'), 'http.server.duration', map(), {at10}, 4, 40, [1, 3], [10.], 1, 9, 2), \
+             (map('oc.org_id', '{org}'), 'http.server.duration', map(), {at70}, 6, 70, [2, 4], [10.], 2, 30, 2), \
+             (map('oc.org_id', '{org}'), 'http.server.duration', map(), {at130}, 9, 100, [2, 7], [10.], 3, 8, 2), \
+             (map('oc.org_id', '{org}'), 'http.server.duration', map(), {at430}, 12, 150, [3, 9], [10.], 1, 12, 2)",
+            at10 = at(10),
+            at70 = at(70),
+            at130 = at(130),
+            at430 = at(430)
         ))
         .execute()
         .await
         .expect("insert");
-        roll(&ch, live.cluster(), Tier::FiveMinutes, T, T + 10 * MIN).await.expect("5m");
-        roll(&ch, live.cluster(), Tier::Hour, T, T + HOUR_MS).await.expect("1h");
+        roll(&ch, live.cluster(), Tier::FiveMinutes, t, t + 10 * MIN).await.expect("5m");
+        roll(&ch, live.cluster(), Tier::Hour, t, t + HOUR_MS).await.expect("1h");
         #[derive(clickhouse::Row, serde::Deserialize, Debug, PartialEq)]
         struct Dist {
             count_first: u64,

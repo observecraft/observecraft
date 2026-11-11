@@ -498,6 +498,28 @@ pub async fn apply_retention(cfg: &ClickHouseConfig, r: RetentionDays) -> anyhow
 
 #[cfg(test)]
 mod tests {
+    /// Managed Postgres (Amazon RDS, Azure, Cloud SQL) requires TLS (`sslmode=require`): the client
+    /// must be able to ask for it. A server that answers the TLS request with "no" gets a TLS error,
+    /// not the client refusing because it was built without TLS.
+    #[tokio::test]
+    async fn postgres_can_connect_over_tls() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            while let Ok((mut socket, _)) = listener.accept().await {
+                let mut ssl_request = [0u8; 8];
+                if socket.read_exact(&mut ssl_request).await.is_ok() {
+                    let _ = socket.write_all(b"N").await;
+                }
+            }
+        });
+        let url = format!("postgres://oc:secret@127.0.0.1:{port}/oc?sslmode=require");
+        let error = format!("{:#}", super::postgres(&url, std::time::Duration::ZERO).await.unwrap_err());
+        assert!(!error.contains("built without TLS"), "{error}");
+        assert!(error.to_lowercase().contains("tls"), "{error}");
+    }
+
     use super::*;
 
     const SCHEMA: &str = include_str!("../../../migrations/clickhouse/0001_schema.sql");
