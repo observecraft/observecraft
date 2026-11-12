@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.3](https://github.com/observecraft/observecraft/compare/v0.21.2...v0.21.3) (2026-11-12)
+
+
+### Bug fixes
+
+* **cloud-cost:** tag the bills' AI, networking and storage costs ([#140](https://github.com/observecraft/observecraft/issues/140)) ([1a200ae](https://github.com/observecraft/observecraft/commit/1a200ae0c85c7d2aaa9f85ff68cd9a2aabc7c2f1))
+
 ## [0.21.2](https://github.com/observecraft/observecraft/compare/v0.21.1...v0.21.2) (2026-11-11)
 
 
