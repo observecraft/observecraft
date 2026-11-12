@@ -90,10 +90,11 @@ pub fn load(files: &[PathBuf]) -> Result<Vec<BillLine>, String> {
         }
     };
     let instance_type = if cols.contains_key("productinstancetype") { text(&["productinstancetype"]) } else { map_value("product", "instance_type").unwrap_or("''".into()) };
+    let family = if cols.contains_key("productproductfamily") { text(&["productproductfamily"]) } else { map_value("product", "product_family").unwrap_or("''".into()) };
     let sql = format!(
         "WITH src AS (SELECT left({start}, 10) AS day, {account} AS account, {account_name} AS account_name, {product} AS product, {region} AS region, \
            {zone} AS zone, {kind} AS kind, {description} AS description, {resource} AS resource, {unit} AS unit, {usage_type} AS usage_type, \
-           {operation} AS operation, {instance_type} AS instance_type, {currency} AS currency, {sp_arn} AS sp_arn, {ri_arn} AS ri_arn, {tags} AS tags, \
+           {operation} AS operation, {instance_type} AS instance_type, {family} AS family, {currency} AS currency, {sp_arn} AS sp_arn, {ri_arn} AS ri_arn, {tags} AS tags, \
            COALESCE({quantity}, 0) AS quantity, COALESCE({unblended}, 0) AS unblended, {on_demand} AS on_demand, {sp_effective} AS sp_effective, \
            {sp_commitment} AS sp_commitment, {sp_used} AS sp_used, {ri_effective} AS ri_effective, {ri_unused_upfront} AS ri_unused_upfront, \
            {ri_unused_recurring} AS ri_unused_recurring FROM {source}) \
@@ -108,7 +109,7 @@ pub fn load(files: &[PathBuf]) -> Result<Vec<BillLine>, String> {
              WHEN 'RIFee' THEN COALESCE(ri_unused_upfront, 0) + COALESCE(ri_unused_recurring, 0) \
              WHEN 'Fee' THEN CASE WHEN ri_arn <> '' THEN 0 ELSE unblended END \
              ELSE unblended END), \
-           sum(COALESCE(on_demand, CASE WHEN kind IN ('Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage') THEN unblended ELSE 0 END)) \
+           sum(COALESCE(on_demand, CASE WHEN kind IN ('Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage') THEN unblended ELSE 0 END)), family \
          FROM src GROUP BY ALL",
         start = text(&["lineitemusagestartdate"]),
         account = text(&["lineitemusageaccountid"]),
@@ -143,11 +144,12 @@ pub fn load(files: &[PathBuf]) -> Result<Vec<BillLine>, String> {
             let usage_type = s(10)?;
             let (account_id, product, instance_type, operation) = (s(1)?, s(3)?, s(12)?, s(11)?);
             let mut tags = tags_from_json(&s(15)?);
-            for (key, value) in [("aws_account", &account_id), ("aws_product", &product), ("aws_instance_type", &instance_type), ("aws_usage_type", &usage_type), ("aws_operation", &operation)] {
+            for (key, value) in [("aws_account", &account_id), ("aws_instance_type", &instance_type), ("aws_usage_type", &usage_type), ("aws_operation", &operation)] {
                 if !value.is_empty() {
                     tags.insert(key.to_string(), value.clone());
                 }
             }
+            super::enrich::aws(&mut tags, &product, &usage_type, &s(20)?);
             let commitment_id = s(14)?;
             let account_name = s(2)?;
             Ok(BillLine {
@@ -294,6 +296,7 @@ mod tests {
         assert!((billed - 2.03).abs() < 1e-9 && (effective - 2.03).abs() < 1e-9, "{billed} {effective}");
         let s3 = lines.iter().find(|l| l.service == "AmazonS3").unwrap();
         assert_eq!((s3.account_id.as_str(), s3.account_name.as_str(), s3.pricing_category.as_str(), s3.date.as_str()), ("210987654321", "210987654321", "Standard", "2026-10-02"));
+        assert_eq!(s3.tags.get("aws_product").map(String::as_str), Some("s3"));
         assert_eq!(lines.iter().find(|l| l.category == "tax").map(|l| l.service.as_str()), Some("AWSSupportBusiness"));
     }
 
@@ -304,7 +307,7 @@ mod tests {
         let conn = duckdb::Connection::open_in_memory().unwrap();
         conn.execute_batch(&format!(
             "COPY (SELECT * FROM (VALUES
-               (TIMESTAMP '2026-10-03 05:00:00', '123456789012', 'ecommerce-prod', 'DiscountedUsage', 'AmazonRDS', 'InstanceUsage:db.r6g.large', 'CreateDBInstance', 'arn:aws:rds:us-east-1:123456789012:db:orders', 'db', 1.0, 0.0, 0.26, 'USD', 'us-east-1', 'Hrs', 'arn:aws:rds:us-east-1:123456789012:ri:ri-1', 0.15, NULL::DOUBLE, NULL::DOUBLE, MAP {{'user_team': 'orders', 'aws_created_by': 'x'}}, MAP {{'instance_type': 'db.r6g.large'}}),
+               (TIMESTAMP '2026-10-03 05:00:00', '123456789012', 'ecommerce-prod', 'DiscountedUsage', 'AmazonRDS', 'InstanceUsage:db.r6g.large', 'CreateDBInstance', 'arn:aws:rds:us-east-1:123456789012:db:orders', 'db', 1.0, 0.0, 0.26, 'USD', 'us-east-1', 'Hrs', 'arn:aws:rds:us-east-1:123456789012:ri:ri-1', 0.15, NULL::DOUBLE, NULL::DOUBLE, MAP {{'user_team': 'orders', 'aws_created_by': 'x'}}, MAP {{'instance_type': 'db.r6g.large', 'product_family': 'Database Instance'}}),
                (TIMESTAMP '2026-10-03 00:00:00', '123456789012', 'ecommerce-prod', 'RIFee', 'AmazonRDS', 'HeavyUsage:db.r6g.large', '', 'arn:aws:rds:us-east-1:123456789012:ri:ri-1', 'fee', 24.0, 3.6, 0.0, 'USD', 'us-east-1', 'Hrs', 'arn:aws:rds:us-east-1:123456789012:ri:ri-1', NULL::DOUBLE, 0.5, 0.7, MAP {{}}::MAP(VARCHAR, VARCHAR), MAP {{}}::MAP(VARCHAR, VARCHAR)),
                (TIMESTAMP '2026-10-03 07:00:00', '123456789012', 'ecommerce-prod', 'Usage', 'AmazonEC2', 'SpotUsage:c6i.large', 'RunInstances:SV001', 'i-0a1b2c3d4e5f60002', 'spot', 1.0, 0.03, 0.085, 'USD', 'us-east-1', 'Hrs', NULL, NULL::DOUBLE, NULL::DOUBLE, NULL::DOUBLE, MAP {{'user_team': 'catalog'}}, MAP {{'instance_type': 'c6i.large'}})
              ) AS t(line_item_usage_start_date, line_item_usage_account_id, line_item_usage_account_name, line_item_line_item_type, line_item_product_code, line_item_usage_type, line_item_operation, line_item_resource_id, line_item_line_item_description, line_item_usage_amount, line_item_unblended_cost, pricing_public_on_demand_cost, line_item_currency_code, product_region_code, pricing_unit, reservation_reservation_a_r_n, reservation_effective_cost, reservation_unused_amortized_upfront_fee_for_billing_period, reservation_unused_recurring_fee, resource_tags, product))
@@ -318,6 +321,7 @@ mod tests {
         assert!((used.effective - 0.15).abs() < 1e-9 && used.billed == 0.0 && (used.list - 0.26).abs() < 1e-9);
         assert_eq!(used.tags.get("team").map(String::as_str), Some("orders"));
         assert_eq!(used.tags.get("aws_instance_type").map(String::as_str), Some("db.r6g.large"));
+        assert_eq!((used.tags.get("aws_product").map(String::as_str), used.tags.get("aws_product_family").map(String::as_str)), (Some("rds"), Some("Database Instance")));
         assert!(!used.tags.contains_key("aws_created_by") || used.tags["aws_created_by"] == "x");
         let fee = lines.iter().find(|l| l.commitment_status == "Unused").unwrap();
         assert!((fee.billed - 3.6).abs() < 1e-9 && (fee.effective - 1.2).abs() < 1e-9, "{fee:?}");

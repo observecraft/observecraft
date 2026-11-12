@@ -120,6 +120,7 @@ pub fn load(files: &[PathBuf], dataset: &str) -> Result<Vec<BillLine>, String> {
                     tags.insert(key.to_string(), value.clone());
                 }
             }
+            super::enrich::azure(&mut tags, &service, &subcategory, &s(8)?);
             let (cost, list): (f64, f64) = (r.get(16)?, r.get(17)?);
             let committed = matches!(model.as_str(), "Reservation" | "SavingsPlan") && !benefit.is_empty();
             let status = match charge.as_str() {
@@ -276,6 +277,14 @@ mod tests {
         let path = dir(name).join("part_0_0001.csv");
         std::fs::write(&path, format!("{header}\n{}\n", rows.join("\n"))).unwrap();
         path
+    }
+
+    #[test]
+    fn model_inference_is_tagged_with_its_vendor_and_model() {
+        let header = "date,subscriptionId,subscriptionName,resourceGroupName,resourceLocation,resourceId,meterCategory,meterSubCategory,meterName,quantity,unitOfMeasure,costInBillingCurrency,billingCurrency,payGPrice,chargeType,pricingModel,benefitId,benefitName,tags";
+        let file = csv("inference", header, &[r#"10/01/2026,sub-1,storefront-prod,ml-rg,EastUS,/subscriptions/sub-1/resourceGroups/ml-rg/providers/Microsoft.CognitiveServices/accounts/assistant,Foundry Models,Azure OpenAI,gpt 4.1 Inp glbl Tokens,2,1K,0.8,USD,0.4,Usage,OnDemand,,,"#]);
+        let line = load(&[file], "actual").unwrap().remove(0);
+        assert_eq!((line.tags.get("ai_vendor").map(String::as_str), line.tags.get("ai_model").map(String::as_str)), (Some("Azure OpenAI"), Some("gpt-4.1")));
     }
 
     #[test]

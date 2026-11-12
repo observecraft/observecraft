@@ -78,33 +78,58 @@ const TRANSFER_TYPES = [
   '• internet: out of the provider to the public internet.',
 ];
 
+/** The bills' product families of AWS networking (NAT gateways and data transfer bill under EC2, ELB, …). */
+const AWS_NETWORK_FAMILIES = ['Data Transfer', 'NAT Gateway', 'Load Balancer', 'Load Balancer-Application', 'Load Balancer-Network', 'Load Balancer-Gateway', 'IP Address', 'VpcEndpoint']
+  .map((f) => `"${f}"`)
+  .join(' OR ');
+
+/** Azure's meter categories of networking. */
+const AZURE_NETWORK_CATEGORIES = [
+  'Bandwidth',
+  'Virtual Network',
+  'NAT Gateway',
+  'Load Balancer',
+  'Azure DNS',
+  'Network Watcher',
+  'Azure Bastion',
+  'Azure Firewall',
+  'Application Gateway',
+  'VPN Gateway',
+  'ExpressRoute',
+  'Azure Front Door Service',
+  'Content Delivery Network',
+  'Traffic Manager',
+]
+  .map((c) => `"${c}"`)
+  .join(' OR ');
+
 export const NETWORKING_BOARDS: Board[] = [
   {
     id: 'aws',
     label: 'AWS',
     provider: 'aws',
     title: 'AWS Networking Costs Overview',
-    scope: 'providername:aws aws_product:(datatransfer OR natgateway OR elb OR cloudfront)',
-    vars: ['aws_product', 'regionname', 'service', 'team'],
+    scope: `providername:aws aws_product_family:(${AWS_NETWORK_FAMILIES})`,
+    vars: ['aws_product_family', 'aws_product', 'regionname', 'team'],
     header: [
       { kind: 'kpi', title: 'Total Networking Cost', value: 'range', spark: true, w: 3 },
-      { kind: 'kpi', title: 'Total Data Transfer Cost', value: 'range', scope: 'aws_product:datatransfer', w: 3 },
+      { kind: 'kpi', title: 'Total Data Transfer Cost', value: 'range', scope: 'aws_product_family:"Data Transfer"', w: 3 },
       { kind: 'kpi', title: 'Total Elastic Load Balancer Cost', value: 'range', scope: 'aws_product:elb', w: 3 },
-      { kind: 'kpi', title: 'Total NAT Gateway Cost', value: 'range', scope: 'aws_product:natgateway', w: 3 },
-      { kind: 'bars', title: 'Total Networking Cost', groupBy: 'aws_product', w: 12 },
+      { kind: 'kpi', title: 'Total NAT Gateway Cost', value: 'range', scope: 'aws_product_family:"NAT Gateway"', w: 3 },
+      { kind: 'bars', title: 'Total Networking Cost', groupBy: 'aws_product_family', w: 12 },
     ],
     sections: [
       {
         title: 'Data Transfer Overview',
         widgets: [
           { kind: 'note', lines: TRANSFER_TYPES, w: 3 },
-          { kind: 'donut', title: 'Costs by Data Transfer Type', groupBy: 'data_transfer_type', scope: 'aws_product:datatransfer', w: 4 },
-          { kind: 'bars', title: 'Costs by Data Transfer Type', groupBy: 'data_transfer_type', scope: 'aws_product:datatransfer', w: 5 },
+          { kind: 'donut', title: 'Costs by Data Transfer Type', groupBy: 'data_transfer_type', scope: 'aws_product_family:"Data Transfer"', w: 4 },
+          { kind: 'bars', title: 'Costs by Data Transfer Type', groupBy: 'data_transfer_type', scope: 'aws_product_family:"Data Transfer"', w: 5 },
         ],
       },
       {
         title: 'Networking Cost Changes',
-        widgets: [{ kind: 'table', title: 'Networking cost by service', groupBy: 'service', changes: true, w: 12 }],
+        widgets: [{ kind: 'table', title: 'Networking cost by product', groupBy: 'aws_product', changes: true, w: 12 }],
       },
     ],
   },
@@ -113,19 +138,23 @@ export const NETWORKING_BOARDS: Board[] = [
     label: 'Azure',
     provider: 'azure',
     title: 'Azure Networking Costs Overview',
-    scope: 'providername:azure metercategory:Bandwidth',
-    vars: ['regionname', 'team'],
+    scope: `providername:azure metercategory:(${AZURE_NETWORK_CATEGORIES})`,
+    vars: ['metercategory', 'regionname', 'team'],
     header: [
       { kind: 'kpi', title: 'Total Networking Cost', value: 'range', spark: true, w: 4 },
-      { kind: 'bars', title: 'Total Networking Cost', groupBy: 'data_transfer_type', w: 8 },
+      { kind: 'bars', title: 'Total Networking Cost', groupBy: 'metercategory', w: 8 },
     ],
     sections: [
       {
         title: 'Data Transfer Overview',
         widgets: [
           { kind: 'note', lines: TRANSFER_TYPES, w: 4 },
-          { kind: 'table', title: 'Costs by Data Transfer Type', groupBy: 'data_transfer_type', changes: true, w: 8 },
+          { kind: 'table', title: 'Costs by Data Transfer Type', groupBy: 'data_transfer_type', scope: 'data_transfer_type:*', changes: true, w: 8 },
         ],
+      },
+      {
+        title: 'Networking Cost Changes',
+        widgets: [{ kind: 'table', title: 'Networking cost by meter', groupBy: 'metersubcategory', changes: true, w: 12 }],
       },
     ],
   },
