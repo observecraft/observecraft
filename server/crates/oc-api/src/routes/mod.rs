@@ -2482,6 +2482,7 @@ mod tests {
             ("../bills/mod.rs", include_str!("../bills/mod.rs")),
             ("../bills/aws.rs", include_str!("../bills/aws.rs")),
             ("../bills/azure.rs", include_str!("../bills/azure.rs")),
+            ("../bills/enrich.rs", include_str!("../bills/enrich.rs")),
             ("../bills/import.rs", include_str!("../bills/import.rs")),
             ("../azure/naming.rs", include_str!("../azure/naming.rs")),
             ("../gcp/mod.rs", include_str!("../gcp/mod.rs")),
