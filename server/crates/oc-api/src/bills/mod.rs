@@ -3,6 +3,7 @@
 
 pub mod aws;
 pub mod azure;
+pub mod enrich;
 pub mod import;
 
 use std::collections::BTreeMap;

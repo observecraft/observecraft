@@ -1060,11 +1060,11 @@ const DEMO_LINES: &[DemoLine] = &[
     ("aws", "AmazonRDS", "ecommerce-prod", "us-east-1", 620.0, 1.0, "RDS database instances", &[("aws_product", "rds"), ("team", "checkout"), ("service", "order-service"), ("env", "prod")]),
     ("aws", "AmazonS3", "ecommerce-prod", "us-east-1", 210.0, 1.0, "S3 storage and requests", &[("aws_product", "s3"), ("storage_class", "standard"), ("team", "platform"), ("service", "catalog-service"), ("env", "prod")]),
     ("aws", "AmazonS3", "ecommerce-prod", "us-east-1", 45.0, 1.0, "S3 Glacier storage", &[("aws_product", "s3"), ("storage_class", "glacier"), ("team", "data"), ("service", "billing"), ("env", "prod")]),
-    ("aws", "AWSDataTransfer", "ecommerce-prod", "us-east-1", 70.0, 0.9, "Data transfer between availability zones", &[("aws_product", "datatransfer"), ("data_transfer_type", "cross-zone"), ("team", "platform"), ("env", "prod")]),
-    ("aws", "AWSDataTransfer", "ecommerce-prod", "us-east-1", 40.0, 0.9, "Data transfer between regions", &[("aws_product", "datatransfer"), ("data_transfer_type", "cross-region"), ("team", "platform"), ("env", "prod")]),
-    ("aws", "AWSDataTransfer", "ecommerce-prod", "us-east-1", 48.0, 0.8, "Data transfer out to the internet", &[("aws_product", "datatransfer"), ("data_transfer_type", "internet"), ("team", "storefront"), ("service", "api-gateway"), ("env", "prod")]),
-    ("aws", "ElasticLoadBalancing", "ecommerce-prod", "us-east-1", 85.0, 1.0, "Load balancer hours and capacity units", &[("aws_product", "elb"), ("team", "platform"), ("service", "api-gateway"), ("env", "prod")]),
-    ("aws", "AmazonVPC", "ecommerce-prod", "us-east-1", 95.0, 1.0, "NAT gateway hours and data processed", &[("aws_product", "natgateway"), ("team", "platform"), ("env", "prod")]),
+    ("aws", "AWSDataTransfer", "ecommerce-prod", "us-east-1", 70.0, 0.9, "Data transfer between availability zones", &[("aws_product", "datatransfer"), ("aws_product_family", "Data Transfer"), ("data_transfer_type", "cross-zone"), ("team", "platform"), ("env", "prod")]),
+    ("aws", "AWSDataTransfer", "ecommerce-prod", "us-east-1", 40.0, 0.9, "Data transfer between regions", &[("aws_product", "datatransfer"), ("aws_product_family", "Data Transfer"), ("data_transfer_type", "cross-region"), ("team", "platform"), ("env", "prod")]),
+    ("aws", "AWSDataTransfer", "ecommerce-prod", "us-east-1", 48.0, 0.8, "Data transfer out to the internet", &[("aws_product", "datatransfer"), ("aws_product_family", "Data Transfer"), ("data_transfer_type", "internet"), ("team", "storefront"), ("service", "api-gateway"), ("env", "prod")]),
+    ("aws", "ElasticLoadBalancing", "ecommerce-prod", "us-east-1", 85.0, 1.0, "Load balancer hours and capacity units", &[("aws_product", "elb"), ("aws_product_family", "Load Balancer-Application"), ("team", "platform"), ("service", "api-gateway"), ("env", "prod")]),
+    ("aws", "AmazonEC2", "ecommerce-prod", "us-east-1", 95.0, 1.0, "NAT gateway hours and data processed", &[("aws_product", "ec2"), ("aws_product_family", "NAT Gateway"), ("team", "platform"), ("env", "prod")]),
     ("aws", "AmazonEKS", "ecommerce-prod", "us-east-1", 70.0, 1.0, "EKS cluster hours", &[("aws_product", "eks"), ("team", "platform"), ("env", "prod")]),
     ("aws", "AmazonDynamoDB", "ecommerce-prod", "us-east-1", 140.0, 0.9, "DynamoDB read and write capacity", &[("aws_product", "dynamodb"), ("team", "fulfillment"), ("service", "inventory-service"), ("env", "prod")]),
     ("aws", "AWSLambda", "ecommerce-prod", "us-east-1", 55.0, 0.8, "Lambda requests and duration", &[("aws_product", "lambda"), ("team", "payments"), ("service", "billing"), ("env", "prod")]),
@@ -1081,7 +1081,8 @@ const DEMO_LINES: &[DemoLine] = &[
     ("azure", "LogAnalytics", "ecommerce-eu", "westeurope", 140.0, 0.9, "Log data ingestion", &[("metercategory", "Log Analytics"), ("team", "platform"), ("env", "prod")]),
     ("azure", "FoundryModels", "ecommerce-eu", "westeurope", 900.0, 0.6, "Model inference tokens", &[("metercategory", "Foundry Models"), ("ai_vendor", "Azure AI Foundry"), ("ai_model", "chat-large"), ("team", "ml"), ("service", "storefront-api"), ("env", "prod")]),
     ("azure", "FoundryModels", "ecommerce-eu", "westeurope", 120.0, 0.6, "Embedding tokens", &[("metercategory", "Foundry Models"), ("ai_vendor", "Azure AI Foundry"), ("ai_model", "embed-small"), ("team", "ml"), ("service", "catalog-service"), ("env", "prod")]),
-    ("azure", "Bandwidth", "ecommerce-eu", "westeurope", 35.0, 0.9, "Data transfer out", &[("metercategory", "Bandwidth"), ("data_transfer_type", "internet"), ("team", "storefront"), ("env", "prod")]),
+    ("azure", "Bandwidth", "ecommerce-eu", "westeurope", 35.0, 0.9, "Data transfer out", &[("metercategory", "Bandwidth"), ("metersubcategory", "Rtn Preference: MGN"), ("data_transfer_type", "internet"), ("team", "storefront"), ("env", "prod")]),
+    ("azure", "NAT Gateway", "ecommerce-eu", "westeurope", 60.0, 1.0, "NAT gateway hours and data processed", &[("metercategory", "NAT Gateway"), ("metersubcategory", "NAT Gateway"), ("team", "platform"), ("env", "prod")]),
     ("azure", "AzureDevOps", "ecommerce-eu", "westeurope", 60.0, 0.3, "Pipelines parallel jobs", &[("metercategory", "Azure DevOps"), ("team", "platform"), ("env", "ci")]),
     ("gcp", "BigQuery", "ecommerce-analytics", "us-central1", 380.0, 0.5, "Analysis bytes scanned", &[("gcp_product", "bigquery"), ("team", "data"), ("service", "billing"), ("env", "prod")]),
     ("gcp", "Compute Engine", "ecommerce-analytics", "us-central1", 240.0, 1.0, "N2 instance core and RAM hours", &[("gcp_product", "compute"), ("team", "data"), ("env", "prod")]),
@@ -1116,7 +1117,7 @@ const DEMO_PRICES: &[DemoPrice] = &[
     ("AWSDataTransfer", "Data transfer between regions", "GB", 0.02, &[("aws_usage_type", "USE1-USW2-AWS-Out-Bytes")]),
     ("AWSDataTransfer", "Data transfer out to the internet", "GB", 0.09, &[("aws_usage_type", "DataTransfer-Out-Bytes")]),
     ("ElasticLoadBalancing", "Load balancer hours and capacity units", "LCU-Hrs", 0.008, &[("aws_usage_type", "LoadBalancerUsage")]),
-    ("AmazonVPC", "NAT gateway hours and data processed", "GB", 0.045, &[("aws_usage_type", "NatGateway-Bytes")]),
+    ("AmazonEC2", "NAT gateway hours and data processed", "GB", 0.045, &[("aws_usage_type", "NatGateway-Bytes")]),
     ("AmazonEKS", "EKS cluster hours", "Hrs", 0.10, &[("aws_usage_type", "AmazonEKS-Hours:perCluster")]),
     ("AmazonDynamoDB", "DynamoDB read and write capacity", "WriteCapacityUnit-Hrs", 0.00065, &[("aws_usage_type", "WriteCapacityUnit-Hrs")]),
     ("AWSLambda", "Lambda requests and duration", "Lambda-GB-Second", 0.0000166667, &[("aws_usage_type", "Lambda-GB-Second")]),
@@ -1134,6 +1135,7 @@ const DEMO_PRICES: &[DemoPrice] = &[
     ("FoundryModels", "Model inference tokens", "1M", 2.5, &[("productname", "Foundry Models"), ("metername", "chat-large Input Tokens"), ("consumedservice", "Microsoft.CognitiveServices")]),
     ("FoundryModels", "Embedding tokens", "1M", 0.02, &[("productname", "Foundry Models"), ("metername", "embed-small Tokens"), ("consumedservice", "Microsoft.CognitiveServices")]),
     ("Bandwidth", "Data transfer out", "1 GB", 0.087, &[("productname", "Rtn Preference: MGN"), ("metername", "Standard Data Transfer Out"), ("consumedservice", "Microsoft.Network")]),
+    ("NAT Gateway", "NAT gateway hours and data processed", "1 Hour", 0.045, &[("productname", "NAT Gateway"), ("metername", "Standard Gateway"), ("consumedservice", "Microsoft.Network")]),
     ("AzureDevOps", "Pipelines parallel jobs", "1/Day", 1.33, &[("productname", "Azure Pipelines"), ("metername", "Microsoft-hosted CI/CD"), ("consumedservice", "Microsoft.VisualStudio")]),
     ("BigQuery", "Analysis bytes scanned", "tebibyte", 6.25, &[("gcp_sku_description", "Analysis (us-central1)")]),
     ("Compute Engine", "N2 instance core and RAM hours", "hour", 0.0316, &[("gcp_sku_description", "N2 Instance Core running in Americas"), ("gcp_machine_type", "n2-standard-4")]),
@@ -1434,6 +1436,15 @@ mod tests {
         assert!(sql.contains("FINAL"));
         assert_eq!(params.len(), 5);
         assert_eq!(step_ms(TimeRange { from: 0, to: 365 * DAY_MS }, 100), 4 * DAY_MS);
+    }
+
+    /// The networking boards list product families and meter categories with spaces.
+    #[test]
+    fn cost_filters_take_quoted_values() {
+        let f = cost_where(r#"aws_product_family:("Data Transfer" OR "NAT Gateway") metercategory:"Virtual Network""#);
+        for value in ["data transfer", "nat gateway", "virtual network"] {
+            assert!(f.params.contains(&Param::Str(value.into())), "{value}: {:?}", f.params);
+        }
     }
 
     /// Connector packages write providers lower-case (`openai`); Datadog's filters name them `providername:OpenAI`.
