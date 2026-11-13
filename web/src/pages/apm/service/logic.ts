@@ -19,3 +19,8 @@ export function envOptions(envs: EnvRate[], current: string | null): { value: st
   const total = envs.reduce((sum, e) => sum + (e.reqPerSec ?? 0), 0);
   return [{ value: ALL, label: ALL, hint: envRateLabel(total) }, ...listed.map((e) => ({ value: e.env, label: e.env, hint: envRateLabel(e.reqPerSec) }))];
 }
+
+/** A primary tag's values; the one in the URL stays listed. */
+export function tagValues(values: readonly string[], current: string | null): string[] {
+  return current && current !== ALL && !values.includes(current) ? [...values, current] : [...values];
+}

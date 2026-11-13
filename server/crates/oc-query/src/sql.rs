@@ -114,6 +114,10 @@ impl Schema for LogsSchema {
 /// `otel.otel_traces` (OTel Collector ClickHouse exporter schema).
 pub struct SpansSchema;
 
+/// A span's Kubernetes cluster and namespace (the service page's primary tags).
+pub const KUBE_CLUSTER: &str = "if(ResourceAttributes['k8s.cluster.name'] != '', ResourceAttributes['k8s.cluster.name'], ResourceAttributes['kube_cluster_name'])";
+pub const KUBE_NAMESPACE: &str = "if(ResourceAttributes['k8s.namespace.name'] != '', ResourceAttributes['k8s.namespace.name'], ResourceAttributes['kube_namespace'])";
+
 impl Schema for SpansSchema {
     fn field(&self, key: &str) -> (String, Option<Param>) {
         let res = |k: &str| ("ResourceAttributes[?]".to_string(), Some(Param::Str(k.to_string())));
@@ -126,6 +130,9 @@ impl Schema for SpansSchema {
             "env" => res("deployment.environment"),
             "version" => res("service.version"),
             "host" => res("host.name"),
+            // Datadog's Kubernetes tags: mapped to OpenTelemetry's attributes by the intake, else kept as sent.
+            "kube_cluster_name" => (KUBE_CLUSTER.into(), None),
+            "kube_namespace" => (KUBE_NAMESPACE.into(), None),
             k if k.starts_with('@') => ("SpanAttributes[?]".into(), Some(Param::Str(k[1..].to_string()))),
             k => res(k),
         }
@@ -361,5 +368,18 @@ mod tests {
         let f = build_where(&SpansSchema, &parse_query("service:billing status:error env:prod @db.system:redis"), None);
         assert_eq!(f.clause, "(ServiceName = ?) AND (lower(StatusCode) = ?) AND (ResourceAttributes[?] = ?) AND (SpanAttributes[?] = ?)");
         assert_eq!(f.params[2], Param::Str("deployment.environment".into()));
+    }
+
+    /// The service page's primary tags, as Datadog names them: the OpenTelemetry attribute the intake maps them to,
+    /// else the tag kept under its own name.
+    #[test]
+    fn spans_schema_maps_kubernetes_primary_tags() {
+        let f = build_where(&SpansSchema, &parse_query("kube_cluster_name:prod-eu kube_namespace:shop"), None);
+        assert_eq!(
+            f.clause,
+            "(if(ResourceAttributes['k8s.cluster.name'] != '', ResourceAttributes['k8s.cluster.name'], ResourceAttributes['kube_cluster_name']) = ?) \
+             AND (if(ResourceAttributes['k8s.namespace.name'] != '', ResourceAttributes['k8s.namespace.name'], ResourceAttributes['kube_namespace']) = ?)"
+        );
+        assert_eq!(f.params, [Param::Str("prod-eu".into()), Param::Str("shop".into())]);
     }
 }

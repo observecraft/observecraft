@@ -10,11 +10,11 @@
 //! `oc.org` resource attribute in the collector and filtering on it here is the path to multi-tenancy.
 //! Scale: these queries aggregate raw spans; per-minute materialized rollups are the next step at volume.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use axum::extract::{Path, State};
 use axum::Json;
-use oc_query::{build_where, parse_query, Param, SpansSchema};
+use oc_query::{build_where, parse_query, Param, SpansSchema, KUBE_CLUSTER, KUBE_NAMESPACE};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -287,6 +287,9 @@ pub struct ResourcesRequest {
     /// With a service: its operation; its primary one when absent, all with `*`.
     #[serde(default)]
     pub operation: Option<String>,
+    /// Span search narrowing the service's spans, as env does (the primary tags: `kube_namespace:shop`).
+    #[serde(default)]
+    pub query: String,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -333,7 +336,7 @@ fn service_filter(service: &str, instrumented: bool) -> (String, Vec<Param>, &'s
 pub async fn resources(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ResourcesRequest>) -> ApiResult<Vec<ResourceStats>> {
     req.range.validate()?;
     let secs = ((req.range.to - req.range.from) as f64 / 1000.0).max(1.0);
-    let (mut clause, mut params) = base(req.range, &req.env, "");
+    let (mut clause, mut params) = base(req.range, &req.env, &req.query);
     let svc_expr = match &req.service {
         Some(s) => {
             let instrumented = instrumented_services(&st, &org, req.range).await?.contains(s);
@@ -398,6 +401,9 @@ pub struct ServiceRequest {
     /// The operation shown (`http.server.request`): the service's primary one when absent, all with `*`.
     #[serde(default)]
     pub operation: Option<String>,
+    /// Span search narrowing the service's spans, as env does (the primary tags: `kube_namespace:shop`).
+    #[serde(default)]
+    pub query: String,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -508,7 +514,7 @@ async fn with_operation(st: &AppState, org: &str, req: &ServiceRequest, instrume
 }
 
 fn narrow(req: &ServiceRequest, instrumented: bool) -> (String, Vec<Param>) {
-    let (mut clause, mut params) = base(req.range, &req.env, "");
+    let (mut clause, mut params) = base(req.range, &req.env, &req.query);
     let (f, p, _) = service_filter(&req.service, instrumented);
     clause.push_str(&format!(" AND {f}"));
     params.extend(p);
@@ -606,7 +612,7 @@ pub async fn service(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
 }
 
 fn req_clone(r: &ServiceRequest) -> ServiceRequest {
-    ServiceRequest { range: r.range, service: r.service.clone(), env: r.env.clone(), resource: r.resource.clone(), version: r.version.clone(), operation: r.operation.clone() }
+    ServiceRequest { range: r.range, service: r.service.clone(), env: r.env.clone(), resource: r.resource.clone(), version: r.version.clone(), operation: r.operation.clone(), query: r.query.clone() }
 }
 
 // ================================================================ service filters
@@ -624,6 +630,26 @@ pub struct EnvRate {
 #[derive(Serialize, ToSchema)]
 pub struct ServiceFilters {
     pub envs: Vec<EnvRate>,
+    /// Primary tags: the service's Kubernetes clusters (`kube_cluster_name`) and namespaces (`kube_namespace`) in
+    /// the range, in the env asked for.
+    pub clusters: Vec<String>,
+    pub namespaces: Vec<String>,
+}
+
+#[derive(clickhouse::Row, Deserialize)]
+struct FilterRow {
+    env: String,
+    hits: u64,
+    clusters: Vec<String>,
+    namespaces: Vec<String>,
+}
+
+/// The clusters and namespaces of an env's rows (every env's with none or `*`), sorted, without empty ones.
+fn primary_tag_values(rows: &[FilterRow], env: Option<&str>) -> (Vec<String>, Vec<String>) {
+    let env = env.filter(|e| !e.is_empty() && *e != "*");
+    let shown = || rows.iter().filter(|r| env.is_none_or(|e| r.env == e));
+    let sorted = |values: BTreeSet<&String>| values.into_iter().filter(|v| !v.is_empty()).cloned().collect::<Vec<_>>();
+    (sorted(shown().flat_map(|r| &r.clusters).collect()), sorted(shown().flat_map(|r| &r.namespaces).collect()))
 }
 
 /// How long before the range an env without requests in it is still listed.
@@ -636,7 +662,8 @@ fn env_rates(rows: Vec<(String, u64)>, secs: f64) -> Vec<EnvRate> {
     out
 }
 
-/// The service's envs with their requests per second (its operation's), as the env selector lists them.
+/// The service's envs with their requests per second (its operation's), as the env selector lists them, and its
+/// primary tags' values. The request's query is ignored: the selectors list every value.
 #[utoipa::path(post, path = "/api/v1/apm/service/filters", request_body = ServiceRequest, responses((status = 200, body = ServiceFilters)), tag = "apm")]
 pub async fn service_filters(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ServiceRequest>) -> ApiResult<ServiceFilters> {
     req.range.validate()?;
@@ -652,15 +679,17 @@ pub async fn service_filters(State(st): State<AppState>, OrgId(org): OrgId, Json
     }
     let rows = bind(
         st.ch(&org).query(&format!(
-            "SELECT ResourceAttributes['deployment.environment'] AS env, countIf(Timestamp >= fromUnixTimestamp64Milli(?)) AS hits \
+            "SELECT ResourceAttributes['deployment.environment'] AS env, countIf(Timestamp >= fromUnixTimestamp64Milli(?) AS in_range) AS hits, \
+             groupUniqArrayIf(50)({KUBE_CLUSTER}, in_range) AS clusters, groupUniqArrayIf(50)({KUBE_NAMESPACE}, in_range) AS namespaces \
              FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} GROUP BY env"
         )),
         &params,
     )
-    .fetch_all::<(String, u64)>()
+    .fetch_all::<FilterRow>()
     .await?;
     let secs = ((req.range.to - req.range.from) as f64 / 1000.0).max(1.0);
-    Ok(Json(ServiceFilters { envs: env_rates(rows, secs) }))
+    let (clusters, namespaces) = primary_tag_values(&rows, req.env.as_deref());
+    Ok(Json(ServiceFilters { envs: env_rates(rows.into_iter().map(|r| (r.env, r.hits)).collect(), secs), clusters, namespaces }))
 }
 
 // ================================================================ deployments
@@ -752,7 +781,8 @@ struct EdgeAgg {
 
 async fn edges(st: &AppState, org: &str, req: &ServiceRequest, downstream: bool, known: &HashMap<String, String>) -> Result<Vec<Dependency>, ApiError> {
     const BUCKETS: i64 = 20;
-    let (clause, mut params) = base(req.range, &req.env, "");
+    // The primary tags are the service's: its own client spans carry them, its callers' spans their own.
+    let (clause, mut params) = base(req.range, &req.env, if downstream { &req.query } else { "" });
     let upstream_filter = format!("{INFERRED_PEER} = ?");
     let (peer_expr, filter) = if downstream { (INFERRED_PEER, "toString(ServiceName) = ?") } else { ("toString(ServiceName)", upstream_filter.as_str()) };
     let size = ((req.range.to - req.range.from) / BUCKETS).max(1);
@@ -847,7 +877,7 @@ struct DbAgg {
 #[utoipa::path(post, path = "/api/v1/apm/databases", request_body = ServiceRequest, responses((status = 200, body = Vec<DatabaseStats>)), tag = "apm")]
 pub async fn databases(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ServiceRequest>) -> ApiResult<Vec<DatabaseStats>> {
     req.range.validate()?;
-    let (clause, mut params) = base(req.range, &req.env, "");
+    let (clause, mut params) = base(req.range, &req.env, &req.query);
     params.push(Param::Str(req.service.clone()));
     let rows = bind(
         st.ch(&org).query(&format!(
@@ -875,6 +905,9 @@ pub struct ErrorsRequest {
     pub range: TimeRange,
     pub env: Option<String>,
     pub service: Option<String>,
+    /// Span search narrowing the service's spans, as env does (the primary tags: `kube_namespace:shop`).
+    #[serde(default)]
+    pub query: String,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -906,7 +939,7 @@ struct ErrAgg {
 #[utoipa::path(post, path = "/api/v1/apm/errors", request_body = ErrorsRequest, responses((status = 200, body = Vec<SpanErrorGroup>)), tag = "apm")]
 pub async fn errors(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ErrorsRequest>) -> ApiResult<Vec<SpanErrorGroup>> {
     req.range.validate()?;
-    let (mut clause, mut params) = base(req.range, &req.env, "");
+    let (mut clause, mut params) = base(req.range, &req.env, &req.query);
     if let Some(s) = &req.service {
         clause.push_str(" AND ServiceName = ?");
         params.push(Param::Str(s.clone()));
@@ -1443,8 +1476,51 @@ mod tests {
         assert_eq!((f.envs[1].env.as_str(), f.envs[1].req_per_sec), ("staging", None));
     }
 
+    #[test]
+    fn primary_tag_values_follow_the_env() {
+        let row = |env: &str, clusters: &[&str], namespaces: &[&str]| FilterRow {
+            env: env.into(),
+            hits: 1,
+            clusters: clusters.iter().map(|s| s.to_string()).collect(),
+            namespaces: namespaces.iter().map(|s| s.to_string()).collect(),
+        };
+        let rows = [row("prod", &["prod-eu"], &["shop", "payments"]), row("staging", &["staging-eu", ""], &["shop"])];
+        assert_eq!(primary_tag_values(&rows, None), (vec!["prod-eu".to_string(), "staging-eu".into()], vec!["payments".to_string(), "shop".into()]));
+        assert_eq!(primary_tag_values(&rows, Some("staging")), (vec!["staging-eu".to_string()], vec!["shop".to_string()]));
+        assert_eq!(primary_tag_values(&rows, Some("*")).0.len(), 2);
+    }
+
+    /// The primary tags (Kubernetes cluster and namespace) are listed with the envs and narrow the page as env does.
+    #[tokio::test]
+    async fn primary_tags_list_and_filter() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "apm-primary-tags").await;
+        let shop: &[(&str, &str)] = &[("k8s.cluster.name", "prod-eu"), ("k8s.namespace.name", "shop")];
+        // A tag the intake didn't map keeps its Datadog name.
+        let payments: &[(&str, &str)] = &[("kube_cluster_name", "prod-eu"), ("kube_namespace", "payments")];
+        let staging: &[(&str, &str)] = &[("k8s.cluster.name", "staging-eu"), ("k8s.namespace.name", "shop")];
+        entries(st, &org, &[("prod", 60_000, 6, shop), ("prod", 90_000, 4, payments), ("staging", 120_000, 2, staging)]).await;
+
+        let Json(f) = service_filters(State(st.clone()), OrgId(org.clone()), Json(req(range(), None))).await.unwrap();
+        assert_eq!((f.clusters, f.namespaces), (vec!["prod-eu".to_string(), "staging-eu".into()], vec!["payments".to_string(), "shop".into()]));
+        let Json(f) = service_filters(State(st.clone()), OrgId(org.clone()), Json(ServiceRequest { env: Some("prod".into()), ..req(range(), None) })).await.unwrap();
+        assert_eq!(f.clusters, ["prod-eu"]);
+
+        let tagged = |q: &str| ServiceRequest { query: q.into(), ..req(range(), None) };
+        let Json(s) = service(State(st.clone()), OrgId(org.clone()), Json(tagged("kube_namespace:shop"))).await.unwrap();
+        assert_eq!(s.requests, 8);
+        let Json(s) = service(State(st.clone()), OrgId(org.clone()), Json(tagged("kube_cluster_name:prod-eu kube_namespace:payments"))).await.unwrap();
+        assert_eq!(s.requests, 4);
+        let resources_of = |q: &str| ResourcesRequest { range: range(), env: None, service: Some("storefront-api".into()), operation: None, query: q.into() };
+        let Json(rs) = resources(State(st.clone()), OrgId(org.clone()), Json(resources_of("kube_cluster_name:staging-eu"))).await.unwrap();
+        assert_eq!(rs.iter().map(|r| r.requests).sum::<u64>(), 2);
+        let Json(d) = deployments(State(st.clone()), OrgId(org), Json(tagged("kube_namespace:payments"))).await.unwrap();
+        assert_eq!(d.iter().map(|d| d.requests).sum::<u64>(), 4);
+    }
+
     fn req(org_range: TimeRange, operation: Option<&str>) -> ServiceRequest {
-        ServiceRequest { range: org_range, service: "storefront-api".into(), env: None, resource: None, version: None, operation: operation.map(str::to_string) }
+        ServiceRequest { range: org_range, service: "storefront-api".into(), env: None, resource: None, version: None, operation: operation.map(str::to_string), query: String::new() }
     }
 
     fn range() -> TimeRange {
@@ -1479,7 +1555,7 @@ mod tests {
         let Json(all) = service(State(st.clone()), OrgId(org.clone()), Json(req(range(), Some("*")))).await.unwrap();
         assert_eq!(all.requests, 27);
 
-        let Json(rs) = resources(State(st.clone()), OrgId(org.clone()), Json(ResourcesRequest { range: range(), env: None, service: Some("storefront-api".into()), operation: None })).await.unwrap();
+        let Json(rs) = resources(State(st.clone()), OrgId(org.clone()), Json(ResourcesRequest { range: range(), env: None, service: Some("storefront-api".into()), operation: None, query: String::new() })).await.unwrap();
         assert!(rs.iter().all(|r| r.resource != "HTTP"), "the WebSocket sessions are another operation's");
         let Json(deploys) = deployments(State(st.clone()), OrgId(org), Json(req(range(), None))).await.unwrap();
         assert_eq!(deploys.iter().map(|d| d.requests).sum::<u64>(), 26);

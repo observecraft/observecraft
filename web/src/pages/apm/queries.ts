@@ -26,6 +26,7 @@ import {
   type ApmScope,
   type ServiceScope,
 } from '../../api/apm/client';
+import type { PrimaryTags } from '../../api/apm/scope';
 import type { TimeRange } from '../../api/types';
 import { snapRange } from '../../lib/time';
 
@@ -57,12 +58,12 @@ export function useAnomalies(s: ApmScope) {
   return useQuery({ queryKey: apmKeys.of('anomalies', q), queryFn: ({ signal }) => listAnomalies(q, signal), ...opts });
 }
 
-export function useResources(s: ApmScope & { service?: string | null; operation?: string | null }) {
+export function useResources(s: ApmScope & PrimaryTags & { service?: string | null; operation?: string | null }) {
   const q = scoped(s);
   return useQuery({ queryKey: apmKeys.of('resources', q), queryFn: ({ signal }) => listResources(q, signal), ...opts });
 }
 
-export function useSpanErrors(s: ApmScope & { service?: string | null }) {
+export function useSpanErrors(s: ApmScope & PrimaryTags & { service?: string | null }) {
   const q = scoped(s);
   return useQuery({ queryKey: apmKeys.of('errors', q), queryFn: ({ signal }) => listSpanErrors(q, signal), ...opts });
 }

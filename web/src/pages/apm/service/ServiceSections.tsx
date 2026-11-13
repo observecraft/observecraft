@@ -16,6 +16,7 @@ import { useDatabases, useDependencies, useDeployments, useExploreSpans, useReso
 import { errorTone, fmtLatency, fmtPct, fmtRate, KIND_LABEL, LineSpark, ServiceIcon, useStars } from '../visuals';
 import { DependencyMap } from './DependencyMap';
 import { escapeQuoted } from '../../../lib/searchQuery';
+import { primaryTagQuery } from '../../../api/apm/scope';
 
 function Pending({ q }: { q: { isPending: boolean; isError: boolean; error: unknown; refetch: () => unknown } }) {
   if (q.isPending) return <Loading />;
@@ -189,7 +190,7 @@ const RES_MEASURES: { id: ResMeasure; label: string }[] = [
 
 /** The service's entry spans as a span query (env, resource and version from the page's filters). */
 function entryQuery(scope: ServiceScope, extra = ''): SpanQuery {
-  const terms = [`service:${scope.service}`, scope.env && `env:${scope.env}`, scope.version && `version:${scope.version}`, extra].filter(Boolean);
+  const terms = [`service:${scope.service}`, scope.env && `env:${scope.env}`, primaryTagQuery(scope), scope.version && `version:${scope.version}`, extra].filter(Boolean);
   return { range: scope.range, scope: 'service_entry', query: terms.join(' '), filters: {} };
 }
 
@@ -229,7 +230,7 @@ function ResourceChart({ scope, measure }: { scope: ServiceScope; measure: ResMe
 type ResSort = 'requests' | 'totalMs' | 'p95Ms' | 'errors' | 'errorRate';
 
 export function ResourcesSection({ scope, onPick }: { scope: ServiceScope; onPick: (resource: string) => void }) {
-  const q = useResources({ range: scope.range, env: scope.env, service: scope.service, operation: scope.operation });
+  const q = useResources({ range: scope.range, env: scope.env, cluster: scope.cluster, namespace: scope.namespace, service: scope.service, operation: scope.operation });
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<ResSort>('totalMs');
   const [page, setPage] = useState(0);
@@ -675,7 +676,7 @@ export function SpanTable({
 
 export function ErrorsSection({ scope, onOpen }: { scope: ServiceScope; onOpen: (traceId: string) => void }) {
   const navigate = useNavigate();
-  const q = useSpanErrors({ range: scope.range, env: scope.env, service: scope.service });
+  const q = useSpanErrors({ range: scope.range, env: scope.env, cluster: scope.cluster, namespace: scope.namespace, service: scope.service });
   const [text, setText] = useState('');
   const [sort, setSort] = useState<'newest' | 'count'>('newest');
   const f = text.trim().toLowerCase();
