@@ -148,3 +148,25 @@ test("a chart title's total and rate", () => {
   assert.equal(logic.totalLabel(1100, 0.3), '1.1K total (0.3 req/s)');
   assert.equal(logic.totalLabel(25, 0.0069), '25 total (<0.01 req/s)');
 });
+
+test('dependency map nodes: inferred services, health and share of traffic', () => {
+  assert.equal(logic.isInferred('web'), false);
+  assert.equal(logic.isInferred('worker'), false);
+  assert.ok(['db', 'cache', 'queue', 'http'].every(logic.isInferred));
+  assert.deepEqual([0, 0.01, 0.02, 0.05, 0.2].map(logic.dependencyHealth), ['ok', 'ok', 'warn', 'warn', 'critical']);
+  const side = [{ requests: 300 }, { requests: 100 }];
+  assert.equal(logic.trafficShare(side[0], side), 0.75);
+  assert.equal(logic.trafficShare({ requests: 0 }, [{ requests: 0 }]), 0);
+});
+
+test('a dependency node links to its service page and to the traces of its calls', () => {
+  assert.deepEqual(logic.dependencyLinks('storefront-api', { service: 'order-service', kind: 'web' }, 'downstream'), {
+    service: '/apm/services/order-service',
+    traces: '/apm/traces?query=service%3Aorder-service',
+  });
+  // An inferred service has no spans of its own: the traces are the calls to it.
+  assert.deepEqual(logic.dependencyLinks('storefront-api', { service: 'orders-db', kind: 'db' }, 'downstream'), {
+    service: '/apm/services/orders-db',
+    traces: `/apm/traces?query=${encodeURIComponent('service:storefront-api @peer.service:orders-db')}`,
+  });
+});

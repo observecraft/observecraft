@@ -1,5 +1,6 @@
 // Pure helpers of the service page (tested by scripts/apm-service-page.test.mjs): no React, no API calls.
-import type { EnvRate, ServiceMonitor } from '../../../api/apm/client';
+import type { Dependency, EnvRate, ServiceMonitor } from '../../../api/apm/client';
+import { quoteValue } from '../../../lib/searchQuery';
 import { compact } from '../../../lib/format';
 
 /** All envs (the selectors' `*`). */
@@ -68,4 +69,26 @@ export function deploymentMarkers(deployments: { version: string; firstSeen: num
 /** A chart title's total: `1.1K total (0.3 req/s)`. */
 export function totalLabel(count: number, perSec: number): string {
   return `${compact(count)} total (${envRateLabel(perSec)} req/s)`;
+}
+
+type ServiceKind = Dependency['kind'];
+
+/** Databases, caches, queues and external hosts are inferred from callers' spans; the map draws them dashed. */
+export const isInferred = (kind: ServiceKind): boolean => kind !== 'web' && kind !== 'worker';
+
+/** A dependency's health from its error rate, as the server rates a service's. */
+export function dependencyHealth(errorRate: number): 'ok' | 'warn' | 'critical' {
+  return errorRate > 0.05 ? 'critical' : errorRate > 0.01 ? 'warn' : 'ok';
+}
+
+/** A dependency's share of its side's requests (callers' or calls'). */
+export function trafficShare(d: { requests: number }, side: { requests: number }[]): number {
+  const total = side.reduce((sum, x) => sum + x.requests, 0);
+  return total ? d.requests / total : 0;
+}
+
+/** A map node's links: its service page, and the traces of the calls between it and `service`. */
+export function dependencyLinks(service: string, d: Pick<Dependency, 'service' | 'kind'>, side: 'upstream' | 'downstream'): { service: string; traces: string } {
+  const query = isInferred(d.kind) && side === 'downstream' ? `service:${quoteValue(service)} @peer.service:${quoteValue(d.service)}` : `service:${quoteValue(d.service)}`;
+  return { service: `/apm/services/${encodeURIComponent(d.service)}`, traces: `/apm/traces?query=${encodeURIComponent(query)}` };
 }
