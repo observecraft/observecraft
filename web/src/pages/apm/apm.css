@@ -919,6 +919,12 @@ button.apm-instrument-card:hover {
   background: var(--bg);
 }
 
+/* Primary tag selects: wide enough for their tag name. */
+.svc-tag-select .dd-trigger {
+  min-width: 150px;
+  justify-content: space-between;
+}
+
 .svc-filters-gap {
   flex: 1;
 }
@@ -985,9 +991,39 @@ button.apm-instrument-card:hover {
   font-size: var(--fs-md);
 }
 
-a.svc-monbar.alert {
-  background: var(--badge-error-bg);
-  color: var(--status-error);
+/* One segment per monitor status, sized by its count. */
+.svc-monbar-split {
+  display: flex;
+  height: 24px;
+}
+
+.svc-monseg {
+  flex-basis: 0;
+  min-width: max-content;
+  padding: 0 10px;
+  font-weight: var(--fw-semibold);
+  color: #fff;
+}
+
+.svc-monseg:hover {
+  filter: brightness(0.95);
+}
+
+.svc-monseg.m-alert {
+  background: var(--status-error);
+}
+
+.svc-monseg.m-warn {
+  background: var(--status-warn);
+}
+
+.svc-monseg.m-nodata {
+  background: var(--status-nodata);
+  color: var(--text);
+}
+
+.svc-monseg.m-ok {
+  background: var(--status-ok);
 }
 
 /* grouped nav: Info / Health / Govern / Configuration */

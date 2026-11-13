@@ -31,12 +31,12 @@ import { useTime } from '../../../components/shell/TimeContext';
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { activeSection } from '../../../components/ui/CollapsibleSection';
 import { Menu, Select } from '../../../components/ui/Dropdown';
-import { useServiceFilters, useServiceSummary } from '../queries';
+import { useServiceFilters, useServiceMonitors, useServiceSummary } from '../queries';
 import { TraceView } from '../trace/TraceView';
 import { LANGUAGE_LABEL, ServiceIcon, serviceLogo, useStars } from '../visuals';
 import { BrandLogo } from '../../../components/brand/BrandLogo';
 import { ChecklistSection, CostsSection, InfoSection, ScorecardsSection, useServiceEntity } from './ServiceGovern';
-import { ALL, envOptions, tagValues } from './logic';
+import { ALL, envOptions, monitorSegments, tagValues } from './logic';
 import { DatabasesSection, DependenciesSection, DeploymentsSection, ErrorsSection, InfrastructureSection, LogsSection, ResourcesSection, SummarySection, TracesSection } from './ServiceSections';
 
 type Mode = 'info' | 'health' | 'govern' | 'configuration';
@@ -101,6 +101,8 @@ export function ServicePage() {
   const options = useServiceSummary({ range, service, env, cluster, namespace, operation });
   const filters = useServiceFilters({ range, service, env, operation });
   const entity = useServiceEntity(service, env);
+  const monitors = useServiceMonitors({ range, service });
+  const segments = monitorSegments(monitors.data ?? []);
   const { stars, toggle } = useStars();
   const [traceId, setTraceId] = useState<string | null>(null);
   const group = GROUPS.find((g) => g.id === mode)!;
@@ -239,12 +241,16 @@ export function ServicePage() {
               ]}
             />
           </header>
-          {entity.entity && entity.entity.monitors > 0 ? (
-            <Link className={`svc-monbar${entity.entity.monitorsAlerting ? ' alert' : ''}`} to={`/monitors?query=${svcQuery}`}>
-              {entity.entity.monitorsAlerting ? `${entity.entity.monitorsAlerting} of ${entity.entity.monitors} monitors alerting` : `${entity.entity.monitors} monitors OK`}
-            </Link>
+          {segments.length > 0 ? (
+            <div className="svc-monbar svc-monbar-split">
+              {segments.map((seg) => (
+                <Link key={seg.status} className={`svc-monseg m-${seg.status}`} style={{ flexGrow: seg.count }} to={`/monitors?query=${svcQuery}`}>
+                  {seg.label}
+                </Link>
+              ))}
+            </div>
           ) : (
-            <div className="svc-monbar">No Monitors</div>
+            <div className="svc-monbar">{monitors.isPending ? '' : 'No Monitors'}</div>
           )}
 
           <div className="hp-layout">
@@ -314,14 +320,15 @@ export function ServicePage() {
                   ).map(
                     ([key, value, values]) =>
                       (value || (values?.length ?? 0) > 0) && (
-                        <Select
-                          key={key}
-                          label={key}
-                          value={value ?? ALL}
-                          onChange={(v) => setParam(key, v)}
-                          searchable={(values?.length ?? 0) > 10}
-                          options={[{ value: ALL, label: ALL }, ...tagValues(values ?? [], value).map((v) => ({ value: v, label: v }))]}
-                        />
+                        <span key={key} className="svc-tag-select">
+                          <Select
+                            label={key}
+                            value={value ?? ALL}
+                            onChange={(v) => setParam(key, v)}
+                            searchable={(values?.length ?? 0) > 10}
+                            options={[{ value: ALL, label: ALL }, ...tagValues(values ?? [], value).map((v) => ({ value: v, label: v }))]}
+                          />
+                        </span>
                       ),
                   )}
                   {mode === 'health' && (

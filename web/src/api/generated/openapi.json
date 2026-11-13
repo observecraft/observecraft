@@ -584,6 +584,39 @@
         }
       }
     },
+    "/api/v1/apm/service/monitors": {
+      "post": {
+        "tags": [
+          "apm"
+        ],
+        "summary": "The monitors naming the service in their query or tags (drafts aside), the worst status first.",
+        "operationId": "service_monitors",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceMonitor"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apm/services": {
       "post": {
         "tags": [
@@ -69921,6 +69954,26 @@
           "team": {
             "type": "string",
             "description": "Team handle; empty when no team owns the service."
+          }
+        }
+      },
+      "ServiceMonitor": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MonitorStatus"
           }
         }
       },

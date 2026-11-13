@@ -90,3 +90,22 @@ test('a primary tag in the URL stays selectable', () => {
   assert.deepEqual(logic.tagValues(['shop'], '*'), ['shop']);
   assert.deepEqual(logic.tagValues(['shop'], null), ['shop']);
 });
+
+test('the monitor bar splits the monitors by status, the worst first', () => {
+  const m = (status) => ({ id: 1, name: status, status });
+  assert.deepEqual(logic.monitorSegments([]), []);
+  assert.deepEqual(logic.monitorSegments([m('ok'), m('alert'), m('ok'), m('nodata'), m('warn'), m('ok'), m('ok')]), [
+    { status: 'alert', count: 1, label: 'ALERT: 1 Monitor' },
+    { status: 'warn', count: 1, label: 'WARN: 1' },
+    { status: 'nodata', count: 1, label: 'NO DATA: 1' },
+    { status: 'ok', count: 4, label: 'OK: 4 Monitors' },
+  ]);
+});
+
+test('the mock lists monitors naming the service', () => {
+  const monitors = apm.listServiceMonitors({ range: lastHour, service: 'storefront-api' });
+  assert.ok(monitors.length > 0);
+  const order = { alert: 3, warn: 2, nodata: 1, ok: 0 };
+  for (let i = 1; i < monitors.length; i++) assert.ok(order[monitors[i - 1].status] >= order[monitors[i].status]);
+  assert.deepEqual(apm.listServiceMonitors({ range: lastHour, service: 'no-such-service' }), []);
+});

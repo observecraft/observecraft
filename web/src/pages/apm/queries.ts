@@ -5,6 +5,7 @@ import {
   getDependencies,
   getServiceFilters,
   getServiceSummary,
+  listServiceMonitors,
   getTrace,
   listAnomalies,
   listDatabases,
@@ -76,6 +77,11 @@ export function useServiceSummary(s: ServiceScope) {
 export function useServiceFilters(s: ServiceScope) {
   const q = scoped(s);
   return useQuery({ queryKey: apmKeys.of('service-filters', q), queryFn: ({ signal }) => getServiceFilters(q, signal), ...opts });
+}
+
+export function useServiceMonitors(s: ServiceScope) {
+  const q = scoped(s);
+  return useQuery({ queryKey: apmKeys.of('service-monitors', q), queryFn: ({ signal }) => listServiceMonitors(q, signal), ...opts });
 }
 
 export function useDeployments(s: ServiceScope) {

@@ -27,6 +27,7 @@ export type Health = S['Health'];
 export type LogEvent = S['LogEvent'];
 export type EnvRate = S['EnvRate'];
 export type ServiceFilters = S['ServiceFilters'];
+export type ServiceMonitor = S['ServiceMonitor'];
 
 export interface ApmScope {
   range: TimeRange;
@@ -79,6 +80,12 @@ export async function getServiceSummary(s: ServiceScope, signal?: AbortSignal) {
 export async function getServiceFilters(s: ServiceScope, signal?: AbortSignal) {
   if (!live) return mock.getServiceFilters(s);
   return post('/api/v1/apm/service/filters', { range: s.range, env: s.env, service: s.service, operation: s.operation }, signal);
+}
+
+/** The monitors naming the service, the worst status first. */
+export async function listServiceMonitors(s: ServiceScope, signal?: AbortSignal) {
+  if (!live) return mock.listServiceMonitors(s);
+  return post('/api/v1/apm/service/monitors', { range: s.range, env: s.env, service: s.service }, signal);
 }
 
 export async function listDeployments(s: ServiceScope, signal?: AbortSignal) {
