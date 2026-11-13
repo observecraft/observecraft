@@ -223,7 +223,7 @@ function entryQuery(scope: ServiceScope, extra = ''): SpanQuery {
 
 /** One Top 5 chart of the resources: requests and errors as stacked bars, latency as lines. */
 function ResourceChart({ scope, measure }: { scope: ServiceScope; measure: ResMeasure }) {
-  const q = useSpanAnalytics(entryQuery(scope), 'resource', measure, 5, true);
+  const q = useSpanAnalytics({ ...entryQuery(scope), operation: scope.operation }, 'resource', measure, 5, true);
   const option = useMemo<EChartsOption | null>(() => {
     const a = q.data;
     if (!a) return null;
