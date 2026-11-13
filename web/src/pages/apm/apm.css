@@ -1522,6 +1522,7 @@ button.apm-instrument-card:hover {
 }
 
 .dep-map {
+  position: relative;
   margin-bottom: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -1537,8 +1538,55 @@ button.apm-instrument-card:hover {
   cursor: pointer;
 }
 
-.dm-node:hover text {
+.dm-node:hover text:not(.dm-stats) {
   text-decoration: underline;
+}
+
+.dep-map text.dm-stats {
+  font-size: 11px;
+  fill: var(--text-muted);
+}
+
+/* Inferred services (no spans of their own): dashed, as their edges. */
+.dm-node.inferred circle:not(.dm-logo-bg) {
+  stroke: var(--text-muted);
+  stroke-dasharray: 3 2;
+  stroke-width: 1.5;
+}
+
+/* A node's hover card, below the node. */
+.dm-card {
+  position: absolute;
+  z-index: 5;
+  width: 250px;
+  padding: 10px 12px;
+  transform: translate(-50%, 22px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--fs-md);
+}
+
+.dm-card-title {
+  margin-bottom: 6px;
+  font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;
+}
+
+.dm-card-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.dm-card-links {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 .dm-node circle {
