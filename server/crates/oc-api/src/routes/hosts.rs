@@ -930,29 +930,30 @@ fn pct_of(u: &super::kubernetes::KubeUtilization) -> Option<f64> {
     Some(round1(u.usage? / u.limits.filter(|l| *l > 0.0)? * 100.0))
 }
 
+/// A pod of the inventory as the pods tables show it (`now`: epoch ms, for its age).
+pub(crate) fn host_pod(p: super::kubernetes::KubeResource, now: i64) -> HostPod {
+    HostPod {
+        age_sec: p.created_at.map(|c| ((now - c) / 1000) as f64),
+        ready: p.ready.clone().unwrap_or_default(),
+        restarts: p.restarts.unwrap_or(0),
+        cpu_pct_of_limit: p.cpu.as_ref().and_then(pct_of),
+        mem_pct_of_limit: p.memory.as_ref().and_then(pct_of),
+        namespace: p.namespace.unwrap_or_default(),
+        uid: p.uid,
+        name: p.name,
+        status: p.status,
+        health: p.health,
+        cluster: p.cluster,
+    }
+}
+
 /// Pods the Kubernetes collector reports on this host (its node).
 #[utoipa::path(post, path = "/api/v1/hosts/{name}/pods", params(("name" = String, Path)), request_body = HostPageRequest, responses((status = 200, body = HostPodPage)), tag = "infrastructure")]
 pub async fn pods(State(st): State<AppState>, OrgId(org): OrgId, Path(name): Path<String>, Json(req): Json<HostPageRequest>) -> ApiResult<HostPodPage> {
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64;
     let q = req.query.trim().to_lowercase();
     let (_, pods) = super::kubernetes::host_inventory(&st, &org, &name).await?;
-    let mut items: Vec<HostPod> = pods
-        .into_iter()
-        .filter(|p| q.is_empty() || p.name.to_lowercase().contains(&q))
-        .map(|p| HostPod {
-            age_sec: p.created_at.map(|c| ((now - c) / 1000) as f64),
-            ready: p.ready.clone().unwrap_or_default(),
-            restarts: p.restarts.unwrap_or(0),
-            cpu_pct_of_limit: p.cpu.as_ref().and_then(pct_of),
-            mem_pct_of_limit: p.memory.as_ref().and_then(pct_of),
-            namespace: p.namespace.unwrap_or_default(),
-            uid: p.uid,
-            name: p.name,
-            status: p.status,
-            health: p.health,
-            cluster: p.cluster,
-        })
-        .collect();
+    let mut items: Vec<HostPod> = pods.into_iter().filter(|p| q.is_empty() || p.name.to_lowercase().contains(&q)).map(|p| host_pod(p, now)).collect();
     items.sort_by(|a, b| a.name.cmp(&b.name));
     let total = items.len();
     Ok(Json(HostPodPage { items: items.into_iter().skip(req.offset).take(req.limit.min(500)).collect(), total }))
@@ -1025,6 +1026,33 @@ mod tests {
         assert_eq!(bytes_per_unit("mebibyte"), 1024.0 * 1024.0);
         assert_eq!(bytes_per_unit("GiBy"), GIB);
         assert_eq!(bytes_per_unit("By"), 1.0);
+    }
+
+    #[test]
+    fn a_pods_row_has_its_age_ready_restarts_and_usage_as_a_share_of_its_limits() {
+        use super::super::kubernetes::{KubeHealth, KubeResource, KubeUtilization};
+        let pod = KubeResource {
+            uid: "u1".into(),
+            name: "storefront-api-7d9f8c6b5-xkqz0".into(),
+            cluster: "shop-prod-eu".into(),
+            namespace: Some("checkout".into()),
+            status: "CrashLoopBackOff".into(),
+            health: KubeHealth::Error,
+            created_at: Some(1_000_000),
+            ready: Some("0/1".into()),
+            restarts: Some(37),
+            cpu: Some(KubeUtilization { usage: Some(0.25), limits: Some(1.0), ..Default::default() }),
+            // No limits: no share.
+            memory: Some(KubeUtilization { usage: Some(1e8), ..Default::default() }),
+            ..Default::default()
+        };
+        let row = host_pod(pod, 1_000_000 + 90_000);
+        assert_eq!((row.name.as_str(), row.status.as_str(), row.health, row.cluster.as_str(), row.namespace.as_str()), ("storefront-api-7d9f8c6b5-xkqz0", "CrashLoopBackOff", KubeHealth::Error, "shop-prod-eu", "checkout"));
+        assert_eq!((row.age_sec, row.ready.as_str(), row.restarts), (Some(90.0), "0/1", 37));
+        assert_eq!((row.cpu_pct_of_limit, row.mem_pct_of_limit), (Some(25.0), None));
+        // A pod not reported in full yet: no age, nothing ready, no restarts.
+        let row = host_pod(KubeResource { name: "p".into(), ..Default::default() }, 0);
+        assert_eq!((row.age_sec, row.ready.as_str(), row.restarts, row.cpu_pct_of_limit), (None, "", 0, None));
     }
 
     #[test]

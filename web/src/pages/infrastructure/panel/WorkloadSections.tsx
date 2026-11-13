@@ -1,15 +1,15 @@
 import { useDeferredValue, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Activity, ArrowUpNarrowWide, ArrowDownWideNarrow, Box, EllipsisVertical, Search } from 'lucide-react';
+import { Activity, ArrowDownWideNarrow, Box, Search } from 'lucide-react';
 import { KubernetesLogo } from '../../../components/brand/KubernetesIcon';
 import type { HostDetail } from '../../../api/infrastructure/types';
 import { Empty, ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { Select } from '../../../components/ui/Dropdown';
-import { Pager, UsageBar, formatAge, formatBytes } from '../../../components/ui/Pager';
+import { Pager, UsageBar, formatBytes } from '../../../components/ui/Pager';
 import { timeAgo } from '../../../lib/format';
 import { SoftwareIcon } from '../hostIcons';
 import { useContainers, usePods, useProcesses } from '../queries';
 import { HpSection } from './HpSection';
+import { PodsTable } from './PodsTable';
 
 const PAGE = 10;
 
@@ -54,68 +54,7 @@ export function KubernetesSection({ host }: { host: HostDetail }) {
             </span>
             <Showing offset={offset} count={q.data.items.length} total={q.data.total} noun="Pods" />
           </div>
-          <table className={`hw-table${q.isPlaceholderData ? ' is-stale' : ''}`}>
-            <thead>
-              <tr>
-                <th>
-                  <ArrowUpNarrowWide size={13} /> POD
-                </th>
-                <th>STATUS</th>
-                <th>CLUSTER</th>
-                <th>NAMESPACE</th>
-                <th className="num">AGE</th>
-                <th className="num">READY</th>
-                <th className="num">RESTARTS</th>
-                <th className="num">CPU USAGE/LIMITS</th>
-                <th className="num">MEM USAGE/LIMITS</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {q.data.items.map((p) => (
-                <tr key={p.uid}>
-                  <td className="hw-ellipsis">
-                    <Link to={`/orchestration/explorer?resource=pods&panel=${encodeURIComponent(p.uid)}`}>{p.name}</Link>
-                  </td>
-                  <td>
-                    <span className={`kx-status kx-${p.health}`}>{p.status}</span>
-                  </td>
-                  <td>
-                    <span className="hw-link-chip">{p.cluster}</span>
-                  </td>
-                  <td className="hw-ellipsis">
-                    <span className="hw-link-chip">{p.namespace}</span>
-                  </td>
-                  <td className="num">{p.ageSec == null ? '—' : formatAge(p.ageSec)}</td>
-                  <td className="num">
-                    <span className="ready-chip">{p.ready}</span>
-                  </td>
-                  <td className="num">{p.restarts}</td>
-                  <td className="num">
-                    {p.cpuPctOfLimit == null ? (
-                      '—'
-                    ) : (
-                      <>
-                        {p.cpuPctOfLimit}% <UsageBar pct={p.cpuPctOfLimit} />
-                      </>
-                    )}
-                  </td>
-                  <td className="num">
-                    {p.memPctOfLimit == null ? (
-                      '—'
-                    ) : (
-                      <>
-                        {p.memPctOfLimit}% <UsageBar pct={p.memPctOfLimit} tone="ok" />
-                      </>
-                    )}
-                  </td>
-                  <td>
-                    <EllipsisVertical size={15} className="muted" />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <PodsTable pods={q.data.items} stale={q.isPlaceholderData} />
           <Pager offset={offset} limit={PAGE} total={q.data.total} onChange={setOffset} />
         </>
       )}

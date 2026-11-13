@@ -16,6 +16,7 @@ export type Deployment = S['Deployment'];
 export type Dependency = S['Dependency'];
 export type Dependencies = S['Dependencies'];
 export type DatabaseStats = S['DatabaseStats'];
+export type ServicePods = S['ServicePods'];
 export type SpanErrorGroup = S['SpanErrorGroup'];
 export type SpanRow = S['SpanRow'];
 export type TraceSearchPage = S['TraceSearchPage'];
@@ -101,6 +102,12 @@ export async function getDependencies(s: ServiceScope, signal?: AbortSignal) {
 export async function listDatabases(s: ServiceScope, signal?: AbortSignal) {
   if (!live) return mock.listDatabases(s);
   return post('/api/v1/apm/databases', { range: s.range, env: s.env, service: s.service, query: primaryTagQuery(s) }, signal);
+}
+
+/** The service's Kubernetes pods and their CPU and memory (empty outside Kubernetes). */
+export async function getServicePods(s: ServiceScope, signal?: AbortSignal) {
+  if (!live) return mock.getServicePods(s);
+  return post('/api/v1/apm/pods', { range: s.range, env: s.env, service: s.service }, signal);
 }
 
 export async function listSpanErrors(s: ApmScope & PrimaryTags & { service?: string | null }, signal?: AbortSignal) {

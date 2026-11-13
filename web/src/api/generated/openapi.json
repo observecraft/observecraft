@@ -458,6 +458,36 @@
         }
       }
     },
+    "/api/v1/apm/pods": {
+      "post": {
+        "tags": [
+          "apm"
+        ],
+        "summary": "The pods of a service and their CPU and memory over the range; none for a service outside Kubernetes.",
+        "operationId": "apm_service_pods",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServicePodsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicePods"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apm/recommendations": {
       "post": {
         "tags": [
@@ -69992,6 +70022,58 @@
           },
           "status": {
             "$ref": "#/components/schemas/MonitorStatus"
+          }
+        }
+      },
+      "ServicePods": {
+        "type": "object",
+        "required": [
+          "pods",
+          "cpu",
+          "memory"
+        ],
+        "properties": {
+          "cpu": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricSeries"
+            },
+            "description": "CPU used per pod (`name`), in millicores."
+          },
+          "memory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricSeries"
+            },
+            "description": "Memory working set per pod (`name`), in MiB."
+          },
+          "pods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HostPod"
+            },
+            "description": "The service's current pods, by name."
+          }
+        }
+      },
+      "ServicePodsRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "service"
+        ],
+        "properties": {
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "service": {
+            "type": "string"
           }
         }
       },
