@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   getDependencies,
   getServiceFilters,
+  getServicePods,
   getServiceSummary,
   listServiceMonitors,
   getTrace,
@@ -97,6 +98,11 @@ export function useDependencies(s: ServiceScope) {
 export function useDatabases(s: ServiceScope) {
   const q = scoped(s);
   return useQuery({ queryKey: apmKeys.of('databases', q), queryFn: ({ signal }) => listDatabases(q, signal), ...opts });
+}
+
+export function useServicePods(s: ServiceScope) {
+  const q = scoped(s);
+  return useQuery({ queryKey: apmKeys.of('pods', { range: q.range, env: q.env, service: q.service }), queryFn: ({ signal }) => getServicePods(q, signal), ...opts });
 }
 
 export function useSpanSearch(req: ApmScope & { query: string; cursor?: string | null; limit?: number }) {

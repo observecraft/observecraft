@@ -59,7 +59,7 @@ fn time_clause(range: TimeRange) -> (String, Vec<Param>) {
 }
 
 /// Time + optional env + optional search query, ANDed.
-fn base(range: TimeRange, env: &Option<String>, query: &str) -> (String, Vec<Param>) {
+pub(crate) fn base(range: TimeRange, env: &Option<String>, query: &str) -> (String, Vec<Param>) {
     let (mut clause, mut params) = time_clause(range);
     if let Some(e) = env.as_deref().filter(|e| !e.is_empty() && *e != "*") {
         clause.push_str(" AND ResourceAttributes['deployment.environment'] = ?");

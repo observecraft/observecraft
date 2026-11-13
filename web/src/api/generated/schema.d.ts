@@ -238,6 +238,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apm/pods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The pods of a service and their CPU and memory over the range; none for a service outside Kubernetes. */
+        post: operations["apm_service_pods"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apm/recommendations": {
         parameters: {
             query?: never;
@@ -22839,6 +22856,19 @@ export interface components {
             resources: string[];
             status: components["schemas"]["MonitorStatus"];
         };
+        ServicePods: {
+            /** @description CPU used per pod (`name`), in millicores. */
+            cpu: components["schemas"]["MetricSeries"][];
+            /** @description Memory working set per pod (`name`), in MiB. */
+            memory: components["schemas"]["MetricSeries"][];
+            /** @description The service's current pods, by name. */
+            pods: components["schemas"]["HostPod"][];
+        };
+        ServicePodsRequest: {
+            env?: string | null;
+            range: components["schemas"]["TimeRange"];
+            service: string;
+        };
         ServiceProviderInfo: {
             /** @description SAML: Reply URL (Assertion Consumer Service URL). */
             acsUrl: string;
@@ -26607,6 +26637,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpanErrorGroup"][];
+                };
+            };
+        };
+    };
+    apm_service_pods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServicePodsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicePods"];
                 };
             };
         };

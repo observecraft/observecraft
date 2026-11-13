@@ -352,7 +352,7 @@ export function ServicePage() {
                   <DependenciesSection scope={scope} />
                   <TracesSection scope={scope} operation={summary.data?.operation} onOpen={setTraceId} />
                   <ErrorsSection scope={scope} onOpen={setTraceId} />
-                  <InfrastructureSection hosts={s!.hosts} />
+                  <InfrastructureSection scope={scope} hosts={s!.hosts} />
                   <DatabasesSection scope={scope} />
                   <LogsSection service={service} />
                 </>

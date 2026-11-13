@@ -3,7 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import type { EChartsOption } from 'echarts';
 import { Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowDown, ArrowRight, Braces, Bug, Database, GitCommitHorizontal, Hexagon, ListTree, ScrollText, Search, Server, Share2, ShieldCheck, Star, Target } from 'lucide-react';
-import type { Dependency, ExplorerSpan, ServiceScope, ServiceSummary, SpanQuery } from '../../../api/apm/client';
+import type { Dependency, ExplorerSpan, ServiceScope, ServicePods, ServiceSummary, SpanQuery } from '../../../api/apm/client';
+import { KubernetesLogo } from '../../../components/brand/KubernetesIcon';
+import { Pager } from '../../../components/ui/Pager';
+import { PodsTable } from '../../infrastructure/panel/PodsTable';
 import { queryTimeseries } from '../../../api/dashboards/client';
 import { Select } from '../../../components/ui/Dropdown';
 import { Chart } from '../../../components/charts/Chart';
@@ -12,7 +15,7 @@ import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { CollapsibleSection } from '../../../components/ui/CollapsibleSection';
 import { compact, formatBytes, formatLogDate, hhmm, timeAgo } from '../../../lib/format';
 import { STATUS_COLORS, statusColor, token } from '../../../theme/chartTheme';
-import { useDatabases, useDependencies, useDeployments, useExploreSpans, useResources, useServiceLogs, useServiceMonitors, useSpanAnalytics, useSpanErrors } from '../queries';
+import { useDatabases, useDependencies, useDeployments, useExploreSpans, useResources, useServiceLogs, useServiceMonitors, useServicePods, useSpanAnalytics, useSpanErrors } from '../queries';
 import { errorTone, fmtLatency, fmtPct, fmtRate, KIND_LABEL, LineSpark, ServiceIcon, useStars } from '../visuals';
 import { DependencyMap } from './DependencyMap';
 import { deploymentMarkers, monitorSegments, resourceMonitorBadges, totalLabel } from './logic';
@@ -793,7 +796,7 @@ export function ErrorsSection({ scope, onOpen }: { scope: ServiceScope; onOpen: 
 
 /* ---------- Infrastructure ---------- */
 
-type HostUnit = 'number' | 'percent' | 'fraction' | 'bytes' | 'bytesPerSec';
+type HostUnit = 'number' | 'percent' | 'fraction' | 'bytes' | 'kibibytes' | 'bytesPerSec';
 
 interface HostVariant {
   title: string;
@@ -807,11 +810,19 @@ const HOST_CHARTS: { id: string; variants: HostVariant[] }[] = [
   {
     id: 'queue',
     variants: [
+      // linux_proc_extras, which the Agent doesn't run by default; else its load check, else hostmetrics.
       { title: 'Process Queue Length', queries: (h) => [`avg:system.proc.queue_length{${h}}`], unit: 'number' },
+      { title: 'Load average (1m)', queries: (h) => [`avg:system.load.1{${h}}`], unit: 'number' },
       { title: 'Load average (1m)', queries: (h) => [`avg:system.cpu.load_average.1m{${h}}`], unit: 'number' },
     ],
   },
-  { id: 'disk-queue', variants: [{ title: 'Disk Queue Length', queries: (h) => [`avg:system.io.avg_q_sz{${h}}`], unit: 'number' }] },
+  {
+    id: 'disk-queue',
+    variants: [
+      { title: 'Disk Queue Length (by device)', queries: (h) => [`avg:system.io.avg_q_sz{${h}} by {device}`], unit: 'number' },
+      { title: 'Disk Queue Length (by device)', queries: (h) => [`avg:system.disk.pending_operations{${h}} by {device}`], unit: 'number' },
+    ],
+  },
   {
     id: 'cpu',
     variants: [
@@ -837,7 +848,8 @@ const HOST_CHARTS: { id: string; variants: HostVariant[] }[] = [
   {
     id: 'disk',
     variants: [
-      { title: 'Disk used (by device)', queries: (h) => [`max:system.disk.used{${h}} by {device}`], unit: 'bytes' },
+      // The Agent's disk check reports KiB.
+      { title: 'Disk used (by device)', queries: (h) => [`max:system.disk.used{${h}} by {device}`], unit: 'kibibytes' },
       { title: 'Disk used (%) (by mountpoint)', queries: (h) => [`max:system.filesystem.utilization{${h}} by {mountpoint}`], unit: 'fraction' },
     ],
   },
@@ -846,6 +858,7 @@ const HOST_CHARTS: { id: string; variants: HostVariant[] }[] = [
 function fmtUnit(v: number, unit: HostUnit): string {
   if (unit === 'percent') return `${Math.round(v)}%`;
   if (unit === 'fraction') return `${Math.round(v * 100)}%`;
+  if (unit === 'kibibytes') return formatBytes(v * 1024);
   if (unit === 'bytes' || unit === 'bytesPerSec') return `${formatBytes(v)}${unit === 'bytesPerSec' ? '/s' : ''}`;
   return compact(v);
 }
@@ -893,9 +906,58 @@ function HostChart({ chart, host }: { chart: (typeof HOST_CHARTS)[number]; host:
   );
 }
 
-export function InfrastructureSection({ hosts }: { hosts: string[] }) {
+type PodSeries = ServicePods['cpu'][number];
+
+function PodUsageChart({ title, series, fmt }: { title: string; series: PodSeries[]; fmt: (v: number) => string }) {
+  const option = useMemo<EChartsOption | null>(
+    () =>
+      series.length
+        ? {
+            grid: { left: 64, right: 8, top: 10, bottom: 46 },
+            tooltip: { trigger: 'axis', confine: true, valueFormatter: (x) => fmt(Number(x)) },
+            legend: { bottom: 0, left: 0, type: 'scroll', textStyle: { fontSize: 11 } },
+            xAxis: { type: 'time', axisLabel: { formatter: (t: number) => hhmm(t), hideOverlap: true } },
+            yAxis: { type: 'value', axisLabel: { formatter: (x: number) => fmt(x) } },
+            series: series.map((x) => ({ name: x.name, type: 'line', showSymbol: false, lineStyle: { width: 1.3 }, data: x.points })),
+          }
+        : null,
+    [series, fmt],
+  );
+  return (
+    <div className="svc-res-chart">
+      <div className="svc-chart-title">{title}</div>
+      {option ? <Chart option={option} height={200} /> : <div className="hp-empty">No data</div>}
+    </div>
+  );
+}
+
+const fmtMillicores = (v: number) => `${compact(v)}m`;
+const fmtMiB = (v: number) => formatBytes(v * 1024 * 1024);
+const POD_PAGE = 10;
+
+/** The service's Kubernetes pods: CPU and memory by pod, and the pods table (as on the host panel). */
+function ServicePodsView({ data, stale }: { data: ServicePods; stale: boolean }) {
+  const [offset, setOffset] = useState(0);
+  return (
+    <div className="svc-pods">
+      <div className="svc-res-bar">
+        <h4 className="svc-sub-title">Pods</h4>
+      </div>
+      <div className="svc-res-charts two">
+        <PodUsageChart title="CPU usage by pod (millicores)" series={data.cpu} fmt={fmtMillicores} />
+        <PodUsageChart title="Memory usage by pod (MiB)" series={data.memory} fmt={fmtMiB} />
+      </div>
+      <PodsTable pods={data.pods.slice(offset, offset + POD_PAGE)} stale={stale} />
+      <Pager offset={offset} limit={POD_PAGE} total={data.pods.length} onChange={setOffset} />
+    </div>
+  );
+}
+
+export function InfrastructureSection({ scope, hosts }: { scope: ServiceScope; hosts: string[] }) {
   const navigate = useNavigate();
   const [picked, setPicked] = useState<string | null>(null);
+  const pods = useServicePods(scope);
+  const podCount = pods.data?.pods.length ?? 0;
   const host = picked && hosts.includes(picked) ? picked : hosts[0];
   return (
     <CollapsibleSection
@@ -903,15 +965,24 @@ export function InfrastructureSection({ hosts }: { hosts: string[] }) {
       title="Infrastructure"
       icon={Server}
       extra={
-        hosts.length > 0 && (
-          <button className="btn" onClick={() => navigate(`/infrastructure?query=${encodeURIComponent(hosts.map((h) => `host:${h}`).join(' OR '))}`)}>
-            <Server size={14} /> {hosts.length === 1 ? hosts[0] : `${hosts.length} hosts`}
-          </button>
-        )
+        <>
+          {podCount > 0 && (
+            <button className="btn" onClick={() => navigate(`/orchestration/explorer?${new URLSearchParams({ resource: 'pods', q: `service:${scope.service}` })}`)}>
+              <KubernetesLogo size={14} /> {podCount === 1 ? '1 pod' : `${podCount} pods`}
+            </button>
+          )}
+          {hosts.length > 0 && (
+            <button className="btn" onClick={() => navigate(`/infrastructure?query=${encodeURIComponent(hosts.map((h) => `host:${h}`).join(' OR '))}`)}>
+              <Server size={14} /> {hosts.length === 1 ? hosts[0] : `${hosts.length} hosts`}
+            </button>
+          )}
+        </>
       }
     >
+      {pods.isError && <ErrorState error={pods.error} onRetry={() => pods.refetch()} />}
+      {pods.data && podCount > 0 && <ServicePodsView key={scope.service} data={pods.data} stale={pods.isPlaceholderData} />}
       {hosts.length === 0 ? (
-        <div className="hp-empty">No hosts reported (set host.name on the service's resource)</div>
+        !pods.isPending && podCount === 0 && <div className="hp-empty">No hosts reported (set host.name on the service's resource)</div>
       ) : (
         <>
           <div className="svc-res-bar">

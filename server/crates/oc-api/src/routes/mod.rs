@@ -1,5 +1,6 @@
 pub mod apm;
 pub mod apm_monitors;
+pub mod apm_pods;
 pub mod apm_settings;
 pub mod authentik_integration;
 pub mod connector_oauth;
@@ -409,6 +410,7 @@ use crate::state::AppState;
         apm::recommendations,
         apm::anomalies,
         apm::envs,
+        apm_pods::pods,
         metrics::timeseries,
         metrics::dashboard::dashboard_query,
         metrics::dashboard::dashboard_live,
@@ -1229,6 +1231,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/apm/recommendations", post(apm::recommendations))
         .route("/api/v1/apm/anomalies", post(apm::anomalies))
         .route("/api/v1/apm/envs", post(apm::envs))
+        .route("/api/v1/apm/pods", post(apm_pods::pods))
         .route("/api/v1/query/timeseries", post(metrics::timeseries))
         .route(
             "/api/v1/query/dashboard",
@@ -2082,6 +2085,7 @@ mod tests {
     fn schema_type_names_are_unique() {
         let sources = [
             include_str!("apm.rs"),
+            include_str!("apm_pods.rs"),
             include_str!("archives.rs"),
             include_str!("auth.rs"),
             include_str!("catalog.rs"),
@@ -2262,6 +2266,7 @@ mod tests {
     fn telemetry_queries_filter_by_org() {
         let sources = [
             ("apm.rs", include_str!("apm.rs")),
+            ("apm_pods.rs", include_str!("apm_pods.rs")),
             ("archives.rs", include_str!("archives.rs")),
             ("catalog.rs", include_str!("catalog.rs")),
             ("changes.rs", include_str!("changes.rs")),
@@ -2507,6 +2512,7 @@ mod tests {
             ("metric_catalog.rs", include_str!("metric_catalog.rs")),
             ("resource_changes.rs", include_str!("resource_changes.rs")),
             ("apm.rs", include_str!("apm.rs")),
+            ("apm_pods.rs", include_str!("apm_pods.rs")),
             ("archives.rs", include_str!("archives.rs")),
             ("auth.rs", include_str!("auth.rs")),
             ("catalog.rs", include_str!("catalog.rs")),

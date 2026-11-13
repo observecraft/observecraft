@@ -7,6 +7,7 @@ import type { PrimaryTags } from '../apm/scope';
 import type { TimeRange } from '../types';
 import { parseQuery, type Term } from '../../lib/searchQuery';
 import { CHUNK_MS, SERVICES, deployedAt, findTrace, tracesOfMinute, type GenSpan, type GenTrace } from './apmTraces';
+import { inventory } from './kubernetes';
 import { matchesTerms } from './match';
 import { searchMonitors } from './monitors';
 import { referencesService } from '../scorecards/logic';
@@ -443,6 +444,47 @@ export function listDatabases(s: ServiceScope): S['DatabaseStats'][] {
     .sort((a, b) => b.sort - a.sort)
     .slice(0, 100)
     .map(({ sort: _, ...row }) => row);
+}
+
+// ================================================================ pods
+
+/** The demo Kubernetes inventory's pods of the service, with CPU (millicores) and memory (MiB) wobbling around their usage. */
+export function getServicePods(s: ServiceScope): S['ServicePods'] {
+  const env = s.env && s.env !== '*' ? s.env : null;
+  const now = Date.now();
+  const pods = inventory()
+    .filter((p) => p.kind === 'pods' && p.tags.includes(`service:${s.service}`) && (!env || (p.labels['tags.datadoghq.com/env'] ?? env) === env))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const pct = (u: number | null | undefined, l: number | null | undefined) => (u != null && l ? Math.round((u / l) * 1000) / 10 : null);
+  const step = Math.max(60_000, Math.ceil((s.range.to - s.range.from) / 60 / 60_000) * 60_000);
+  const series = (value: (p: (typeof pods)[number]) => number | null | undefined, scale: number, unit: string) =>
+    pods
+      .filter((p) => value(p) != null)
+      .map((p, i) => {
+        const points: [number, number][] = [];
+        for (let t = Math.ceil(s.range.from / step) * step; t <= Math.min(s.range.to, now); t += step) {
+          const wobble = 1 + 0.25 * Math.sin(t / 900_000 + i * 1.7) + 0.08 * Math.sin(t / 97_000 + i);
+          points.push([t, Math.round(value(p)! * scale * wobble * 10) / 10]);
+        }
+        return { name: p.name, points, unit };
+      });
+  return {
+    pods: pods.map((p) => ({
+      uid: p.uid,
+      name: p.name,
+      status: p.status,
+      health: p.health,
+      cluster: p.cluster,
+      namespace: p.namespace ?? '',
+      ageSec: p.createdAt == null ? null : Math.round((now - p.createdAt) / 1000),
+      ready: p.ready ?? '',
+      restarts: p.restarts ?? 0,
+      cpuPctOfLimit: pct(p.cpu?.usage, p.cpu?.limits),
+      memPctOfLimit: pct(p.memory?.usage, p.memory?.limits),
+    })),
+    cpu: series((p) => p.cpu?.usage, 1000, 'millicore'),
+    memory: series((p) => p.memory?.usage, 1 / (1024 * 1024), 'mebibyte'),
+  };
 }
 
 // ================================================================ errors
