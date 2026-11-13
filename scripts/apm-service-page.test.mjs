@@ -127,3 +127,24 @@ test("the mock's monitors name the resources they target", () => {
   assert.ok(['alert', 'warn'].includes(checkout.status), checkout.status);
   assert.deepEqual(monitors.find((m) => m.name === 'Storefront API p95 latency above SLO').resources, []);
 });
+
+test('the latency chart marks each deployment but the range’s first version', () => {
+  const series = [{ t: 1000 }, { t: 2000 }, { t: 3000 }];
+  const deployments = [
+    { version: '1.2.0', firstSeen: 2500 },
+    { version: '1.1.0', firstSeen: 1000 },
+    { version: '1.1.1', firstSeen: 1800 },
+  ];
+  assert.deepEqual(logic.deploymentMarkers(deployments, series), [
+    { t: 1800, version: '1.1.1' },
+    { t: 2500, version: '1.2.0' },
+  ]);
+  assert.deepEqual(logic.deploymentMarkers([{ version: '1.0.0', firstSeen: 1500 }], series), []);
+  assert.deepEqual(logic.deploymentMarkers([], []), []);
+});
+
+test("a chart title's total and rate", () => {
+  assert.equal(logic.totalLabel(0, 0), '0 total (0 req/s)');
+  assert.equal(logic.totalLabel(1100, 0.3), '1.1K total (0.3 req/s)');
+  assert.equal(logic.totalLabel(25, 0.0069), '25 total (<0.01 req/s)');
+});
