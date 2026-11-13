@@ -1,5 +1,5 @@
 // Pure helpers of the service page (tested by scripts/apm-service-page.test.mjs): no React, no API calls.
-import type { EnvRate } from '../../../api/apm/client';
+import type { EnvRate, ServiceMonitor } from '../../../api/apm/client';
 
 /** All envs (the selectors' `*`). */
 export const ALL = '*';
@@ -23,4 +23,23 @@ export function envOptions(envs: EnvRate[], current: string | null): { value: st
 /** A primary tag's values; the one in the URL stays listed. */
 export function tagValues(values: readonly string[], current: string | null): string[] {
   return current && current !== ALL && !values.includes(current) ? [...values, current] : [...values];
+}
+
+type MonitorStatus = ServiceMonitor['status'];
+
+/** Monitor statuses, the worst first, and how the monitor bar names them. */
+export const MONITOR_STATUSES: { status: MonitorStatus; label: string }[] = [
+  { status: 'alert', label: 'ALERT' },
+  { status: 'warn', label: 'WARN' },
+  { status: 'nodata', label: 'NO DATA' },
+  { status: 'ok', label: 'OK' },
+];
+
+/** The monitor bar's segments (`ALERT: 2 Monitors`, `WARN: 1`, `OK: 4 Monitors`), the worst first; the bar sizes them by count. */
+export function monitorSegments(monitors: Pick<ServiceMonitor, 'status'>[]): { status: MonitorStatus; count: number; label: string }[] {
+  return MONITOR_STATUSES.map(({ status, label }) => {
+    const count = monitors.filter((m) => m.status === status).length;
+    const noun = status === 'alert' || status === 'ok' ? ` Monitor${count === 1 ? '' : 's'}` : '';
+    return { status, count, label: `${label}: ${count}${noun}` };
+  }).filter((s) => s.count > 0);
 }

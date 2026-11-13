@@ -8,6 +8,8 @@ import type { TimeRange } from '../types';
 import { parseQuery, type Term } from '../../lib/searchQuery';
 import { CHUNK_MS, SERVICES, deployedAt, findTrace, tracesOfMinute, type GenSpan, type GenTrace } from './apmTraces';
 import { matchesTerms } from './match';
+import { searchMonitors } from './monitors';
+import { referencesService } from '../scorecards/logic';
 
 type S = components['schemas'];
 type ServiceKind = S['ServiceKind'];
@@ -328,6 +330,19 @@ export function getServiceFilters(s: ServiceScope): S['ServiceFilters'] {
   const inEnv = mine.filter(envMatches(s.env));
   const values = (key: string) => [...new Set(inEnv.map((x) => resourceOf(x)[key]))].filter(Boolean).sort();
   return { envs, clusters: values('k8s.cluster.name'), namespaces: values('k8s.namespace.name') };
+}
+
+// ================================================================ service monitors
+
+const SEVERITY: Record<S['MonitorStatus'], number> = { alert: 3, warn: 2, nodata: 1, ok: 0 };
+
+/** As routes/apm_monitors.rs: the monitors naming the service in their query or tags, the worst first. */
+export function listServiceMonitors(s: ServiceScope): S['ServiceMonitor'][] {
+  const all = searchMonitors({ query: '', statuses: [], muted: [], priorities: [], types: [], drafts: [false], recipients: [], creators: [], teams: [], sort: 'name', offset: 0, limit: 200 }).monitors;
+  return all
+    .filter((m) => [m.query, ...m.tags].some((t) => referencesService(t, s.service)))
+    .map((m) => ({ id: m.id, name: m.name, status: m.status }))
+    .sort((a, b) => SEVERITY[b.status] - SEVERITY[a.status] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
 // ================================================================ dependencies & databases

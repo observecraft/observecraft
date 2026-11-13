@@ -309,6 +309,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apm/service/monitors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The monitors naming the service in their query or tags (drafts aside), the worst status first. */
+        post: operations["service_monitors"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apm/services": {
         parameters: {
             query?: never;
@@ -22807,6 +22824,12 @@ export interface components {
             /** @description Team handle; empty when no team owns the service. */
             team?: string;
         };
+        ServiceMonitor: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            status: components["schemas"]["MonitorStatus"];
+        };
         ServiceProviderInfo: {
             /** @description SAML: Reply URL (Assertion Consumer Service URL). */
             acsUrl: string;
@@ -26665,6 +26688,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServiceFilters"];
+                };
+            };
+        };
+    };
+    service_monitors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceMonitor"][];
                 };
             };
         };

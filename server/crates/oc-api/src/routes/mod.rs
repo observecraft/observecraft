@@ -1,4 +1,5 @@
 pub mod apm;
+pub mod apm_monitors;
 pub mod apm_settings;
 pub mod authentik_integration;
 pub mod connector_oauth;
@@ -398,6 +399,7 @@ use crate::state::AppState;
         apm::resources,
         apm::service,
         apm::service_filters,
+        apm_monitors::service_monitors,
         apm::deployments,
         apm::dependencies,
         apm::databases,
@@ -1217,6 +1219,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/apm/resources", post(apm::resources))
         .route("/api/v1/apm/service", post(apm::service))
         .route("/api/v1/apm/service/filters", post(apm::service_filters))
+        .route("/api/v1/apm/service/monitors", post(apm_monitors::service_monitors))
         .route("/api/v1/apm/deployments", post(apm::deployments))
         .route("/api/v1/apm/dependencies", post(apm::dependencies))
         .route("/api/v1/apm/databases", post(apm::databases))
@@ -2199,6 +2202,7 @@ mod tests {
             include_str!("workload_protection.rs"),
             include_str!("workload_catalog.rs"),
             include_str!("datadog_api/csm_threats.rs"),
+            include_str!("apm_monitors.rs"),
             include_str!("apm_settings.rs"),
             include_str!("datadog_api/apm_config.rs"),
             include_str!("synthetics_explorer.rs"),
@@ -2307,6 +2311,7 @@ mod tests {
             ("workload_protection.rs", include_str!("workload_protection.rs")),
             ("workload_catalog.rs", include_str!("workload_catalog.rs")),
             ("datadog_api/csm_threats.rs", include_str!("datadog_api/csm_threats.rs")),
+            ("apm_monitors.rs", include_str!("apm_monitors.rs")),
             ("apm_settings.rs", include_str!("apm_settings.rs")),
             ("datadog_api/apm_config.rs", include_str!("datadog_api/apm_config.rs")),
             ("cloud_security_rules.rs", include_str!("cloud_security_rules.rs")),
@@ -2649,6 +2654,7 @@ mod tests {
             ("workload_protection.rs", include_str!("workload_protection.rs")),
             ("workload_catalog.rs", include_str!("workload_catalog.rs")),
             ("datadog_api/csm_threats.rs", include_str!("datadog_api/csm_threats.rs")),
+            ("apm_monitors.rs", include_str!("apm_monitors.rs")),
             ("apm_settings.rs", include_str!("apm_settings.rs")),
             ("datadog_api/azure_integration.rs", include_str!("datadog_api/azure_integration.rs")),
             ("datadog_api/gcp_integration.rs", include_str!("datadog_api/gcp_integration.rs")),
