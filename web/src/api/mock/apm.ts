@@ -681,6 +681,18 @@ function dimension(name: string): (s: GenSpan) => string {
 }
 
 /** Spans matching the explorer query; `skip` ignores one facet's own selection. */
+/** A span's operation as the server names it (`apm::OPERATION`): `http.server.request`, `redis.query`, … */
+function operationOf(s: GenSpan): string {
+  const kind = s.kind.toLowerCase();
+  const a = s.attrs;
+  if (a['operation.name']) return a['operation.name'];
+  if (a['http.request.method'] || a['http.method']) return `http.${kind}.request`;
+  if (a['rpc.system']) return `${a['rpc.system']}.${kind}.request`;
+  if (a['messaging.system']) return `${a['messaging.system']}.${kind}`;
+  if (a['db.system']) return `${a['db.system']}.query`;
+  return `${kind}.request`;
+}
+
 function where(q: SpanQuery, spans: GenSpan[], skip?: string, durations = true): GenSpan[] {
   const terms = parseQuery(q.query ?? '');
   const filters = Object.entries(q.filters ?? {})
@@ -694,6 +706,7 @@ function where(q: SpanQuery, spans: GenSpan[], skip?: string, durations = true):
       (q.scope !== 'traces' || s.parentId === '') &&
       (min === null || s.durationMs >= min) &&
       (max === null || s.durationMs <= max) &&
+      (!q.operation || q.operation === '*' || operationOf(s) === q.operation) &&
       filters.every(([get, values]) => values.has(get(s))) &&
       matchSpan(s, terms),
   );
@@ -715,14 +728,34 @@ function explorerRow(s: GenSpan): S['ExplorerSpan'] {
     dbSystem: s.attrs['db.system'] ?? '',
     peerService: s.attrs['peer.service'] ?? '',
     host: SERVICES[s.service].host,
+    errorType: s.attrs['error.type'] || s.error?.type || '',
+    clientIp: s.attrs['http.client_ip'] || s.attrs['client.address'] || s.attrs['network.client.ip'] || s.attrs['network.peer.address'] || '',
   };
+}
+
+/** As the server's `spread` sort: a few spans per time bucket (of 50 over the range), picked by their id, newest first. */
+function spread(range: TimeRange, spans: GenSpan[], limit: number): GenSpan[] {
+  const size = Math.max(1, Math.floor((range.to - range.from) / 50));
+  const per = Math.ceil(limit / 50);
+  const buckets = new Map<number, GenSpan[]>();
+  for (const s of spans) {
+    const b = Math.floor(s.start / size);
+    const bucket = buckets.get(b);
+    if (bucket) bucket.push(s);
+    else buckets.set(b, [s]);
+  }
+  return [...buckets.values()]
+    .flatMap((b) => b.sort((x, y) => x.spanId.localeCompare(y.spanId)).slice(0, per))
+    .sort(newestFirst)
+    .slice(0, limit);
 }
 
 export function exploreSpans(q: SpanQuery, sort: string, offset: number, limit: number): S['SpanSearchResult'] {
   const { spans, weight } = scan(q.range);
   const matched = where(q, spans).sort(sort === 'duration' ? (a, b) => b.durationMs - a.durationMs : newestFirst);
   const start = Math.min(10_000, Math.max(0, offset));
-  const page = matched.slice(start, start + Math.min(500, Math.max(1, limit)));
+  const size = Math.min(500, Math.max(1, limit));
+  const page = sort === 'spread' ? spread(q.range, matched, size) : matched.slice(start, start + size);
   const traces: S['SpanSearchResult']['traces'] = {};
   if (q.scope === 'traces') {
     for (const s of page) {

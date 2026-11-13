@@ -124,9 +124,9 @@ export function useServiceLogs(range: TimeRange, service: string) {
 
 const spanScoped = (q: SpanQuery): SpanQuery => ({ ...q, range: snapRange(q.range) });
 
-export function useExploreSpans(q: SpanQuery, sort: string, offset: number, limit: number) {
+export function useExploreSpans(q: SpanQuery, sort: string, offset: number, limit: number, enabled = true) {
   const s = spanScoped(q);
-  return useQuery({ queryKey: apmKeys.of('explore', [s, sort, offset, limit]), queryFn: ({ signal }) => exploreSpans(s, sort, offset, limit, signal), ...opts });
+  return useQuery({ queryKey: apmKeys.of('explore', [s, sort, offset, limit]), queryFn: ({ signal }) => exploreSpans(s, sort, offset, limit, signal), enabled, ...opts });
 }
 
 export function useSpanFacets(q: SpanQuery, dimensions: string[]) {

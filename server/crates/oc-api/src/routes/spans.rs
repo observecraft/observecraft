@@ -64,6 +64,9 @@ pub struct SpanQuery {
     pub filters: BTreeMap<String, Vec<String>>,
     pub min_duration_ms: Option<f64>,
     pub max_duration_ms: Option<f64>,
+    /// The spans' operation, as the service page names it (`http.server.request`); none or `*`: every operation.
+    #[serde(default)]
+    pub operation: Option<String>,
 }
 
 /// WHERE clause and params; `skip` ignores one facet's own selection (for its counts).
@@ -79,6 +82,10 @@ fn where_clause(q: &SpanQuery, skip: Option<&str>) -> Result<(String, Vec<Param>
     let f = build_where(&SpansSchema, &parse_query(&q.query), None);
     parts.push(format!("({})", f.clause));
     params.extend(f.params);
+    if let Some(op) = q.operation.as_deref().filter(|o| !o.is_empty() && *o != super::apm::ALL_OPERATIONS) {
+        parts.push(format!("{} = ?", super::apm::OPERATION));
+        params.push(Param::Str(op.into()));
+    }
     for (dim, values) in &q.filters {
         if values.is_empty() || Some(dim.as_str()) == skip {
             continue;
@@ -105,7 +112,7 @@ fn where_clause(q: &SpanQuery, skip: Option<&str>) -> Result<(String, Vec<Param>
 pub struct SpanSearchRequest {
     #[serde(flatten)]
     pub q: SpanQuery,
-    /// date (default) | duration
+    /// date (default) | duration | spread (a sample spread over the range, a few spans per time bucket, newest first)
     pub sort: Option<String>,
     pub offset: i64,
     pub limit: i64,
@@ -131,6 +138,10 @@ pub struct ExplorerSpan {
     pub db_system: String,
     pub peer_service: String,
     pub host: String,
+    /// The error's type: the tracers' `error.type`, otherwise the exception event's `exception.type`.
+    pub error_type: String,
+    /// The client's address: `http.client_ip`, `client.address`, `network.client.ip` or `network.peer.address`.
+    pub client_ip: String,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -155,14 +166,40 @@ pub struct SpanSearchResult {
 const ROW: &str = "TraceId AS trace_id, SpanId AS span_id, toInt64(toUnixTimestamp64Milli(Timestamp)) AS timestamp, toString(ServiceName) AS service, \
     toString(SpanName) AS resource, lower(toString(SpanKind)) AS kind, Duration / 1e6 AS duration_ms, if(StatusCode = 'Error', 'error', 'ok') AS status, \
     ResourceAttributes['deployment.environment'] AS env, {METHOD} AS method, {HTTP_STATUS} AS http_status, SpanAttributes['db.system'] AS db_system, \
-    SpanAttributes['peer.service'] AS peer_service, ResourceAttributes['host.name'] AS host";
+    SpanAttributes['peer.service'] AS peer_service, ResourceAttributes['host.name'] AS host, \
+    if(SpanAttributes['error.type'] != '', SpanAttributes['error.type'], arrayElement(Events.Attributes, indexOf(Events.Name, 'exception'))['exception.type']) AS error_type, \
+    arrayFirst(x -> x != '', [SpanAttributes['http.client_ip'], SpanAttributes['client.address'], SpanAttributes['network.client.ip'], SpanAttributes['network.peer.address'], '']) AS client_ip";
+
+/// Time buckets a spread sample divides the range into (taking limit / 50 spans from each).
+const SPREAD_BUCKETS: i64 = 50;
+
+/// The search's rows: the newest (or slowest) first, or with `spread` a sample over the whole range (the spans
+/// of each time bucket picked by a hash of their id), so a scatter isn't only the range's last minutes.
+fn search_sql(req: &SpanSearchRequest) -> Result<(String, Vec<Param>), ApiError> {
+    let (w, params) = where_clause(&req.q, None)?;
+    let row = ROW.replace("{METHOD}", METHOD).replace("{HTTP_STATUS}", HTTP_STATUS);
+    let limit = req.limit.clamp(1, 500);
+    let sql = match req.sort.as_deref() {
+        Some("spread") => {
+            let bucket = format!("intDiv(toInt64(toUnixTimestamp64Milli(Timestamp)), {})", ((req.q.range.to - req.q.range.from) / SPREAD_BUCKETS).max(1));
+            let per = (limit + SPREAD_BUCKETS - 1) / SPREAD_BUCKETS;
+            format!(
+                "SELECT * FROM (SELECT {row} FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w} \
+                 ORDER BY {bucket}, cityHash64(SpanId) LIMIT {per} BY {bucket}) ORDER BY timestamp DESC LIMIT {limit}"
+            )
+        }
+        sort => {
+            let order = if sort == Some("duration") { "Duration DESC" } else { "Timestamp DESC" };
+            format!("SELECT {row} FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w} ORDER BY {order} LIMIT {limit} OFFSET {}", req.offset.clamp(0, 10_000))
+        }
+    };
+    Ok((sql, params))
+}
 
 #[utoipa::path(post, path = "/api/v1/apm/spans/search", operation_id = "search_spans", request_body = SpanSearchRequest, responses((status = 200, body = SpanSearchResult)), tag = "apm")]
 pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<SpanSearchRequest>) -> ApiResult<SpanSearchResult> {
-    let (w, params) = where_clause(&req.q, None)?;
-    let order = if req.sort.as_deref() == Some("duration") { "Duration DESC" } else { "Timestamp DESC" };
-    let row = ROW.replace("{METHOD}", METHOD).replace("{HTTP_STATUS}", HTTP_STATUS);
-    let sql = format!("SELECT {row} FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w} ORDER BY {order} LIMIT {} OFFSET {}", req.limit.clamp(1, 500), req.offset.clamp(0, 10_000));
+    let (sql, params) = search_sql(&req)?;
+    let (w, _) = where_clause(&req.q, None)?;
     let rows_q = bind(st.ch(&org).query(&sql), &params);
     let count_q = bind(st.ch(&org).query(&format!("SELECT count() FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w}")), &params);
     let (spans, total) = tokio::try_join!(rows_q.fetch_all::<ExplorerSpan>(), count_q.fetch_one::<u64>())?;
@@ -495,4 +532,65 @@ pub async fn percentile(State(st): State<AppState>, OrgId(org): OrgId, Json(req)
         .await?;
     let percentile = if r.total == 0 { 0.0 } else { (r.faster as f64 * 100.0 / r.total as f64).round() };
     Ok(Json(SpanPercentile { percentile, peers: r.total }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn query(scope: SpanScope, operation: Option<&str>) -> SpanQuery {
+        SpanQuery {
+            range: TimeRange { from: 1_700_000_000_000, to: 1_700_003_600_000 },
+            scope,
+            query: "service:storefront-api".into(),
+            filters: BTreeMap::new(),
+            min_duration_ms: None,
+            max_duration_ms: None,
+            operation: operation.map(str::to_string),
+        }
+    }
+
+    fn search_req(operation: Option<&str>, sort: &str) -> SpanSearchRequest {
+        SpanSearchRequest { q: query(SpanScope::ServiceEntry, operation), sort: Some(sort.into()), offset: 0, limit: 500 }
+    }
+
+    /// The service page's Traces show its selected operation's entry spans only, not its internal or client spans.
+    #[test]
+    fn an_operation_narrows_the_spans_to_it() {
+        let (w, params) = where_clause(&query(SpanScope::ServiceEntry, Some("http.server.request")), None).unwrap();
+        assert!(w.contains(ENTRY), "{w}");
+        assert!(w.contains(&format!("{} = ?", super::super::apm::OPERATION)), "{w}");
+        assert_eq!(params.last(), Some(&Param::Str("http.server.request".into())));
+        for every in [None, Some("*"), Some("")] {
+            let (w, _) = where_clause(&query(SpanScope::ServiceEntry, every), None).unwrap();
+            assert!(!w.contains(super::super::apm::OPERATION), "{every:?}: {w}");
+        }
+    }
+
+    /// The newest spans for a table; a sample spread over the whole range (a few per time bucket, picked by a
+    /// hash of the span id) for the duration scatter.
+    #[test]
+    fn a_spread_sample_covers_the_range() {
+        let (sql, params) = search_sql(&search_req(Some("http.server.request"), "spread")).unwrap();
+        assert!(sql.contains("OrgId = {oc_org:String}"), "{sql}");
+        assert!(sql.contains("LIMIT 10 BY intDiv(toInt64(toUnixTimestamp64Milli(Timestamp)), 72000)"), "{sql}");
+        assert!(sql.contains("cityHash64(SpanId)"), "{sql}");
+        assert!(sql.contains("ORDER BY timestamp DESC LIMIT 500"), "{sql}");
+        assert_eq!(params.last(), Some(&Param::Str("http.server.request".into())));
+
+        let (sql, _) = search_sql(&search_req(None, "date")).unwrap();
+        assert!(sql.contains("ORDER BY Timestamp DESC LIMIT 500 OFFSET 0") && !sql.contains("LIMIT 10 BY"), "{sql}");
+        let (sql, _) = search_sql(&search_req(None, "duration")).unwrap();
+        assert!(sql.contains("ORDER BY Duration DESC"), "{sql}");
+    }
+
+    /// The Traces table's ERROR TYPE and CLIENT IP, from Datadog's tracers' tags or OpenTelemetry's attributes.
+    #[test]
+    fn spans_carry_their_error_type_and_client_ip() {
+        let (sql, _) = search_sql(&search_req(None, "date")).unwrap();
+        for attr in ["SpanAttributes['error.type']", "['exception.type']", "SpanAttributes['http.client_ip']", "SpanAttributes['client.address']", "SpanAttributes['network.peer.address']"] {
+            assert!(sql.contains(attr), "{attr}: {sql}");
+        }
+        assert!(sql.contains("AS error_type") && sql.contains("AS client_ip"), "{sql}");
+    }
 }
