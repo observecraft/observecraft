@@ -15880,11 +15880,15 @@ export interface components {
             sampleRate: number;
         };
         ExplorerSpan: {
+            /** @description The client's address: `http.client_ip`, `client.address`, `network.client.ip` or `network.peer.address`. */
+            clientIp: string;
             /** @description `db.system` of client database spans (mongodb, postgresql, redis, …). */
             dbSystem: string;
             /** Format: double */
             durationMs: number;
             env: string;
+            /** @description The error's type: the tracers' `error.type`, otherwise the exception event's `exception.type`. */
+            errorType: string;
             host: string;
             httpStatus: string;
             kind: string;
@@ -23540,6 +23544,8 @@ export interface components {
             maxDurationMs?: number | null;
             /** Format: double */
             minDurationMs?: number | null;
+            /** @description The spans' operation, as the service page names it (`http.server.request`); none or `*`: every operation. */
+            operation?: string | null;
             query?: string;
             range: components["schemas"]["TimeRange"];
             scope?: components["schemas"]["SpanScope"];
@@ -23568,7 +23574,7 @@ export interface components {
             limit: number;
             /** Format: int64 */
             offset: number;
-            /** @description date (default) | duration */
+            /** @description date (default) | duration | spread (a sample spread over the range, a few spans per time bucket, newest first) */
             sort?: string | null;
         };
         SpanSearchResult: {

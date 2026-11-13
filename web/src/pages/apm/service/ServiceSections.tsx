@@ -547,14 +547,19 @@ export function DependenciesSection({ scope }: { scope: ServiceScope }) {
 
 /* ---------- Traces ---------- */
 
-export function TracesSection({ scope, onOpen }: { scope: ServiceScope; onOpen: (traceId: string) => void }) {
+export function TracesSection({ scope, operation, onOpen }: { scope: ServiceScope; operation?: string; onOpen: (traceId: string) => void }) {
   const navigate = useNavigate();
   const [text, setText] = useState('');
   const [log, setLog] = useState(true);
-  const q = entryQuery(scope, [scope.resource && `resource:"${escapeQuoted(scope.resource)}"`, text.trim()].filter(Boolean).join(' '));
-  q.scope = 'all';
-  const sample = useExploreSpans(q, 'date', 0, 500);
+  // The selected operation's entry spans, as the page's other sections (the primary operation, which the summary
+  // resolves, when none is chosen).
+  const q: SpanQuery = { ...entryQuery(scope, [scope.resource && `resource:"${escapeQuoted(scope.resource)}"`, text.trim()].filter(Boolean).join(' ')), operation: scope.operation ?? operation };
+  const ready = !!q.operation;
+  // The table lists the newest spans; the scatter a sample spread over the whole range.
+  const table = useExploreSpans(q, 'date', 0, 25, ready);
+  const sample = useExploreSpans(q, 'spread', 0, 500, ready);
   const spans = sample.data?.spans ?? [];
+  const rows = table.data?.spans ?? [];
   const option = useMemo<EChartsOption>(() => {
     const ok = spans.filter((x) => x.status !== 'error' && x.status !== 'Error');
     const err = spans.filter((x) => x.status === 'error' || x.status === 'Error');
@@ -590,12 +595,12 @@ export function TracesSection({ scope, onOpen }: { scope: ServiceScope; onOpen: 
           <ListTree size={14} /> Trace Explorer
         </button>
       </div>
-      <Pending q={sample} />
-      {sample.data && (
+      <Pending q={table} />
+      {table.data && (
         <>
           <div className="svc-scatter-head">
             <span>
-              Showing <b>{Math.min(25, spans.length)}</b> of <b>{compact(sample.data.total)}</b> spans
+              Showing <b>{rows.length}</b> of <b>{compact(table.data.total)}</b> spans
             </span>
             <span className="svc-scatter-title">Span durations</span>
             <div className="apm-seg">
@@ -608,7 +613,7 @@ export function TracesSection({ scope, onOpen }: { scope: ServiceScope; onOpen: 
             </div>
           </div>
           <Chart option={option} height={260} onClick={(p) => Array.isArray(p.value) && onOpen(String(p.value[2]))} />
-          <ExplorerSpanTable spans={spans.slice(0, 25)} onOpen={onOpen} />
+          <ExplorerSpanTable spans={rows} onOpen={onOpen} />
         </>
       )}
     </CollapsibleSection>
@@ -628,6 +633,8 @@ function ExplorerSpanTable({ spans, onOpen }: { spans: ExplorerSpan[]; onOpen: (
           <th className="num">DURATION</th>
           <th>METHOD</th>
           <th>STATUS CODE</th>
+          <th>ERROR TYPE</th>
+          <th>CLIENT IP</th>
         </tr>
       </thead>
       <tbody>
@@ -656,6 +663,10 @@ function ExplorerSpanTable({ spans, onOpen }: { spans: ExplorerSpan[]; onOpen: (
             <td className="num">{fmtLatency(x.durationMs)}</td>
             <td>{x.method || ''}</td>
             <td className={x.httpStatus?.startsWith('5') ? 'tone-error' : x.httpStatus?.startsWith('4') ? 'tone-warn' : ''}>{x.httpStatus || ''}</td>
+            <td className="mono ellipsis tone-error" title={x.errorType}>
+              {x.errorType}
+            </td>
+            <td className="mono nowrap">{x.clientIp}</td>
           </tr>
         ))}
       </tbody>

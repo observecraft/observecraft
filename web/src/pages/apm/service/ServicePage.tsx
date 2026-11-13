@@ -350,7 +350,7 @@ export function ServicePage() {
                   <ResourcesSection scope={scope} onPick={(r) => setParam('resource', r)} />
                   <DeploymentsSection scope={scope} onPick={(v) => setParam('version', v)} />
                   <DependenciesSection scope={scope} />
-                  <TracesSection scope={scope} onOpen={setTraceId} />
+                  <TracesSection scope={scope} operation={summary.data?.operation} onOpen={setTraceId} />
                   <ErrorsSection scope={scope} onOpen={setTraceId} />
                   <InfrastructureSection hosts={s!.hosts} />
                   <DatabasesSection scope={scope} />

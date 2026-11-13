@@ -125,7 +125,11 @@ class TraceBuilder {
     const child = body(spanId, start + latency(this.r, selfMs / 2));
     const end = child.end + latency(this.r, selfMs / 2);
     const err = own ?? child.err;
-    const attrs = { 'http.request.method': method, 'http.route': route, 'http.response.status_code': String(err?.status ?? 200) };
+    // The caller's address (from the span id, not the generator, so the rest of the data stays as it was):
+    // documentation addresses for the requests from outside, pod addresses for the calls between services.
+    const octet = (i: number) => parseInt(spanId.slice(i, i + 2), 16) % 254 || 1;
+    const client = parentId === '' ? `203.0.113.${octet(0)}` : `10.42.${octet(2)}.${octet(4)}`;
+    const attrs = { 'http.request.method': method, 'http.route': route, 'http.response.status_code': String(err?.status ?? 200), 'client.address': client };
     this.spans[index] = {
       trace: this.trace,
       spanId,
