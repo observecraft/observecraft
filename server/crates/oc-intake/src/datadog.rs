@@ -120,6 +120,8 @@ struct V1JsonSeries {
     #[serde(default)]
     tags: Option<Vec<String>>,
     #[serde(default)]
+    device: Option<String>,
+    #[serde(default)]
     interval: Option<i64>,
 }
 
@@ -204,6 +206,21 @@ fn host_of(resources: impl IntoIterator<Item = (String, String)>) -> String {
     resources.into_iter().find(|(kind, _)| kind == "host").map(|(_, name)| name).unwrap_or_default()
 }
 
+/// `tags` with the series' device (the Agent's disk and io checks send it apart: a v2 `device` resource, the v1
+/// `device` field) as the `device:` tag Datadog makes of it, so `by {device}` queries work.
+fn with_device(mut tags: Vec<String>, device: Option<String>) -> Vec<String> {
+    if let Some(d) = device.filter(|d| !d.is_empty()) {
+        if !tags.iter().any(|t| t.starts_with("device:")) {
+            tags.push(format!("device:{d}"));
+        }
+    }
+    tags
+}
+
+fn device_of<'a>(resources: impl IntoIterator<Item = (&'a str, &'a str)>) -> Option<String> {
+    resources.into_iter().find(|(kind, _)| *kind == "device").map(|(_, name)| name.to_string())
+}
+
 pub fn parse_v2(body: &[u8], protobuf: bool) -> Result<Vec<Series>, String> {
     if protobuf {
         let p = <pb::MetricPayload as prost::Message>::decode(body).map_err(|e| format!("invalid protobuf payload: {e}"))?;
@@ -211,11 +228,11 @@ pub fn parse_v2(body: &[u8], protobuf: bool) -> Result<Vec<Series>, String> {
             .series
             .into_iter()
             .map(|s| Series {
+                tags: with_device(s.tags, device_of(s.resources.iter().map(|r| (r.r#type.as_str(), r.name.as_str())))),
                 host: host_of(s.resources.into_iter().map(|r| (r.r#type, r.name))),
                 metric: s.metric,
                 kind: Kind::from_v2(s.r#type),
                 unit: s.unit,
-                tags: s.tags,
                 interval: s.interval,
                 points: s.points.into_iter().map(|p| (p.timestamp, p.value)).collect(),
             })
@@ -225,11 +242,11 @@ pub fn parse_v2(body: &[u8], protobuf: bool) -> Result<Vec<Series>, String> {
     Ok(p.series
         .into_iter()
         .map(|s| Series {
+            tags: with_device(s.tags, device_of(s.resources.iter().map(|r| (r.kind.as_str(), r.name.as_str())))),
             host: host_of(s.resources.into_iter().map(|r| (r.kind, r.name))),
             metric: s.metric,
             kind: Kind::from_v2(s.kind),
             unit: s.unit,
-            tags: s.tags,
             interval: s.interval,
             points: s.points.into_iter().map(|p| (p.timestamp, p.value)).collect(),
         })
@@ -286,7 +303,7 @@ pub fn parse_v1(body: &[u8]) -> Result<Vec<Series>, String> {
             metric: s.metric,
             unit: String::new(),
             host: s.host.unwrap_or_default(),
-            tags: s.tags.unwrap_or_default(),
+            tags: with_device(s.tags.unwrap_or_default(), s.device),
             interval: s.interval.unwrap_or(0),
             points: s.points.into_iter().filter_map(|(t, v)| Some((t as i64, v?))).collect(),
         })
@@ -909,6 +926,29 @@ mod tests {
         assert_eq!(from_json, from_pb);
         assert_eq!(from_json[0].host, "web-1");
         assert_eq!(from_json[0].kind, Kind::Gauge);
+    }
+
+    #[test]
+    fn the_agents_device_becomes_a_device_tag() {
+        // The disk and io checks name their device apart from the tags: a `device` resource (v2) or field (v1).
+        let json = br#"{"series":[{"metric":"system.disk.in_use","type":3,"points":[{"timestamp":1700000000,"value":0.4}],
+            "resources":[{"name":"i-0a1b2c3d4e5f60001","type":"host"},{"name":"/dev/sda1","type":"device"}],"tags":["device_name:sda1"]}]}"#;
+        let s = parse_v2(json, false).unwrap();
+        assert_eq!((s[0].host.as_str(), s[0].tags.clone()), ("i-0a1b2c3d4e5f60001", vec!["device_name:sda1".to_string(), "device:/dev/sda1".to_string()]));
+        let pb = pb::MetricPayload {
+            series: vec![pb::MetricSeries {
+                resources: vec![pb::Resource { r#type: "host".into(), name: "web-1".into() }, pb::Resource { r#type: "device".into(), name: "sda".into() }],
+                metric: "system.io.avg_q_sz".into(),
+                points: vec![pb::MetricPoint { value: 0.1, timestamp: 1_700_000_000 }],
+                ..Default::default()
+            }],
+        };
+        assert_eq!(parse_v2(&pb.encode_to_vec(), true).unwrap()[0].tags, vec!["device:sda".to_string()]);
+        let s = parse_v1(br#"{"series":[{"metric":"system.disk.used","points":[[1700000000,5]],"host":"web-2","device":"/dev/sda1","tags":[]}]}"#).unwrap();
+        assert_eq!(s[0].tags, vec!["device:/dev/sda1".to_string()]);
+        // A device tag already there stays the only one.
+        let s = parse_v1(br#"{"series":[{"metric":"system.disk.used","points":[[1700000000,5]],"device":"/dev/sda1","tags":["device:/dev/sda1"]}]}"#).unwrap();
+        assert_eq!(s[0].tags, vec!["device:/dev/sda1".to_string()]);
     }
 
     #[test]
