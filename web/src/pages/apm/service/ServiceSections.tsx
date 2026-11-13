@@ -15,7 +15,7 @@ import { STATUS_COLORS, statusColor, token } from '../../../theme/chartTheme';
 import { useDatabases, useDependencies, useDeployments, useExploreSpans, useResources, useServiceLogs, useServiceMonitors, useSpanAnalytics, useSpanErrors } from '../queries';
 import { errorTone, fmtLatency, fmtPct, fmtRate, KIND_LABEL, LineSpark, ServiceIcon, useStars } from '../visuals';
 import { DependencyMap } from './DependencyMap';
-import { resourceMonitorBadges } from './logic';
+import { deploymentMarkers, monitorSegments, resourceMonitorBadges, totalLabel } from './logic';
 import { escapeQuoted } from '../../../lib/searchQuery';
 import { primaryTagQuery } from '../../../api/apm/scope';
 
@@ -45,7 +45,7 @@ function labelStep(series: ServiceSummary['series']): number {
   return minutes * 60e3;
 }
 
-function timeChart(summary: ServiceSummary, kind: 'requests' | 'errors' | 'latency'): EChartsOption {
+function timeChart(summary: ServiceSummary, kind: 'requests' | 'errors' | 'latency', deploys: { t: number; version: string }[] = []): EChartsOption {
   const s = summary.series;
   const base: EChartsOption = {
     grid: { left: 58, right: 10, top: 12, bottom: 44 },
@@ -61,12 +61,26 @@ function timeChart(summary: ServiceSummary, kind: 'requests' | 'errors' | 'laten
       color: [token('--chart-1'), token('--chart-3'), token('--chart-5')],
       yAxis: { type: 'value', axisLabel: { formatter: (v: number) => fmtLatency(v) } },
       tooltip: { trigger: 'axis', valueFormatter: (v) => fmtLatency(Number(v)) },
-      series: (['p50Ms', 'p95Ms', 'p99Ms'] as const).map((k) => ({
+      series: (['p50Ms', 'p95Ms', 'p99Ms'] as const).map((k, i) => ({
         name: k.slice(0, 3),
         type: 'line',
         showSymbol: false,
         lineStyle: { width: 1.4 },
         data: s.map((p) => [p.t, p[k]]),
+        // Deployments: a dashed line at each new version's first request.
+        ...(i === 0 && deploys.length
+          ? {
+              markLine: {
+                silent: false,
+                symbol: 'none',
+                animation: false,
+                lineStyle: { type: 'dashed', width: 1, color: token('--text-muted') },
+                label: { formatter: '{b}', position: 'insideEndTop', fontSize: 10, color: token('--text-muted') },
+                tooltip: { formatter: (p: unknown) => `Deployed ${(p as { name: string }).name}` },
+                data: deploys.map((d) => ({ name: d.version, xAxis: d.t })),
+              },
+            }
+          : {}),
       })),
     };
   }
@@ -98,11 +112,17 @@ export interface Reliability {
   openIncidents: number;
 }
 
-export function SummarySection({ summary, reliability }: { summary: ServiceSummary; reliability: Reliability | null }) {
+export function SummarySection({ scope, summary, reliability }: { scope: ServiceScope; summary: ServiceSummary; reliability: Reliability | null }) {
   const r = reliability;
+  const deployments = useDeployments(scope).data;
+  // The header's monitor bar's monitors: the worst status and its count.
+  const monitors = useServiceMonitors({ range: scope.range, service: scope.service }).data ?? [];
+  const worst = monitorSegments(monitors)[0];
   const req = useMemo(() => timeChart(summary, 'requests'), [summary]);
   const err = useMemo(() => timeChart(summary, 'errors'), [summary]);
-  const lat = useMemo(() => timeChart(summary, 'latency'), [summary]);
+  const marks = useMemo(() => deploymentMarkers(deployments ?? [], summary.series), [deployments, summary]);
+  const lat = useMemo(() => timeChart(summary, 'latency', marks), [summary, marks]);
+  const errorsPerSec = summary.reqPerSec * (summary.requests ? summary.errors / summary.requests : 0);
   const bucket = summary.bucketMs >= 3600e3 ? `${summary.bucketMs / 3600e3}h` : `${Math.round(summary.bucketMs / 60e3)}m`;
   return (
     <CollapsibleSection id="summary" title="Service Summary" icon={Hexagon}>
@@ -123,9 +143,12 @@ export function SummarySection({ summary, reliability }: { summary: ServiceSumma
           <div className="svc-card-title">
             <Target size={14} /> Health Monitors
           </div>
-          {r?.monitors ? (
-            <Link className={`svc-card-value${r.monitorsAlerting ? ' tone-error' : ''}`} to={`/monitors?query=${encodeURIComponent(`service:${summary.service}`)}`}>
-              {r.monitorsAlerting ? `${r.monitorsAlerting} alerting` : `${r.monitors} OK`}
+          {monitors.length ? (
+            <Link
+              className={`svc-card-value${worst.status === 'alert' ? ' tone-error' : worst.status === 'warn' ? ' tone-warn' : ''}`}
+              to={`/monitors?query=${encodeURIComponent(`service:${summary.service}`)}`}
+            >
+              {worst.status === 'alert' ? `${worst.count} alerting` : `${worst.count} ${worst.label.split(':')[0]}`}
             </Link>
           ) : (
             <div className="svc-card-value muted">No monitors</div>
@@ -160,19 +183,19 @@ export function SummarySection({ summary, reliability }: { summary: ServiceSumma
       </div>
       <div className="svc-charts">
         <div>
-          <div className="svc-chart-title">
-            Requests and Errors <span className="muted">per {bucket}</span>
+          <div className="svc-chart-title" title={`Bars per ${bucket}`}>
+            Requests and Errors <span className="muted">{totalLabel(summary.requests, summary.reqPerSec)}</span>
           </div>
           <Chart option={req} height={200} />
         </div>
         <div>
-          <div className="svc-chart-title">
-            Errors <span className="muted">per {bucket}</span>
+          <div className="svc-chart-title" title={`Bars per ${bucket}`}>
+            Errors <span className="muted">{totalLabel(summary.errors, errorsPerSec)}</span>
           </div>
           <Chart option={err} height={200} />
         </div>
         <div>
-          <div className="svc-chart-title">Latency</div>
+          <div className="svc-chart-title">Latency {marks.length > 0 && <span className="muted">{marks.length === 1 ? '1 deployment' : `${marks.length} deployments`}</span>}</div>
           <Chart option={lat} height={200} />
         </div>
       </div>

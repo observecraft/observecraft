@@ -346,7 +346,7 @@ export function ServicePage() {
               {mode === 'info' && <InfoSection entity={entity.entity} summary={s!} />}
               {mode === 'health' && (
                 <>
-                  <SummarySection summary={s!} reliability={entity.entity} />
+                  <SummarySection scope={scope} summary={s!} reliability={entity.entity} />
                   <ResourcesSection scope={scope} onPick={(r) => setParam('resource', r)} />
                   <DeploymentsSection scope={scope} onPick={(v) => setParam('version', v)} />
                   <DependenciesSection scope={scope} />

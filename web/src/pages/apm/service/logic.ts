@@ -1,5 +1,6 @@
 // Pure helpers of the service page (tested by scripts/apm-service-page.test.mjs): no React, no API calls.
 import type { EnvRate, ServiceMonitor } from '../../../api/apm/client';
+import { compact } from '../../../lib/format';
 
 /** All envs (the selectors' `*`). */
 export const ALL = '*';
@@ -50,4 +51,21 @@ export function resourceMonitorBadges(monitors: Pick<ServiceMonitor, 'status' | 
   return MONITOR_STATUSES.map(({ status, label }) => ({ status, count: mine.filter((m) => m.status === status).length, label })).flatMap((b) =>
     b.count ? [{ ...b, label: `${b.count} ${b.label}` }] : [],
   );
+}
+
+/** Deployment markers for a time chart: each version's first span in the range, but the range's first version (it
+ * was running already) and those outside the series. */
+export function deploymentMarkers(deployments: { version: string; firstSeen: number }[], series: { t: number }[]): { t: number; version: string }[] {
+  if (series.length === 0) return [];
+  const sorted = [...deployments].sort((a, b) => a.firstSeen - b.firstSeen);
+  const [from, to] = [series[0].t, series[series.length - 1].t];
+  return sorted
+    .slice(1)
+    .filter((d) => d.firstSeen >= from && d.firstSeen <= to)
+    .map((d) => ({ t: d.firstSeen, version: d.version }));
+}
+
+/** A chart title's total: `1.1K total (0.3 req/s)`. */
+export function totalLabel(count: number, perSec: number): string {
+  return `${compact(count)} total (${envRateLabel(perSec)} req/s)`;
 }
