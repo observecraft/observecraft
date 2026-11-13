@@ -59167,6 +59167,10 @@
           "detection": {
             "$ref": "#/components/schemas/Detection"
           },
+          "missingResolves": {
+            "type": "boolean",
+            "description": "Datadog's `on_missing_data: resolve`: a group that stops reporting goes back to OK."
+          },
           "noDataMinutes": {
             "type": "integer",
             "format": "int64"

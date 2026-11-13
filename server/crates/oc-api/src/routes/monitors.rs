@@ -23,7 +23,7 @@ use super::logs::{log_counts, parse_log_monitor, TimeRange};
 use super::metrics::{evaluate_query, Group};
 use super::monitor_formula::{combine, parse_formula, Expr};
 use super::monitor_engine::{
-    backtest, group_key, parse_group_key, recipients, render_message, worst, MessageContext, MonitorOptions, MonitorStatus, DAY_MS,
+    backtest, group_key, parse_group_key, recipients, render_message, retained, worst, MessageContext, MonitorOptions, MonitorStatus, DAY_MS,
 };
 use crate::auth::{AuthContext, Writer};
 use crate::error::{ApiError, ApiResult};
@@ -1252,6 +1252,12 @@ async fn evaluate_inner(st: &AppState, id: i64, now: i64) -> Result<(), ApiError
         let existing = m.groups.iter().find(|g| g.group_key == key);
         let prev = existing.map(|g| MonitorStatus::parse(&g.status)).unwrap_or(MonitorStatus::Ok);
         let last_data = last_point.or(existing.and_then(|g| g.last_data_at));
+        // A group that stopped reporting a day ago ages out of the status, as on Datadog (a node the
+        // autoscaler removed, a finished job).
+        if value.is_none() && !retained(last_data, now) {
+            sqlx::query("DELETE FROM monitor_groups WHERE monitor_id = $1 AND group_key = $2").bind(id).bind(&key).execute(&mut *tx).await?;
+            continue;
+        }
         // Missing data only counts once it has been missing for the no-data timeframe.
         let fresh = last_data.is_some_and(|t| now - t < opts.no_data_minutes * 60_000);
         let next = if value.is_none() && fresh { prev } else { opts.classify(value, prev) };

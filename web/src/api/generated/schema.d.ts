@@ -19460,6 +19460,8 @@ export interface components {
             changeMode?: components["schemas"]["ChangeMode"] | null;
             comparator: components["schemas"]["Comparator"];
             detection: components["schemas"]["Detection"];
+            /** @description Datadog's `on_missing_data: resolve`: a group that stops reporting goes back to OK. */
+            missingResolves?: boolean;
             /** Format: int64 */
             noDataMinutes?: number;
             /** @description Go to No Data when a group stops reporting for `noDataMinutes`. */

@@ -637,6 +637,7 @@ pub fn notification_message(template: &str, monitor_name: &str, previous: Monito
         thresholds: Thresholds { critical: 1.0, warning: None, critical_recovery: None, warning_recovery: None },
         notify_no_data: false,
         no_data_minutes: 10,
+        missing_resolves: false,
     };
     let group = BTreeMap::new();
     let ctx = MessageContext { status: next, previous, value: Some(f64::from(failing)), opts: &opts, monitor_name, group: &group };
