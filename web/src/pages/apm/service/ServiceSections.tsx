@@ -12,9 +12,10 @@ import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { CollapsibleSection } from '../../../components/ui/CollapsibleSection';
 import { compact, formatBytes, formatLogDate, hhmm, timeAgo } from '../../../lib/format';
 import { STATUS_COLORS, statusColor, token } from '../../../theme/chartTheme';
-import { useDatabases, useDependencies, useDeployments, useExploreSpans, useResources, useServiceLogs, useSpanAnalytics, useSpanErrors } from '../queries';
+import { useDatabases, useDependencies, useDeployments, useExploreSpans, useResources, useServiceLogs, useServiceMonitors, useSpanAnalytics, useSpanErrors } from '../queries';
 import { errorTone, fmtLatency, fmtPct, fmtRate, KIND_LABEL, LineSpark, ServiceIcon, useStars } from '../visuals';
 import { DependencyMap } from './DependencyMap';
+import { resourceMonitorBadges } from './logic';
 import { escapeQuoted } from '../../../lib/searchQuery';
 import { primaryTagQuery } from '../../../api/apm/scope';
 
@@ -231,6 +232,7 @@ type ResSort = 'requests' | 'totalMs' | 'p95Ms' | 'errors' | 'errorRate';
 
 export function ResourcesSection({ scope, onPick }: { scope: ServiceScope; onPick: (resource: string) => void }) {
   const q = useResources({ range: scope.range, env: scope.env, cluster: scope.cluster, namespace: scope.namespace, service: scope.service, operation: scope.operation });
+  const monitors = useServiceMonitors({ range: scope.range, env: scope.env, cluster: scope.cluster, namespace: scope.namespace, service: scope.service, operation: scope.operation });
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<ResSort>('totalMs');
   const [page, setPage] = useState(0);
@@ -290,6 +292,7 @@ export function ResourcesSection({ scope, onPick }: { scope: ServiceScope; onPic
                   {head('p95Ms', 'P95 LATENCY')}
                   {head('errors', 'ERRORS')}
                   {head('errorRate', 'ERROR RATE')}
+                  <th>MONITORS</th>
                 </tr>
               </thead>
               <tbody>
@@ -312,6 +315,13 @@ export function ResourcesSection({ scope, onPick }: { scope: ServiceScope; onPic
                     <td className="num">{bar(r.p95Ms, 'p95Ms')}</td>
                     <td className="num">{bar(r.errors, 'errors', 'err')}</td>
                     <td className={`num ${errorTone(r.errorRate)}`}>{bar(r.errorRate, 'errorRate', 'err')}</td>
+                    <td className="svc-res-monitors">
+                      {resourceMonitorBadges(monitors.data ?? [], r.resource).map((b) => (
+                        <span key={b.status} className={`svc-mon-badge m-${b.status}`}>
+                          {b.label}
+                        </span>
+                      ))}
+                    </td>
                   </tr>
                 ))}
               </tbody>

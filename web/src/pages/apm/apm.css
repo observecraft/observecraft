@@ -1487,6 +1487,40 @@ button.apm-instrument-card:hover {
   }
 }
 
+.svc-res-monitors {
+  white-space: nowrap;
+}
+
+/* A resource's monitors by status (`1 ALERT`, `4 OK`). */
+.svc-mon-badge {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.svc-mon-badge.m-alert {
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
+}
+
+.svc-mon-badge.m-warn {
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+}
+
+.svc-mon-badge.m-nodata {
+  background: var(--badge-debug-bg);
+  color: var(--badge-debug-fg);
+}
+
+.svc-mon-badge.m-ok {
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
+}
+
 .dep-map {
   margin-bottom: 12px;
   border: 1px solid var(--border);

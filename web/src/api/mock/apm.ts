@@ -336,12 +336,42 @@ export function getServiceFilters(s: ServiceScope): S['ServiceFilters'] {
 
 const SEVERITY: Record<S['MonitorStatus'], number> = { alert: 3, warn: 2, nodata: 1, ok: 0 };
 
-/** As routes/apm_monitors.rs: the monitors naming the service in their query or tags, the worst first. */
+/** As apm_monitors.rs: a resource name as Datadog tags it (`GET /orders/{id}` → `get_/orders/_id`). */
+const tagForm = (v: string) =>
+  v
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}_\-./:]/gu, '_')
+    .replace(/_+/g, '_')
+    .replace(/_+$/, '');
+
+/** As apm_monitors.rs: `resource_name:` / `resource:` values in a monitor's text, bare, quoted or an `OR` list. */
+function resourceValues(text: string): string[] {
+  const out: string[] = [];
+  for (const m of text.toLowerCase().matchAll(/(^|[^\p{L}\p{N}_.-])(?:resource_name|resource):(\((?<list>[^)]*)\)|\\?"(?<quoted>[^"\\]*)|(?<bare>[^\s,})"]*))/gu)) {
+    const g = m.groups!;
+    if (g.list !== undefined)
+      out.push(
+        ...g.list
+          .split(/[\s,]+/)
+          .map((v) => v.replace(/^["\\]+|["\\]+$/g, ''))
+          .filter((v) => v && v !== 'or'),
+      );
+    else out.push(g.quoted ?? g.bare ?? '');
+  }
+  return out.map(tagForm);
+}
+
+/** As routes/apm_monitors.rs: the monitors naming the service in their query or tags, the worst first, with the
+ * service's resources each targets. */
 export function listServiceMonitors(s: ServiceScope): S['ServiceMonitor'][] {
+  const resources = listResources({ ...s, service: s.service }).map((r) => r.resource);
   const all = searchMonitors({ query: '', statuses: [], muted: [], priorities: [], types: [], drafts: [false], recipients: [], creators: [], teams: [], sort: 'name', offset: 0, limit: 200 }).monitors;
   return all
     .filter((m) => [m.query, ...m.tags].some((t) => referencesService(t, s.service)))
-    .map((m) => ({ id: m.id, name: m.name, status: m.status }))
+    .map((m) => {
+      const named = [m.query, ...m.tags].flatMap(resourceValues);
+      return { id: m.id, name: m.name, status: m.status, resources: resources.filter((r) => named.includes(tagForm(r))) };
+    })
     .sort((a, b) => SEVERITY[b.status] - SEVERITY[a.status] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 

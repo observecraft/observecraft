@@ -43,3 +43,11 @@ export function monitorSegments(monitors: Pick<ServiceMonitor, 'status'>[]): { s
     return { status, count, label: `${label}: ${count}${noun}` };
   }).filter((s) => s.count > 0);
 }
+
+/** The status badges of a resource's monitors (`1 ALERT`, `4 OK`), the worst first; none without monitors. */
+export function resourceMonitorBadges(monitors: Pick<ServiceMonitor, 'status' | 'resources'>[], resource: string): { status: MonitorStatus; count: number; label: string }[] {
+  const mine = monitors.filter((m) => m.resources.includes(resource));
+  return MONITOR_STATUSES.map(({ status, label }) => ({ status, count: mine.filter((m) => m.status === status).length, label })).flatMap((b) =>
+    b.count ? [{ ...b, label: `${b.count} ${b.label}` }] : [],
+  );
+}

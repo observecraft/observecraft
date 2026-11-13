@@ -589,7 +589,7 @@
         "tags": [
           "apm"
         ],
-        "summary": "The monitors naming the service in their query or tags (drafts aside), the worst status first.",
+        "summary": "The monitors naming the service in their query or tags (drafts aside), the worst status first, with the\nservice's resources each targets.",
         "operationId": "service_monitors",
         "requestBody": {
           "content": {
@@ -69962,7 +69962,8 @@
         "required": [
           "id",
           "name",
-          "status"
+          "status",
+          "resources"
         ],
         "properties": {
           "id": {
@@ -69971,6 +69972,13 @@
           },
           "name": {
             "type": "string"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The service's resources (in the range) its query or tags name."
           },
           "status": {
             "$ref": "#/components/schemas/MonitorStatus"
