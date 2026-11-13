@@ -609,6 +609,60 @@ fn req_clone(r: &ServiceRequest) -> ServiceRequest {
     ServiceRequest { range: r.range, service: r.service.clone(), env: r.env.clone(), resource: r.resource.clone(), version: r.version.clone(), operation: r.operation.clone() }
 }
 
+// ================================================================ service filters
+
+/// An env of a service and its requests per second in the range.
+#[derive(Serialize, ToSchema, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct EnvRate {
+    pub env: String,
+    /// None: requests in the week before the range, none in it.
+    pub req_per_sec: Option<f64>,
+}
+
+/// What the service page's filter bar offers.
+#[derive(Serialize, ToSchema)]
+pub struct ServiceFilters {
+    pub envs: Vec<EnvRate>,
+}
+
+/// How long before the range an env without requests in it is still listed.
+const ENV_LOOKBACK_MS: i64 = 7 * 86_400_000;
+
+/// `(env, requests in the range)` → the envs by name, without the empty one.
+fn env_rates(rows: Vec<(String, u64)>, secs: f64) -> Vec<EnvRate> {
+    let mut out: Vec<EnvRate> = rows.into_iter().filter(|(e, _)| !e.is_empty()).map(|(env, hits)| EnvRate { env, req_per_sec: (hits > 0).then(|| hits as f64 / secs) }).collect();
+    out.sort_by(|a, b| a.env.cmp(&b.env));
+    out
+}
+
+/// The service's envs with their requests per second (its operation's), as the env selector lists them.
+#[utoipa::path(post, path = "/api/v1/apm/service/filters", request_body = ServiceRequest, responses((status = 200, body = ServiceFilters)), tag = "apm")]
+pub async fn service_filters(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ServiceRequest>) -> ApiResult<ServiceFilters> {
+    req.range.validate()?;
+    let instrumented = instrumented_services(&st, &org, req.range).await?.contains(&req.service);
+    let (req, _) = with_operation(&st, &org, &req, instrumented).await?;
+    let (filter, fparams, _) = service_filter(&req.service, instrumented);
+    let mut params = vec![Param::Int(req.range.from), Param::Int(req.range.from - ENV_LOOKBACK_MS), Param::Int(req.range.to)];
+    params.extend(fparams);
+    let mut clause = format!("Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) AND {filter}");
+    if let Some(op) = &req.operation {
+        clause.push_str(&format!(" AND {OPERATION} = ?"));
+        params.push(Param::Str(op.clone()));
+    }
+    let rows = bind(
+        st.ch(&org).query(&format!(
+            "SELECT ResourceAttributes['deployment.environment'] AS env, countIf(Timestamp >= fromUnixTimestamp64Milli(?)) AS hits \
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} GROUP BY env"
+        )),
+        &params,
+    )
+    .fetch_all::<(String, u64)>()
+    .await?;
+    let secs = ((req.range.to - req.range.from) as f64 / 1000.0).max(1.0);
+    Ok(Json(ServiceFilters { envs: env_rates(rows, secs) }))
+}
+
 // ================================================================ deployments
 
 #[derive(Serialize, ToSchema)]
@@ -1335,6 +1389,58 @@ mod tests {
             .execute()
             .await
             .expect("insert spans");
+    }
+
+    /// `(env, ms ago, count, extra resource attributes)`.
+    type Entries<'a> = (&'a str, i64, usize, &'a [(&'a str, &'a str)]);
+
+    /// `count` entry spans of `storefront-api` per row.
+    async fn entries(st: &AppState, org: &str, rows: &[Entries<'_>]) {
+        let now = chrono::Utc::now().timestamp_millis();
+        let mut values = Vec::new();
+        for (env, ago, count, res) in rows {
+            let res: String = res.iter().map(|(k, v)| format!(", '{k}', '{v}'")).collect();
+            for _ in 0..*count {
+                let i = values.len();
+                values.push(format!(
+                    "(fromUnixTimestamp64Milli(toInt64({})), '{i:032x}', '{i:016x}', 'GET /cart', 'Server', 'storefront-api', map('deployment.environment', '{env}', 'oc.org_id', '{org}'{res}), \
+                     map('operation.name', 'http.server.request'), 1000000, 'Ok')",
+                    now - ago - i as i64
+                ));
+            }
+        }
+        st.ch(org)
+            .query(&format!(
+                "INSERT INTO otel.otel_traces (Timestamp, TraceId, SpanId, SpanName, SpanKind, ServiceName, ResourceAttributes, SpanAttributes, Duration, StatusCode) VALUES {}",
+                values.join(", ")
+            ))
+            .execute()
+            .await
+            .expect("insert spans");
+    }
+
+    #[test]
+    fn env_rates_mark_envs_without_requests_in_the_range() {
+        let rows = vec![("staging".to_string(), 0), ("prod".to_string(), 120), (String::new(), 5), ("dev".to_string(), 240)];
+        let got = env_rates(rows, 600.0);
+        assert_eq!(
+            got,
+            [EnvRate { env: "dev".into(), req_per_sec: Some(0.4) }, EnvRate { env: "prod".into(), req_per_sec: Some(0.2) }, EnvRate { env: "staging".into(), req_per_sec: None }]
+        );
+    }
+
+    /// As Datadog's env selector: each env's requests per second in the range, and the envs the service had
+    /// requests in during the week before but none in the range.
+    #[tokio::test]
+    async fn service_filters_list_env_rates() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "apm-env-rates").await;
+        entries(st, &org, &[("prod", 60_000, 120, &[]), ("staging", 2 * 86_400_000, 3, &[])]).await;
+        let Json(f) = service_filters(State(st.clone()), OrgId(org), Json(req(range(), None))).await.unwrap();
+        assert_eq!(f.envs.len(), 2);
+        assert_eq!((f.envs[0].env.as_str(), f.envs[0].req_per_sec.map(|r| (r * 100.0).round() / 100.0)), ("prod", Some(0.2)));
+        assert_eq!((f.envs[1].env.as_str(), f.envs[1].req_per_sec), ("staging", None));
     }
 
     fn req(org_range: TimeRange, operation: Option<&str>) -> ServiceRequest {

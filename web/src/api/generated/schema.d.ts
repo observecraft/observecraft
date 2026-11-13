@@ -289,6 +289,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apm/service/filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The service's envs with their requests per second (its operation's), as the env selector lists them. */
+        post: operations["service_filters"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apm/services": {
         parameters: {
             query?: never;
@@ -15674,6 +15691,15 @@ export interface components {
             /** @description `signins`, `audits` or `risk`. */
             stream: string;
         };
+        /** @description An env of a service and its requests per second in the range. */
+        EnvRate: {
+            env: string;
+            /**
+             * Format: double
+             * @description None: requests in the week before the range, none in it.
+             */
+            reqPerSec?: number | null;
+        };
         /** @description JSON error body returned by every endpoint. */
         ErrorBody: {
             error: string;
@@ -22753,6 +22779,10 @@ export interface components {
             /** @description Address, channel or URL. */
             value: string;
         };
+        /** @description What the service page's filter bar offers. */
+        ServiceFilters: {
+            envs: components["schemas"]["EnvRate"][];
+        };
         /** @enum {string} */
         ServiceKind: "web" | "worker" | "db" | "cache" | "queue" | "http";
         ServiceMetadataInput: {
@@ -26597,6 +26627,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServiceSummary"];
+                };
+            };
+        };
+    };
+    service_filters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceFilters"];
                 };
             };
         };

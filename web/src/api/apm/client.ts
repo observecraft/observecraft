@@ -24,6 +24,8 @@ export type Recommendation = S['Recommendation'];
 export type Anomaly = S['Anomaly'];
 export type Health = S['Health'];
 export type LogEvent = S['LogEvent'];
+export type EnvRate = S['EnvRate'];
+export type ServiceFilters = S['ServiceFilters'];
 
 export interface ApmScope {
   range: TimeRange;
@@ -69,6 +71,12 @@ export async function listResources(s: ApmScope & { service?: string | null; ope
 export async function getServiceSummary(s: ServiceScope, signal?: AbortSignal) {
   if (!live) return mock.getServiceSummary(s);
   return post('/api/v1/apm/service', { range: s.range, env: s.env, service: s.service, resource: s.resource, version: s.version, operation: s.operation }, signal);
+}
+
+/** The service's envs with their requests per second (none: no requests in the range), for the env selector. */
+export async function getServiceFilters(s: ServiceScope, signal?: AbortSignal) {
+  if (!live) return mock.getServiceFilters(s);
+  return post('/api/v1/apm/service/filters', { range: s.range, service: s.service, operation: s.operation }, signal);
 }
 
 export async function listDeployments(s: ServiceScope, signal?: AbortSignal) {

@@ -397,6 +397,7 @@ use crate::state::AppState;
         apm::services,
         apm::resources,
         apm::service,
+        apm::service_filters,
         apm::deployments,
         apm::dependencies,
         apm::databases,
@@ -1215,6 +1216,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/apm/services", post(apm::services))
         .route("/api/v1/apm/resources", post(apm::resources))
         .route("/api/v1/apm/service", post(apm::service))
+        .route("/api/v1/apm/service/filters", post(apm::service_filters))
         .route("/api/v1/apm/deployments", post(apm::deployments))
         .route("/api/v1/apm/dependencies", post(apm::dependencies))
         .route("/api/v1/apm/databases", post(apm::databases))

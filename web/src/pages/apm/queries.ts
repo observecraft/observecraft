@@ -3,6 +3,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   getDependencies,
+  getServiceFilters,
   getServiceSummary,
   getTrace,
   listAnomalies,
@@ -69,6 +70,11 @@ export function useSpanErrors(s: ApmScope & { service?: string | null }) {
 export function useServiceSummary(s: ServiceScope) {
   const q = scoped(s);
   return useQuery({ queryKey: apmKeys.of('service', q), queryFn: ({ signal }) => getServiceSummary(q, signal), ...opts });
+}
+
+export function useServiceFilters(s: ServiceScope) {
+  const q = scoped(s);
+  return useQuery({ queryKey: apmKeys.of('service-filters', q), queryFn: ({ signal }) => getServiceFilters(q, signal), ...opts });
 }
 
 export function useDeployments(s: ServiceScope) {
