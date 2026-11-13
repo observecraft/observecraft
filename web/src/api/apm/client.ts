@@ -3,6 +3,7 @@
 import type { components } from '../generated/schema';
 import { API_MODE, get, post } from '../http';
 import * as mock from '../mock/apm';
+import { primaryTagQuery, type PrimaryTags } from './scope';
 import type { TimeRange } from '../types';
 
 type S = components['schemas'];
@@ -32,7 +33,8 @@ export interface ApmScope {
   env?: string | null;
 }
 
-export interface ServiceScope extends ApmScope {
+/** The service page's filters; the primary tags narrow every section as env does. */
+export interface ServiceScope extends ApmScope, PrimaryTags {
   service: string;
   resource?: string | null;
   version?: string | null;
@@ -63,40 +65,40 @@ export async function listAnomalies(s: ApmScope, signal?: AbortSignal) {
 }
 
 /** Resources (endpoints) of one service, or of every instrumented service when `service` is unset. */
-export async function listResources(s: ApmScope & { service?: string | null; operation?: string | null }, signal?: AbortSignal) {
+export async function listResources(s: ApmScope & PrimaryTags & { service?: string | null; operation?: string | null }, signal?: AbortSignal) {
   if (!live) return mock.listResources(s);
-  return post('/api/v1/apm/resources', { range: s.range, env: s.env, service: s.service, operation: s.operation }, signal);
+  return post('/api/v1/apm/resources', { range: s.range, env: s.env, service: s.service, operation: s.operation, query: primaryTagQuery(s) }, signal);
 }
 
 export async function getServiceSummary(s: ServiceScope, signal?: AbortSignal) {
   if (!live) return mock.getServiceSummary(s);
-  return post('/api/v1/apm/service', { range: s.range, env: s.env, service: s.service, resource: s.resource, version: s.version, operation: s.operation }, signal);
+  return post('/api/v1/apm/service', { range: s.range, env: s.env, service: s.service, resource: s.resource, version: s.version, operation: s.operation, query: primaryTagQuery(s) }, signal);
 }
 
-/** The service's envs with their requests per second (none: no requests in the range), for the env selector. */
+/** The service's envs with their requests per second (none: no requests in the range) and its primary tags' values in `env`. */
 export async function getServiceFilters(s: ServiceScope, signal?: AbortSignal) {
   if (!live) return mock.getServiceFilters(s);
-  return post('/api/v1/apm/service/filters', { range: s.range, service: s.service, operation: s.operation }, signal);
+  return post('/api/v1/apm/service/filters', { range: s.range, env: s.env, service: s.service, operation: s.operation }, signal);
 }
 
 export async function listDeployments(s: ServiceScope, signal?: AbortSignal) {
   if (!live) return mock.listDeployments(s);
-  return post('/api/v1/apm/deployments', { range: s.range, env: s.env, service: s.service, operation: s.operation }, signal);
+  return post('/api/v1/apm/deployments', { range: s.range, env: s.env, service: s.service, operation: s.operation, query: primaryTagQuery(s) }, signal);
 }
 
 export async function getDependencies(s: ServiceScope, signal?: AbortSignal) {
   if (!live) return mock.getDependencies(s);
-  return post('/api/v1/apm/dependencies', { range: s.range, env: s.env, service: s.service }, signal);
+  return post('/api/v1/apm/dependencies', { range: s.range, env: s.env, service: s.service, query: primaryTagQuery(s) }, signal);
 }
 
 export async function listDatabases(s: ServiceScope, signal?: AbortSignal) {
   if (!live) return mock.listDatabases(s);
-  return post('/api/v1/apm/databases', { range: s.range, env: s.env, service: s.service }, signal);
+  return post('/api/v1/apm/databases', { range: s.range, env: s.env, service: s.service, query: primaryTagQuery(s) }, signal);
 }
 
-export async function listSpanErrors(s: ApmScope & { service?: string | null }, signal?: AbortSignal) {
+export async function listSpanErrors(s: ApmScope & PrimaryTags & { service?: string | null }, signal?: AbortSignal) {
   if (!live) return mock.listSpanErrors(s);
-  return post('/api/v1/apm/errors', { range: s.range, env: s.env, service: s.service }, signal);
+  return post('/api/v1/apm/errors', { range: s.range, env: s.env, service: s.service, query: primaryTagQuery(s) }, signal);
 }
 
 export async function searchSpans(req: ApmScope & { query: string; cursor?: string | null; limit?: number }, signal?: AbortSignal) {

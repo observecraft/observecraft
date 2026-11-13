@@ -3,6 +3,7 @@
 // grouping. Long ranges read every n-th minute and scale counts by n, like a sampled rollup.
 import type { components } from '../generated/schema';
 import type { ApmScope, ServiceScope, SpanMeasure, SpanQuery } from '../apm/client';
+import type { PrimaryTags } from '../apm/scope';
 import type { TimeRange } from '../types';
 import { parseQuery, type Term } from '../../lib/searchQuery';
 import { CHUNK_MS, SERVICES, deployedAt, findTrace, tracesOfMinute, type GenSpan, type GenTrace } from './apmTraces';
@@ -35,6 +36,11 @@ function scan(range: TimeRange): Scan {
 const isEntry = (s: GenSpan) => s.kind === 'Server' || s.kind === 'Consumer';
 const isOutbound = (s: GenSpan) => s.kind === 'Client' || s.kind === 'Producer';
 const envMatches = (env: string | null | undefined) => (s: GenSpan) => !env || env === '*' || s.trace.env === env;
+/** The service page's primary tags (Kubernetes cluster and namespace), unset or `*` for all. */
+const tagsMatch = (t: PrimaryTags) => (s: GenSpan) => {
+  const res = resourceOf(s);
+  return (!t.cluster || t.cluster === '*' || res['k8s.cluster.name'] === t.cluster) && (!t.namespace || t.namespace === '*' || res['k8s.namespace.name'] === t.namespace);
+};
 const secondsOf = (range: TimeRange) => Math.max(1, (range.to - range.from) / 1000);
 const rate = (errors: number, hits: number) => (hits ? errors / hits : 0);
 const round = (v: number) => (Number.isFinite(v) ? Math.round(v * 1000) / 1000 : 0);
@@ -54,6 +60,7 @@ function resourceOf(s: GenSpan): Record<string, string> {
       'telemetry.sdk.language': svc.lang,
       'host.name': svc.host,
       'k8s.namespace.name': svc.namespace,
+      'k8s.cluster.name': s.trace.env === 'prod' ? 'prod-eu-1' : 'staging-eu-1',
     };
     resourceCache.set(key, res);
   }
@@ -81,6 +88,10 @@ function field(s: GenSpan, key: string): string | undefined {
       return s.version;
     case 'host':
       return SERVICES[s.service].host;
+    case 'kube_cluster_name':
+      return resourceOf(s)['k8s.cluster.name'];
+    case 'kube_namespace':
+      return resourceOf(s)['k8s.namespace.name'];
   }
   if (key.startsWith('@')) return s.attrs[key.slice(1)];
   return resourceOf(s)[key];
@@ -210,9 +221,9 @@ function resourceStats(spans: GenSpan[], weight: number, range: TimeRange, servi
     .slice(0, 500);
 }
 
-export function listResources(s: ApmScope & { service?: string | null }): S['ResourceStats'][] {
+export function listResources(s: ApmScope & PrimaryTags & { service?: string | null }): S['ResourceStats'][] {
   const { spans, weight } = scan(s.range);
-  const scoped = spans.filter(envMatches(s.env));
+  const scoped = spans.filter((x) => envMatches(s.env)(x) && tagsMatch(s)(x));
   if (!s.service) return resourceStats(scoped.filter(isEntry), weight, s.range, (x) => x.service);
   const inst = instrumented(spans).has(s.service);
   return resourceStats(scoped.filter(ofService(s.service, inst)), weight, s.range, serviceOf(inst));
@@ -235,7 +246,11 @@ function bucketTimes(range: TimeRange, step: number): number[] {
 function narrowed(s: ServiceScope, spans: GenSpan[], inst: boolean, opts: { resource: boolean; version: boolean; env: boolean }): GenSpan[] {
   const svc = ofService(s.service, inst);
   return spans.filter(
-    (x) => svc(x) && (!opts.env || envMatches(s.env)(x)) && (!opts.resource || !s.resource || x.name === s.resource) && (!opts.version || !s.version || s.version === '*' || x.version === s.version),
+    (x) =>
+      svc(x) &&
+      (!opts.env || (envMatches(s.env)(x) && tagsMatch(s)(x))) &&
+      (!opts.resource || !s.resource || x.name === s.resource) &&
+      (!opts.version || !s.version || s.version === '*' || x.version === s.version),
   );
 }
 
@@ -305,11 +320,14 @@ const PAST_ENVS = ['dev'];
 export function getServiceFilters(s: ServiceScope): S['ServiceFilters'] {
   const { spans, weight } = scan(s.range);
   const inst = instrumented(spans).has(s.service);
+  const mine = spans.filter(ofService(s.service, inst));
   const hits = new Map<string, number>();
-  for (const x of spans.filter(ofService(s.service, inst))) hits.set(x.trace.env, (hits.get(x.trace.env) ?? 0) + weight);
+  for (const x of mine) hits.set(x.trace.env, (hits.get(x.trace.env) ?? 0) + weight);
   const secs = secondsOf(s.range);
   const envs = [...new Set([...hits.keys(), ...PAST_ENVS])].sort().map((env) => ({ env, reqPerSec: hits.has(env) ? hits.get(env)! / secs : null }));
-  return { envs };
+  const inEnv = mine.filter(envMatches(s.env));
+  const values = (key: string) => [...new Set(inEnv.map((x) => resourceOf(x)[key]))].filter(Boolean).sort();
+  return { envs, clusters: values('k8s.cluster.name'), namespaces: values('k8s.namespace.name') };
 }
 
 // ================================================================ dependencies & databases
@@ -345,9 +363,10 @@ export function getDependencies(s: ServiceScope): S['Dependencies'] {
   const known = instrumented(spans);
   const calls = spans.filter((x) => envMatches(s.env)(x) && isOutbound(x) && x.attrs['peer.service']);
   return {
+    // The primary tags are the service's: its own calls carry them, its callers' calls their own.
     downstream: edges(
       s.range,
-      calls.filter((x) => x.service === s.service),
+      calls.filter((x) => x.service === s.service && tagsMatch(s)(x)),
       weight,
       (x) => x.attrs['peer.service'],
       known,
@@ -365,7 +384,7 @@ export function getDependencies(s: ServiceScope): S['Dependencies'] {
 
 export function listDatabases(s: ServiceScope): S['DatabaseStats'][] {
   const { spans, weight } = scan(s.range);
-  const calls = spans.filter((x) => envMatches(s.env)(x) && x.kind === 'Client' && x.service === s.service && x.attrs['db.system']);
+  const calls = spans.filter((x) => envMatches(s.env)(x) && tagsMatch(s)(x) && x.kind === 'Client' && x.service === s.service && x.attrs['db.system']);
   const groups = group(calls, (x) => [x.attrs['db.system'], x.attrs['db.name'], x.attrs['db.statement']].join('\u0000'));
   const total = Math.max(
     [...groups.values()].reduce((a, g) => a + g.totalMs, 0),
@@ -383,9 +402,9 @@ export function listDatabases(s: ServiceScope): S['DatabaseStats'][] {
 
 // ================================================================ errors
 
-export function listSpanErrors(s: ApmScope & { service?: string | null }): S['SpanErrorGroup'][] {
+export function listSpanErrors(s: ApmScope & PrimaryTags & { service?: string | null }): S['SpanErrorGroup'][] {
   const { spans, weight } = scan(s.range);
-  const failed = spans.filter((x) => x.error && isEntry(x) && envMatches(s.env)(x) && (!s.service || x.service === s.service));
+  const failed = spans.filter((x) => x.error && isEntry(x) && envMatches(s.env)(x) && tagsMatch(s)(x) && (!s.service || x.service === s.service));
   return [...group(failed, (x) => [x.service, x.name, x.error!.type, x.error!.message].join('\u0000'))]
     .map(([k, a]) => {
       const [service, resource, errorType, message] = k.split('\u0000');

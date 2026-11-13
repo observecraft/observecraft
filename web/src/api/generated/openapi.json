@@ -559,7 +559,7 @@
         "tags": [
           "apm"
         ],
-        "summary": "The service's envs with their requests per second (its operation's), as the env selector lists them.",
+        "summary": "The service's envs with their requests per second (its operation's), as the env selector lists them, and its\nprimary tags' values. The request's query is ignored: the selectors list every value.",
         "operationId": "service_filters",
         "requestBody": {
           "content": {
@@ -46976,6 +46976,10 @@
               "null"
             ]
           },
+          "query": {
+            "type": "string",
+            "description": "Span search narrowing the service's spans, as env does (the primary tags: `kube_namespace:shop`)."
+          },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
           },
@@ -66470,6 +66474,10 @@
             ],
             "description": "With a service: its operation; its primary one when absent, all with `*`."
           },
+          "query": {
+            "type": "string",
+            "description": "Span search narrowing the service's spans, as env does (the primary tags: `kube_namespace:shop`)."
+          },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
           },
@@ -69856,13 +69864,28 @@
         "type": "object",
         "description": "What the service page's filter bar offers.",
         "required": [
-          "envs"
+          "envs",
+          "clusters",
+          "namespaces"
         ],
         "properties": {
+          "clusters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Primary tags: the service's Kubernetes clusters (`kube_cluster_name`) and namespaces (`kube_namespace`) in\nthe range, in the env asked for."
+          },
           "envs": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EnvRate"
+            }
+          },
+          "namespaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }
@@ -69946,6 +69969,10 @@
               "null"
             ],
             "description": "The operation shown (`http.server.request`): the service's primary one when absent, all with `*`."
+          },
+          "query": {
+            "type": "string",
+            "description": "Span search narrowing the service's spans, as env does (the primary tags: `kube_namespace:shop`)."
           },
           "range": {
             "$ref": "#/components/schemas/TimeRange"

@@ -57,3 +57,36 @@ test("the mock's service filters list env rates and an env without traffic", () 
   const summary = apm.getServiceSummary({ range: lastHour, service: 'storefront-api' });
   assert.ok(Math.abs(byEnv.prod + byEnv.staging - summary.reqPerSec) < 1e-9, 'the envs add up to the service');
 });
+
+test('primary tags narrow the service as span search terms', async () => {
+  const { primaryTagQuery } = await import('../web/src/api/apm/scope.ts');
+  assert.equal(primaryTagQuery({}), '');
+  assert.equal(primaryTagQuery({ cluster: 'prod-eu-1', namespace: 'shop' }), 'kube_cluster_name:"prod-eu-1" kube_namespace:"shop"');
+  assert.equal(primaryTagQuery({ cluster: '*', namespace: 'a"b' }), 'kube_namespace:"a\\"b"');
+});
+
+test("the mock's primary tags list the service's clusters and namespaces and narrow every section", () => {
+  const f = apm.getServiceFilters({ range: lastHour, service: 'order-service' });
+  assert.deepEqual(f.namespaces, ['shop']);
+  assert.deepEqual(f.clusters, ['prod-eu-1', 'staging-eu-1']);
+  assert.deepEqual(apm.getServiceFilters({ range: lastHour, service: 'order-service', env: 'prod' }).clusters, ['prod-eu-1']);
+  const all = apm.getServiceSummary({ range: lastHour, service: 'order-service' });
+  const staging = apm.getServiceSummary({ range: lastHour, service: 'order-service', cluster: 'staging-eu-1' });
+  const prod = apm.getServiceSummary({ range: lastHour, service: 'order-service', env: 'prod' });
+  assert.ok(staging.requests > 0 && staging.requests < all.requests);
+  assert.equal(staging.requests + prod.requests, all.requests);
+  assert.equal(apm.getServiceSummary({ range: lastHour, service: 'order-service', namespace: 'payments' }).requests, 0);
+  const res = apm.listResources({ range: lastHour, service: 'order-service', cluster: 'staging-eu-1' });
+  assert.equal(
+    res.reduce((a, r) => a + r.requests, 0),
+    staging.requests,
+  );
+  const down = apm.getDependencies({ range: lastHour, service: 'order-service', namespace: 'payments' });
+  assert.equal(down.downstream.length, 0);
+});
+
+test('a primary tag in the URL stays selectable', () => {
+  assert.deepEqual(logic.tagValues(['shop'], 'payments'), ['shop', 'payments']);
+  assert.deepEqual(logic.tagValues(['shop'], '*'), ['shop']);
+  assert.deepEqual(logic.tagValues(['shop'], null), ['shop']);
+});

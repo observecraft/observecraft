@@ -36,7 +36,7 @@ import { TraceView } from '../trace/TraceView';
 import { LANGUAGE_LABEL, ServiceIcon, serviceLogo, useStars } from '../visuals';
 import { BrandLogo } from '../../../components/brand/BrandLogo';
 import { ChecklistSection, CostsSection, InfoSection, ScorecardsSection, useServiceEntity } from './ServiceGovern';
-import { ALL, envOptions } from './logic';
+import { ALL, envOptions, tagValues } from './logic';
 import { DatabasesSection, DependenciesSection, DeploymentsSection, ErrorsSection, InfrastructureSection, LogsSection, ResourcesSection, SummarySection, TracesSection } from './ServiceSections';
 
 type Mode = 'info' | 'health' | 'govern' | 'configuration';
@@ -89,14 +89,17 @@ export function ServicePage() {
   const env = params.get('env');
   const resource = params.get('resource');
   const version = params.get('version');
+  // Primary tags: Kubernetes cluster and namespace.
+  const cluster = params.get('kube_cluster_name');
+  const namespace = params.get('kube_namespace');
   // Unset: the service's primary operation (the server picks it), `*`: all.
   const operation = params.get('operation');
   const mode = (GROUPS.find((g) => g.id === params.get('mode'))?.id ?? 'health') as Mode;
-  const scope: ServiceScope = { range, service, env, resource, version, operation };
+  const scope: ServiceScope = { range, service, env, cluster, namespace, resource, version, operation };
   const summary = useServiceSummary(scope);
   // The selectors list every env/resource/version, so they come from an unfiltered summary.
-  const options = useServiceSummary({ range, service, env, operation });
-  const filters = useServiceFilters({ range, service, operation });
+  const options = useServiceSummary({ range, service, env, cluster, namespace, operation });
+  const filters = useServiceFilters({ range, service, env, operation });
   const entity = useServiceEntity(service, env);
   const { stars, toggle } = useStars();
   const [traceId, setTraceId] = useState<string | null>(null);
@@ -303,6 +306,24 @@ export function ServicePage() {
                     onChange={(v) => setParam('env', v)}
                     options={filters.data ? envOptions(filters.data.envs, env) : [{ value: ALL, label: ALL }, ...(opt?.envs ?? []).map((e) => ({ value: e, label: e }))]}
                   />
+                  {(
+                    [
+                      ['kube_cluster_name', cluster, filters.data?.clusters],
+                      ['kube_namespace', namespace, filters.data?.namespaces],
+                    ] as const
+                  ).map(
+                    ([key, value, values]) =>
+                      (value || (values?.length ?? 0) > 0) && (
+                        <Select
+                          key={key}
+                          label={key}
+                          value={value ?? ALL}
+                          onChange={(v) => setParam(key, v)}
+                          searchable={(values?.length ?? 0) > 10}
+                          options={[{ value: ALL, label: ALL }, ...tagValues(values ?? [], value).map((v) => ({ value: v, label: v }))]}
+                        />
+                      ),
+                  )}
                   {mode === 'health' && (
                     <Select
                       label="Version"

@@ -298,7 +298,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** The service's envs with their requests per second (its operation's), as the env selector lists them. */
+        /**
+         * The service's envs with their requests per second (its operation's), as the env selector lists them, and its
+         *     primary tags' values. The request's query is ignored: the selectors list every value.
+         */
         post: operations["service_filters"];
         delete?: never;
         options?: never;
@@ -15706,6 +15709,8 @@ export interface components {
         };
         ErrorsRequest: {
             env?: string | null;
+            /** @description Span search narrowing the service's spans, as env does (the primary tags: `kube_namespace:shop`). */
+            query?: string;
             range: components["schemas"]["TimeRange"];
             service?: string | null;
         };
@@ -21748,6 +21753,8 @@ export interface components {
             env?: string | null;
             /** @description With a service: its operation; its primary one when absent, all with `*`. */
             operation?: string | null;
+            /** @description Span search narrowing the service's spans, as env does (the primary tags: `kube_namespace:shop`). */
+            query?: string;
             range: components["schemas"]["TimeRange"];
             /** @description Restrict to one service (instrumented or inferred). */
             service?: string | null;
@@ -22781,7 +22788,13 @@ export interface components {
         };
         /** @description What the service page's filter bar offers. */
         ServiceFilters: {
+            /**
+             * @description Primary tags: the service's Kubernetes clusters (`kube_cluster_name`) and namespaces (`kube_namespace`) in
+             *     the range, in the env asked for.
+             */
+            clusters: string[];
             envs: components["schemas"]["EnvRate"][];
+            namespaces: string[];
         };
         /** @enum {string} */
         ServiceKind: "web" | "worker" | "db" | "cache" | "queue" | "http";
@@ -22807,6 +22820,8 @@ export interface components {
             env?: string | null;
             /** @description The operation shown (`http.server.request`): the service's primary one when absent, all with `*`. */
             operation?: string | null;
+            /** @description Span search narrowing the service's spans, as env does (the primary tags: `kube_namespace:shop`). */
+            query?: string;
             range: components["schemas"]["TimeRange"];
             /** @description Restrict to one resource (span name). */
             resource?: string | null;
