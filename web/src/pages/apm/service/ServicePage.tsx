@@ -31,11 +31,12 @@ import { useTime } from '../../../components/shell/TimeContext';
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { activeSection } from '../../../components/ui/CollapsibleSection';
 import { Menu, Select } from '../../../components/ui/Dropdown';
-import { useServiceSummary } from '../queries';
+import { useServiceFilters, useServiceSummary } from '../queries';
 import { TraceView } from '../trace/TraceView';
 import { LANGUAGE_LABEL, ServiceIcon, serviceLogo, useStars } from '../visuals';
 import { BrandLogo } from '../../../components/brand/BrandLogo';
 import { ChecklistSection, CostsSection, InfoSection, ScorecardsSection, useServiceEntity } from './ServiceGovern';
+import { ALL, envOptions } from './logic';
 import { DatabasesSection, DependenciesSection, DeploymentsSection, ErrorsSection, InfrastructureSection, LogsSection, ResourcesSection, SummarySection, TracesSection } from './ServiceSections';
 
 type Mode = 'info' | 'health' | 'govern' | 'configuration';
@@ -78,7 +79,6 @@ const GROUPS: Group[] = [
   { id: 'configuration', label: 'Configuration', icon: Settings, items: [{ id: 'checklist', label: 'Checklist', icon: Check }] },
 ];
 
-const ALL = '*';
 const NEXT: Partial<Record<Mode, Mode>> = { info: 'health', health: 'govern', govern: 'configuration' };
 
 export function ServicePage() {
@@ -96,6 +96,7 @@ export function ServicePage() {
   const summary = useServiceSummary(scope);
   // The selectors list every env/resource/version, so they come from an unfiltered summary.
   const options = useServiceSummary({ range, service, env, operation });
+  const filters = useServiceFilters({ range, service, operation });
   const entity = useServiceEntity(service, env);
   const { stars, toggle } = useStars();
   const [traceId, setTraceId] = useState<string | null>(null);
@@ -296,7 +297,12 @@ export function ServicePage() {
                       options={[{ value: ALL, label: 'All resources' }, ...(opt?.resources ?? []).map((r) => ({ value: r, label: r }))]}
                     />
                   )}
-                  <Select label="Env" value={env ?? ALL} onChange={(v) => setParam('env', v)} options={[{ value: ALL, label: '*' }, ...(opt?.envs ?? []).map((e) => ({ value: e, label: e }))]} />
+                  <Select
+                    label="Env"
+                    value={env ?? ALL}
+                    onChange={(v) => setParam('env', v)}
+                    options={filters.data ? envOptions(filters.data.envs, env) : [{ value: ALL, label: ALL }, ...(opt?.envs ?? []).map((e) => ({ value: e, label: e }))]}
+                  />
                   {mode === 'health' && (
                     <Select
                       label="Version"

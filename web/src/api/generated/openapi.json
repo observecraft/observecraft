@@ -554,6 +554,36 @@
         }
       }
     },
+    "/api/v1/apm/service/filters": {
+      "post": {
+        "tags": [
+          "apm"
+        ],
+        "summary": "The service's envs with their requests per second (its operation's), as the env selector lists them.",
+        "operationId": "service_filters",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceFilters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apm/services": {
       "post": {
         "tags": [
@@ -46902,6 +46932,26 @@
           }
         }
       },
+      "EnvRate": {
+        "type": "object",
+        "description": "An env of a service and its requests per second in the range.",
+        "required": [
+          "env"
+        ],
+        "properties": {
+          "env": {
+            "type": "string"
+          },
+          "reqPerSec": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "None: requests in the week before the range, none in it."
+          }
+        }
+      },
       "ErrorBody": {
         "type": "object",
         "description": "JSON error body returned by every endpoint.",
@@ -69799,6 +69849,21 @@
           "value": {
             "type": "string",
             "description": "Address, channel or URL."
+          }
+        }
+      },
+      "ServiceFilters": {
+        "type": "object",
+        "description": "What the service page's filter bar offers.",
+        "required": [
+          "envs"
+        ],
+        "properties": {
+          "envs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnvRate"
+            }
           }
         }
       },

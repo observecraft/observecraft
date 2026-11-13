@@ -296,6 +296,22 @@ export function listDeployments(s: ServiceScope): S['Deployment'][] {
     .sort((a, b) => b.firstSeen - a.firstSeen);
 }
 
+// ================================================================ service filters
+
+/** Envs the demo's services reported to before the range: the generator makes prod and staging traffic only, so a
+ * retired `dev` env shows how an env without requests in the range looks. */
+const PAST_ENVS = ['dev'];
+
+export function getServiceFilters(s: ServiceScope): S['ServiceFilters'] {
+  const { spans, weight } = scan(s.range);
+  const inst = instrumented(spans).has(s.service);
+  const hits = new Map<string, number>();
+  for (const x of spans.filter(ofService(s.service, inst))) hits.set(x.trace.env, (hits.get(x.trace.env) ?? 0) + weight);
+  const secs = secondsOf(s.range);
+  const envs = [...new Set([...hits.keys(), ...PAST_ENVS])].sort().map((env) => ({ env, reqPerSec: hits.has(env) ? hits.get(env)! / secs : null }));
+  return { envs };
+}
+
 // ================================================================ dependencies & databases
 
 function edges(range: TimeRange, calls: GenSpan[], weight: number, peerOf: (s: GenSpan) => string, known: Set<string>): S['Dependency'][] {
