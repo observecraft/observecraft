@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.22.0](https://github.com/observecraft/observecraft/compare/v0.21.3...v0.22.0) (2026-11-13)
+
+
+### Features
+
+* **apm:** filter the service page by its primary tags (cluster, namespace) ([10c92d0](https://github.com/observecraft/observecraft/commit/10c92d05d3a6315c498429089caea3e52f6a38e7))
+* **apm:** label the dependency map with rates and errors, add node cards ([de045a7](https://github.com/observecraft/observecraft/commit/de045a7fb9b471053cca320716521779c709be93))
+* **apm:** mark deployments on the service latency chart, totals on its charts ([0d353ae](https://github.com/observecraft/observecraft/commit/0d353aede5dfcbf2182fa98e363104418e12dd08))
+* **apm:** show a service's Kubernetes pods in its Infrastructure section ([44dcb59](https://github.com/observecraft/observecraft/commit/44dcb596f9ddc4759516b212e5c572c655a9da13))
+* **apm:** show each env's requests per second in the service page's env selector ([b5d849a](https://github.com/observecraft/observecraft/commit/b5d849a61d8c75e350d403ae9183a2f703608a91))
+* **apm:** show each resource's monitors in the service page's Resources table ([3f3dc77](https://github.com/observecraft/observecraft/commit/3f3dc77378e915794cb5a27a6f28b2b11a3e87b5))
+* **apm:** split the service page's monitor bar by monitor status ([7161fe7](https://github.com/observecraft/observecraft/commit/7161fe7ba1144531fb9fa2d1ad667d6bfe2c77ca))
+
+
+### Bug fixes
+
+* **apm:** service page Traces show the selected operation's spans, sampled over the range ([183fc85](https://github.com/observecraft/observecraft/commit/183fc8527cfaaea3eba31a8b41ace8afeefdceb4))
+* **apm:** the Resources Top 5 charts follow the selected operation ([c9c0dac](https://github.com/observecraft/observecraft/commit/c9c0dac27a4c4f1ae9b92577032d7f1dc5c6611e))
+* **intake:** keep the Datadog Agent's device as a device tag ([5f9f2fc](https://github.com/observecraft/observecraft/commit/5f9f2fc7027f23b4b778381eda1771a9f48fe252))
+* **monitors:** drop groups that stopped reporting a day ago; on_missing_data resolve ([#142](https://github.com/observecraft/observecraft/issues/142)) ([5ff2d9d](https://github.com/observecraft/observecraft/commit/5ff2d9d185a7d9c8bc660ac2772ac5b7eee9769f))
+
 ## [0.21.3](https://github.com/observecraft/observecraft/compare/v0.21.2...v0.21.3) (2026-11-12)
 
 
