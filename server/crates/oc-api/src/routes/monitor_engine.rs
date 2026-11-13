@@ -136,6 +136,17 @@ pub struct MonitorOptions {
     pub notify_no_data: bool,
     #[serde(default = "default_no_data_minutes")]
     pub no_data_minutes: i64,
+    /// Datadog's `on_missing_data: resolve`: a group that stops reporting goes back to OK.
+    #[serde(default)]
+    pub missing_resolves: bool,
+}
+
+/// How long a group that stopped reporting stays in the monitor's status (Datadog's default group retention).
+pub const GROUP_RETENTION_MS: i64 = 24 * 3_600_000;
+
+/// Whether a group whose last data point was at `last_data_at` is still kept.
+pub fn retained(last_data_at: Option<i64>, now: i64) -> bool {
+    last_data_at.is_none_or(|t| now - t <= GROUP_RETENTION_MS)
 }
 
 impl MonitorOptions {
@@ -207,7 +218,13 @@ impl MonitorOptions {
     /// Next status for one group given its evaluated value (`None` = no data in the window).
     pub fn classify(&self, value: Option<f64>, prev: MonitorStatus) -> MonitorStatus {
         let Some(v) = value else {
-            return if self.notify_no_data { MonitorStatus::NoData } else { prev };
+            return if self.notify_no_data {
+                MonitorStatus::NoData
+            } else if self.missing_resolves {
+                MonitorStatus::Ok
+            } else {
+                prev
+            };
         };
         let c = self.comparator;
         let t = &self.thresholds;
@@ -543,6 +560,7 @@ mod tests {
             thresholds: Thresholds { critical: 90.0, warning: Some(80.0), critical_recovery: Some(85.0), warning_recovery: None },
             notify_no_data: true,
             no_data_minutes: 10,
+            missing_resolves: false,
         }
     }
 
@@ -557,6 +575,23 @@ mod tests {
         assert_eq!(o.classify(None, MonitorStatus::Ok), MonitorStatus::NoData);
         let quiet = MonitorOptions { notify_no_data: false, ..o };
         assert_eq!(quiet.classify(None, MonitorStatus::Warn), MonitorStatus::Warn);
+    }
+
+    #[test]
+    fn missing_data_resolves_when_asked() {
+        let o = MonitorOptions { notify_no_data: false, ..opts() };
+        assert_eq!(o.classify(None, MonitorStatus::Alert), MonitorStatus::Alert, "by default a group keeps its last status");
+        let resolving = MonitorOptions { missing_resolves: true, ..o };
+        assert_eq!(resolving.classify(None, MonitorStatus::Alert), MonitorStatus::Ok);
+        assert_eq!(resolving.classify(Some(95.0), MonitorStatus::Ok), MonitorStatus::Alert);
+    }
+
+    #[test]
+    fn groups_without_data_for_a_day_are_dropped() {
+        let now = 10 * 86_400_000;
+        assert!(retained(Some(now - 3_600_000), now));
+        assert!(!retained(Some(now - GROUP_RETENTION_MS - 1), now));
+        assert!(retained(None, now), "a group that never had data is kept (no-data monitors report it)");
     }
 
     #[test]

@@ -13,7 +13,7 @@
 //!   between metric queries, `>`, `>=`, `<`, `<=`.
 //! - `log alert` → a log monitor: `logs("<search>")[.index(…)].rollup("count")[.by("a,b")].last("5m")`.
 //! - thresholds `critical` / `warning` / `critical_recovery` / `warning_recovery`, `notify_no_data`
-//!   (or `on_missing_data: show_and_notify_no_data`), `no_data_timeframe`, `name`, `message` (its
+//!   (or `on_missing_data: show_and_notify_no_data`; `resolve` returns a group that stops reporting to OK), `no_data_timeframe`, `name`, `message` (its
 //!   `@handles` are the recipients), `priority`, `tags`, `draft_status`.
 //! - Every other option is stored and returned but not acted on (listed in `docs/datadog-api.md`).
 //!   Other monitor types are rejected with a 400 naming the type.
@@ -175,7 +175,9 @@ pub fn from_datadog(doc: &Value) -> Result<Mapped, String> {
         None | Some(Value::Null) => false,
         Some(v) => v.as_bool().ok_or("options.notify_no_data must be a boolean")?,
     };
-    opts.notify_no_data = notify_no_data || options.get("on_missing_data").and_then(Value::as_str) == Some("show_and_notify_no_data");
+    let missing = options.get("on_missing_data").and_then(Value::as_str);
+    opts.notify_no_data = notify_no_data || missing == Some("show_and_notify_no_data");
+    opts.missing_resolves = missing == Some("resolve");
     opts.no_data_minutes = match options.get("no_data_timeframe") {
         None | Some(Value::Null) => (2 * opts.window_minutes).clamp(1, 1440),
         Some(v) => v.as_i64().ok_or("options.no_data_timeframe must be a number of minutes")?,
@@ -320,6 +322,7 @@ fn parse_metric_alert(q: &str) -> Result<(MonitorType, String, MonitorOptions), 
         thresholds: Thresholds { critical, warning: None, critical_recovery: None, warning_recovery: None },
         notify_no_data: false,
         no_data_minutes: 10,
+        missing_resolves: false,
     };
     Ok((if apm { MonitorType::Apm } else { MonitorType::Metric }, metric_query.to_string(), options))
 }
@@ -398,6 +401,7 @@ fn parse_log_alert(q: &str) -> Result<(MonitorType, String, MonitorOptions), Str
         thresholds: Thresholds { critical, warning: None, critical_recovery: None, warning_recovery: None },
         notify_no_data: false,
         no_data_minutes: 10,
+        missing_resolves: false,
     };
     Ok((MonitorType::Log, query, options))
 }
@@ -1161,6 +1165,11 @@ mod tests {
         d["options"] = json!({ "on_missing_data": "show_and_notify_no_data" });
         let m = from_datadog(&d).unwrap();
         assert_eq!((m.options.notify_no_data, m.options.no_data_minutes), (true, 10));
+
+        // `resolve`: a group that stops reporting goes back to OK.
+        d["options"] = json!({ "on_missing_data": "resolve" });
+        let m = from_datadog(&d).unwrap();
+        assert!(m.options.missing_resolves && !m.options.notify_no_data);
 
         d["options"] = json!({ "thresholds": { "critical": 5 } });
         let e = from_datadog(&d).unwrap_err();
