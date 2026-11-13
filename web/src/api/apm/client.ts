@@ -85,7 +85,7 @@ export async function getServiceFilters(s: ServiceScope, signal?: AbortSignal) {
 /** The monitors naming the service, the worst status first. */
 export async function listServiceMonitors(s: ServiceScope, signal?: AbortSignal) {
   if (!live) return mock.listServiceMonitors(s);
-  return post('/api/v1/apm/service/monitors', { range: s.range, env: s.env, service: s.service }, signal);
+  return post('/api/v1/apm/service/monitors', { range: s.range, env: s.env, service: s.service, operation: s.operation, query: primaryTagQuery(s) }, signal);
 }
 
 export async function listDeployments(s: ServiceScope, signal?: AbortSignal) {

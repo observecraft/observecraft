@@ -109,3 +109,21 @@ test('the mock lists monitors naming the service', () => {
   for (let i = 1; i < monitors.length; i++) assert.ok(order[monitors[i - 1].status] >= order[monitors[i].status]);
   assert.deepEqual(apm.listServiceMonitors({ range: lastHour, service: 'no-such-service' }), []);
 });
+
+test("a resource's monitors as status badges, the worst first", () => {
+  const m = (status, resources) => ({ id: 1, name: status, status, resources });
+  const monitors = [m('ok', ['GET /cart']), m('alert', ['GET /cart', 'POST /orders']), m('ok', ['GET /cart']), m('warn', [])];
+  assert.deepEqual(logic.resourceMonitorBadges(monitors, 'GET /cart'), [
+    { status: 'alert', count: 1, label: '1 ALERT' },
+    { status: 'ok', count: 2, label: '2 OK' },
+  ]);
+  assert.deepEqual(logic.resourceMonitorBadges(monitors, 'GET /orders'), []);
+});
+
+test("the mock's monitors name the resources they target", () => {
+  const monitors = apm.listServiceMonitors({ range: lastHour, service: 'storefront-api' });
+  const checkout = monitors.find((m) => m.name === 'Storefront API checkout error rate is high');
+  assert.deepEqual(checkout.resources, ['POST /api/orders']);
+  assert.ok(['alert', 'warn'].includes(checkout.status), checkout.status);
+  assert.deepEqual(monitors.find((m) => m.name === 'Storefront API p95 latency above SLO').resources, []);
+});

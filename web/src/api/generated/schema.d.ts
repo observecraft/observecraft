@@ -318,7 +318,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** The monitors naming the service in their query or tags (drafts aside), the worst status first. */
+        /**
+         * The monitors naming the service in their query or tags (drafts aside), the worst status first, with the
+         *     service's resources each targets.
+         */
         post: operations["service_monitors"];
         delete?: never;
         options?: never;
@@ -22828,6 +22831,8 @@ export interface components {
             /** Format: int64 */
             id: number;
             name: string;
+            /** @description The service's resources (in the range) its query or tags name. */
+            resources: string[];
             status: components["schemas"]["MonitorStatus"];
         };
         ServiceProviderInfo: {
