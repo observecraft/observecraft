@@ -698,7 +698,7 @@ const PUBLIC_ACCESS_FLAGS: [&str; 4] = ["block_public_acls", "block_public_polic
 
 /// Applies `(offset, length, replacement)` edits, the latest first.
 fn apply(src: &str, mut edits: Vec<(usize, usize, String)>) -> String {
-    edits.sort_by(|a, b| b.0.cmp(&a.0));
+    edits.sort_by_key(|e| std::cmp::Reverse(e.0));
     let mut out = src.to_string();
     for (at, len, text) in edits {
         out.replace_range(at..at + len, &text);
@@ -744,13 +744,59 @@ pub fn block_public_access(files: &[(String, String)], bucket: &Located) -> Resu
             if edits.is_empty() {
                 return Err(format!("{path} already blocks public access on {} (aws_s3_bucket_public_access_block.{}): the finding may predate its apply (compare with terraform plan), or an account-level setting or bucket policy grants access.", bucket.address, b.labels.get(1).cloned().unwrap_or_default()));
             }
-            return Ok((path.clone(), src.clone(), apply(src, edits)));
+            let edited = apply(src, edits);
+            let labels = b.labels.clone();
+            let after = match hcl_blocks(&edited).into_iter().find(|n| n.kind == "resource" && n.labels == labels) {
+                Some(n) => {
+                    let (from, to) = body(&edited, &n);
+                    align_attributes(&edited, from, to)
+                }
+                None => edited,
+            };
+            return Ok((path.clone(), src.clone(), after));
         }
     }
     let block = format!(
         "\n\nresource \"aws_s3_bucket_public_access_block\" \"{name}\" {{\n  bucket = aws_s3_bucket.{name}.id\n\n  block_public_acls       = true\n  block_public_policy     = true\n  ignore_public_acls      = true\n  restrict_public_buckets = true\n}}"
     );
     Ok((bucket.file.clone(), bsrc.clone(), apply(bsrc, vec![(bblock.end, 0, block)])))
+}
+
+/// Aligns the `=` of consecutive one-line attributes in `src[from..to]` as `terraform fmt` does: a blank line, a
+/// comment, a nested block or another indentation starts a new group.
+fn align_attributes(src: &str, from: usize, to: usize) -> String {
+    let lines: Vec<&str> = src[from..to].split('\n').collect();
+    let mut out: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
+    let mut i = 0;
+    while i < lines.len() {
+        let Some((indent, _, _)) = simple_attribute(lines[i]) else {
+            i += 1;
+            continue;
+        };
+        let mut j = i;
+        while j < lines.len() && simple_attribute(lines[j]).is_some_and(|(ind, _, _)| ind == indent) {
+            j += 1;
+        }
+        let width = (i..j).filter_map(|k| simple_attribute(lines[k])).map(|(_, k, _)| k.len()).max().unwrap_or(0);
+        for k in i..j {
+            if let Some((ind, key, value)) = simple_attribute(lines[k]) {
+                out[k] = format!("{ind}{key:<width$} = {value}");
+            }
+        }
+        i = j;
+    }
+    format!("{}{}{}", &src[..from], out.join("\n"), &src[to..])
+}
+
+/// `(indent, key, value)` of a one-line `key = value` attribute; None for blocks, multi-line values and comments.
+fn simple_attribute(line: &str) -> Option<(&str, &str, &str)> {
+    let trimmed = line.trim_start();
+    let indent = &line[..line.len() - trimmed.len()];
+    let key_len = trimmed.find(|c: char| !ident_char(c)).unwrap_or(trimmed.len());
+    let (key, rest) = trimmed.split_at(key_len);
+    let value = rest.trim_start().strip_prefix('=').filter(|r| !r.starts_with('='))?.trim();
+    let open = value.ends_with('{') || value.ends_with('[') || value.ends_with('(') || value.starts_with("<<");
+    (!key.is_empty() && key.starts_with(|c: char| c.is_ascii_alphabetic()) && !value.is_empty() && !open).then_some((indent, key, value))
 }
 
 /// A map key as HCL writes it (quoted unless an identifier).
@@ -1356,8 +1402,13 @@ resource "aws_s3_bucket_public_access_block" "assets" {
         let (path, before, after) = block_public_access(&files, &bucket).unwrap();
         assert_eq!((path.as_str(), before.as_str()), ("modules/storage/main.tf", MODULE_TF));
         assert!(after.contains("  block_public_acls       = true\n") && after.contains("  block_public_policy     = true\n"), "{after}");
-        assert!(after.contains("  ignore_public_acls = true\n") && after.contains("  restrict_public_buckets = true\n}\n"), "{after}");
+        // Aligned on `=` as `terraform fmt` writes them, so the repository's `fmt -check` passes.
+        assert!(after.contains("  ignore_public_acls      = true\n") && after.contains("  restrict_public_buckets = true\n}\n"), "{after}");
         assert_eq!(after.matches("aws_s3_bucket_public_access_block").count(), 1);
+        // Groups end at blank lines and nested blocks; multi-line values are left alone.
+        let tf = "resource \"x\" \"y\" {\n  a = 1\n  long_name = 2\n\n  b = 3\n  tags = {\n    k = \"v\"\n    longer = \"w\"\n  }\n}\n";
+        let (from, to) = body(tf, &hcl_blocks(tf)[0]);
+        assert_eq!(align_attributes(tf, from, to), "resource \"x\" \"y\" {\n  a         = 1\n  long_name = 2\n\n  b = 3\n  tags = {\n    k      = \"v\"\n    longer = \"w\"\n  }\n}\n");
         // Already blocked: nothing to change here.
         let done = vec![("m.tf".to_string(), after.clone())];
         let b = find_resource(&done, parse_address("aws_s3_bucket.assets").as_ref(), "").unwrap();
