@@ -677,7 +677,12 @@ export async function summary(): Promise<CloudSecuritySummary> {
       imagesRunning: IMAGES.filter((i) => i[3]).length,
       clusters: 1,
       resourcesEvaluated: 42,
-      accounts: ['aws:123456789012'],
+      accounts: [
+        { provider: 'aws', id: '123456789012', name: '', connected: true, resources: 64 },
+        { provider: 'aws', id: '210987654321', name: '', connected: false, resources: 3 },
+        { provider: 'azure', id: '0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d', name: 'Storefront Production', connected: true, resources: 18 },
+        { provider: 'gcp', id: 'example-storefront', name: 'Example Storefront', connected: true, resources: 11 },
+      ],
     },
     misconfigurations: mis,
     vulnerabilitiesBySeverity: bySev,

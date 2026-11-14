@@ -153,6 +153,10 @@ pub enum AzureError {
 pub trait AzureApi: Send + Sync {
     /// The ids of the enabled subscriptions the app registration can read.
     async fn subscriptions(&self, c: &Credentials) -> Result<Vec<String>, AzureError>;
+    /// The enabled subscriptions with their display names: (id, name).
+    async fn named_subscriptions(&self, c: &Credentials) -> Result<Vec<(String, String)>, AzureError> {
+        Ok(self.subscriptions(c).await?.into_iter().map(|s| (s, String::new())).collect())
+    }
     async fn resources(&self, c: &Credentials, subscription: &str) -> Result<Vec<Resource>, AzureError>;
     /// The metric definitions of a resource (one per resource type is enough).
     async fn metric_definitions(&self, c: &Credentials, resource_id: &str) -> Result<Vec<MetricDef>, AzureError>;
@@ -373,8 +377,16 @@ fn resource_group(id: &str) -> String {
 #[async_trait::async_trait]
 impl AzureApi for Rest {
     async fn subscriptions(&self, c: &Credentials) -> Result<Vec<String>, AzureError> {
+        Ok(self.named_subscriptions(c).await?.into_iter().map(|(id, _)| id).collect())
+    }
+
+    async fn named_subscriptions(&self, c: &Credentials) -> Result<Vec<(String, String)>, AzureError> {
         let all = self.pages(c, format!("{}/subscriptions?api-version=2022-12-01", self.endpoints.management)).await?;
-        Ok(all.iter().filter(|s| s["state"].as_str().is_none_or(|st| st == "Enabled")).filter_map(|s| s["subscriptionId"].as_str().map(str::to_string)).collect())
+        Ok(all
+            .iter()
+            .filter(|s| s["state"].as_str().is_none_or(|st| st == "Enabled"))
+            .filter_map(|s| Some((s["subscriptionId"].as_str()?.to_string(), s["displayName"].as_str().unwrap_or_default().to_string())))
+            .collect())
     }
 
     async fn resources(&self, c: &Credentials, subscription: &str) -> Result<Vec<Resource>, AzureError> {
@@ -523,7 +535,7 @@ mod tests {
                     if q.contains_key("page2") {
                         return Json(json!({ "value": [{ "subscriptionId": "sub-b", "state": "Disabled" }] }));
                     }
-                    Json(json!({ "value": [{ "subscriptionId": "sub-a", "state": "Enabled" }], "nextLink": next_link }))
+                    Json(json!({ "value": [{ "subscriptionId": "sub-a", "displayName": "Storefront Production", "state": "Enabled" }], "nextLink": next_link }))
                 }),
             )
             .route(
@@ -705,5 +717,6 @@ mod tests {
         let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base.clone(), graph: base });
         let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
         assert_eq!(rest.subscriptions(&c).await.unwrap(), ["sub-a"]);
+        assert_eq!(rest.named_subscriptions(&c).await.unwrap(), [("sub-a".to_string(), "Storefront Production".to_string())]);
     }
 }

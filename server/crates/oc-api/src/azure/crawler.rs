@@ -452,8 +452,11 @@ impl Crawler for AzureCrawler {
         };
         let creds = Credentials { tenant_id: account.tenant_name.clone(), client_id: account.client_id.clone(), client_secret };
         if job.scope.is_empty() {
-            return Ok(match self.api.subscriptions(&creds).await {
-                Ok(subs) => Outcome::Discovered(subs),
+            return Ok(match self.api.named_subscriptions(&creds).await {
+                Ok(subs) => {
+                    jobs::save_scope_names(st, job, &subs).await?;
+                    Outcome::Discovered(subs.into_iter().map(|(id, _)| id).collect())
+                }
                 Err(e) => Outcome::Failed(issue(&e)),
             });
         }

@@ -149,6 +149,22 @@ async fn sync_scopes(st: &AppState, job: &JobKey, scopes: &[String]) -> Result<(
     tx.commit().await
 }
 
+/// The display names a discovery found for its scopes (Azure subscriptions, GCP projects); empty ones are skipped.
+pub async fn save_scope_names(st: &AppState, job: &JobKey, named: &[(String, String)]) -> Result<(), sqlx::Error> {
+    let (scopes, names): (Vec<String>, Vec<String>) = named.iter().filter(|(_, n)| !n.is_empty()).cloned().unzip();
+    sqlx::query(
+        "INSERT INTO cloud_scope_names (org_id, provider, scope, name) SELECT $1, $2, s, n FROM unnest($3::text[], $4::text[]) AS u(s, n) \
+         ON CONFLICT (org_id, provider, scope) DO UPDATE SET name = EXCLUDED.name, updated_at = now()",
+    )
+    .bind(&job.org_id)
+    .bind(&job.provider)
+    .bind(&scopes)
+    .bind(&names)
+    .execute(&st.postgres)
+    .await?;
+    Ok(())
+}
+
 /// Claims up to `limit` due jobs of a provider (held for the lease).
 pub async fn claim(st: &AppState, provider: &str, limit: i64) -> Result<Vec<JobKey>, sqlx::Error> {
     let rows: Vec<(String, String, String, Option<i64>)> = sqlx::query_as(

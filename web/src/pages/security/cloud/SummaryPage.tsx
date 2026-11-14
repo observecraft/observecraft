@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Box, Bug, ChevronDown, ChevronRight, Cpu, Database, FileWarning, Flame, HardDrive, Layers, Network, ShieldCheck, Users, Wrench } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Box, Bug, ChevronDown, ChevronRight, Cloud, Cpu, Database, FileWarning, Flame, HardDrive, Layers, Network, ShieldCheck, Users, Wrench } from 'lucide-react';
+import { BrandLogo } from '../../../components/brand/BrandLogo';
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { compact } from '../../../lib/format';
 import { useResearchFeed, useSecurityInbox } from '../queries';
@@ -15,6 +16,13 @@ const SECTIONS: [string, string][] = [
   ['feed', 'Research Feed'],
   ['knowledge', 'Knowledge'],
 ];
+
+/** Cloud providers of the accounts list: logo, name, what an account is called, its integration page. */
+const PROVIDERS: Record<string, { logo: string; label: string; unit: string; integration: string }> = {
+  aws: { logo: 'aws', label: 'AWS', unit: 'account', integration: '/integrations/aws' },
+  azure: { logo: 'azure', label: 'Azure', unit: 'subscription', integration: '/integrations/azure' },
+  gcp: { logo: 'googlecloud', label: 'Google Cloud', unit: 'project', integration: '/integrations/gcp' },
+};
 
 const CATEGORY_ICON: Record<string, ReactNode> = {
   Hosts: <Cpu size={16} />,
@@ -88,15 +96,31 @@ export function CloudSummaryPage() {
             <div className="csm-card">
               <h5>CLOUD ACCOUNTS</h5>
               {c.accounts.length ? (
-                <ul className="csm-list">
-                  {c.accounts.map((a) => (
-                    <li key={a} className="mono">
-                      {a}
-                    </li>
-                  ))}
+                <ul className="csm-accounts">
+                  {c.accounts.map((a) => {
+                    const p = PROVIDERS[a.provider];
+                    return (
+                      <li key={`${a.provider}:${a.id}`}>
+                        {p ? <BrandLogo name={p.logo} size={16} title={p.label} /> : <Cloud size={16} />}
+                        <span className="csm-account-name">
+                          {a.name || `${p?.label ?? a.provider} ${p?.unit ?? 'account'}`}
+                          <span className="muted mono">{a.id}</span>
+                        </span>
+                        {a.connected ? (
+                          <span className="muted">{a.resources ? `${compact(a.resources)} resources` : 'connected'}</span>
+                        ) : (
+                          <Link to={p?.integration ?? '/integrations'} title="Seen on resources, not connected in Integrations">
+                            Connect
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
-                <p className="muted">No cloud account tags on the catalog&rsquo;s resources yet.</p>
+                <p className="muted">
+                  No cloud account connected: connect <Link to="/integrations/aws">AWS</Link>, <Link to="/integrations/azure">Azure</Link> or <Link to="/integrations/gcp">Google Cloud</Link>.
+                </p>
               )}
             </div>
             <div className="csm-card">
