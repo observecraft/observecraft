@@ -353,6 +353,21 @@ fn ts(v: &Value) -> Option<i64> {
     v.as_str().and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok()).map(|d| d.timestamp_millis())
 }
 
+/// OSV ecosystems whose advisories are per distribution release (`Debian:12`, `Ubuntu:22.04:LTS`, `Alpine:v3.19`).
+pub const DISTRO_ECOSYSTEMS: &[&str] =
+    &["Debian", "Ubuntu", "Alpine", "AlmaLinux", "Rocky Linux", "Red Hat", "SUSE", "openSUSE", "Mageia", "Photon OS", "openEuler", "Azure Linux", "Wolfi", "Chainguard", "Echo", "MinimOS"];
+
+/// An affected package's ecosystem as packages are keyed: OS distributions keep their release (an SBOM's
+/// Debian 12 packages are `Debian:12`), language ecosystems drop a suffix (`Maven:<repository>` → `Maven`).
+pub fn osv_ecosystem(eco: &str) -> String {
+    let base = eco.split(':').next().unwrap_or("");
+    if DISTRO_ECOSYSTEMS.contains(&base) {
+        eco.to_string()
+    } else {
+        base.to_string()
+    }
+}
+
 /// An OSV record (`https://ossf.github.io/osv-schema/`) as an advisory.
 pub fn parse_osv(v: &Value) -> Option<Advisory> {
     let id = v.get("id")?.as_str()?.to_string();
@@ -386,7 +401,7 @@ pub fn parse_osv(v: &Value) -> Option<Advisory> {
     let mut packages: Vec<AdvisoryPackage> = Vec::new();
     for a in v.get("affected").and_then(Value::as_array).into_iter().flatten() {
         let Some(pkg) = a.get("package") else { continue };
-        let ecosystem = pkg.get("ecosystem").and_then(Value::as_str).unwrap_or("").split(':').next().unwrap_or("").to_string();
+        let ecosystem = osv_ecosystem(pkg.get("ecosystem").and_then(Value::as_str).unwrap_or(""));
         let name = pkg.get("name").and_then(Value::as_str).unwrap_or("").to_string();
         if ecosystem.is_empty() || name.is_empty() {
             continue;
@@ -899,6 +914,28 @@ mod tests {
         assert_eq!(a.packages[0].fixed, "1.2.0");
         assert_eq!(a.packages[1].package, "example-lib");
         assert!(a.published.is_some());
+    }
+
+    #[test]
+    fn osv_distro_ecosystems_keep_their_release() {
+        // OS advisories are per release (DSA/DLA, USN, Alpine secdb): SBOM packages are keyed `Debian:12`, so must they.
+        let v = json!({
+            "id": "DEBIAN-CVE-2026-0002",
+            "affected": [
+                {"package": {"ecosystem": "Debian:12", "name": "openssl"}, "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "3.0.15-1~deb12u1"}]}]},
+                {"package": {"ecosystem": "Debian:11", "name": "openssl"}, "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "1.1.1w-0+deb11u2"}]}]},
+                {"package": {"ecosystem": "Ubuntu:22.04:LTS", "name": "openssl"}, "versions": ["3.0.2-0ubuntu1.15"]},
+                {"package": {"ecosystem": "Alpine:v3.19", "name": "openssl"}, "versions": ["3.1.4-r0"]},
+                {"package": {"ecosystem": "Rocky Linux:9", "name": "openssl"}, "versions": ["1:3.0.7-24.el9"]},
+                {"package": {"ecosystem": "Maven:https://repo.example.com/", "name": "org.example:core"}, "versions": ["1.0"]}
+            ]
+        });
+        let a = parse_osv(&v).unwrap();
+        let ecos: Vec<&str> = a.packages.iter().map(|p| p.ecosystem.as_str()).collect();
+        assert_eq!(ecos, ["Debian:12", "Debian:11", "Ubuntu:22.04:LTS", "Alpine:v3.19", "Rocky Linux:9", "Maven"]);
+        assert_eq!(a.packages[0].fixed, "3.0.15-1~deb12u1");
+        assert_eq!(osv_ecosystem("Debian:12"), "Debian:12");
+        assert_eq!(osv_ecosystem("PyPI:extra"), "PyPI");
     }
 
     #[test]
