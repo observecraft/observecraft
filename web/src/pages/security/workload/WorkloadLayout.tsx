@@ -62,7 +62,7 @@ export function WorkloadLayout() {
           {menu('Policies', `${BASE}/policies`, POLICY_TABS)}
         </nav>
         <div className="mon-header-actions">
-          <button className="btn" onClick={() => navigate(`${BASE}/policies`)}>
+          <button className="btn" onClick={() => navigate(`${BASE}/setup`)}>
             <Settings size={15} /> Settings
           </button>
         </div>

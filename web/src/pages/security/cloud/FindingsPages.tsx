@@ -179,7 +179,17 @@ function AccountScans() {
   const q = usePostureScans();
   const scan = useScanNow();
   const accounts = q.data?.accounts ?? [];
-  if (!accounts.length) return null;
+  if (q.isLoading) return null;
+  if (!accounts.length)
+    return (
+      <div className="csm-scans">
+        <b>ObserveCraft scanning</b>
+        <span className="muted">
+          No AWS account connected: connect one in <Link to="/integrations/aws">Integrations → AWS</Link> and turn on resource collection to scan it. Azure and Google Cloud accounts aren&rsquo;t
+          scanned yet (<Link to="/security/cloud/settings">setup</Link>).
+        </span>
+      </div>
+    );
   const enabled = accounts.filter((a) => a.enabled);
   return (
     <div className="csm-scans">

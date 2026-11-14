@@ -129,6 +129,7 @@ import { ContentPacksPage } from './pages/security/ContentPacksPage';
 import { RuleEditorPage, RulesPage } from './pages/security/RulesPage';
 import { SiemSettingsPage } from './pages/security/SiemSettingsPage';
 import { CloudSecurityLayout } from './pages/security/cloud/CloudSecurityLayout';
+import { AppsecSetupPage, CloudSecuritySetupPage, WorkloadSetupPage } from './pages/security/SetupPages';
 import { AppsecLayout } from './pages/security/appsec/AppsecLayout';
 import { WorkloadLayout } from './pages/security/workload/WorkloadLayout';
 import { WorkloadOverviewPage } from './pages/security/workload/OverviewPage';
@@ -643,6 +644,7 @@ function Shell() {
               <Route path="policies/denylist" element={<DenylistPage />} />
               <Route path="policies/passlist" element={<PasslistPage />} />
               <Route path="policies/sensitive-data" element={<SensitiveDataPage />} />
+              <Route path="settings" element={<AppsecSetupPage />} />
             </Route>
             <Route path="/security/workload-protection" element={<WorkloadLayout />}>
               <Route index element={<WorkloadOverviewPage />} />
@@ -655,6 +657,7 @@ function Shell() {
               <Route path="policies" element={<AgentConfigurationPage />} />
               <Route path="policies/detection-rules" element={<WorkloadDetectionRulesPage />} />
               <Route path="policies/finding-rules" element={<FindingRulesPage />} />
+              <Route path="setup" element={<WorkloadSetupPage />} />
             </Route>
             <Route path="/security/ai-guard" element={<AiGuardLayout />}>
               <Route index element={<AiGuardInvestigatePage />} />
@@ -671,6 +674,7 @@ function Shell() {
               <Route path="inventory" element={<ResourcesPage />} />
               <Route path="inventory/packages" element={<PackagesPage />} />
               <Route path="inventory/cves" element={<CveExplorerPage />} />
+              <Route path="settings" element={<CloudSecuritySetupPage />} />
             </Route>
             <Route path="/security/siem" element={<SiemLayout />}>
               <Route index element={<SiemOverviewPage />} />
