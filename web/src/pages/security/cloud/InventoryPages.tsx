@@ -9,6 +9,7 @@ import { SeverityBadge } from '../common';
 import { InboxPage } from '../InboxPage';
 import { INVENTORY_TABS, SubTabs } from './CloudSecurityLayout';
 import { AdvisoryBody } from './FindingsPages';
+import { EcosystemIcon } from './resourceTypes';
 import { useCve, useCves, useInfraPackages, useInfraVulnerabilities, useResourceCategories } from './queries';
 
 const PAGE = 25;
@@ -154,7 +155,11 @@ export function PackagesPage() {
                   <td className="mono">
                     <b>{p.name}</b> {p.version}
                   </td>
-                  <td>{p.ecosystem}</td>
+                  <td>
+                    <span className="csm-with-icon">
+                      <EcosystemIcon ecosystem={p.ecosystem} /> {p.ecosystem}
+                    </span>
+                  </td>
                   <td className="num">{p.running}</td>
                   <td className="num">
                     {p.vulnerabilities ? (
