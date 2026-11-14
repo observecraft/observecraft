@@ -581,6 +581,7 @@ use crate::state::AppState;
         code_security::pull_requests,
         code_security::triage,
         code_security::setup,
+        code_security::gitlab_import,
         datadog_api::cost::budget_summaries,
         datadog_api::cost::ui_budget,
         datadog_api::cost::ui_save_budget,
@@ -1450,6 +1451,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/code-security/pull-requests", get(code_security::pull_requests))
         .route("/api/v1/code-security/triage", post(code_security::triage))
         .route("/api/v1/code-security/setup", get(code_security::setup))
+        .route("/api/v1/code-security/gitlab", get(code_security::gitlab_import))
         .route("/api/v1/cloud-cost/budgets", get(datadog_api::cost::budget_summaries).put(datadog_api::cost::ui_save_budget))
         .route("/api/v1/cloud-cost/bill-configs", get(cloud_cost_bills::list))
         .route("/api/v1/cloud-cost/bill-configs/{provider}", post(cloud_cost_bills::create))
@@ -2096,6 +2098,7 @@ mod tests {
             include_str!("entra_logs.rs"),
             include_str!("connectors.rs"),
             include_str!("../connectors/mod.rs"),
+            include_str!("../gitlab/security.rs"),
             include_str!("fleetdm_integration.rs"),
             include_str!("gitlab_audit_integration.rs"),
             include_str!("google_workspace_integration.rs"),
@@ -2478,6 +2481,7 @@ mod tests {
             ("../gitlab/crawler.rs", include_str!("../gitlab/crawler.rs")),
             ("../gitlab/fixtures.rs", include_str!("../gitlab/fixtures.rs")),
             ("../gitlab/otlp.rs", include_str!("../gitlab/otlp.rs")),
+            ("../gitlab/security.rs", include_str!("../gitlab/security.rs")),
             ("../gitlab_audit/mod.rs", include_str!("../gitlab_audit/mod.rs")),
             ("../gitlab_audit/api.rs", include_str!("../gitlab_audit/api.rs")),
             ("../gitlab_audit/crawler.rs", include_str!("../gitlab_audit/crawler.rs")),

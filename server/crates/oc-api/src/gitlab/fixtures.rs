@@ -72,6 +72,84 @@ impl FakeGitlab {
     }
 }
 
+/// The key a GraphQL request is answered under: the project path and the page cursor.
+pub fn graphql_key(full_path: &str, after: Option<&str>) -> String {
+    format!("graphql {full_path} {}", after.unwrap_or("-"))
+}
+
+fn identifier(kind: &str, id: &str, name: &str, url: &str) -> Value {
+    json!({ "externalType": kind, "externalId": id, "name": name, "url": url })
+}
+
+/// One vulnerability of GitLab's GraphQL `Vulnerability` type (the fields the import asks for).
+#[allow(clippy::too_many_arguments)]
+fn vulnerability(id: u64, report_type: &str, scanner: (&str, &str), title: &str, severity: &str, state: &str, identifiers: Vec<Value>, location: Value) -> Value {
+    json!({
+        "id": format!("gid://gitlab/Vulnerability/{id}"), "title": title, "description": format!("{title}: description written by the scanner."),
+        "severity": severity, "state": state, "reportType": report_type, "solution": null,
+        "webUrl": format!("https://gitlab.example.com/example-org/storefront-api/-/security/vulnerabilities/{id}"),
+        "detectedAt": "2026-10-01T08:00:00Z", "dismissedAt": null, "resolvedAt": null, "dismissalReason": null,
+        "scanner": { "externalId": scanner.0, "name": scanner.1, "vendor": "GitLab" },
+        "primaryIdentifier": identifiers[0].clone(), "identifiers": identifiers, "location": location
+    })
+}
+
+/// A page of `project.vulnerabilities` for `example-org/storefront-api`: one of each report type the import reads
+/// (Semgrep SAST, KICS IaC, a dismissed Gitleaks secret, a Gemnasium dependency, a resolved SAST finding) and a
+/// Trivy container finding it leaves out.
+pub fn vulnerabilities_page(has_next: bool, cursor: &str) -> Value {
+    let sast = |file: &str, line: &str| json!({ "__typename": "VulnerabilityLocationSast", "file": file, "startLine": line });
+    let mut secret = vulnerability(
+        7003, "SECRET_DETECTION", ("gitleaks", "Gitleaks"), "AWS access token", "CRITICAL", "DISMISSED",
+        vec![identifier("gitleaks_rule_id", "AWS", "Gitleaks rule ID AWS", "")],
+        json!({ "__typename": "VulnerabilityLocationSecretDetection", "file": "tests/fixtures/aws.env", "startLine": "3" }),
+    );
+    secret["dismissedAt"] = json!("2026-10-05T09:00:00Z");
+    secret["dismissalReason"] = json!("USED_IN_TESTS");
+    let mut dependency = vulnerability(
+        7004, "DEPENDENCY_SCANNING", ("gemnasium", "Gemnasium"), "Prototype pollution in example-merge", "HIGH", "CONFIRMED",
+        vec![identifier("gemnasium", "8c3f2a10-1b2c-4d5e-8f90-a1b2c3d4e5f6", "Gemnasium-8c3f2a10", ""), identifier("cve", "CVE-2026-90010", "CVE-2026-90010", "https://cve.example.com/CVE-2026-90010"), identifier("cwe", "1321", "CWE-1321", "")],
+        json!({ "__typename": "VulnerabilityLocationDependencyScanning", "file": "package-lock.json", "dependency": { "package": { "name": "example-merge" }, "version": "2.1.0" } }),
+    );
+    dependency["solution"] = json!("Upgrade to version 2.1.4 or above.");
+    let mut resolved = vulnerability(
+        7005, "SAST", ("semgrep", "Semgrep"), "Use of a broken hash (MD5)", "MEDIUM", "RESOLVED",
+        vec![identifier("semgrep_id", "bandit.B303-1", "bandit.B303-1", ""), identifier("cwe", "327", "CWE-327", "https://cwe.mitre.org/data/definitions/327.html")],
+        sast("app/utils/hash.py", "12"),
+    );
+    resolved["resolvedAt"] = json!("2026-10-20T10:00:00Z");
+    json!({ "project": {
+        "id": "gid://gitlab/Project/4211", "fullPath": "example-org/storefront-api", "webUrl": "https://gitlab.example.com/example-org/storefront-api",
+        "repository": { "rootRef": "main" },
+        "vulnerabilities": {
+            "pageInfo": { "hasNextPage": has_next, "endCursor": cursor },
+            "nodes": [
+                vulnerability(7001, "SAST", ("semgrep", "Semgrep"), "Improper neutralization of special elements in an SQL command", "HIGH", "DETECTED",
+                    vec![identifier("semgrep_id", "python.django.security.injection.sql.sql-injection-using-raw", "sql-injection-using-raw", ""), identifier("cwe", "89", "CWE-89", "https://cwe.mitre.org/data/definitions/89.html")],
+                    sast("app/orders/views.py", "41")),
+                vulnerability(7002, "SAST", ("kics", "KICS"), "S3 bucket allows public read", "HIGH", "DETECTED",
+                    vec![identifier("kics_id", "57b9893d-33b1-4419-bcea-a717ea87e139", "S3 bucket ACL allows read to all users", "https://docs.kics.io/latest/queries/terraform-queries/")],
+                    sast("infra/s3.tf", "12")),
+                secret,
+                dependency,
+                resolved,
+                vulnerability(7006, "CONTAINER_SCANNING", ("trivy", "Trivy"), "CVE-2026-90020 in libexample", "HIGH", "DETECTED",
+                    vec![identifier("cve", "CVE-2026-90020", "CVE-2026-90020", "")],
+                    json!({ "__typename": "VulnerabilityLocationContainerScanning", "image": "registry.example.com/storefront-api:1.4.0", "operatingSystem": "debian 12", "dependency": { "package": { "name": "libexample" }, "version": "1.0-1" } })),
+            ]
+        }
+    } })
+}
+
+/// GitLab's dependency list of the project (`GET /projects/:id/dependencies`).
+pub fn dependencies() -> Value {
+    json!([
+        { "name": "example-merge", "version": "2.1.0", "package_manager": "npm", "dependency_file_path": "package-lock.json", "licenses": [{ "name": "MIT", "url": "" }] },
+        { "name": "example-router", "version": "4.2.0", "package_manager": "npm", "dependency_file_path": "package-lock.json", "licenses": [] },
+        { "name": "Example_Http", "version": "2.31.0", "package_manager": "pip", "dependency_file_path": "requirements.txt", "licenses": [] },
+    ])
+}
+
 #[async_trait::async_trait]
 impl GitlabApi for FakeGitlab {
     async fn get(&self, _base: &str, token: &str, path: &str) -> Result<Value, GitlabError> {
@@ -85,6 +163,11 @@ impl GitlabApi for FakeGitlab {
             return Err(GitlabError::Throttled("The provider answered: HTTP 429".into()));
         }
         self.answers.lock().unwrap().get(path).cloned().ok_or_else(|| GitlabError::NotFound(format!("no fixture for {path}")))
+    }
+
+    async fn graphql(&self, base: &str, token: &str, _query: &str, variables: Value) -> Result<Value, GitlabError> {
+        let key = graphql_key(variables["fullPath"].as_str().unwrap_or_default(), variables["after"].as_str());
+        self.get(base, token, &key).await
     }
 }
 

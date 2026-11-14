@@ -203,7 +203,7 @@ pub async fn store_sarif(st: &AppState, org: &str, ctx: &ScanContext, report: &V
     }
     if !pr {
         let tools: Vec<String> = tools.iter().cloned().collect();
-        sqlx::query("UPDATE cs_findings SET resolved_at = now() WHERE org_id = $1 AND repository = $2 AND pr_number = '' AND tool = ANY($3) AND scan_id <> $4 AND resolved_at IS NULL")
+        sqlx::query("UPDATE cs_findings SET resolved_at = now() WHERE org_id = $1 AND repository = $2 AND pr_number = '' AND source = 'upload' AND tool = ANY($3) AND scan_id <> $4 AND resolved_at IS NULL")
             .bind(org)
             .bind(&ctx.repository)
             .bind(&tools)
@@ -465,7 +465,7 @@ impl CsFilter {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Occurrence {
-    /// runtime (a service loads it) | static (a repository declares it)
+    /// runtime (a service loads it) | static (a repository declares it, uploaded) | gitlab (GitLab's dependency scanning)
     pub source: String,
     pub service: String,
     pub env: String,
@@ -503,7 +503,132 @@ pub struct LibraryVulnerability {
     pub first_seen: i64,
     pub last_seen: i64,
     pub status: String,
+    /// Why it is muted (GitLab's dismissal reason).
+    pub status_reason: String,
+    /// Where it was found: runtime (tracers) | upload (an SBOM upload) | gitlab (GitLab's dependency scanning).
+    pub sources: Vec<String>,
+    /// The vulnerability's page in the source control (GitLab).
+    pub url: String,
     pub occurrences: Vec<Occurrence>,
+}
+
+/// A library vulnerability a source control's dependency scanner reported (`cs_dependency_findings`).
+#[derive(sqlx::FromRow, Clone, Debug, Default)]
+pub(crate) struct DependencyFinding {
+    pub source: String,
+    pub repository: String,
+    pub ecosystem: String,
+    pub package: String,
+    pub version: String,
+    pub file: String,
+    pub advisory_id: String,
+    pub aliases: Vec<String>,
+    pub title: String,
+    pub severity: String,
+    pub cwes: Vec<String>,
+    pub fixed: String,
+    pub url: String,
+    pub upstream_state: String,
+    pub upstream_reason: String,
+    pub first_seen: i64,
+    pub last_seen: i64,
+    pub resolved: bool,
+}
+
+/// How strongly a status holds when two sources report the same finding: a mute (a decision) over open over resolved.
+fn status_rank(s: &str) -> u8 {
+    match s {
+        "muted" => 2,
+        "open" => 1,
+        _ => 0,
+    }
+}
+
+/// A source's status: resolved there, else muted when dismissed upstream (GitLab), else open.
+pub(crate) fn upstream_status(resolved: bool, upstream_state: &str) -> &'static str {
+    if resolved {
+        "resolved"
+    } else if upstream_state == "dismissed" {
+        "muted"
+    } else {
+        "open"
+    }
+}
+
+/// The source name of a library occurrence.
+fn occurrence_source(source: &str) -> &str {
+    match source {
+        "static" => "upload",
+        s => s,
+    }
+}
+
+/// Adds a source control's dependency findings to the OSV-matched vulnerabilities: a finding of the same package
+/// version and advisory (by id or alias) joins it as another source; others become vulnerabilities of their own.
+/// Our triage wins over the source's state.
+pub(crate) fn merge_dependency_findings(list: &mut BTreeMap<String, LibraryVulnerability>, rows: Vec<DependencyFinding>, triage: &HashMap<String, String>) {
+    for r in rows {
+        let ids: Vec<&str> = std::iter::once(r.advisory_id.as_str()).chain(r.aliases.iter().map(String::as_str)).collect();
+        let found = list.values_mut().find(|v| {
+            v.package == r.package && v.version == r.version && (r.ecosystem.is_empty() || v.ecosystem == r.ecosystem) && (ids.contains(&v.advisory_id.as_str()) || v.aliases.iter().any(|a| ids.contains(&a.as_str())))
+        });
+        let theirs = upstream_status(r.resolved, &r.upstream_state);
+        let occurrence = Occurrence { source: r.source.clone(), service: String::new(), env: String::new(), repository: r.repository.clone(), file: r.file.clone(), dev: false, first_seen: r.first_seen, last_seen: r.last_seen };
+        let v = match found {
+            Some(v) => {
+                let triaged = triage.contains_key(&format!("vuln:{}:{}:{}", v.advisory_id, v.ecosystem, v.package));
+                if !triaged && status_rank(theirs) > status_rank(&v.status) {
+                    v.status = theirs.into();
+                    v.status_reason = r.upstream_reason.clone();
+                }
+                v
+            }
+            None => {
+                let key = format!("{}|{}|{}|{}", r.advisory_id, r.ecosystem, r.package, r.version);
+                let triaged = triage.get(&format!("vuln:{}:{}:{}", r.advisory_id, r.ecosystem, r.package));
+                list.entry(key.clone()).or_insert_with(|| LibraryVulnerability {
+                    status: triaged.cloned().unwrap_or_else(|| theirs.into()),
+                    status_reason: if triaged.is_none() && theirs == "muted" { r.upstream_reason.clone() } else { String::new() },
+                    key,
+                    cve: ids.iter().find(|a| a.starts_with("CVE-")).map(|s| s.to_string()),
+                    aliases: r.aliases.iter().filter(|a| **a != r.advisory_id).cloned().collect(),
+                    title: if r.title.is_empty() { r.advisory_id.clone() } else { r.title.clone() },
+                    severity: r.severity.clone(),
+                    score: None,
+                    cwes: r.cwes.clone(),
+                    language: model::language_of_ecosystem(&r.ecosystem).into(),
+                    fixed: (!r.fixed.is_empty()).then(|| r.fixed.clone()),
+                    ecosystem: r.ecosystem.clone(),
+                    package: r.package.clone(),
+                    version: r.version.clone(),
+                    advisory_id: r.advisory_id.clone(),
+                    services: vec![],
+                    repositories: vec![],
+                    envs: vec![],
+                    in_production: false,
+                    direct: None,
+                    first_seen: r.first_seen,
+                    last_seen: r.last_seen,
+                    sources: vec![],
+                    url: String::new(),
+                    occurrences: vec![],
+                })
+            }
+        };
+        if v.url.is_empty() {
+            v.url = r.url.clone();
+        }
+        if !v.repositories.contains(&r.repository) {
+            v.repositories.push(r.repository.clone());
+        }
+        let source = occurrence_source(&r.source).to_string();
+        if !v.sources.contains(&source) {
+            v.sources.push(source);
+        }
+        v.first_seen = v.first_seen.min(r.first_seen);
+        v.last_seen = v.last_seen.max(r.last_seen);
+        v.occurrences.push(occurrence);
+    }
 }
 
 #[derive(sqlx::FromRow)]
@@ -577,6 +702,9 @@ async fn library_vulnerabilities(st: &AppState, org: &str) -> Result<Vec<Library
             direct: None,
             first_seen: r.first_seen,
             last_seen: r.last_seen,
+            status_reason: String::new(),
+            sources: vec![],
+            url: String::new(),
             occurrences: vec![],
         });
         // Dev-only libraries of a repository never reach production.
@@ -594,8 +722,21 @@ async fn library_vulnerabilities(st: &AppState, org: &str) -> Result<Vec<Library
         v.direct = v.direct.or(r.direct);
         v.first_seen = v.first_seen.min(r.first_seen);
         v.last_seen = v.last_seen.max(r.last_seen);
+        let source = occurrence_source(&r.source).to_string();
+        if !v.sources.contains(&source) {
+            v.sources.push(source);
+        }
         v.occurrences.push(Occurrence { source: r.source, service: r.service, env: r.env, repository: r.repository, file: r.file, dev: r.dev, first_seen: r.first_seen, last_seen: r.last_seen });
     }
+    let found: Vec<DependencyFinding> = sqlx::query_as(
+        "SELECT source, repository, ecosystem, package, version, file, advisory_id, aliases, title, severity, cwes, fixed, url, upstream_state, upstream_reason, \
+         (EXTRACT(EPOCH FROM first_seen) * 1000)::bigint AS first_seen, (EXTRACT(EPOCH FROM last_seen) * 1000)::bigint AS last_seen, resolved_at IS NOT NULL AS resolved \
+         FROM cs_dependency_findings WHERE org_id = $1",
+    )
+    .bind(org)
+    .fetch_all(&st.postgres)
+    .await?;
+    merge_dependency_findings(&mut out, found, &triage);
     let mut list: Vec<LibraryVulnerability> = out.into_values().collect();
     list.sort_by(|a, b| {
         model::severity_rank(&b.severity)
@@ -788,7 +929,7 @@ pub async fn get_advisory(State(st): State<AppState>, OrgId(org): OrgId, Path(id
     let packages: Vec<(String, String, String, String)> =
         sqlx::query_as("SELECT ecosystem, package, ranges::text, fixed FROM cs_advisory_packages WHERE advisory_id = $1 ORDER BY ecosystem, package").bind(&id).fetch_all(&st.postgres).await?;
     let (services, repos): (i64, i64) = sqlx::query_as(
-        "SELECT count(DISTINCT service) FILTER (WHERE source = 'runtime'), count(DISTINCT repository) FILTER (WHERE source = 'static') FROM cs_libraries WHERE org_id = $1",
+        "SELECT count(DISTINCT service) FILTER (WHERE source = 'runtime'), count(DISTINCT repository) FILTER (WHERE source <> 'runtime') FROM cs_libraries WHERE org_id = $1",
     )
     .bind(&org)
     .fetch_one(&st.postgres)
@@ -818,7 +959,7 @@ pub async fn get_advisory(State(st): State<AppState>, OrgId(org): OrgId, Path(id
 
 // ================================================================ static findings (SAST, Secrets, IaC)
 
-#[derive(Serialize, ToSchema, sqlx::FromRow)]
+#[derive(Serialize, ToSchema, sqlx::FromRow, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct StaticFinding {
     pub id: String,
@@ -843,6 +984,20 @@ pub struct StaticFinding {
     pub resolved_at: Option<i64>,
     #[sqlx(skip)]
     pub status: String,
+    /// Why it is muted (GitLab's dismissal reason).
+    pub status_reason: String,
+    /// The row's origin: upload (datadog-ci sarif upload) | gitlab (GitLab's Vulnerability Report).
+    #[serde(skip)]
+    pub source: String,
+    /// Every source that reports it: upload | gitlab.
+    #[sqlx(skip)]
+    pub sources: Vec<String>,
+    /// The finding's page in the source control (GitLab).
+    pub url: String,
+    #[serde(skip)]
+    pub upstream_state: String,
+    #[serde(skip)]
+    pub identifiers: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, ToSchema)]
@@ -855,11 +1010,11 @@ pub struct FindingFilter {
 }
 
 async fn static_findings(st: &AppState, org: &str, kind: Option<&str>, prs: bool) -> Result<Vec<StaticFinding>, ApiError> {
-    let mut rows: Vec<StaticFinding> = sqlx::query_as(
+    let rows: Vec<StaticFinding> = sqlx::query_as(
         "SELECT f.id, f.kind, f.tool, f.rule_id, COALESCE(NULLIF(r.name, ''), f.rule_id) AS rule_name, COALESCE(r.description, '') AS description, \
          COALESCE(r.cwes, '{}') AS cwes, COALESCE(r.help_uri, '') AS help_uri, f.severity, f.message, f.repository, f.branch, f.commit_sha, f.file, f.line, f.snippet, f.pr_number, \
          (EXTRACT(EPOCH FROM f.first_seen) * 1000)::bigint AS first_seen, (EXTRACT(EPOCH FROM f.last_seen) * 1000)::bigint AS last_seen, \
-         (EXTRACT(EPOCH FROM f.resolved_at) * 1000)::bigint AS resolved_at \
+         (EXTRACT(EPOCH FROM f.resolved_at) * 1000)::bigint AS resolved_at, f.upstream_reason AS status_reason, f.source, f.url, f.upstream_state, f.identifiers \
          FROM cs_findings f LEFT JOIN cs_rules r ON r.org_id = f.org_id AND r.tool = f.tool AND r.rule_id = f.rule_id \
          WHERE f.org_id = $1 AND ($2 = '' OR f.kind = $2) AND ((f.pr_number <> '') = $3) ORDER BY f.last_seen DESC",
     )
@@ -869,11 +1024,84 @@ async fn static_findings(st: &AppState, org: &str, kind: Option<&str>, prs: bool
     .fetch_all(&st.postgres)
     .await?;
     let triage = triage_map(st, org).await?;
-    for r in &mut rows {
-        r.status = if r.resolved_at.is_some() { "resolved".into() } else { triage.get(&format!("finding:{}", r.id)).cloned().unwrap_or_else(|| "open".into()) };
-    }
+    let mut rows = merge_static_findings(rows, &triage);
     rows.sort_by(|a, b| model::severity_rank(&b.severity).cmp(&model::severity_rank(&a.severity)).then(b.last_seen.cmp(&a.last_seen)));
     Ok(rows)
+}
+
+/// A finding's own status: resolved, else our triage, else muted when dismissed upstream (GitLab), else open.
+fn finding_status(f: &StaticFinding, triage: &HashMap<String, String>) -> String {
+    match (f.resolved_at, triage.get(&format!("finding:{}", f.id))) {
+        (Some(_), _) => "resolved".into(),
+        (None, Some(t)) => t.clone(),
+        (None, None) => upstream_status(false, &f.upstream_state).into(),
+    }
+}
+
+/// An uploaded finding and GitLab's are the same one: same repository, kind, file and line, and GitLab names the
+/// uploaded rule (or the same rule id, or a shared CWE).
+fn same_finding(upload: &StaticFinding, gitlab: &StaticFinding) -> bool {
+    upload.repository == gitlab.repository
+        && upload.kind == gitlab.kind
+        && upload.file == gitlab.file
+        && upload.line == gitlab.line
+        && (upload.rule_id == gitlab.rule_id || gitlab.identifiers.contains(&upload.rule_id) || upload.cwes.iter().any(|c| gitlab.cwes.contains(c)))
+}
+
+/// Sets each finding's status and lists a finding both uploaded and imported from GitLab once, with both sources
+/// (the upload's row, GitLab's link; a mute over open over resolved, our triage over GitLab's state).
+pub(crate) fn merge_static_findings(rows: Vec<StaticFinding>, triage: &HashMap<String, String>) -> Vec<StaticFinding> {
+    let (gitlab, uploads): (Vec<StaticFinding>, Vec<StaticFinding>) = rows.into_iter().partition(|f| f.source == "gitlab");
+    let mut out: Vec<StaticFinding> = Vec::with_capacity(uploads.len() + gitlab.len());
+    let with_status = |mut f: StaticFinding| {
+        f.status = finding_status(&f, triage);
+        if f.status != "muted" || triage.contains_key(&format!("finding:{}", f.id)) {
+            f.status_reason.clear();
+        }
+        f.sources = vec![occurrence_source(&f.source).to_string()];
+        f
+    };
+    out.extend(uploads.into_iter().map(&with_status));
+    let uploaded = out.len();
+    for g in gitlab.into_iter().map(&with_status) {
+        let Some(u) = out[..uploaded].iter_mut().find(|u| same_finding(u, &g)) else {
+            out.push(g);
+            continue;
+        };
+        if !u.sources.contains(&g.source) {
+            u.sources.push(g.source.clone());
+        }
+        if u.url.is_empty() {
+            u.url = g.url.clone();
+        }
+        if !triage.contains_key(&format!("finding:{}", u.id)) && status_rank(&g.status) > status_rank(&u.status) {
+            u.status = g.status.clone();
+            u.status_reason = g.status_reason.clone();
+        }
+        if u.status != "resolved" {
+            u.resolved_at = None;
+        }
+        u.first_seen = u.first_seen.min(g.first_seen);
+        u.last_seen = u.last_seen.max(g.last_seen);
+    }
+    out
+}
+
+/// A repository's source control (github | gitlab | bitbucket | git) and its page: GitLab also on the hosts of the
+/// org's GitLab connection (self-managed instances).
+pub(crate) fn repository_link(repository: &str, gitlab_hosts: &[String]) -> (&'static str, String) {
+    let Some((host, _)) = repository.split_once('/') else { return ("git", String::new()) };
+    let host = host.to_ascii_lowercase();
+    let provider = if host == "github.com" || host.starts_with("github.") {
+        "github"
+    } else if host == "gitlab.com" || host.starts_with("gitlab.") || gitlab_hosts.contains(&host) {
+        "gitlab"
+    } else if host.contains("bitbucket") {
+        "bitbucket"
+    } else {
+        "git"
+    };
+    (provider, format!("https://{repository}"))
 }
 
 #[derive(Serialize, ToSchema)]
@@ -1187,6 +1415,18 @@ pub struct RepositorySummary {
     pub last_scan: Option<i64>,
     pub last_branch: String,
     pub last_commit: String,
+    /// github | gitlab | bitbucket | git
+    pub provider: String,
+    /// The repository's page ('' when its name isn't a URL).
+    pub url: String,
+    /// Its results are imported from GitLab's Vulnerability Report.
+    pub gitlab_import: bool,
+}
+
+/// The host of the org's GitLab connection (its self-managed instance).
+async fn gitlab_hosts(st: &AppState, org: &str) -> Result<Vec<String>, ApiError> {
+    let urls: Vec<String> = sqlx::query_scalar("SELECT base_url FROM gitlab_ci_connections WHERE org_id = $1").bind(org).fetch_all(&st.postgres).await?;
+    Ok(urls.iter().map(|u| model::normalize_repo(u).to_ascii_lowercase()).collect())
 }
 
 #[utoipa::path(get, path = "/api/v1/code-security/repositories", responses((status = 200, body = Vec<RepositorySummary>)), tag = "code-security")]
@@ -1198,13 +1438,16 @@ pub async fn repositories(State(st): State<AppState>, OrgId(org): OrgId) -> ApiR
     .bind(&org)
     .fetch_all(&st.postgres)
     .await?;
-    let libs: Vec<(String, i64)> = sqlx::query_as("SELECT repository, count(*) FROM cs_libraries WHERE org_id = $1 AND source = 'static' GROUP BY repository").bind(&org).fetch_all(&st.postgres).await?;
+    let libs: Vec<(String, i64)> = sqlx::query_as("SELECT repository, count(DISTINCT (ecosystem, name, version)) FROM cs_libraries WHERE org_id = $1 AND source <> 'runtime' GROUP BY repository").bind(&org).fetch_all(&st.postgres).await?;
     let libs: HashMap<String, i64> = libs.into_iter().collect();
     let vulns = library_vulnerabilities(&st, &org).await?;
     let findings = static_findings(&st, &org, None, false).await?;
+    let imported: HashSet<String> = sqlx::query_scalar("SELECT DISTINCT repository FROM cs_scans WHERE org_id = $1 AND kind = 'gitlab'").bind(&org).fetch_all(&st.postgres).await?.into_iter().collect();
+    let gitlab_hosts = gitlab_hosts(&st, &org).await?;
     let out = scans
         .into_iter()
         .map(|(repository, last, branch, commit)| {
+            let (provider, url) = repository_link(&repository, &gitlab_hosts);
             let count = |kind: &str, keep: &dyn Fn(&StaticFinding) -> bool| findings.iter().filter(|f| f.repository == repository && f.kind == kind && f.status == "open" && keep(f)).count();
             let all = |_: &StaticFinding| true;
             RepositorySummary {
@@ -1217,6 +1460,9 @@ pub async fn repositories(State(st): State<AppState>, OrgId(org): OrgId) -> ApiR
                 last_scan: Some(last),
                 last_branch: branch,
                 last_commit: commit,
+                provider: provider.into(),
+                url,
+                gitlab_import: imported.contains(&repository),
                 repository,
             }
         })
@@ -1260,13 +1506,13 @@ pub struct InventoryPage {
 
 #[utoipa::path(post, path = "/api/v1/code-security/inventory/libraries", request_body = InventoryRequest, responses((status = 200, body = InventoryPage)), tag = "code-security")]
 pub async fn inventory_libraries(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<InventoryRequest>) -> ApiResult<InventoryPage> {
-    let source = if req.view == "runtime" { "runtime" } else { "static" };
+    let runtime = req.view == "runtime";
     let rows: Vec<InventoryRow> = sqlx::query_as(
         "SELECT ecosystem, language, name, version, licenses, service, repository, file, (EXTRACT(EPOCH FROM first_seen) * 1000)::bigint, direct \
-         FROM cs_libraries WHERE org_id = $1 AND source = $2",
+         FROM cs_libraries WHERE org_id = $1 AND (source = 'runtime') = $2",
     )
     .bind(&org)
-    .bind(source)
+    .bind(runtime)
     .fetch_all(&st.postgres)
     .await?;
     let vulns = library_vulnerabilities(&st, &org).await?;
@@ -1288,7 +1534,7 @@ pub async fn inventory_libraries(State(st): State<AppState>, OrgId(org): OrgId, 
                 direct,
             }
         });
-        let loc = if source == "runtime" { service } else { repository };
+        let loc = if runtime { service } else { repository };
         if !loc.is_empty() && !e.locations.contains(&loc) {
             e.locations.push(loc);
         }
@@ -1498,7 +1744,7 @@ pub struct CodeSecuritySetup {
 pub async fn setup(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<CodeSecuritySetup> {
     let (runtime, static_repos, code_repos): (i64, i64, i64) = sqlx::query_as(
         "SELECT (SELECT count(DISTINCT service) FROM cs_libraries WHERE org_id = $1 AND source = 'runtime'), \
-         (SELECT count(DISTINCT repository) FROM cs_libraries WHERE org_id = $1 AND source = 'static'), \
+         (SELECT count(DISTINCT repository) FROM cs_libraries WHERE org_id = $1 AND source <> 'runtime'), \
          (SELECT count(DISTINCT repository) FROM cs_scans WHERE org_id = $1 AND kind = 'sarif')",
     )
     .bind(&org)
@@ -1517,6 +1763,13 @@ pub async fn setup(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<C
         osv_enabled: st.config.osv_url.is_some(),
         last_osv_check: last,
     }))
+}
+
+/// Code Security's import from GitLab: whether the GitLab connection imports its scanners' results, and each
+/// project's last import.
+#[utoipa::path(get, path = "/api/v1/code-security/gitlab", responses((status = 200, body = crate::gitlab::security::GitlabImportStatus)), tag = "code-security")]
+pub async fn gitlab_import(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<crate::gitlab::security::GitlabImportStatus> {
+    Ok(Json(crate::gitlab::security::status(&st, &org).await?))
 }
 
 // ================================================================ demo
@@ -1706,6 +1959,62 @@ mod tests {
         assert_eq!(prs.iter().map(|f| f.rule_id.as_str()).collect::<Vec<_>>(), vec!["rule-c"]);
         // Advisories are shared by every org of the database: leave none behind.
         sqlx::query("DELETE FROM cs_advisories WHERE id = 'OCSA-TEST-0001'").execute(&s.st.postgres).await.unwrap();
+    }
+
+    fn finding(id: &str, source: &str, rule: &str, line: i32) -> StaticFinding {
+        StaticFinding {
+            id: id.into(),
+            kind: "sast".into(),
+            tool: if source == "gitlab" { "semgrep".into() } else { "datadog-static-analyzer".into() },
+            rule_id: rule.into(),
+            severity: "high".into(),
+            repository: "gitlab.example.com/example-org/storefront-api".into(),
+            file: "app/orders/views.py".into(),
+            line,
+            cwes: vec!["CWE-89".into()],
+            source: source.into(),
+            first_seen: 10,
+            last_seen: 20,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn the_same_finding_from_an_upload_and_gitlab_is_listed_once_with_both_sources() {
+        let upload = finding("up1", "upload", "python-security/variable-sql-statement-injection", 41);
+        let gitlab = StaticFinding { url: "https://gitlab.example.com/v/7001".into(), upstream_state: "dismissed".into(), status_reason: "False positive".into(), first_seen: 5, ..finding("gl1", "gitlab", "semgrep-sqli", 41) };
+        let elsewhere = finding("gl2", "gitlab", "semgrep-sqli", 90);
+        let merged = merge_static_findings(vec![upload, gitlab, elsewhere], &HashMap::new());
+        assert_eq!(merged.len(), 2);
+        let one = merged.iter().find(|f| f.id == "up1").unwrap();
+        assert_eq!(one.sources, vec!["upload", "gitlab"]);
+        assert_eq!((one.url.as_str(), one.status.as_str(), one.status_reason.as_str(), one.first_seen), ("https://gitlab.example.com/v/7001", "muted", "False positive", 5));
+        let other = merged.iter().find(|f| f.id == "gl2").unwrap();
+        assert_eq!((other.sources.clone(), other.status.as_str()), (vec!["gitlab".to_string()], "open"));
+    }
+
+    #[test]
+    fn our_triage_wins_over_gitlabs_state_and_a_rule_named_by_gitlab_matches_without_a_cwe() {
+        let upload = StaticFinding { cwes: vec![], ..finding("up1", "upload", "semgrep-sqli", 41) };
+        let gitlab = StaticFinding { identifiers: vec!["semgrep-sqli".into()], cwes: vec![], upstream_state: "dismissed".into(), ..finding("gl1", "gitlab", "x", 41) };
+        let triage = HashMap::from([("finding:up1".to_string(), "open".to_string())]);
+        let merged = merge_static_findings(vec![upload.clone(), gitlab.clone()], &triage);
+        assert_eq!((merged.len(), merged[0].status.as_str()), (1, "open"));
+        // Resolved upstream, open in the upload: still open.
+        let resolved = StaticFinding { resolved_at: Some(30), upstream_state: "resolved".into(), ..gitlab };
+        let merged = merge_static_findings(vec![upload, resolved], &HashMap::new());
+        assert_eq!((merged[0].status.as_str(), merged[0].resolved_at), ("open", None));
+    }
+
+    #[test]
+    fn repositories_name_their_source_control_and_link_to_it() {
+        let gitlab_hosts = vec!["gitlab.internal.example.com".to_string()];
+        assert_eq!(repository_link("github.com/example-org/storefront", &gitlab_hosts), ("github", "https://github.com/example-org/storefront".to_string()));
+        assert_eq!(repository_link("gitlab.com/example-org/billing", &gitlab_hosts).0, "gitlab");
+        assert_eq!(repository_link("gitlab.internal.example.com/example-org/billing", &gitlab_hosts).0, "gitlab");
+        assert_eq!(repository_link("bitbucket.org/example-org/billing", &gitlab_hosts).0, "bitbucket");
+        assert_eq!(repository_link("git.example.com/example-org/billing", &gitlab_hosts), ("git", "https://git.example.com/example-org/billing".to_string()));
+        assert_eq!(repository_link("shop", &gitlab_hosts), ("git", String::new()));
     }
 
     #[test]

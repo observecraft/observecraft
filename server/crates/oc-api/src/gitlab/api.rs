@@ -36,6 +36,11 @@ impl GitlabError {
 pub trait GitlabApi: Send + Sync {
     /// `GET {base}/api/v4{path}` with the token.
     async fn get(&self, base: &str, token: &str, path: &str) -> Result<Value, GitlabError>;
+
+    /// `POST {base}/api/graphql` with the token: the answer's `data` (see [`graphql_data`]).
+    async fn graphql(&self, _base: &str, _token: &str, _query: &str, _variables: Value) -> Result<Value, GitlabError> {
+        Err(GitlabError::Other("GraphQL is not available here".into()))
+    }
 }
 
 /// The real API, through the SSRF guard.
@@ -68,6 +73,27 @@ impl GitlabApi for Rest {
     async fn get(&self, base: &str, token: &str, path: &str) -> Result<Value, GitlabError> {
         let call = HttpCall::get(format!("{base}/api/v4{path}"), Auth::GitlabToken(token.to_string()));
         send_with_status(&call, self.allow_private).await.map_err(|(status, message)| classify(status, &message, token))
+    }
+
+    async fn graphql(&self, base: &str, token: &str, query: &str, variables: Value) -> Result<Value, GitlabError> {
+        let call = HttpCall::post(format!("{base}/api/graphql"), Auth::GitlabToken(token.to_string()), serde_json::json!({ "query": query, "variables": variables }));
+        let answer = send_with_status(&call, self.allow_private).await.map_err(|(status, message)| classify(status, &message, token))?;
+        graphql_data(answer, token)
+    }
+}
+
+/// A GraphQL answer's `data`: GitLab answers HTTP 200 with `errors` for a refused or invalid query (a field
+/// this GitLab version doesn't have, a query too complex), which become errors here.
+pub fn graphql_data(answer: Value, token: &str) -> Result<Value, GitlabError> {
+    let errors: Vec<String> = answer["errors"].as_array().into_iter().flatten().filter_map(|e| e["message"].as_str().map(str::to_string)).collect();
+    if !errors.is_empty() {
+        let message = scrub(&format!("GitLab's GraphQL API refused the query: {}", errors.join("; ")), token);
+        let lower = message.to_lowercase();
+        return Err(if lower.contains("permission") || lower.contains("not authorized") || lower.contains("unauthorized") { GitlabError::Auth(message) } else { GitlabError::Other(message) });
+    }
+    match answer.get("data") {
+        Some(d) if d.is_object() => Ok(d.clone()),
+        _ => Err(GitlabError::Other("GitLab's GraphQL API answered without data".into())),
     }
 }
 
@@ -143,9 +169,26 @@ pub fn commit_path(project_id: u64, sha: &str) -> Option<String> {
     (!sha.is_empty() && sha.len() <= 64 && sha.chars().all(|c| c.is_ascii_hexdigit())).then(|| format!("/projects/{project_id}/repository/commits/{sha}"))
 }
 
+/// A project's dependency list (GitLab Ultimate's Dependencies API: name, version, package manager, file).
+pub fn dependencies_path(project_id: u64, page: usize) -> String {
+    format!("/projects/{project_id}/dependencies?per_page={PER_PAGE}&page={page}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn graphql_errors_become_errors_and_data_is_unwrapped() {
+        let ok = graphql_data(serde_json::json!({"data": {"project": {"id": "gid://gitlab/Project/1"}}}), "t").unwrap();
+        assert_eq!(ok["project"]["id"], "gid://gitlab/Project/1");
+        let e = graphql_data(serde_json::json!({"errors": [{"message": "Field 'dismissalReason' doesn't exist on type 'Vulnerability'"}]}), "t").unwrap_err();
+        assert!(matches!(e, GitlabError::Other(_)) && e.message().contains("dismissalReason"), "{e:?}");
+        let e = graphql_data(serde_json::json!({"errors": [{"message": "You don't have permission (token glpat-x)"}], "data": null}), "glpat-x").unwrap_err();
+        assert!(matches!(e, GitlabError::Auth(_)) && !e.message().contains("glpat-x"), "{e:?}");
+        assert!(graphql_data(serde_json::json!({"data": null}), "t").is_err());
+        assert_eq!(dependencies_path(4211, 2), "/projects/4211/dependencies?per_page=100&page=2");
+    }
 
     #[test]
     fn paths_are_validated() {
