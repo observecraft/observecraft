@@ -85,3 +85,26 @@ test('hosts and images show their distribution, packages their ecosystem', async
   for (const [e, logo] of Object.entries(eco)) assert.equal(ecosystemLogo(e), logo, e);
   assert.equal(ecosystemLogo('Hex'), null);
 });
+
+test('the resource types of the provenance lists read as names, not raw ids', () => {
+  const names = {
+    AwsS3Bucket: 'S3 Bucket',
+    AwsRdsDbInstance: 'RDS DB Instance',
+    AwsSqsQueue: 'SQS Queue',
+    AwsEc2Instance: 'EC2 Instance',
+    AwsLambdaFunction: 'Lambda Function',
+    AwsIamRole: 'IAM Role',
+    'Microsoft.Storage/storageAccounts': 'Storage Account',
+    'Microsoft.KeyVault/vaults': 'Key Vault',
+    'storage.googleapis.com/Bucket': 'Cloud Storage Bucket',
+    kube_deployment: 'Deployment',
+    kube_service: 'Service',
+    container_image: 'Container Image',
+    service: 'APM Service',
+  };
+  for (const [type, name] of Object.entries(names)) assert.equal(resourceKind(type).name, name, type);
+  assert.equal(resourceKind('AwsS3Bucket').logo, 'tile:aws-s3');
+  assert.equal(resourceKind('kube_deployment').kube, 'deployment');
+  assert.equal(resourceKind('container_image').logo, 'docker');
+  assert.equal(resourceKind('service').fallback, 'service');
+});

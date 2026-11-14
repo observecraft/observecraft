@@ -92,7 +92,7 @@ function words(s: string): string {
     .trim();
 }
 
-export type Kind = { name: string; logo: string | null; fallback?: 'host' | 'container' | 'aws' | 'azure' | 'gcp' | 'repository'; kube?: string };
+export type Kind = { name: string; logo: string | null; fallback?: 'host' | 'container' | 'aws' | 'azure' | 'gcp' | 'repository' | 'service'; kube?: string };
 
 /** Google Cloud services in Cloud Asset types (`compute.googleapis.com/Instance`): their name and icon id. */
 const GCP: Record<string, [name: string, icon: string]> = {
@@ -141,6 +141,8 @@ export function resourceKind(type: string, resource = ''): Kind {
   if (kube) return { name: KUBE[kube[1]] ?? words(kube[1].charAt(0).toUpperCase() + kube[1].slice(1)), logo: 'kubernetes', kube: kube[1] };
   if (type === 'host') return { name: 'Host', logo: null, fallback: 'host' };
   if (type === 'container') return { name: 'Container', logo: 'docker' };
+  if (type === 'container_image') return { name: 'Container Image', logo: 'docker' };
+  if (type === 'service') return { name: 'APM Service', logo: null, fallback: 'service' };
   if (type === 'ecs_service') return { name: 'ECS Service', logo: 'tile:aws-ecs' };
   if (type === 'Repository') return repositoryKind(resource);
   const azure = /^microsoft\.([^/]+)\/(.+)$/i.exec(type);

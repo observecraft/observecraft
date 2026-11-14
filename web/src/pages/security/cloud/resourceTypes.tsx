@@ -1,5 +1,5 @@
 // The icons of Cloud Security's resource types ([`resourceKind`] names them).
-import { Box, FolderGit2, Server } from 'lucide-react';
+import { Activity, Box, FolderGit2, Server } from 'lucide-react';
 import { INTEGRATION_LOGOS } from '../../../assets/integrationLogos.generated';
 import { BrandLogo, hasBrandLogo } from '../../../components/brand/BrandLogo';
 import { KubernetesIcon } from '../../../components/brand/KubernetesIcon';
@@ -18,6 +18,7 @@ function KindIcon({ kind, size }: { kind: Kind; size: number }) {
   if (kind.fallback === 'gcp') return <BrandLogo name="googlecloud" size={size} title={kind.name} />;
   if (kind.fallback === 'repository') return <FolderGit2 size={size} />;
   if (kind.fallback === 'host') return <Server size={size} />;
+  if (kind.fallback === 'service') return <Activity size={size} />;
   return <Box size={size} />;
 }
 
@@ -38,7 +39,7 @@ export function ResourceType({ type, resource, size = 16 }: { type: string; reso
       <span className="csm-rtype-icon" style={{ minWidth: size, height: size }}>
         <KindIcon kind={kind} size={size} />
       </span>
-      {kind.name}
+      <span className="csm-rtype-name">{kind.name}</span>
     </span>
   );
 }

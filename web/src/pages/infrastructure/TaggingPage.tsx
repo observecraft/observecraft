@@ -8,6 +8,8 @@ import { Chart } from '../../components/charts/Chart';
 import { Empty, ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Select } from '../../components/ui/Dropdown';
 import { NoSourceToggle, SourceCell, VIA_LABELS } from '../../components/provenance/SourceCell';
+import { ResourceScope, useAccountNames } from '../../components/provenance/ResourceScope';
+import { ResourceType } from '../security/cloud/resourceTypes';
 import { token } from '../../theme/chartTheme';
 import { ScoreBar } from './PoliciesPage';
 import { useDeleteTaggingPolicy, useSaveTaggingPolicy, useTagCoverage, useTaggingPolicies } from './taggingQueries';
@@ -98,6 +100,7 @@ export function TagCoveragePage() {
   const [text, setText] = useState('');
   const q = useTagCoverage(policy);
   const policies = useTaggingPolicies();
+  const names = useAccountNames();
   const set = (k: string, v: string | null) => {
     const next = new URLSearchParams(params);
     if (v) next.set(k, v);
@@ -214,7 +217,15 @@ export function TagCoveragePage() {
               {!rows.length ? (
                 <p className="muted">{c.noncompliant.length ? 'No resource matches the filters.' : 'Every evaluated resource carries its required tags.'}</p>
               ) : (
-                <table className="mon-table syn-table tg-table">
+                <table className="mon-table syn-table tg-table prov-table">
+                  <colgroup>
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '9%' }} />
+                    <col style={{ width: '17%' }} />
+                    <col style={{ width: '9%' }} />
+                    <col />
+                    <col style={{ width: '19%' }} />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th>RESOURCE</th>
@@ -228,16 +239,18 @@ export function TagCoveragePage() {
                   <tbody>
                     {rows.map((r) => (
                       <tr key={r.resource.id}>
-                        <td>
-                          <b className="tg-name" title={r.resource.id}>
-                            {r.resource.name}
-                          </b>
-                          <div className="muted tg-sub">{r.resource.resourceType}</div>
+                        <td title={`${r.resource.name}\n${r.resource.id}`}>
+                          <b className="tg-name">{r.resource.name}</b>
+                          <div className="muted tg-sub">
+                            <ResourceType type={r.resource.resourceType} resource={r.resource.name} size={13} />
+                          </div>
                         </td>
                         <td>{TARGET_SHORT[r.resource.target]}</td>
-                        <td className="muted">{[r.resource.provider, r.resource.account, r.resource.cluster, r.resource.namespace].filter(Boolean).join(' · ') || '—'}</td>
-                        <td>{r.resource.team ?? <span className="muted">—</span>}</td>
                         <td>
+                          <ResourceScope resource={r.resource} names={names} />
+                        </td>
+                        <td title={r.resource.team ?? ''}>{r.resource.team ?? <span className="muted">—</span>}</td>
+                        <td className="prov-wrap">
                           <Missing r={r} />
                         </td>
                         <td>
