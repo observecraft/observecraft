@@ -10,7 +10,7 @@ import { compact, timeAgo } from '../../../lib/format';
 import { formatQuery, parseQuery, type Term } from '../../../lib/searchQuery';
 import { SeverityBadge } from '../common';
 import { FINDING_TABS, SubTabs } from './CloudSecurityLayout';
-import { ResourceType, ResourceTypeIcon, resourceKind } from './resourceTypes';
+import { EcosystemIcon, OsIcon, ResourceType, ResourceTypeIcon, resourceKind } from './resourceTypes';
 import { useCve, useInfraVulnerabilities, useMisconfigurations, usePostureScans, useScanNow, useTriage } from './queries';
 
 const RANK = ['low', 'medium', 'high', 'critical'];
@@ -341,7 +341,7 @@ export function MisconfigurationsPage() {
                       <td>
                         <div className="csm-rtypes">
                           {[...new Set(items.map((x) => x.resourceType))].map((t) => (
-                            <ResourceType key={t} type={t} />
+                            <ResourceType key={t} type={t} resource={items.find((x) => x.resourceType === t)?.resourceName} />
                           ))}
                         </div>
                       </td>
@@ -526,7 +526,15 @@ export function InfraVulnerabilitiesPage() {
       />
       <div className={`syn-explorer-body${controls ? '' : ' no-controls'}`}>
         {controls && (
-          <FacetPanel facets={facets} terms={terms} onChange={(t: Term[]) => set('q', formatQuery(t) || null)} defaultOpen={['severity', 'resource_type', 'os']} verified={[]} noun="facets" />
+          <FacetPanel
+            facets={facets}
+            terms={terms}
+            onChange={(t: Term[]) => set('q', formatQuery(t) || null)}
+            defaultOpen={['severity', 'resource_type', 'os']}
+            verified={[]}
+            noun="facets"
+            renderValueIcon={(key, value) => (key === 'os' ? <OsIcon os={value} /> : key === 'ecosystem' ? <EcosystemIcon ecosystem={value} /> : null)}
+          />
         )}
         <div className="syn-explorer-main">
           {q.isLoading ? (
@@ -562,11 +570,13 @@ export function InfraVulnerabilitiesPage() {
                     <tr key={k} className={open === v.advisoryId ? 'selected' : ''} onClick={() => set('vuln', v.advisoryId)}>
                       <td>
                         {group === 'package' ? (
-                          <b className="mono">
-                            {v.package} {v.version}
+                          <b className="mono csm-with-icon">
+                            <EcosystemIcon ecosystem={v.ecosystem} /> {v.package} {v.version}
                           </b>
                         ) : group === 'resource' ? (
-                          <b>{v.resourceName}</b>
+                          <b className="csm-with-icon">
+                            <OsIcon os={v.os} /> {v.resourceName}
+                          </b>
                         ) : (
                           <>
                             <b>{v.title}</b>
@@ -620,7 +630,9 @@ function VulnDrawer({ id, rows, onClose }: { id: string; rows: InfraVulnerabilit
             {rows.map((v) => (
               <tr key={v.key}>
                 <td>
-                  <b>{v.resourceName}</b>
+                  <b className="csm-with-icon">
+                    <OsIcon os={v.os} /> {v.resourceName}
+                  </b>
                   <div className="muted sec-sub">
                     {v.resourceKind.replace('_', ' ')} · {v.os} · {v.running ? 'running' : 'not running'} · seen {timeAgo(v.lastSeen)}
                   </div>

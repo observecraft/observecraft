@@ -296,7 +296,16 @@ export function iconIndex(cloud, files) {
 }
 
 /** Icons the app shows beyond the integrations' services (the CI and source providers on Software Delivery and the portal). */
-const EXTRAS = { aws: [], azure: [{ id: 'azure-devops', name: 'Azure DevOps' }], gcp: [] };
+// Services without a metrics integration that other pages show (Cloud Security's resource types).
+const EXTRAS = {
+  aws: [
+    { id: 'aws-cloudtrail', name: 'CloudTrail' },
+    { id: 'aws-secretsmanager', name: 'Secrets Manager' },
+    { id: 'aws-ssm', name: 'Systems Manager' },
+  ],
+  azure: [{ id: 'azure-devops', name: 'Azure DevOps' }],
+  gcp: [],
+};
 
 /** Our services of one cloud: `{ id, name }`. */
 export function services(cloud) {

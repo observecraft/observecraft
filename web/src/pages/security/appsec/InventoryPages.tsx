@@ -6,7 +6,7 @@ import { FacetPanel } from '../../../components/facets/FacetPanel';
 import { Empty, ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { compact, timeAgo } from '../../../lib/format';
 import { escapeQuoted, formatQuery, parseQuery, type Term } from '../../../lib/searchQuery';
-import { LANGUAGE_LABEL, useStars } from '../../apm/visuals';
+import { LANGUAGE_LABEL, ServiceIcon, useStars } from '../../apm/visuals';
 import { AapTabs, INVENTORY_TABS } from './AppsecLayout';
 import { ActivitySpark, downloadCsv, ExplorerToolbar, localFacets, MethodPath, ServiceChip } from './common';
 import { useApiEndpoints, useAppsecServices } from './queries';
@@ -300,7 +300,8 @@ export function AppsecServicesPage() {
                     </td>
                     <td>
                       <span className="inv-svc-name">
-                        <ServiceChip name={s.service} />
+                        <ServiceIcon name={s.service} kind="web" language={s.language} />
+                        <b>{s.service}</b>
                         {s.language && <span className="inv-lang">{LANGUAGE_LABEL[s.language] ?? s.language}</span>}
                       </span>
                     </td>

@@ -35,6 +35,24 @@ const MAP = {
   darwin: 'apple',
   apple: 'apple',
   ubuntu: 'ubuntu',
+  // Linux distributions and package ecosystems (Cloud Security's hosts, images and packages)
+  debian: 'debian',
+  alpine: 'si:alpinelinux',
+  redhat: 'redhat-icon',
+  centos: 'centos-icon',
+  fedora: 'fedora',
+  rockylinux: 'si:rockylinux',
+  almalinux: 'si:almalinux',
+  opensuse: 'si:opensuse',
+  suse: 'suse',
+  chainguard: 'si:chainguard',
+  npm: 'npm-icon',
+  maven: 'maven',
+  pypi: 'pypi',
+  rubygems: 'rubygems',
+  rust: 'rust',
+  nuget: 'nuget',
+  composer: 'composer',
   android: 'android-icon',
   javascript: 'javascript',
   react: 'react',
@@ -250,6 +268,8 @@ function add(group, key, ref) {
 for (const [key, name] of Object.entries(MAP)) add(brand, key, /^(si|brand):/.test(name) ? name : `logos:${name}`);
 // Providers without an SVG Logos / Simple Icons icon: their official icon from the cloud icon packages (fetch-cloud-icons.mjs).
 add(brand, 'tile:azure-devops', 'cloud:azure/azure-devops');
+// AWS services Cloud Security's resource types show, without a metrics integration.
+for (const id of ['aws-cloudtrail', 'aws-secretsmanager', 'aws-ssm']) add(brand, `tile:${id}`, `cloud:aws/${id}`);
 const lobeDir = dirname(require.resolve('@lobehub/icons-static-svg/package.json'));
 for (const [key, name] of Object.entries(LOBE)) {
   let svg;

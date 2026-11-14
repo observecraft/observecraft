@@ -453,3 +453,8 @@
   height: 100%;
   object-fit: contain;
 }
+.csm-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
