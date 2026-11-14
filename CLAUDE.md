@@ -298,6 +298,14 @@ or SDK features.
   org. Only that org lists the "ObserveCraft Overview" dashboard (`scripts/observecraft-dashboard.mjs`, gated logo
   `observecraft`) and gets the recommended monitors (`observecraft:self-monitoring`); `OC_HEARTBEAT_URL` is the dead
   man's switch outside the install.
+- **Provenance and tagging policies** (ADR-0008; `provenance.rs`, `tagging_rules.rs`, `tagging_policies.rs`; Infrastructure →
+  Resources → Tagging): where a resource comes from, from its own conventions only: `tf_repo` / `tf_path` or Yor's `git_*`
+  tags on the scanned cloud resources (`posture_findings`), Argo CD tracking on Kubernetes objects (the Application's
+  source when the Cluster Agent collects `argoproj.io/v1alpha1/applications`, else its name only), OCI labels or the
+  Agent's `git.*` tags on images (SBOM tags), `_dd.git.*` / `git.*` on spans for services. Tagging policies (Postgres
+  `tagging_policies`, our own API `/api/v1/tagging-policies`: Datadog's provider has no required-tag resource) get a
+  recommended set per org, daily coverage snapshots, and Cloud Security's low rule `ocs-tag-001` (one Security Inbox
+  item). Terraform state sources are modelled (`terraform_state_sources`, `parse_state`) but not read yet.
 - **New features start from the Terraform provider.** Before designing the API of a product area, check whether
   [`DataDog/terraform-provider-datadog`](https://github.com/DataDog/terraform-provider-datadog) (MPL-2.0: read it,
   don't copy it) has resources for it (`datadog_<area>_*`). If it does, the configuration lives under the Datadog

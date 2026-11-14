@@ -108,8 +108,11 @@ pub mod cloud_cost_bills;
 pub mod cloud_cost_recommendations;
 pub mod code_security;
 pub mod code_security_model;
+pub mod provenance;
 pub mod resource_policies;
 pub mod resource_policy_rules;
+pub mod tagging_policies;
+pub mod tagging_rules;
 pub mod scorecard_rules;
 pub mod scorecards;
 pub mod sheets;
@@ -593,6 +596,13 @@ use crate::state::AppState;
         resource_policies::create,
         resource_policies::update,
         resource_policies::delete,
+        tagging_policies::list,
+        tagging_policies::coverage,
+        tagging_policies::create,
+        tagging_policies::get,
+        tagging_policies::update,
+        tagging_policies::delete,
+        provenance::resources,
         cloud_map::cloud_map,
         gpu::search,
         gpu::timeseries,
@@ -1176,6 +1186,7 @@ use crate::state::AppState;
         (name = "assist", description = "Assist: the AI assistant, a chat over the org's data with tools"),
         (name = "notebooks", description = "Notebooks: documents of Markdown and live query cells"),
         (name = "infrastructure", description = "Hosts, built from host metrics, spans and logs"),
+        (name = "tagging", description = "Tagging policies, their coverage, and where resources come from (provenance)"),
         (name = "fleet", description = "Fleet Automation: the Datadog Agents and OpenTelemetry Collectors sending data, their versions, checks and reported configuration (read-only)"),
         (name = "databases", description = "Database Monitoring and Data Jobs, built from database, Spark and Airflow integration metrics"),
         (name = "events", description = "Events from the Datadog Agent and the events API"),
@@ -1476,6 +1487,10 @@ pub fn router() -> Router<AppState> {
             "/api/v1/infrastructure/policies/{id}",
             get(resource_policies::get).put(resource_policies::update).delete(resource_policies::delete),
         )
+        .route("/api/v1/tagging-policies", get(tagging_policies::list).post(tagging_policies::create))
+        .route("/api/v1/tagging-policies/coverage", get(tagging_policies::coverage))
+        .route("/api/v1/tagging-policies/{id}", get(tagging_policies::get).put(tagging_policies::update).delete(tagging_policies::delete))
+        .route("/api/v1/provenance/resources", get(provenance::resources))
         .route("/api/v1/gpu/search", post(gpu::search))
         .route("/api/v1/gpu/timeseries", post(gpu::timeseries))
         .route("/api/v1/serverless/functions", post(serverless::search))
@@ -2209,6 +2224,10 @@ mod tests {
             include_str!("code_security.rs"),
             include_str!("code_security_model.rs"),
             include_str!("resource_policy_rules.rs"),
+            include_str!("provenance.rs"),
+            include_str!("tagging_policies.rs"),
+            include_str!("tagging_rules.rs"),
+            include_str!("cloud_cost.rs"),
             include_str!("status_pages.rs"),
             include_str!("synthetics.rs"),
             include_str!("synthetics_exec.rs"),
@@ -2677,6 +2696,9 @@ mod tests {
             ("reference_tables.rs", include_str!("reference_tables.rs")),
             ("resource_policies.rs", include_str!("resource_policies.rs")),
             ("resource_policy_rules.rs", include_str!("resource_policy_rules.rs")),
+            ("provenance.rs", include_str!("provenance.rs")),
+            ("tagging_policies.rs", include_str!("tagging_policies.rs")),
+            ("tagging_rules.rs", include_str!("tagging_rules.rs")),
             ("scorecard_rules.rs", include_str!("scorecard_rules.rs")),
             ("scorecards.rs", include_str!("scorecards.rs")),
             ("portal_home.rs", include_str!("portal_home.rs")),

@@ -148,7 +148,7 @@ impl KubeKind {
     ];
 
     /// The Kubernetes `kind` (None for resources derived from other data).
-    fn api_kind(self) -> Option<&'static str> {
+    pub(crate) fn api_kind(self) -> Option<&'static str> {
         Some(match self {
             KubeKind::Clusters
             | KubeKind::Containers
@@ -382,6 +382,9 @@ pub struct KubeResource {
     pub net_sent: Option<f64>,
     pub net_received: Option<f64>,
     pub container_id: Option<String>,
+    /// Where the object comes from (Argo CD tracking), for the kinds people deploy ([`super::provenance`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<super::provenance::Provenance>,
 }
 
 impl KubeResource {
@@ -391,6 +394,8 @@ impl KubeResource {
             "name" => vec![self.name.as_str()],
             "status" => vec![self.status.as_str()],
             "kube_cluster_name" | "cluster" => vec![self.cluster.as_str()],
+            // `source:none` lists objects without a known source; `source:argocd` those Argo CD deploys.
+            "source" => vec![self.provenance.as_ref().map(|p| p.via.as_str()).unwrap_or("none")],
             _ => {
                 let prefix = format!("{key}:");
                 self.tags.iter().filter_map(|t| t.strip_prefix(&prefix)).collect()
@@ -453,6 +458,8 @@ struct Inventory {
     agent_containers: Vec<AgentContainerRow>,
     /// host → CPU count (Datadog Agent host metadata).
     host_cpus: HashMap<String, u32>,
+    /// Argo CD Applications (custom resources), for the objects' provenance.
+    argo_apps: Vec<super::provenance::ArgoApp>,
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -691,14 +698,15 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
     )
     .bind(org)
     .fetch_all(&st.postgres);
-    let (objects, usage, dd_usage, ecs, processes, agent_containers, host_cpus) = tokio::try_join!(
+    let (objects, usage, dd_usage, ecs, processes, agent_containers, host_cpus, argo_apps) = tokio::try_join!(
         objects,
         async { usage.await.map_err(ApiError::from) },
         async { dd_usage.await.map_err(ApiError::from) },
         async { ecs.await.map_err(ApiError::from) },
         async { processes.await.map_err(ApiError::from) },
         async { agent_containers.await.map_err(ApiError::from) },
-        async { host_cpus.await.map_err(ApiError::from) }
+        async { host_cpus.await.map_err(ApiError::from) },
+        super::provenance::argo_apps(st, org)
     )?;
     let host_cpus = host_cpus
         .into_iter()
@@ -714,6 +722,7 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         processes,
         agent_containers,
         host_cpus,
+        argo_apps,
     };
     for u in usage {
         let v = (u.cpu, u.mem);
@@ -1385,6 +1394,9 @@ fn build(inv: &Inventory) -> Vec<KubeResource> {
         }
         tags.extend(r.labels.iter().map(|(k, v)| format!("{k}:{v}")));
         r.tags = tags;
+    }
+    for r in rows.iter_mut().filter(|r| r.kind.and_then(super::provenance::kube_type).is_some()) {
+        r.provenance = super::provenance::from_kube(r, &inv.argo_apps);
     }
 
     rows.extend(clusters(&rows));
@@ -2208,7 +2220,7 @@ pub(crate) async fn resources(st: &AppState, org: &str) -> Result<Arc<Vec<KubeRe
 /// The org's current deployments and their replica sets, without usage (change tracking's rollouts).
 pub(crate) async fn replica_sets(st: &AppState, org: &str) -> Result<Vec<KubeResource>, ApiError> {
     let objects = load_objects(&st.ch(org), &["Deployment", "ReplicaSet"]).await?;
-    let inv = Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), agent_containers: Vec::new(), host_cpus: HashMap::new() };
+    let inv = Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), agent_containers: Vec::new(), host_cpus: HashMap::new(), argo_apps: Vec::new() };
     Ok(build(&inv).into_iter().filter(|r| r.kind == Some(KubeKind::ReplicaSets)).collect())
 }
 
@@ -2387,8 +2399,31 @@ mod tests {
         }
     }
 
+    /// Deployed objects carry their Argo CD source; `source:none` finds the others.
+    #[test]
+    fn deployed_objects_carry_their_argo_cd_source() {
+        let dep = |name: &str, annotations: Value| {
+            full_object("shop-prod", 1_000, &serde_json::json!({"kind": "Deployment", "metadata": {"uid": format!("uid-{name}"), "name": name, "namespace": "checkout", "annotations": annotations}, "spec": {"replicas": 1}}))
+        };
+        let mut inv = inventory_of(vec![dep("order-service", serde_json::json!({"argocd.argoproj.io/tracking-id": "order-service:apps/Deployment:checkout/order-service"})), dep("billing", serde_json::json!({}))]);
+        inv.argo_apps = vec![super::super::provenance::ArgoApp {
+            cluster: "shop-prod".into(),
+            namespace: "argocd".into(),
+            name: "order-service".into(),
+            doc: serde_json::json!({"spec": {"source": {"repoURL": "https://github.com/example-org/k8s-apps.git", "path": "apps/order-service", "targetRevision": "main"}}}),
+        }];
+        let rows = build(&inv);
+        let row = |name: &str| rows.iter().find(|r| r.name == name && r.kind == Some(KubeKind::Deployments)).unwrap();
+        let p = row("order-service").provenance.clone().unwrap();
+        assert_eq!((p.repo.as_deref(), p.path.as_deref()), (Some("github.com/example-org/k8s-apps"), Some("apps/order-service")));
+        assert!(row("billing").provenance.is_none());
+        assert!(row("billing").matches(&parse_query("source:none")));
+        assert!(row("order-service").matches(&parse_query("source:argocd")));
+        assert!(!row("order-service").matches(&parse_query("source:none")));
+    }
+
     fn inventory_of(objects: Vec<KubeObject>) -> Inventory {
-        Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), agent_containers: Vec::new(), host_cpus: HashMap::new() }
+        Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), agent_containers: Vec::new(), host_cpus: HashMap::new(), argo_apps: Vec::new() }
     }
 
     /// Objects written through the ingest path (otel_k8s_objects → k8s_inventory) build the same
