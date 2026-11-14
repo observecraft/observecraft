@@ -113,6 +113,16 @@ or SDK features.
   pipelines store the UI's processor keys and answer Datadog's. Custom destinations are forwarded by the log indexer
   (`log_forwarding.rs`: HTTP, Splunk HEC, Elasticsearch). Archives created through the API need their bucket keys set
   in the UI (Datadog's API carries no secrets).
+- **Sensitive Data Scanner** (`sds/`, `routes/sensitive_data_scanner.rs`, `datadog_api/sensitive_data_scanner.rs`;
+  Organization Settings → Sensitive Data Scanner, findings at `/sensitive-data-scanner/findings`): scanning groups and
+  rules are `datadog_sensitive_data_scanner_group` / `_rule` / `_group_order` (`/api/v2/sensitive-data-scanner/config/...`,
+  Postgres `sds_configs` / `sds_groups` / `sds_rules`, attributes stored with Datadog's names; every change moves the
+  config version, which recompiles the org's `sds::Scanner` within 10 s). The log indexer runs it after the pipelines
+  and standard attributes (`logproc::prepare_normalized` / `prepare_rows`), and the Kafka ingester on live tail's copy;
+  rules use our MIT pattern library (`sds/patterns.rs`, `regex` crate: linear time, checksums in code) or their own
+  regex; matches are written every minute as the count metric `sds.matches`. Tags hold one value: the higher priority
+  rule's `sensitive_data:<…>` wins. Only logs are scanned (RUM, events and APM groups are stored, not run); Datadog's
+  `redacted_hash` isn't a replacement type of its API and isn't offered.
 - **Cloud Cost → Settings** (`datadog_api/cost_bills.rs`, `routes/cloud_cost_bills.rs`, `bills/`): the providers' bills
   are `datadog_aws_cur_config` / `datadog_azure_uc_config` (`/api/v2/cost/aws_cur_config`, `/azure_uc_config`, Postgres
   `cost_bill_configs`), read every 4 hours on the crawlers' jobs with the integrations' credentials (the AWS account's
@@ -434,6 +444,8 @@ or SDK features.
   - Synthetic tests through Datadog's API and Terraform provider (`datadog_synthetics_test`, browser and API tests,
     `/api/v1/synthetics/tests/...`); browser tests' email, file, sub-test, API-test and drag-and-drop steps, other
     browsers than Chromium, the recorder and the link to Session Replay;
+  - the Sensitive Data Scanner on RUM events, events and spans (only logs are scanned), saved matches
+    (`should_save_match`) and multi-valued `sensitive_data` tags;
   - RUM's mobile Session Replay, replay retention and privacy settings, Operations, source maps and debug symbols, generated metrics, retention filters and the
     events search and aggregation API (`/api/v2/rum/events`); the error-focused processing mode keeps every session.
 

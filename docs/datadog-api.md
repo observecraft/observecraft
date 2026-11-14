@@ -102,6 +102,7 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 | `datadog_aws_cur_config`, `datadog_azure_uc_config` | `/api/v2/cost/aws_cur_config`, `/api/v2/cost/azure_uc_config` (list, create, get, update, delete) | ✅ [details](#cloud-cost) |
 | `datadog_gcp_uc_config`, `datadog_tag_pipeline_ruleset(s)`, `datadog_custom_allocation_rule(s)` | `/api/v2/cost/gcp_uc_config`, `/api/v2/tags/enrichment`, `/api/v2/cost/arbitrary_rule` | Not yet |
 | `datadog_apm_retention_filter`, `datadog_apm_retention_filter_order` | `/api/v2/apm/config/retention-filters` (create, list, get, update, delete), `PUT /api/v2/apm/config/retention-filters-execution-order` | ✅ [details](#apm-retention-filters-and-span-based-metrics) |
+| `datadog_sensitive_data_scanner_group`, `_rule`, `_group_order`, data sources `datadog_sensitive_data_scanner_standard_pattern` / `_group_order` | `GET`/`PATCH /api/v2/sensitive-data-scanner/config`, `/config/groups` and `/config/rules` (create, update, delete), `GET /config/standard-patterns` | ✅ [details](#sensitive-data-scanner) |
 | `datadog_spans_metric` | `/api/v2/apm/config/metrics` (create, list, get, update, delete) | ✅ [details](#apm-retention-filters-and-span-based-metrics) |
 | `datadog_integration_aws_account`, `datadog_integration_aws_external_id`, data sources `datadog_integration_aws_available_namespaces` / `datadog_integration_aws_iam_permissions` | `/api/v2/integration/aws/accounts` (create, list, get, update, delete), `/available_namespaces`, `/logs/services`, `/generate_new_external_id`, `/iam_permissions[/standard\|/resource_collection]` | ✅ [details](#aws-integration) |
 | (no Terraform resource: Cloud Security findings) | `GET /api/v2/security/findings`, `POST /api/v2/security/findings/search`, `PATCH /api/v2/security/findings/mute` | ✅ [details](#security-findings) |
@@ -238,6 +239,29 @@ APM → Settings reads and writes the same records.
   attribute as a distribution. The name is the id; characters outside `[A-Za-z0-9_.]` become `_`.
 - Queries take Datadog's span search keys: `service`, `env`, `resource_name`, `operation_name`, `status`,
   `@duration`, `@_top_level`, `@http.status_code`, `@http.method` and any `@attribute`.
+
+## Sensitive Data Scanner
+
+Organization Settings → Sensitive Data Scanner reads and writes the same groups and rules. The log indexer scans every
+log with the organization's enabled groups after the pipelines, so indexes, archives, forwarding, generated metrics and
+live tail only see what the rules leave.
+
+- A group scans the logs its filter (log search syntax; `*` for all) matches, sampled at its `logs` sampling rate.
+  Groups whose `product_list` lacks `logs` are kept and not run: only logs are scanned.
+- A rule has its own `pattern` or a `standard_pattern_id` from our library (`GET /config/standard-patterns`, 24
+  patterns: payment cards, IBANs, US SSNs, emails, phone numbers, IP addresses, cloud and SaaS credentials, private
+  keys, JWTs, passwords in URLs and assignments). Patterns use the Rust `regex` syntax: no lookaround or
+  backreferences, and an invalid one is refused with 400.
+- `text_replacement`: `none` (tags only), `hash` (16 hex digits, keyed per install and organization),
+  `replacement_string`, `partial_replacement_from_beginning` / `_from_end` (`*` over `number_of_chars` characters).
+  `should_save_match` is accepted and not acted on.
+- `namespaces` / `excluded_namespaces` name attribute paths (`message` is the message); keywords
+  (`included_keyword_configuration`) must appear within `character_count` characters before a match, or in the
+  attribute's path; `suppressions` skip matches by exact value, prefix or suffix.
+- Matching logs get the rule's `tags` (a standard pattern's `sensitive_data:<id>` and `sensitive_data_category:<category>`
+  when it has none). A tag holds one value: where two rules set the same key, the higher `priority` (lower number) wins.
+- Matches are counted in the `sds.matches` count metric (tags `sds_group`, `sds_rule`, their ids, and `service`).
+- `PATCH /config` must list every group of the organization once. Reading needs any role, changing an admin.
 
 ## Service level objectives
 
