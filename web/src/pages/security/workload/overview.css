@@ -27,7 +27,7 @@
 /* ---- the flow diagram ---- */
 .wp-flow {
   display: grid;
-  grid-template-columns: minmax(380px, 1fr) 44px minmax(520px, 1.35fr);
+  grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1.35fr);
   align-items: center;
   margin-bottom: 36px;
 }
@@ -274,13 +274,16 @@
   gap: 16px;
 }
 .wp-grid.two {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .wp-grid.three {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .wp-grid.narrow-wide {
-  grid-template-columns: minmax(360px, 2fr) 3fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+.wp-grid > * {
+  min-width: 0;
 }
 .wp-panel {
   display: flex;
@@ -548,12 +551,20 @@
 
 @media (max-width: 1300px) {
   .wp-flow {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .wp-ribbon-1 {
     display: none;
   }
   .wp-flow > .wp-env {
     margin-top: 16px;
+  }
+}
+
+@media (max-width: 1240px) {
+  .wp-grid.two,
+  .wp-grid.three,
+  .wp-grid.narrow-wide {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

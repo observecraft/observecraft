@@ -597,11 +597,22 @@ function groupValues(series: WpSeries, name: string): number[] {
 
 /** Stacked bars of a summary series, one stack per group, in the given order and colours; the x axis spans `range` when given. */
 function bars(series: WpSeries, range: { from: number; to: number } | null, order: [string, string][]): EChartsOption {
+  // Labels no closer than a bucket (daily buckets get dates, not 06:00 / 12:00 ticks), and never overlapping.
+  // Without a range the series is per day (signals): a lone bucket still gets day ticks.
+  const step = series.times.length > 1 ? series.times[1] - series.times[0] : range ? 0 : 86_400_000;
   return {
-    grid: { left: 40, right: 12, top: 12, bottom: 44 },
+    grid: { left: 8, right: 16, top: 12, bottom: 30, containLabel: true },
     tooltip: { trigger: 'axis' },
     legend: { bottom: 0, type: 'scroll' },
-    xAxis: range ? { type: 'time', min: range.from, max: range.to } : { type: 'time' },
+    xAxis: {
+      type: 'time',
+      ...(range ? { min: range.from, max: range.to } : {}),
+      ...(step > 0 ? { minInterval: step } : {}),
+      axisLabel: {
+        hideOverlap: true,
+        formatter: { year: '{yyyy}', month: '{MMM}', day: '{MMM} {d}', hour: '{HH}:{mm}', minute: '{HH}:{mm}', second: '{HH}:{mm}:{ss}', millisecond: '{HH}:{mm}:{ss}' },
+      },
+    },
     yAxis: { type: 'value', minInterval: 1, axisLabel: { formatter: (v: number) => big(v) } },
     series: order.map(([name, color]) => ({
       name,
