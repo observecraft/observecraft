@@ -52,3 +52,49 @@
   white-space: nowrap;
   cursor: pointer;
 }
+
+/* A resource's account or cluster: logo and name on one line. */
+.prov-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.prov-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Resource tables with fixed columns: every cell one line, cut with an ellipsis (the title has the whole value). */
+.prov-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.prov-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prov-table .csm-rtype {
+  max-width: 100%;
+  min-width: 0;
+  vertical-align: middle;
+}
+
+.prov-table .csm-rtype-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prov-table .prov-wrap {
+  white-space: normal;
+}

@@ -9,8 +9,9 @@ import { SeverityBadge } from '../common';
 import { InboxPage } from '../InboxPage';
 import { INVENTORY_TABS, SubTabs } from './CloudSecurityLayout';
 import { AdvisoryBody } from './FindingsPages';
-import { EcosystemIcon } from './resourceTypes';
+import { EcosystemIcon, ResourceType } from './resourceTypes';
 import { NoSourceToggle, SourceCell } from '../../../components/provenance/SourceCell';
+import { ResourceScope, useAccountNames } from '../../../components/provenance/ResourceScope';
 import { Pager } from '../../../components/ui/Pager';
 import type { TagTarget } from '../../../api/tagging/types';
 import { useResourceProvenance } from '../../infrastructure/taggingQueries';
@@ -47,6 +48,7 @@ function ResourceSources() {
   const [search, setSearch] = useState('');
   const [offset, setOffset] = useState(0);
   const q = useResourceProvenance(target || undefined);
+  const names = useAccountNames();
   const rows = useMemo(
     () =>
       (q.data?.resources ?? []).filter(
@@ -94,7 +96,14 @@ function ResourceSources() {
           }}
         />
       </div>
-      <table className="mon-table syn-table csm-table">
+      <table className="mon-table syn-table csm-table prov-table">
+        <colgroup>
+          <col style={{ width: '20%' }} />
+          <col style={{ width: '16%' }} />
+          <col style={{ width: '19%' }} />
+          <col style={{ width: '9%' }} />
+          <col />
+        </colgroup>
         <thead>
           <tr>
             <th>RESOURCE</th>
@@ -107,12 +116,16 @@ function ResourceSources() {
         <tbody>
           {rows.slice(offset, offset + PAGE).map((r) => (
             <tr key={r.id}>
-              <td>
-                <b title={r.id}>{r.name}</b>
+              <td title={`${r.name}\n${r.id}`}>
+                <b>{r.name}</b>
               </td>
-              <td className="muted">{r.resourceType}</td>
-              <td className="muted">{[r.provider, r.account, r.cluster, r.namespace].filter(Boolean).join(' · ') || '—'}</td>
-              <td>{r.team ?? <span className="muted">—</span>}</td>
+              <td title={r.resourceType}>
+                <ResourceType type={r.resourceType} resource={r.name} size={14} />
+              </td>
+              <td>
+                <ResourceScope resource={r} names={names} />
+              </td>
+              <td title={r.team ?? ''}>{r.team ?? <span className="muted">—</span>}</td>
               <td>
                 <SourceCell provenance={r.provenance} />
               </td>

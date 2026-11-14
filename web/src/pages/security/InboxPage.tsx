@@ -10,6 +10,7 @@ import { compact, timeAgo } from '../../lib/format';
 import { token } from '../../theme/chartTheme';
 import { SeverityBadge } from './common';
 import { useSecurityInbox } from './queries';
+import { ResourceType } from './cloud/resourceTypes';
 
 const ALL = '';
 
@@ -184,7 +185,7 @@ function Findings({ data }: { data: NonNullable<ReturnType<typeof useSecurityInb
                               {f.cve && <span className="tag-chip mono">{f.cve}</span>}
                             </div>
                           </td>
-                          <td>{f.resourceType}</td>
+                          <td>{f.resourceType ? <ResourceType type={f.resourceType} resource={f.resources[0]} size={14} /> : <span className="muted">—</span>}</td>
                           <td className="num muted">first seen {timeAgo(f.firstSeen)}</td>
                           <td />
                         </tr>

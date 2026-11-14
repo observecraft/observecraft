@@ -96,8 +96,8 @@ function cloud(provider: string, account: string, id: string, name: string, reso
 }
 
 const AWS = '123456789012';
-const AZURE = '00000000-0000-0000-0000-00000000a001';
-const GCP = 'example-shop-prod';
+const AZURE = '0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d';
+const GCP = 'example-storefront';
 
 const CLOUD: TaggedResource[] = [
   cloud(
