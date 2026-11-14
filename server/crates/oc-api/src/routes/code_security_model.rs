@@ -67,7 +67,7 @@ pub fn parse_purl(purl: &str) -> Option<(&'static str, String, String)> {
     Some((eco, name, version))
 }
 
-fn percent_decode(s: &str) -> String {
+pub fn percent_decode(s: &str) -> String {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
@@ -209,15 +209,21 @@ pub struct AffectedRange {
 
 /// Whether `version` is affected: in one of the ranges, or listed.
 pub fn is_affected(version: &str, ranges: &[AffectedRange], versions: &[String]) -> bool {
-    if versions.iter().any(|v| compare_versions(v, version) == Ordering::Equal) {
+    is_affected_in("", version, ranges, versions)
+}
+
+/// [`is_affected`] with the versions ordered as `ecosystem` orders them.
+pub fn is_affected_in(ecosystem: &str, version: &str, ranges: &[AffectedRange], versions: &[String]) -> bool {
+    let cmp = |a: &str, b: &str| compare_versions_in(ecosystem, a, b);
+    if versions.iter().any(|v| cmp(v, version) == Ordering::Equal) {
         return true;
     }
     ranges.iter().any(|r| {
-        let after = r.introduced.is_empty() || r.introduced == "0" || compare_versions(version, &r.introduced) != Ordering::Less;
+        let after = r.introduced.is_empty() || r.introduced == "0" || cmp(version, &r.introduced) != Ordering::Less;
         let before = if !r.fixed.is_empty() {
-            compare_versions(version, &r.fixed) == Ordering::Less
+            cmp(version, &r.fixed) == Ordering::Less
         } else if !r.last_affected.is_empty() {
-            compare_versions(version, &r.last_affected) != Ordering::Greater
+            cmp(version, &r.last_affected) != Ordering::Greater
         } else {
             true
         };
@@ -227,9 +233,244 @@ pub fn is_affected(version: &str, ranges: &[AffectedRange], versions: &[String])
 
 /// The fixed version the remediation points to: the lowest fix above `version` (or above any fix).
 pub fn fix_for(version: &str, ranges: &[AffectedRange]) -> Option<String> {
+    fix_for_in("", version, ranges)
+}
+
+/// [`fix_for`] with the versions ordered as `ecosystem` orders them.
+pub fn fix_for_in(ecosystem: &str, version: &str, ranges: &[AffectedRange]) -> Option<String> {
+    let cmp = |a: &str, b: &str| compare_versions_in(ecosystem, a, b);
     let mut fixes: Vec<&str> = ranges.iter().map(|r| r.fixed.as_str()).filter(|f| !f.is_empty()).collect();
-    fixes.sort_by(|a, b| compare_versions(a, b));
-    fixes.iter().find(|f| compare_versions(f, version) == Ordering::Greater).or(fixes.last()).map(|s| s.to_string())
+    fixes.sort_by(|a, b| cmp(a, b));
+    fixes.iter().find(|f| cmp(f, version) == Ordering::Greater).or(fixes.last()).map(|s| s.to_string())
+}
+
+/// Compares versions as the ecosystem's package manager does: dpkg (Debian, Ubuntu), rpm (AlmaLinux,
+/// Rocky Linux, Red Hat, SUSE, …), apk (Alpine, Wolfi, Chainguard); others with [`compare_versions`].
+pub fn compare_versions_in(ecosystem: &str, a: &str, b: &str) -> Ordering {
+    match ecosystem.split(':').next().unwrap_or("") {
+        "Debian" | "Ubuntu" => dpkg_compare(a, b),
+        "Alpine" | "Wolfi" | "Chainguard" | "MinimOS" => apk_compare(a, b),
+        "AlmaLinux" | "Rocky Linux" | "Red Hat" | "SUSE" | "openSUSE" | "Mageia" | "Photon OS" | "openEuler" | "Azure Linux" | "Amazon Linux" | "CentOS" | "Oracle Linux"
+        | "Fedora" => rpm_compare(a, b),
+        _ => compare_versions(a, b),
+    }
+}
+
+/// `epoch:rest` → (epoch, rest); no or a non-numeric epoch is 0.
+fn split_epoch(v: &str) -> (u64, &str) {
+    match v.split_once(':') {
+        Some((e, rest)) if !e.is_empty() && e.bytes().all(|c| c.is_ascii_digit()) => (e.parse().unwrap_or(0), rest),
+        _ => (0, v),
+    }
+}
+
+/// dpkg's version order (deb-version(7)): epoch, then upstream and revision with `verrevcmp`.
+fn dpkg_compare(a: &str, b: &str) -> Ordering {
+    let ((ea, a), (eb, b)) = (split_epoch(a.trim()), split_epoch(b.trim()));
+    let (ua, ra) = a.rsplit_once('-').unwrap_or((a, ""));
+    let (ub, rb) = b.rsplit_once('-').unwrap_or((b, ""));
+    ea.cmp(&eb).then_with(|| verrevcmp(ua, ub)).then_with(|| verrevcmp(ra, rb))
+}
+
+fn verrevcmp(a: &str, b: &str) -> Ordering {
+    // `~` before everything (even the end), letters before other characters; digits and the end are 0.
+    let order = |c: Option<u8>| -> i32 {
+        match c {
+            None => 0,
+            Some(b'~') => -1,
+            Some(c) if c.is_ascii_digit() => 0,
+            Some(c) if c.is_ascii_alphabetic() => c as i32,
+            Some(c) => c as i32 + 256,
+        }
+    };
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    let (mut i, mut j) = (0, 0);
+    while i < a.len() || j < b.len() {
+        while (i < a.len() && !a[i].is_ascii_digit()) || (j < b.len() && !b[j].is_ascii_digit()) {
+            let (ac, bc) = (order(a.get(i).copied()), order(b.get(j).copied()));
+            if ac != bc {
+                return ac.cmp(&bc);
+            }
+            i += 1;
+            j += 1;
+        }
+        while a.get(i) == Some(&b'0') {
+            i += 1;
+        }
+        while b.get(j) == Some(&b'0') {
+            j += 1;
+        }
+        let mut first = Ordering::Equal;
+        while i < a.len() && a[i].is_ascii_digit() && j < b.len() && b[j].is_ascii_digit() {
+            if first == Ordering::Equal {
+                first = a[i].cmp(&b[j]);
+            }
+            i += 1;
+            j += 1;
+        }
+        if i < a.len() && a[i].is_ascii_digit() {
+            return Ordering::Greater;
+        }
+        if j < b.len() && b[j].is_ascii_digit() {
+            return Ordering::Less;
+        }
+        if first != Ordering::Equal {
+            return first;
+        }
+    }
+    Ordering::Equal
+}
+
+/// rpm's version order: epoch, then version and release with `rpmvercmp`.
+fn rpm_compare(a: &str, b: &str) -> Ordering {
+    let ((ea, a), (eb, b)) = (split_epoch(a.trim()), split_epoch(b.trim()));
+    let (va, ra) = a.rsplit_once('-').unwrap_or((a, ""));
+    let (vb, rb) = b.rsplit_once('-').unwrap_or((b, ""));
+    ea.cmp(&eb).then_with(|| rpmvercmp(va, vb)).then_with(|| if ra.is_empty() || rb.is_empty() { Ordering::Equal } else { rpmvercmp(ra, rb) })
+}
+
+fn rpmvercmp(a: &str, b: &str) -> Ordering {
+    if a == b {
+        return Ordering::Equal;
+    }
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    let (mut i, mut j) = (0, 0);
+    let sep = |c: u8| !c.is_ascii_alphanumeric() && c != b'~' && c != b'^';
+    loop {
+        while i < a.len() && sep(a[i]) {
+            i += 1;
+        }
+        while j < b.len() && sep(b[j]) {
+            j += 1;
+        }
+        // `~` sorts before everything, `^` after the end but before anything else.
+        let (ca, cb) = (a.get(i).copied(), b.get(j).copied());
+        if ca == Some(b'~') || cb == Some(b'~') {
+            if ca != Some(b'~') {
+                return Ordering::Greater;
+            }
+            if cb != Some(b'~') {
+                return Ordering::Less;
+            }
+            i += 1;
+            j += 1;
+            continue;
+        }
+        if ca == Some(b'^') || cb == Some(b'^') {
+            if ca.is_none() {
+                return Ordering::Less;
+            }
+            if cb.is_none() {
+                return Ordering::Greater;
+            }
+            if ca != Some(b'^') {
+                return Ordering::Greater;
+            }
+            if cb != Some(b'^') {
+                return Ordering::Less;
+            }
+            i += 1;
+            j += 1;
+            continue;
+        }
+        if ca.is_none() || cb.is_none() {
+            break;
+        }
+        let numeric = a[i].is_ascii_digit();
+        let take = |s: &[u8], mut k: usize| {
+            let start = k;
+            while k < s.len() && if numeric { s[k].is_ascii_digit() } else { s[k].is_ascii_alphabetic() } {
+                k += 1;
+            }
+            (start, k)
+        };
+        let ((sa, ea), (sb, eb)) = (take(a, i), take(b, j));
+        if sb == eb {
+            // Numbers are newer than letters.
+            return if numeric { Ordering::Greater } else { Ordering::Less };
+        }
+        let (mut x, mut y) = (&a[sa..ea], &b[sb..eb]);
+        let ord = if numeric {
+            while x.first() == Some(&b'0') {
+                x = &x[1..];
+            }
+            while y.first() == Some(&b'0') {
+                y = &y[1..];
+            }
+            x.len().cmp(&y.len()).then_with(|| x.cmp(y))
+        } else {
+            x.cmp(y)
+        };
+        if ord != Ordering::Equal {
+            return ord;
+        }
+        (i, j) = (ea, eb);
+    }
+    // Whichever has characters left is newer.
+    (i < a.len()).cmp(&(j < b.len()))
+}
+
+/// apk's version order: numbers, an optional letter (newer), `_suffix` (`_rc` older, `_p` newer), `-rN`.
+fn apk_compare(a: &str, b: &str) -> Ordering {
+    enum Part {
+        Num(u64),
+        Letter(u8),
+        Suffix(i32, u64),
+        Rev(u64),
+    }
+    fn parts(v: &str) -> Vec<Part> {
+        let v = v.trim();
+        let (v, rev) = match v.rsplit_once("-r") {
+            Some((v, r)) if r.bytes().all(|c| c.is_ascii_digit()) && !r.is_empty() => (v, r.parse().unwrap_or(0)),
+            _ => (v, 0),
+        };
+        let (main, suffixes) = v.split_once('_').unwrap_or((v, ""));
+        let mut out = Vec::new();
+        for n in main.split('.') {
+            let digits: String = n.chars().take_while(char::is_ascii_digit).collect();
+            out.push(Part::Num(digits.parse().unwrap_or(0)));
+            if let Some(l) = n[digits.len()..].bytes().next() {
+                out.push(Part::Letter(l));
+            }
+        }
+        for s in suffixes.split('_').filter(|s| !s.is_empty()) {
+            let name: String = s.chars().take_while(char::is_ascii_alphabetic).collect();
+            let rank = match name.as_str() {
+                "alpha" => -4,
+                "beta" => -3,
+                "pre" => -2,
+                "rc" => -1,
+                "cvs" => 1,
+                "svn" => 2,
+                "git" => 3,
+                "hg" => 4,
+                "p" => 5,
+                _ => 0,
+            };
+            out.push(Part::Suffix(rank, s[name.len()..].parse().unwrap_or(0)));
+        }
+        out.push(Part::Rev(rev));
+        out
+    }
+    let (pa, pb) = (parts(a), parts(b));
+    for k in 0..pa.len().max(pb.len()) {
+        let ord = match (pa.get(k), pb.get(k)) {
+            (Some(Part::Num(x)), Some(Part::Num(y))) => x.cmp(y),
+            (Some(Part::Letter(x)), Some(Part::Letter(y))) => x.cmp(y),
+            (Some(Part::Suffix(x, n)), Some(Part::Suffix(y, m))) => x.cmp(y).then(n.cmp(m)),
+            (Some(Part::Rev(x)), Some(Part::Rev(y))) => x.cmp(y),
+            // More numbers, or a letter, is newer; a suffix is newer or older by its kind.
+            (Some(Part::Num(_) | Part::Letter(_)), Some(_)) => Ordering::Greater,
+            (Some(_), Some(Part::Num(_) | Part::Letter(_))) => Ordering::Less,
+            (Some(Part::Suffix(x, _)), Some(Part::Rev(_))) => x.cmp(&0),
+            (Some(Part::Rev(_)), Some(Part::Suffix(y, _))) => 0.cmp(y),
+            _ => Ordering::Equal,
+        };
+        if ord != Ordering::Equal {
+            return ord;
+        }
+    }
+    Ordering::Equal
 }
 
 // ================================================================ severity
@@ -368,6 +609,27 @@ pub fn osv_ecosystem(eco: &str) -> String {
     }
 }
 
+/// Whether OSV.dev knows the ecosystem (its querybatch rejects unknown ones): language ecosystems and
+/// the distributions OSV covers. Amazon Linux, CentOS, Oracle Linux and Fedora packages are only listed.
+pub fn osv_queryable(eco: &str) -> bool {
+    let base = eco.split(':').next().unwrap_or("");
+    DISTRO_ECOSYSTEMS.contains(&base) || !language_of_ecosystem(base).is_empty()
+}
+
+/// An OSV `querybatch` response: each advisory's `modified` and the queries (packages, by index) it affects.
+pub fn osv_batch_advisories(res: &Value) -> std::collections::BTreeMap<String, (String, Vec<usize>)> {
+    let mut ids: std::collections::BTreeMap<String, (String, Vec<usize>)> = Default::default();
+    for (k, r) in res.get("results").and_then(Value::as_array).into_iter().flatten().enumerate() {
+        for v in r.get("vulns").and_then(Value::as_array).into_iter().flatten() {
+            if let Some(id) = v.get("id").and_then(Value::as_str) {
+                let e = ids.entry(id.to_string()).or_insert_with(|| (v.get("modified").and_then(Value::as_str).unwrap_or("").to_string(), vec![]));
+                e.1.push(k);
+            }
+        }
+    }
+    ids
+}
+
 /// An OSV record (`https://ossf.github.io/osv-schema/`) as an advisory.
 pub fn parse_osv(v: &Value) -> Option<Advisory> {
     let id = v.get("id")?.as_str()?.to_string();
@@ -435,7 +697,7 @@ pub fn parse_osv(v: &Value) -> Option<Advisory> {
         }
         let versions: Vec<String> = a.get("versions").and_then(Value::as_array).map(|x| x.iter().filter_map(|s| s.as_str().map(str::to_string)).collect()).unwrap_or_default();
         let mut fixes: Vec<&str> = ranges.iter().map(|r| r.fixed.as_str()).filter(|f| !f.is_empty()).collect();
-        fixes.sort_by(|a, b| compare_versions(a, b));
+        fixes.sort_by(|a, b| compare_versions_in(&ecosystem, a, b));
         let fixed = fixes.first().map(|s| s.to_string()).unwrap_or_default();
         let name = normalize_name(&ecosystem, &name);
         match packages.iter_mut().find(|p| p.ecosystem == ecosystem && p.package == name) {
@@ -866,6 +1128,44 @@ mod tests {
     }
 
     #[test]
+    fn distro_versions_order_as_their_package_managers() {
+        use Ordering::*;
+        // dpkg: epoch, upstream, revision; `~` sorts before anything, letters before other characters.
+        let deb = |a, b| compare_versions_in("Debian:12", a, b);
+        assert_eq!(deb("3.0.11-1~deb12u2", "3.0.15-1~deb12u1"), Less);
+        assert_eq!(deb("1.0~rc1-1", "1.0-1"), Less);
+        assert_eq!(deb("1:1.0-1", "2.0-1"), Greater);
+        assert_eq!(deb("2.36-9+deb12u4", "2.36-9+deb12u10"), Less);
+        assert_eq!(deb("1.2.13.dfsg-1", "1.2.13.dfsg-1+deb12u1"), Less);
+        assert_eq!(deb("1.0a-1", "1.0+a-1"), Less);
+        assert_eq!(compare_versions_in("Ubuntu:22.04:LTS", "3.0.2-0ubuntu1.15", "3.0.2-0ubuntu1.9"), Greater);
+        // rpm: epoch:version-release, alphanumeric segments, numbers newer than letters, `~` older.
+        let rpm = |a, b| compare_versions_in("Rocky Linux:9", a, b);
+        assert_eq!(rpm("1:3.0.7-24.el9", "1:3.0.7-27.el9"), Less);
+        assert_eq!(rpm("3.0.7-27.el9", "1:3.0.1-1.el9"), Less);
+        assert_eq!(rpm("1.0~rc1-1", "1.0-1"), Less);
+        assert_eq!(rpm("1.0a-1", "1.0.1-1"), Less);
+        assert_eq!(rpm("2.28-225.el9_4", "2.28-225.el9"), Greater);
+        // apk: a letter after the numbers is newer, `_rc` older, `_p` newer, then `-rN`.
+        let apk = |a, b| compare_versions_in("Alpine:v3.19", a, b);
+        assert_eq!(apk("3.1.1w-r1", "3.1.1-r9"), Greater);
+        assert_eq!(apk("1.36.1-r15", "1.36.1-r16"), Less);
+        assert_eq!(apk("1.2.4_rc1-r0", "1.2.4-r0"), Less);
+        assert_eq!(apk("1.2.4_p1-r0", "1.2.4-r5"), Greater);
+        assert_eq!(apk("1.2.10-r0", "1.2.9-r0"), Greater);
+        assert_eq!(compare_versions_in("Wolfi", "2.38-r10", "2.38-r9"), Greater);
+        // Ranges and fixes follow the ecosystem's order.
+        let r = vec![AffectedRange { introduced: "0".into(), fixed: "1:3.0.15-1~deb12u1".into(), ..Default::default() }];
+        assert!(is_affected_in("Debian:12", "1:3.0.11-1~deb12u2", &r, &[]));
+        assert!(!is_affected_in("Debian:12", "1:3.0.15-1~deb12u1", &r, &[]));
+        assert!(!is_affected_in("Debian:12", "2:1.0-1", &r, &[]));
+        assert_eq!(fix_for_in("Debian:12", "1:3.0.11-1~deb12u2", &r).as_deref(), Some("1:3.0.15-1~deb12u1"));
+        let a = vec![AffectedRange { introduced: "0".into(), fixed: "1.2.4-r3".into(), ..Default::default() }];
+        assert!(is_affected_in("Alpine:v3.19", "1.2.4-r2", &a, &[]));
+        assert!(!is_affected_in("Alpine:v3.19", "1.2.4_p1-r2", &a, &[]));
+    }
+
+    #[test]
     fn ranges_decide_affected_versions_and_fixes() {
         let ranges = vec![
             AffectedRange { introduced: "10.1.0-M1".into(), fixed: "10.1.55".into(), ..Default::default() },
@@ -936,6 +1236,20 @@ mod tests {
         assert_eq!(a.packages[0].fixed, "3.0.15-1~deb12u1");
         assert_eq!(osv_ecosystem("Debian:12"), "Debian:12");
         assert_eq!(osv_ecosystem("PyPI:extra"), "PyPI");
+    }
+
+    #[test]
+    fn osv_batch_results_map_advisories_to_their_packages() {
+        let res = json!({ "results": [
+            { "vulns": [{ "id": "DSA-5801-1", "modified": "2026-10-01T00:00:00Z" }, { "id": "DEBIAN-CVE-2026-1" }] },
+            {},
+            { "vulns": [{ "id": "DSA-5801-1", "modified": "2026-10-01T00:00:00Z" }] }
+        ]});
+        let ids = osv_batch_advisories(&res);
+        assert_eq!(ids.len(), 2);
+        assert_eq!(ids["DSA-5801-1"], ("2026-10-01T00:00:00Z".to_string(), vec![0, 2]));
+        assert_eq!(ids["DEBIAN-CVE-2026-1"], (String::new(), vec![0]));
+        assert!(osv_batch_advisories(&json!({})).is_empty());
     }
 
     #[test]
