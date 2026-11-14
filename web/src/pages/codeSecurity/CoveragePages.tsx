@@ -6,7 +6,7 @@ import { advisories, advisory, inventoryLibraries, inventoryServices, pullReques
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Select } from '../../components/ui/Dropdown';
 import { COVERAGE_TABS, SubTabs } from './CodeSecurityLayout';
-import { Drawer, LangLogo, Onboarding, PackageChip, SeverityBadge, SEVERITIES, shortRepo, timeAgo } from './common';
+import { Drawer, LangLogo, Onboarding, PackageChip, RepoName, SeverityBadge, SEVERITIES, shortRepo, SourceBadges, timeAgo } from './common';
 
 const SEV_OPTIONS = [{ value: '', label: 'All' }, ...SEVERITIES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }))];
 
@@ -62,9 +62,7 @@ export function RepositoriesPage() {
           {rows.map((r) => (
             <tr key={r.repository}>
               <td>
-                <span className="cs-repo">
-                  <GitBranch size={14} /> {shortRepo(r.repository)}
-                </span>
+                <RepoName repository={r.repository} provider={r.provider} link={!!r.url} /> {r.gitlabImport && <SourceBadges sources={['gitlab']} />}
               </td>
               <td className="num">
                 <Link to={`/code-security/vulnerabilities/static-code?repository=${encodeURIComponent(r.repository)}`}>{r.codeVulnerabilities}</Link>
@@ -81,7 +79,7 @@ export function RepositoriesPage() {
                 <Link to={`/code-security/vulnerabilities/iac?repository=${encodeURIComponent(r.repository)}`}>{r.iacViolations}</Link>
               </td>
               <td className="muted">
-                {timeAgo(r.lastScan)} · {r.lastBranch} <span className="cs-mono">{r.lastCommit.slice(0, 7)}</span>
+                {timeAgo(r.lastScan)} · {r.lastBranch} {r.lastCommit && <span className="cs-mono">{r.lastCommit.slice(0, 7)}</span>}
               </td>
             </tr>
           ))}
@@ -92,7 +90,7 @@ export function RepositoriesPage() {
           icon={<GitBranch size={22} />}
           product="Repositories"
           title="No repositories analyzed yet"
-          text="Repositories appear once CI uploads their SBOM (datadog-ci sbom upload) or a SARIF report (datadog-ci sarif upload)."
+          text="Repositories appear once CI uploads their SBOM (datadog-ci sbom upload) or a SARIF report (datadog-ci sarif upload), or once GitLab's scanners' results are imported."
         >
           <Link className="btn btn-primary" to="/code-security/settings">
             Get Started <ArrowRight size={14} />

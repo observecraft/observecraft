@@ -8,6 +8,7 @@ import type {
   CodeSecuritySummary,
   CsFilter,
   FindingKind,
+  GitlabImportStatus,
   InventoryPage,
   InventoryService,
   LibraryVulnerability,
@@ -142,7 +143,8 @@ const severityOf = (s: number) => (s >= 9 ? 'critical' : s >= 7 ? 'high' : s >= 
 const LANG: Record<string, string> = { Maven: 'java', npm: 'nodejs', PyPI: 'python', NuGet: 'dotnet', Go: 'go' };
 
 interface Lib {
-  source: 'runtime' | 'static';
+  /** runtime (tracers) | static (an SBOM upload) | gitlab (GitLab's dependency list) */
+  source: 'runtime' | 'static' | 'gitlab';
   ecosystem: string;
   name: string;
   version: string;
@@ -172,6 +174,10 @@ const SETS: Record<string, [string, string, string, string, string][]> = {
   go: [['Go', 'example.com/grpc-gateway', '1.7.0', 'go.mod', 'BSD-3-Clause']],
 };
 
+/** The demo's GitLab project (Code Security from GitLab). */
+const GITLAB_REPO = 'gitlab.com/example-org/checkout';
+const gitlabUrl = (id: number) => `https://${GITLAB_REPO}/-/security/vulnerabilities/${id}`;
+
 const LIBS: Lib[] = [
   ...(
     [
@@ -194,6 +200,8 @@ const LIBS: Lib[] = [
   ).flatMap(([repository, set]) =>
     SETS[set].map(([ecosystem, name, version, file, lic]) => ({ source: 'static' as const, ecosystem, name, version, file, service: '', env: '', repository, licenses: [lic] })),
   ),
+  // A GitLab project whose results are imported from GitLab's Vulnerability Report.
+  ...SETS.node.map(([ecosystem, name, version, file, lic]) => ({ source: 'gitlab' as const, ecosystem, name, version, file, service: '', env: '', repository: GITLAB_REPO, licenses: [lic] })),
 ];
 
 function cmp(a: string, b: string): number {
@@ -238,6 +246,9 @@ function allLibraryVulns(): LibraryVulnerability[] {
           firstSeen: now - Math.min(a.daysAgo, 150) * DAY,
           lastSeen: now - 60_000,
           status: triaged.get(`vuln:${a.id}:${l.ecosystem}:${l.name}`) ?? 'open',
+          statusReason: '',
+          sources: [],
+          url: '',
           occurrences: [],
         };
         out.set(key, v);
@@ -247,6 +258,9 @@ function allLibraryVulns(): LibraryVulnerability[] {
         if (!v.envs.includes(l.env)) v.envs.push(l.env);
         v.inProduction ||= l.env === 'prod';
       } else v.repositories.push(l.repository);
+      const source = l.source === 'static' ? 'upload' : l.source;
+      if (!v.sources.includes(source)) v.sources.push(source);
+      if (l.source === 'gitlab') v.url ||= gitlabUrl(7004);
       v.occurrences.push({ source: l.source, service: l.service, env: l.env, repository: l.repository, file: l.file, dev: false, firstSeen: v.firstSeen, lastSeen: v.lastSeen });
     }
   return [...out.values()].sort((a, b) => RANK[b.severity] - RANK[a.severity] || (b.score ?? 0) - (a.score ?? 0));
@@ -317,8 +331,73 @@ function finding(
     lastSeen: now - 3600_000,
     resolvedAt: null,
     status: triaged.get(`finding:${id}`) ?? 'open',
+    statusReason: '',
+    sources: ['upload'],
+    url: '',
   };
 }
+
+/** A finding imported from GitLab's Vulnerability Report (its scanners: Semgrep, Gitleaks, KICS). */
+function gitlabFinding(
+  gitlabId: number,
+  over: Partial<StaticFinding> & Pick<StaticFinding, 'kind' | 'tool' | 'ruleId' | 'ruleName' | 'severity' | 'file' | 'line' | 'message'>,
+  dismissed = '',
+): StaticFinding {
+  const id = `gl-${gitlabId}`;
+  const base = finding(id, over.kind as FindingKind, over.tool, over.ruleId, over.ruleName, over.severity, over.cwes ?? [], over.file, over.line, over.message, '', 9);
+  const t = triaged.get(`finding:${id}`);
+  return {
+    ...base,
+    ...over,
+    id,
+    repository: GITLAB_REPO,
+    commitSha: '',
+    sources: ['gitlab'],
+    url: gitlabUrl(gitlabId),
+    status: t ?? (dismissed ? 'muted' : 'open'),
+    statusReason: t ? '' : dismissed,
+  };
+}
+
+const GITLAB_FINDINGS: StaticFinding[] = [
+  gitlabFinding(7001, {
+    kind: 'sast',
+    tool: 'semgrep',
+    ruleId: 'javascript.express.security.audit.xss.direct-response-write',
+    ruleName: 'Cross-site scripting: user input written to the response',
+    severity: 'high',
+    cwes: ['CWE-79'],
+    file: 'src/routes/receipt.js',
+    line: 27,
+    message: 'Cross-site scripting: user input written to the response',
+    description: 'Request data is written to the response without encoding.',
+  }),
+  gitlabFinding(
+    7003,
+    {
+      kind: 'secret',
+      tool: 'gitleaks',
+      ruleId: 'AWS',
+      ruleName: 'AWS access key',
+      severity: 'critical',
+      file: 'test/fixtures/aws.env',
+      line: 2,
+      message: 'AWS access key committed in the repository',
+    },
+    'Used in tests',
+  ),
+  gitlabFinding(7002, {
+    kind: 'iac',
+    tool: 'kics',
+    ruleId: 'S3 Bucket ACL Allows Read Or Write to All Users',
+    ruleName: 'S3 Bucket ACL Allows Read Or Write to All Users',
+    severity: 'high',
+    cwes: ['CWE-732'],
+    file: 'infra/receipts.tf',
+    line: 8,
+    message: 'aws_s3_bucket.receipts is readable by everyone',
+  }),
+];
 
 function allFindings(prs = false): StaticFinding[] {
   const rows = [
@@ -426,7 +505,7 @@ function allFindings(prs = false): StaticFinding[] {
       '418',
     ),
   ];
-  return prs ? pr : rows;
+  return prs ? pr : [...rows, ...GITLAB_FINDINGS.map((f) => ({ ...f, status: triaged.get(`finding:${f.id}`) ?? f.status }))];
 }
 
 export function findings(kind: FindingKind, f: CsFilter): StaticFindingPage {
@@ -617,19 +696,23 @@ export function summary(): CodeSecuritySummary {
 export function repositories(): RepositorySummary[] {
   const vulns = allLibraryVulns();
   const f = allFindings();
-  return [...new Set(LIBS.filter((l) => l.source === 'static').map((l) => l.repository))].map((repository) => {
+  return [...new Set(LIBS.filter((l) => l.source !== 'runtime').map((l) => l.repository))].map((repository) => {
+    const gitlab = repository === GITLAB_REPO;
     const open = (k: string) => f.filter((x) => x.repository === repository && x.kind === k && x.status === 'open');
     return {
       repository,
       codeVulnerabilities: open('sast').filter((x) => x.cwes.length).length,
       codeViolations: open('sast').filter((x) => !x.cwes.length).length,
       libraryVulnerabilities: vulns.filter((v) => v.status === 'open' && v.repositories.includes(repository)).length,
-      libraries: LIBS.filter((l) => l.source === 'static' && l.repository === repository).length,
+      libraries: LIBS.filter((l) => l.source !== 'runtime' && l.repository === repository).length,
       secrets: open('secret').length,
       iacViolations: open('iac').length,
-      lastScan: now - 3600_000,
+      lastScan: now - (gitlab ? 1200_000 : 3600_000),
       lastBranch: 'main',
-      lastCommit: '4f2a9c1',
+      lastCommit: gitlab ? '' : '4f2a9c1',
+      provider: gitlab ? 'gitlab' : 'github',
+      url: `https://${repository}`,
+      gitlabImport: gitlab,
     };
   });
 }
@@ -637,7 +720,7 @@ export function repositories(): RepositorySummary[] {
 export function inventoryLibraries(view: 'static' | 'runtime', f: CsFilter): InventoryPage {
   const vulns = allLibraryVulns().filter((v) => v.status === 'open');
   const by = new Map<string, InventoryPage['libraries'][number]>();
-  for (const l of LIBS.filter((x) => x.source === view)) {
+  for (const l of LIBS.filter((x) => (view === 'runtime') === (x.source === 'runtime'))) {
     const k = `${l.ecosystem}|${l.name}|${l.version}`;
     let e = by.get(k);
     if (!e) {
@@ -726,6 +809,21 @@ export function pullRequests(): PullRequestScan[] {
 
 export function triage(key: string, status: 'open' | 'muted'): void {
   triaged.set(key, status);
+}
+
+export function gitlabImport(): GitlabImportStatus {
+  const findings = GITLAB_FINDINGS.filter((f) => f.status === 'open').length;
+  return {
+    connected: true,
+    enabled: true,
+    baseUrl: 'https://gitlab.com',
+    projects: [{ id: 4211, path: 'example-org/checkout', lastImportAt: now - 1200_000, findings: GITLAB_FINDINGS.length + 1, error: null }],
+    discoveredAt: now - 1800_000,
+    discoveryError: null,
+    lastImportAt: now - 1200_000,
+    openFindings: findings,
+    openLibraryVulnerabilities: allLibraryVulns().filter((v) => v.sources.includes('gitlab') && v.status === 'open').length,
+  };
 }
 
 export function setup(): CodeSecuritySetup {

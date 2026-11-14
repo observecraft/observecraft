@@ -1,6 +1,6 @@
 // Software Delivery → Settings → GitLab CI: steps 2-5 of the CI provider setup. ObserveCraft polls GitLab's
 // API with a read_api token (GitLab.com or a self-managed instance; GitLab needs no access to ObserveCraft)
-// and imports each finished pipeline as a CI/CD trace.
+// and imports each finished pipeline as a CI/CD trace; optionally, its scanners' results into Code Security.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Check, CircleCheck, RefreshCw } from 'lucide-react';
@@ -28,11 +28,12 @@ interface Form {
   includeSubgroups: boolean;
   projects: string;
   allProjects: boolean;
+  importCodeSecurity: boolean;
 }
 
 function formOf(s: GitlabCiStatus | undefined): Form {
   const c = s?.connection;
-  if (!c) return { install: 'saas', baseUrl: '', token: '', groupPath: '', includeSubgroups: true, projects: '', allProjects: false };
+  if (!c) return { install: 'saas', baseUrl: '', token: '', groupPath: '', includeSubgroups: true, projects: '', allProjects: false, importCodeSecurity: false };
   const saas = c.baseUrl === SAAS_URL;
   return {
     install: saas ? 'saas' : 'self-managed',
@@ -42,6 +43,7 @@ function formOf(s: GitlabCiStatus | undefined): Form {
     includeSubgroups: c.includeSubgroups,
     projects: c.projectPaths.join('\n'),
     allProjects: c.allProjects,
+    importCodeSecurity: c.importCodeSecurity,
   };
 }
 
@@ -56,6 +58,7 @@ function inputOf(f: Form): GitlabCiInput {
       .map((p) => p.trim())
       .filter(Boolean),
     allProjects: f.allProjects,
+    importCodeSecurity: f.importCodeSecurity,
   };
 }
 
@@ -170,6 +173,13 @@ export function GitlabCiSetup() {
           <textarea rows={3} value={form.projects} onChange={(e) => set({ projects: e.target.value })} placeholder={'example-org/storefront-api\nexample-org/billing'} disabled={!isAdmin} />
           <span className="muted">Project paths to follow besides the group&apos;s, one per line. Follow a group, projects, or both.</span>
         </label>
+        <label className="ci-check">
+          <input type="checkbox" checked={form.importCodeSecurity} onChange={(e) => set({ importCodeSecurity: e.target.checked })} disabled={!isAdmin} /> Import Code Security results
+        </label>
+        <p className="muted">
+          The followed projects&apos; Vulnerability Reports (GitLab&apos;s SAST, Secret Detection and Dependency Scanning) appear in <Link to="/code-security">Code Security</Link>, with GitLab&apos;s
+          dismissals as mutes, every 30 minutes. The token&apos;s user needs at least the Developer role on the projects. Turning it off removes the imported results.
+        </p>
       </Step>
 
       <Step n={4} title="Test and save" open onToggle={() => {}} done={!!saved}>

@@ -19,7 +19,7 @@ import {
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Select } from '../../components/ui/Dropdown';
 import { SubTabs, VULN_TYPES } from './CodeSecurityLayout';
-import { Drawer, fmtDate, Onboarding, PackageChip, Pill, SeverityBadge, SEVERITIES, shortRepo, timeAgo } from './common';
+import { Drawer, fmtDate, Onboarding, PackageChip, Pill, RepoName, ScannerName, SeverityBadge, SEVERITIES, shortRepo, SourceBadges, timeAgo } from './common';
 
 type VulnType = (typeof VULN_TYPES)[number]['id'];
 const KIND: Partial<Record<VulnType, FindingKind>> = { 'static-code': 'sast', secrets: 'secret', iac: 'iac' };
@@ -259,11 +259,12 @@ function LibraryList({ filter, onPage }: { filter: CsFilter; onPage: (o: number)
                       Fix in {v.fixed}
                     </Pill>
                   )}
+                  {v.sources.includes('gitlab') && <SourceBadges sources={['gitlab']} url={v.url} />}
                 </div>
               </td>
               <td>
                 {o ? (
-                  <span className="cs-chip">{o.source === 'runtime' ? `${o.service} · ${o.env || 'no env'}` : shortRepo(o.repository)}</span>
+                  <span className="cs-chip">{o.source === 'runtime' ? `${o.service} · ${o.env || 'no env'}` : <RepoName repository={o.repository} />}</span>
                 ) : (
                   <div className="cs-detected">
                     <span className="cs-chip">
@@ -275,7 +276,9 @@ function LibraryList({ filter, onPage }: { filter: CsFilter; onPage: (o: number)
                   </div>
                 )}
               </td>
-              <td className="muted">{v.status === 'muted' ? 'Muted' : 'Open'}</td>
+              <td className="muted" title={v.statusReason || undefined}>
+                {v.status === 'muted' ? 'Muted' : 'Open'}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -303,6 +306,7 @@ function LibraryDrawer({ v, onClose }: { v: LibraryVulnerability; onClose: () =>
             Service In Production
           </Pill>
         )}
+        <SourceBadges sources={v.sources} url={v.url} />
       </div>
       <div className="cs-detail">
         <div className="cs-detail-main">
@@ -353,10 +357,18 @@ function LibraryDrawer({ v, onClose }: { v: LibraryVulnerability; onClose: () =>
             </thead>
             <tbody>
               {v.occurrences
-                .filter((o) => (tab === 'services' ? o.source === 'runtime' : o.source === 'static'))
+                .filter((o) => (tab === 'services') === (o.source === 'runtime'))
                 .map((o) => (
-                  <tr key={`${o.service}${o.repository}${o.env}`}>
-                    <td>{tab === 'services' ? <Link to={`/apm/services/${encodeURIComponent(o.service)}`}>{o.service}</Link> : shortRepo(o.repository)}</td>
+                  <tr key={`${o.source}${o.service}${o.repository}${o.env}${o.file}`}>
+                    <td>
+                      {tab === 'services' ? (
+                        <Link to={`/apm/services/${encodeURIComponent(o.service)}`}>{o.service}</Link>
+                      ) : (
+                        <>
+                          <RepoName repository={o.repository} link /> <SourceBadges sources={[o.source === 'static' ? 'upload' : o.source]} />
+                        </>
+                      )}
+                    </td>
                     <td className="cs-mono">{tab === 'services' ? o.env || '—' : o.file || '—'}</td>
                     <td className="muted">{timeAgo(o.lastSeen)}</td>
                   </tr>
@@ -367,6 +379,7 @@ function LibraryDrawer({ v, onClose }: { v: LibraryVulnerability; onClose: () =>
         <NextSteps
           remediation={v.fixed ? `Upgrade ${v.package} to ${v.fixed} or later.` : 'No fixed version is published for this advisory yet.'}
           muted={muted}
+          reason={v.statusReason}
           busy={t.isPending}
           onToggle={() => t.mutate({ key: vulnKey(v), status: muted ? 'open' : 'muted' })}
         />
@@ -375,13 +388,29 @@ function LibraryDrawer({ v, onClose }: { v: LibraryVulnerability; onClose: () =>
   );
 }
 
-function NextSteps({ remediation, muted, busy, onToggle, extra }: { remediation: string; muted: boolean; busy: boolean; onToggle: () => void; extra?: React.ReactNode }) {
+function NextSteps({
+  remediation,
+  muted,
+  reason,
+  busy,
+  onToggle,
+  extra,
+}: {
+  remediation: string;
+  muted: boolean;
+  /** Why it is muted (GitLab's dismissal reason). */
+  reason?: string;
+  busy: boolean;
+  onToggle: () => void;
+  extra?: React.ReactNode;
+}) {
   return (
     <aside className="cs-next">
       <h4>NEXT STEPS</h4>
       <div className="cs-next-body">
         <b>Triage</b>
         <div className={`cs-next-state${muted ? ' muted' : ''}`}>{muted ? 'MUTED' : 'OPEN'}</div>
+        {muted && reason && <p className="muted">Dismissed in GitLab: {reason}</p>}
         <button className="btn" disabled={busy} onClick={onToggle}>
           {muted ? <Bell size={14} /> : <BellOff size={14} />} {muted ? 'Unmute' : 'Mute'}
         </button>
@@ -440,16 +469,21 @@ function FindingList({ kind, vt, filter, onPage }: { kind: FindingKind; vt: Vuln
                       {c}
                     </span>
                   ))}
-                  <span className="muted">{f.tool}</span>
+                  <ScannerName tool={f.tool} />
+                  {f.sources.includes('gitlab') && <SourceBadges sources={['gitlab']} url={f.url} />}
                 </div>
               </td>
               <td>
-                <div>{shortRepo(f.repository)}</div>
+                <div>
+                  <RepoName repository={f.repository} />
+                </div>
                 <div className="cs-mono muted">
                   {f.file}:{f.line}
                 </div>
               </td>
-              <td className="muted">{f.status === 'resolved' ? `Resolved ${timeAgo(f.resolvedAt)}` : timeAgo(f.lastSeen)}</td>
+              <td className="muted" title={f.statusReason || undefined}>
+                {f.status === 'resolved' ? `Resolved ${timeAgo(f.resolvedAt)}` : timeAgo(f.lastSeen)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -471,7 +505,8 @@ function FindingDrawer({ f, onClose }: { f: StaticFinding; onClose: () => void }
       </div>
       <div className="cs-vuln-meta">
         <span className="cs-chip cs-mono">{f.ruleId}</span>
-        <span className="muted">{f.tool}</span>
+        <ScannerName tool={f.tool} />
+        <SourceBadges sources={f.sources} url={f.url} />
       </div>
       <div className="cs-detail">
         <div className="cs-detail-main">
@@ -489,10 +524,10 @@ function FindingDrawer({ f, onClose }: { f: StaticFinding; onClose: () => void }
               <dt>DETECTED IN</dt>
               <dd>
                 <span className="cs-chip">
-                  <GitBranch size={13} /> {shortRepo(f.repository)}
+                  <RepoName repository={f.repository} link />
                 </span>
-                <span className="cs-chip">{f.branch}</span>
-                <span className="cs-chip cs-mono">{f.commitSha.slice(0, 7)}</span>
+                {f.branch && <span className="cs-chip">{f.branch}</span>}
+                {f.commitSha && <span className="cs-chip cs-mono">{f.commitSha.slice(0, 7)}</span>}
               </dd>
               <dt>FILE</dt>
               <dd className="cs-mono">
@@ -522,14 +557,22 @@ function FindingDrawer({ f, onClose }: { f: StaticFinding; onClose: () => void }
             f.kind === 'secret' ? 'Revoke and rotate the credential, then remove it from the repository history.' : 'Fix the code at this location; the next scan of the branch resolves the finding.'
           }
           muted={muted}
+          reason={f.statusReason}
           busy={t.isPending}
           onToggle={() => t.mutate({ key: `finding:${f.id}`, status: muted ? 'open' : 'muted' })}
           extra={
-            f.helpUri ? (
-              <a className="btn" href={f.helpUri} target="_blank" rel="noreferrer">
-                Rule documentation <ExternalLink size={12} />
-              </a>
-            ) : undefined
+            <>
+              {f.url && (
+                <a className="btn" href={f.url} target="_blank" rel="noreferrer">
+                  Open in GitLab <ExternalLink size={12} />
+                </a>
+              )}
+              {f.helpUri && (
+                <a className="btn" href={f.helpUri} target="_blank" rel="noreferrer">
+                  Rule documentation <ExternalLink size={12} />
+                </a>
+              )}
+            </>
           }
         />
       </div>

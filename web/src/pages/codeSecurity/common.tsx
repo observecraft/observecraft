@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { ExternalLink, GitBranch, X } from 'lucide-react';
 import { BrandLogo } from '../../components/brand/BrandLogo';
 
 export const SEVERITIES = ['critical', 'high', 'medium', 'low'] as const;
@@ -87,3 +87,64 @@ export function timeAgo(t: number | null | undefined): string {
 export const fmtDate = (t: number | null | undefined) => (t ? new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—');
 
 export const shortRepo = (r: string) => r.replace(/^[^/]+\//, '');
+
+/** A repository's source control, from its host (the server also knows self-managed GitLab hosts: pass `provider`). */
+export function repoProvider(repository: string): string {
+  const host = repository.split('/')[0].toLowerCase();
+  if (!repository.includes('/')) return 'git';
+  if (host === 'github.com' || host.startsWith('github.')) return 'github';
+  if (host === 'gitlab.com' || host.startsWith('gitlab.')) return 'gitlab';
+  return host.includes('bitbucket') ? 'bitbucket' : 'git';
+}
+
+const PROVIDER_LABEL: Record<string, string> = { github: 'GitHub', gitlab: 'GitLab', bitbucket: 'Bitbucket', git: 'Git' };
+
+/** A repository with its source control's logo; a link to it with `link`. */
+export function RepoName({ repository, provider, link }: { repository: string; provider?: string; link?: boolean }) {
+  const p = provider || repoProvider(repository);
+  const icon = p === 'git' ? <GitBranch size={14} /> : <BrandLogo name={p} size={14} title={PROVIDER_LABEL[p]} />;
+  const name = (
+    <>
+      {icon} {shortRepo(repository)}
+    </>
+  );
+  if (!link || !repository.includes('/')) return <span className="cs-repo">{name}</span>;
+  return (
+    <a className="cs-repo" href={`https://${repository}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title={`Open ${repository} in ${PROVIDER_LABEL[p]}`}>
+      {name}
+    </a>
+  );
+}
+
+/** Scanner name → logo key (only scanners with a logo in the app's sets; the others show their name alone). */
+const SCANNER_LOGO: Record<string, string> = { 'datadog-static-analyzer': 'datadog', trivy: 'trivy', snyk: 'snyk', checkmarx: 'checkmarx', sonarqube: 'sonarqube', codeql: 'github' };
+
+export function ScannerName({ tool }: { tool: string }) {
+  const logo = SCANNER_LOGO[tool.toLowerCase()];
+  return (
+    <span className="cs-scanner muted">
+      {logo && <BrandLogo name={logo} size={13} title={tool} />} {tool}
+    </span>
+  );
+}
+
+const SOURCE_LABEL: Record<string, string> = { gitlab: 'GitLab', upload: 'CI upload', runtime: 'Runtime' };
+
+/** Where a finding was reported: GitLab's Vulnerability Report (linked), a CI upload, the tracers. */
+export function SourceBadges({ sources, url }: { sources: string[]; url?: string }) {
+  return (
+    <span className="cs-sources">
+      {sources.map((s) =>
+        s === 'gitlab' && url ? (
+          <a key={s} className="cs-chip cs-source" href={url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="Open in GitLab's Vulnerability Report">
+            <BrandLogo name="gitlab" size={12} /> GitLab <ExternalLink size={11} />
+          </a>
+        ) : (
+          <span key={s} className="cs-chip cs-source">
+            {s === 'gitlab' && <BrandLogo name="gitlab" size={12} />} {SOURCE_LABEL[s] ?? s}
+          </span>
+        ),
+      )}
+    </span>
+  );
+}

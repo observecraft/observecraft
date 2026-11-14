@@ -127,6 +127,11 @@ const MAP = {
   github: 'github-icon',
   githubactions: 'github-actions',
   gitlab: 'gitlab-icon',
+  git: 'git-icon',
+  // Code Security's scanners (the others have no logo in these sets: shown by name)
+  trivy: 'si:trivy',
+  snyk: 'si:snyk',
+  checkmarx: 'si:checkmarx',
   // ObserveCraft's GitLab Audit Events integration (its page, tile and dashboard)
   'gitlab-audit-events': 'gitlab-icon',
   // ObserveCraft's Google Workspace integration (its page, tile and dashboard)

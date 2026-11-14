@@ -2272,6 +2272,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/code-security/gitlab": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Code Security's import from GitLab: whether the GitLab connection imports its scanners' results, and each
+         *     project's last import.
+         */
+        get: operations["gitlab_import"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/code-security/inventory/libraries": {
         parameters: {
             query?: never;
@@ -16807,6 +16827,7 @@ export interface components {
             allProjects: boolean;
             baseUrl: string;
             groupPath: string;
+            importCodeSecurity: boolean;
             includeSubgroups: boolean;
             projectPaths: string[];
             /**
@@ -16833,6 +16854,12 @@ export interface components {
              * @default
              */
             groupPath: string;
+            /**
+             * @description Also import the results of GitLab's own scanners (SAST, Secret Detection, Dependency Scanning) into Code
+             *     Security. The token's user needs at least the Developer role on the projects.
+             * @default false
+             */
+            importCodeSecurity: boolean;
             /** @default false */
             includeSubgroups: boolean;
             /**
@@ -16901,6 +16928,50 @@ export interface components {
             scopes: string[];
             /** @description The token's user. */
             user?: string | null;
+        };
+        /** @description Code Security's import from GitLab (Code Security → Settings). */
+        GitlabImportStatus: {
+            baseUrl: string;
+            /** @description GitLab is connected (Software Delivery → Settings → GitLab CI). */
+            connected: boolean;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last project list.
+             */
+            discoveredAt?: number | null;
+            discoveryError?: components["schemas"]["CrawlIssue"] | null;
+            /** @description The connection imports Code Security results. */
+            enabled: boolean;
+            /**
+             * Format: int64
+             * @description Epoch ms of the latest project import.
+             */
+            lastImportAt?: number | null;
+            /**
+             * Format: int64
+             * @description Open code, secret and IaC findings, and open library vulnerabilities, imported.
+             */
+            openFindings: number;
+            /** Format: int64 */
+            openLibraryVulnerabilities: number;
+            projects: components["schemas"]["GitlabImportedProject"][];
+        };
+        /** @description A project's import. */
+        GitlabImportedProject: {
+            error?: components["schemas"]["CrawlIssue"] | null;
+            /**
+             * Format: int32
+             * @description Findings the last import stored.
+             */
+            findings: number;
+            /** Format: int64 */
+            id: number;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last complete import.
+             */
+            lastImportAt?: number | null;
+            path: string;
         };
         /** @description A Reports API application the integration can read. */
         GoogleWorkspaceApplication: {
@@ -18569,8 +18640,14 @@ export interface components {
             score?: number | null;
             services: string[];
             severity: string;
+            /** @description Where it was found: runtime (tracers) | upload (an SBOM upload) | gitlab (GitLab's dependency scanning). */
+            sources: string[];
             status: string;
+            /** @description Why it is muted (GitLab's dismissal reason). */
+            statusReason: string;
             title: string;
+            /** @description The vulnerability's page in the source control (GitLab). */
+            url: string;
             version: string;
         };
         LibraryVulnerabilityPage: {
@@ -19889,7 +19966,7 @@ export interface components {
             lastSeen: number;
             repository: string;
             service: string;
-            /** @description runtime (a service loads it) | static (a repository declares it) */
+            /** @description runtime (a service loads it) | static (a repository declares it, uploaded) | gitlab (GitLab's dependency scanning) */
             source: string;
         };
         OidcStatus: {
@@ -21583,6 +21660,8 @@ export interface components {
         RepositorySummary: {
             codeViolations: number;
             codeVulnerabilities: number;
+            /** @description Its results are imported from GitLab's Vulnerability Report. */
+            gitlabImport: boolean;
             iacViolations: number;
             lastBranch: string;
             lastCommit: string;
@@ -21590,8 +21669,12 @@ export interface components {
             lastScan?: number | null;
             libraries: number;
             libraryVulnerabilities: number;
+            /** @description github | gitlab | bitbucket | git */
+            provider: string;
             repository: string;
             secrets: number;
+            /** @description The repository's page ('' when its name isn't a URL). */
+            url: string;
         };
         ResourceCategory: {
             /** @description Hosts, Containers, Kubernetes, Networking, Storage, Container Images, … */
@@ -23907,8 +23990,14 @@ export interface components {
             ruleName: string;
             severity: string;
             snippet: string;
+            /** @description Every source that reports it: upload | gitlab. */
+            sources: string[];
             status: string;
+            /** @description Why it is muted (GitLab's dismissal reason). */
+            statusReason: string;
             tool: string;
+            /** @description The finding's page in the source control (GitLab). */
+            url: string;
         };
         StaticFindingPage: {
             findings: components["schemas"]["StaticFinding"][];
@@ -30301,6 +30390,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaticFindingPage"];
+                };
+            };
+        };
+    };
+    gitlab_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitlabImportStatus"];
                 };
             };
         };
