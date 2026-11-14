@@ -1,20 +1,42 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { EChartsOption } from 'echarts';
-import { ArrowRight, Boxes, CheckCircle2, Cloud, Code2, FolderGit2, Radar, Server, ShieldAlert, Waypoints } from 'lucide-react';
+import { ArrowRight, Boxes, Bot, CheckCircle2, Cloud, CloudCog, Code2, Cpu, FolderGit2, Radar, Server, ShieldAlert, Waypoints } from 'lucide-react';
 import { Chart } from '../../components/charts/Chart';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { compact } from '../../lib/format';
 import { token } from '../../theme/chartTheme';
 import { useSecurityOverview } from './queries';
+import { useCloudSummary } from './cloud/queries';
+import { useWpSummary } from './workload/overviewQueries';
+import { useAiGuardSummary } from './aiGuard/queries';
+import { useAppsecServices } from './appsec/queries';
+
+const WEEK = 7 * 86_400_000;
 
 /** Security → Overview: what is covered from development to runtime, and what each product found. */
 export function SecurityOverviewPage() {
   const q = useSecurityOverview();
+  // The products' own summaries, over the last 7 days (fixed when the page opens).
+  const [range] = useState(() => ({ from: Date.now() - WEEK, to: Date.now() }));
+  const cloud = useCloudSummary().data;
+  const wp = useWpSummary(range).data;
+  const ai = useAiGuardSummary({ range }).data;
+  const appsecServices = useAppsecServices().data;
   if (q.isLoading) return <Loading />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const o = q.data!;
   const c = o.codeSecurity;
+  const cov = cloud?.coverage;
+  const sbom = !!cov && cov.hostsScanned + cov.images > 0;
+  const posture = !!cloud && (cov!.resourcesEvaluated > 0 || cov!.accounts.some((a) => a.connected));
+  const connectedAccounts = cov?.accounts.filter((a) => a.connected).length ?? 0;
+  const misconfigs = cloud ? Object.values(cloud.misconfigurations).reduce((a, n) => a + n, 0) : 0;
+  const wpAgents = wp?.agents;
+  const wpOn = !!wpAgents && wpAgents.hostsEnabled + wpAgents.serverlessEnabled > 0;
+  const wpSignals = wp ? Object.values(wp.signals).reduce((a, n) => a + n, 0) : 0;
+  const aiOn = !!ai && ai.total > 0;
+  const appsecOn = (appsecServices ?? []).filter((s) => s.protected || s.securityTraces > 0);
   const n = (on: boolean, v: number) => (on ? compact(v) : '—');
   const appSec: EChartsOption = {
     grid: { left: 24, right: 8, top: 8, bottom: 20 },
@@ -103,7 +125,51 @@ export function SecurityOverviewPage() {
           <h3>
             <ShieldAlert size={17} /> App &amp; API Protection
           </h3>
-          <p className="sec-ov-pitch">Application security rules can be saved; they aren&rsquo;t evaluated yet.</p>
+          <Capability
+            on={appsecOn.length > 0}
+            label={appsecOn.length ? `${appsecOn.length} service${appsecOn.length === 1 ? '' : 's'} sending security traces` : 'Threat detection on security traces'}
+            to={appsecOn.length ? '/security/appsec/inventory/services' : undefined}
+            enable="/security/appsec/settings"
+          />
+          <Capability on={appsecOn.length > 0} label="Detection rules evaluated on attacks" to={appsecOn.length ? '/security/appsec/policies/rules' : undefined} enable="/security/appsec/settings" />
+          <p className="sec-ov-note">In-app blocking needs Remote Configuration, which ObserveCraft doesn&rsquo;t serve yet: blocking rules are kept, not enforced.</p>
+        </section>
+        <section className="sec-ov-product">
+          <h3>
+            <CloudCog size={17} /> Cloud Security
+          </h3>
+          <Capability on={sbom} label="Host & container image vulnerabilities (SBOMs)" to={sbom ? '/security/cloud/vulnerabilities' : undefined} enable="/security/cloud/settings" />
+          <Capability on={posture} label="Misconfigurations (posture)" to={posture ? '/security/cloud/findings' : undefined} enable="/security/cloud/settings" />
+          <Capability
+            on={connectedAccounts > 0}
+            label={connectedAccounts ? `${connectedAccounts} cloud accounts connected` : 'Cloud accounts'}
+            to={connectedAccounts ? '/security/cloud' : undefined}
+            enable="/security/cloud/settings"
+          />
+        </section>
+        <section className="sec-ov-product">
+          <h3>
+            <Cpu size={17} /> Workload Protection
+          </h3>
+          <Capability
+            on={wpOn}
+            label={wpOn ? `${wpAgents!.hostsEnabled} of ${wpAgents!.hosts} hosts with runtime security` : 'Runtime security on Agents'}
+            to={wpOn ? '/security/workload-protection/inventory/coverage' : undefined}
+            enable="/security/workload-protection/setup"
+          />
+          <Capability on={wpOn && (wp?.detectionRules ?? 0) > 0} label={`${wp?.detectionRules ?? 0} detection rules`} to="/security/workload-protection/policies/detection-rules" />
+        </section>
+        <section className="sec-ov-product">
+          <h3>
+            <Bot size={17} /> AI Guard
+          </h3>
+          <Capability
+            on={aiOn}
+            label={aiOn ? `${ai!.services.length} AI service${ai!.services.length === 1 ? '' : 's'} evaluated` : 'Prompt and tool call evaluation'}
+            to={aiOn ? '/security/ai-guard' : undefined}
+            enable="/security/ai-guard/settings"
+          />
+          <Capability on={!!ai?.blockingEnabled} label="Blocking unsafe prompts" to="/security/ai-guard/settings" />
         </section>
       </div>
       <div className="sec-ov-col sec-ov-results">
@@ -145,6 +211,19 @@ export function SecurityOverviewPage() {
             </div>
           </div>
         </section>
+        <section className="sec-ov-result">
+          <div className="sec-ov-row">
+            <Metric value={sbom ? compact(cloud!.vulnerabilities.total) : '—'} label="Cloud Vulnerabilities" to="/security/cloud/vulnerabilities" />
+            <Metric value={sbom ? compact(cloud!.vulnerabilities.highExploitRisk) : '—'} label="High Exploit Risk" to="/security/cloud/vulnerabilities?running=1&exploit=1" />
+            <Metric value={posture ? compact(misconfigs) : '—'} label="Misconfigurations" to="/security/cloud/findings" />
+          </div>
+        </section>
+        <section className="sec-ov-result">
+          <div className="sec-ov-row">
+            <Metric value={wpOn ? compact(wpSignals) : '—'} label="Workload Signals" badge="7d" to="/security/workload-protection/signals" />
+            <Metric value={aiOn ? compact(ai!.unsafeCount) : '—'} label="Unsafe AI Prompts" badge="7d" to="/security/ai-guard" />
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -162,16 +241,16 @@ function InventoryBox({ title, icon, children }: { title: string; icon: ReactNod
   );
 }
 
-function Capability({ on, label, to }: { on: boolean; label: string; to?: string }) {
+function Capability({ on, label, to, enable = '/code-security/settings' }: { on: boolean; label: string; to?: string; enable?: string }) {
   return (
     <div className={`sec-ov-cap${on ? ' on' : ''}`}>
       {on ? <CheckCircle2 size={15} /> : <Waypoints size={15} />}
       <span>{label}</span>
-      {to ? (
+      {on && to ? (
         <Link to={to}>View</Link>
       ) : (
         !on && (
-          <Link className="sec-ov-enable" to="/code-security/settings">
+          <Link className="sec-ov-enable" to={enable}>
             Enable
           </Link>
         )
