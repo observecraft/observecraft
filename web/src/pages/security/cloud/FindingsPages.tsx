@@ -9,6 +9,7 @@ import { Empty, ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { compact, timeAgo } from '../../../lib/format';
 import { formatQuery, parseQuery, type Term } from '../../../lib/searchQuery';
 import { SeverityBadge } from '../common';
+import { RemediationCard } from '../../../components/security/RemediationCard';
 import { FINDING_TABS, SubTabs } from './CloudSecurityLayout';
 import { EcosystemIcon, OsIcon, ResourceType, ResourceTypeIcon, resourceKind } from './resourceTypes';
 import { useCve, useInfraVulnerabilities, useMisconfigurations, usePostureScans, useScanNow, useTriage } from './queries';
@@ -362,6 +363,7 @@ export function MisconfigurationsPage() {
             <p>{rule.description}</p>
             <h4>Remediation</h4>
             <p className="csm-remediation">{rule.remediation}</p>
+            {all.some((x) => x.ruleId === rule.id) && <RemediationCard finding={{ kind: 'cloud_misconfiguration', id: all.find((x) => x.ruleId === rule.id)!.key }} />}
             <div className="sec-tags">
               {rule.frameworks.map((x) => (
                 <span key={x} className="tag-chip">
@@ -621,6 +623,7 @@ function VulnDrawer({ id, rows, onClose }: { id: string; rows: InfraVulnerabilit
     >
       <ImpactSummary rows={rows} />
       {a.isLoading ? <Loading /> : a.data && <AdvisoryBody a={a.data} />}
+      {first && <RemediationCard finding={{ kind: 'cloud_vulnerability', id: first.key }} />}
       <h4>Impacted resources</h4>
       {!rows.length ? (
         <p className="muted">No host or image of yours has an affected version.</p>

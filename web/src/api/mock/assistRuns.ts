@@ -356,6 +356,21 @@ export function addTestingRun(
   return { id: r.summary.id, doneAt: r.summary.createdAt + (tookMs ?? QUEUED_MS + script.steps.length * STEP_MS) };
 }
 
+/**
+ * Remediation (mock/remediation.ts): an `explain` or `fix` run playing its steps, then concluding with `conclusion`
+ * (and, for a fix, its proposed `change`).
+ */
+export function addScriptedRun(
+  kind: 'explain' | 'fix',
+  title: string,
+  subject: Record<string, unknown>,
+  steps: ([string, Record<string, unknown>, string] | string)[],
+  conclusion: Conclusion,
+  change?: CodeChange,
+): RunSummary {
+  return add(kind, title, subject, { steps: steps.map((s) => (typeof s === 'string' ? text(s) : tool(s[0], s[1], s[2]))), conclusion, change });
+}
+
 // ---------------------------------------------------------------- runs
 
 function monitorsList() {

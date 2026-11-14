@@ -691,7 +691,7 @@ fn is_production(env: &str) -> bool {
 }
 
 /// Every library vulnerability of the org: each (advisory, package version) its libraries match.
-async fn library_vulnerabilities(st: &AppState, org: &str) -> Result<Vec<LibraryVulnerability>, ApiError> {
+pub(crate) async fn library_vulnerabilities(st: &AppState, org: &str) -> Result<Vec<LibraryVulnerability>, ApiError> {
     let rows: Vec<MatchRow> = sqlx::query_as(
         "SELECT l.source, l.ecosystem, l.name, l.version, l.service, l.env, l.repository, l.language, l.file, l.direct, l.dev, \
          (EXTRACT(EPOCH FROM l.first_seen) * 1000)::bigint AS first_seen, (EXTRACT(EPOCH FROM l.last_seen) * 1000)::bigint AS last_seen, \
@@ -1039,7 +1039,7 @@ pub struct FindingFilter {
     pub filter: CsFilter,
 }
 
-async fn static_findings(st: &AppState, org: &str, kind: Option<&str>, prs: bool) -> Result<Vec<StaticFinding>, ApiError> {
+pub(crate) async fn static_findings(st: &AppState, org: &str, kind: Option<&str>, prs: bool) -> Result<Vec<StaticFinding>, ApiError> {
     let rows: Vec<StaticFinding> = sqlx::query_as(
         "SELECT f.id, f.kind, f.tool, f.rule_id, COALESCE(NULLIF(r.name, ''), f.rule_id) AS rule_name, COALESCE(r.description, '') AS description, \
          COALESCE(r.cwes, '{}') AS cwes, COALESCE(r.help_uri, '') AS help_uri, f.severity, f.message, f.repository, f.branch, f.commit_sha, f.file, f.line, f.snippet, f.pr_number, \

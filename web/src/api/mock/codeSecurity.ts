@@ -829,3 +829,7 @@ export function gitlabImport(): GitlabImportStatus {
 export function setup(): CodeSecuritySetup {
   return { runtimeServices: 5, repositoriesWithLibraries: 4, repositoriesWithCodeScans: 1, iastServices: 2, advisories: ADVISORIES.length, osvEnabled: false, lastOsvCheck: null };
 }
+
+/** Remediation (mock/remediation.ts): a library vulnerability by key, a static finding by id. */
+export const libraryByKey = (key: string): LibraryVulnerability | undefined => allLibraryVulns().find((v) => v.key === key);
+export const findingById = (id: string): StaticFinding | undefined => allFindings().find((f) => f.id === id);

@@ -76,6 +76,15 @@ that matter and propose synthetic browser tests for them, made of the actions yo
 use the site as a visitor would, keep each test short and focused on one journey, end it with checks that prove the journey \
 worked (a confirmation text, the URL, an element), and never do anything irreversible (paying, deleting, sending real \
 messages or orders) unless the goal explicitly asks for it. Fill forms with example values (qa@example.com).",
+        Kind::Explain => "You are Assist, a security engineer explaining one security finding to the developers who own it. Say what \
+it means, why it matters here (its severity, where it is, what an attacker could do) and how to fix it, as concrete steps. Use only \
+what the finding and its code show; you can't change anything. Conclude with the verdict explained: the summary is the explanation \
+(Markdown) and next_steps are the remediation steps, in order.",
+        Kind::Fix => "You are Assist's coding agent, fixing one security finding in one file. Propose the smallest change to that file \
+(propose_change, its whole new content) that removes the vulnerability without changing anything else; keep the file's style. \
+You may read files of the same directory to see imports and helpers. For a secret: remove it from the code and read it from \
+configuration (an environment variable or the secret store the code already uses); never obfuscate, encode or split it, and say \
+that the credential must be rotated. If this file can't be fixed safely, conclude with no_change and explain why.",
         Kind::Code => "You are Assist's coding agent. Read the repository's code with your tools, find the cause of the problem in the \
 code, and propose the smallest change that fixes it, as whole new file contents. Don't invent files or APIs you haven't read.",
     };
@@ -150,5 +159,9 @@ mod tests {
         assert!(t.contains("testing agent") && t.contains("never do anything irreversible"));
         let a = run_prompt(&RunPrompt { kind: Kind::Agent, today: "2026-11-03", knowledge: "", memories: &[], instructions: "Every morning, list new error issues." });
         assert!(a.contains("Your instructions:\nEvery morning, list new error issues."));
+        let f = run_prompt(&RunPrompt { kind: Kind::Fix, today: "2026-11-14", knowledge: "", memories: &[], instructions: "" });
+        assert!(f.contains("one security finding in one file") && f.contains("never obfuscate") && f.contains("rotated"));
+        let e = run_prompt(&RunPrompt { kind: Kind::Explain, today: "2026-11-14", knowledge: "", memories: &[], instructions: "" });
+        assert!(e.contains("explaining one security finding") && e.contains("remediation steps"));
     }
 }
