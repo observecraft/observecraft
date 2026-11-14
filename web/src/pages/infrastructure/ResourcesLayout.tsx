@@ -7,9 +7,10 @@ const TABS = [
   { to: '/cloudcraft', label: 'Cloudcraft' },
   { to: '/infrastructure/changes', label: 'Changes', preview: true },
   { to: '/infrastructure/policies', label: 'Policies', preview: true },
+  { to: '/infrastructure/tagging', label: 'Tagging', preview: true },
 ];
 
-/** Infrastructure → Resources frame: the Catalog, Cloudcraft, Changes and Policies tabs. */
+/** Infrastructure → Resources frame: the Catalog, Cloudcraft, Changes, Policies and Tagging tabs. */
 export function ResourcesLayout() {
   return (
     <div className="rc-layout">

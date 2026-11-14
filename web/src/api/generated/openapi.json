@@ -20350,6 +20350,58 @@
         }
       }
     },
+    "/api/v1/provenance/resources": {
+      "get": {
+        "tags": [
+          "tagging"
+        ],
+        "summary": "The org's resources with their source (Cloud Security → Inventory).",
+        "operationId": "list_resource_provenance",
+        "parameters": [
+          {
+            "name": "target",
+            "in": "query",
+            "description": "cloud | kubernetes | image | service; all when empty.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "missing",
+            "in": "query",
+            "description": "Only resources without a source.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvenanceList"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public/connectors/oauth/callback": {
       "get": {
         "tags": [
@@ -26162,6 +26214,239 @@
           "synthetics"
         ],
         "operationId": "delete_synthetic_variable",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tagging-policies": {
+      "get": {
+        "tags": [
+          "tagging"
+        ],
+        "summary": "The org's tagging policies with their coverage, and the recommended set.",
+        "operationId": "list_tagging_policies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaggingPolicyList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "tagging"
+        ],
+        "summary": "Creates a policy.",
+        "operationId": "create_tagging_policy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaggingPolicyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaggingPolicy"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tagging-policies/coverage": {
+      "get": {
+        "tags": [
+          "tagging"
+        ],
+        "summary": "Coverage of the enabled policies (or of one policy): per policy, target, account, cluster and team, over time, and\nthe non-compliant resources with what they lack and their source.",
+        "operationId": "get_tagging_coverage",
+        "parameters": [
+          {
+            "name": "policy",
+            "in": "query",
+            "description": "Only this policy (its id).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagCoverage"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tagging-policies/{id}": {
+      "get": {
+        "tags": [
+          "tagging"
+        ],
+        "summary": "One policy with its coverage.",
+        "operationId": "get_tagging_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaggingPolicy"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "tagging"
+        ],
+        "summary": "Replaces a policy's definition.",
+        "operationId": "update_tagging_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaggingPolicyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaggingPolicy"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tagging"
+        ],
+        "summary": "Deletes a policy.",
+        "operationId": "delete_tagging_policy",
         "parameters": [
           {
             "name": "id",
@@ -41758,6 +42043,14 @@
           }
         }
       },
+      "Confidence": {
+        "type": "string",
+        "description": "Exact: the resource names its source itself. Inferred: a likely match that needs a confirmation.",
+        "enum": [
+          "exact",
+          "inferred"
+        ]
+      },
       "ConnectSlackAccount": {
         "type": "object",
         "required": [
@@ -43090,6 +43383,118 @@
           "amortized",
           "billed"
         ]
+      },
+      "Coverage": {
+        "type": "object",
+        "description": "Compliance of the org's resources with its enabled policies.",
+        "required": [
+          "total",
+          "withProvenance",
+          "byPolicy",
+          "byTarget",
+          "byAccount",
+          "byCluster",
+          "byTeam",
+          "noncompliant",
+          "noncompliantTotal"
+        ],
+        "properties": {
+          "byAccount": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagCoverageRow"
+            }
+          },
+          "byCluster": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagCoverageRow"
+            }
+          },
+          "byPolicy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagCoverageRow"
+            }
+          },
+          "byTarget": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagCoverageRow"
+            }
+          },
+          "byTeam": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagCoverageRow"
+            }
+          },
+          "noncompliant": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NonCompliantResource"
+            },
+            "description": "Failing resources, those of the lowest-scoring groups first (at most the limit)."
+          },
+          "noncompliantTotal": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total": {
+            "$ref": "#/components/schemas/CoverageCount",
+            "description": "Resources at least one policy applies to, and those complying with all of theirs."
+          },
+          "withProvenance": {
+            "type": "integer",
+            "description": "Evaluated resources with a known source.",
+            "minimum": 0
+          }
+        }
+      },
+      "CoverageCount": {
+        "type": "object",
+        "description": "Resources evaluated and compliant, and the compliant share in percent (one decimal; null when nothing is\nevaluated).",
+        "required": [
+          "evaluated",
+          "compliant"
+        ],
+        "properties": {
+          "compliant": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "evaluated": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "CoveragePoint": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CoverageCount"
+          },
+          {
+            "type": "object",
+            "required": [
+              "day"
+            ],
+            "properties": {
+              "day": {
+                "type": "string",
+                "description": "YYYY-MM-DD (UTC)."
+              }
+            }
+          }
+        ],
+        "description": "The day's coverage."
       },
       "CoverageRow": {
         "type": "object",
@@ -55908,6 +56313,17 @@
               "null"
             ]
           },
+          "provenance": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Provenance",
+                "description": "Where the object comes from (Argo CD tracking), for the kinds people deploy ([`super::provenance`])."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "qos": {
             "type": [
               "string",
@@ -60464,6 +60880,25 @@
           "none"
         ]
       },
+      "NonCompliantResource": {
+        "type": "object",
+        "description": "A resource failing at least one policy, with what it lacks and where it comes from.",
+        "required": [
+          "resource",
+          "policies"
+        ],
+        "properties": {
+          "policies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PolicyGaps"
+            }
+          },
+          "resource": {
+            "$ref": "#/components/schemas/TaggedResource"
+          }
+        }
+      },
       "NoteRequest": {
         "type": "object",
         "required": [
@@ -62720,6 +63155,29 @@
             ],
             "format": "double",
             "description": "Compliant share in percent, one decimal; null when nothing is evaluated."
+          }
+        }
+      },
+      "PolicyGaps": {
+        "type": "object",
+        "description": "One policy's gaps on a resource.",
+        "required": [
+          "policyId",
+          "policyName",
+          "gaps"
+        ],
+        "properties": {
+          "gaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagGap"
+            }
+          },
+          "policyId": {
+            "type": "string"
+          },
+          "policyName": {
+            "type": "string"
           }
         }
       },
@@ -65317,6 +65775,147 @@
           }
         }
       },
+      "Provenance": {
+        "type": "object",
+        "description": "Where a resource comes from.",
+        "required": [
+          "kind",
+          "confidence",
+          "via"
+        ],
+        "properties": {
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The resource in that file: a Terraform address (`module.storage.aws_s3_bucket.assets`) or a Kubernetes object\n(`Deployment/checkout/order-service`)."
+          },
+          "application": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The Argo CD Application that deploys a Kubernetes object."
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/Confidence"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProvenanceKind"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "File or directory in the repository (`envs/prod/storage`, `charts/order-service`)."
+          },
+          "ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Branch, tag or commit."
+          },
+          "repo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Repository without scheme or `.git` (`github.com/example-org/infra-terraform`); null when only the Argo CD\nApplication is known (its object isn't collected)."
+          },
+          "via": {
+            "$ref": "#/components/schemas/ProvenanceVia"
+          }
+        }
+      },
+      "ProvenanceKind": {
+        "type": "string",
+        "description": "What defines the resource.",
+        "enum": [
+          "terraform",
+          "helm",
+          "kustomize",
+          "manifest",
+          "dockerfile",
+          "code"
+        ]
+      },
+      "ProvenanceList": {
+        "type": "object",
+        "required": [
+          "summary",
+          "resources"
+        ],
+        "properties": {
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaggedResource"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ProvenanceSummary"
+          }
+        }
+      },
+      "ProvenanceSummary": {
+        "type": "object",
+        "description": "Counts of resources with and without a source, per target and per way it was found.",
+        "required": [
+          "total",
+          "resolved",
+          "byTarget",
+          "byVia"
+        ],
+        "properties": {
+          "byTarget": {
+            "type": "object",
+            "description": "Per target (`cloud`, …): [resources, resolved].",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "byVia": {
+            "type": "object",
+            "description": "Per way (`tag`, `argocd`, …): resolved resources.",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "resolved": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ProvenanceVia": {
+        "type": "string",
+        "description": "How the source was found.",
+        "enum": [
+          "tag",
+          "state",
+          "argocd",
+          "oci",
+          "git_metadata"
+        ]
+      },
       "PublicStatusPage": {
         "type": "object",
         "description": "The read-only rendering at `/status/<slug>`: no ids of users, incidents or the org.",
@@ -65762,6 +66361,49 @@
             "description": "The filters' choices: every resource and recommendation type found (before filtering)."
           }
         }
+      },
+      "RecommendedPolicy": {
+        "type": "object",
+        "description": "A policy of the recommended set.",
+        "required": [
+          "key",
+          "name",
+          "description",
+          "rule"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rule": {
+            "$ref": "#/components/schemas/TagRule"
+          }
+        }
+      },
+      "RecommendedView": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RecommendedPolicy"
+          },
+          {
+            "type": "object",
+            "required": [
+              "installed"
+            ],
+            "properties": {
+              "installed": {
+                "type": "boolean"
+              }
+            }
+          }
+        ],
+        "description": "A recommended policy, and whether the org has a policy made from it."
       },
       "RecordedEvaluation": {
         "type": "object",
@@ -66492,6 +67134,26 @@
           "url": {
             "type": "string",
             "description": "The repository's page ('' when its name isn't a URL)."
+          }
+        }
+      },
+      "RequiredTag": {
+        "type": "object",
+        "description": "A tag every resource in scope must carry.",
+        "required": [
+          "key"
+        ],
+        "properties": {
+          "allowedValues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Allowed values; any value when empty."
+          },
+          "key": {
+            "type": "string",
+            "description": "The key, or alternatives separated by `|` (`tf_path|git_file`)."
           }
         }
       },
@@ -78047,6 +78709,128 @@
           }
         }
       },
+      "TagCoverage": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Coverage"
+          },
+          {
+            "type": "object",
+            "required": [
+              "history",
+              "provenance",
+              "argocdApplications"
+            ],
+            "properties": {
+              "argocdApplications": {
+                "type": "integer",
+                "description": "Argo CD Applications collected (0: Kubernetes objects resolve to their Application's name only).",
+                "minimum": 0
+              },
+              "history": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CoveragePoint"
+                },
+                "description": "The total per day, oldest first."
+              },
+              "provenance": {
+                "$ref": "#/components/schemas/ProvenanceSummary",
+                "description": "Where the evaluated resources come from."
+              }
+            }
+          }
+        ]
+      },
+      "TagCoverageRow": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CoverageCount"
+          },
+          {
+            "type": "object",
+            "required": [
+              "key",
+              "label"
+            ],
+            "properties": {
+              "key": {
+                "type": "string",
+                "description": "The policy id, account, cluster, team or target."
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "description": "Coverage of one policy, account, cluster, team or target."
+      },
+      "TagGap": {
+        "type": "object",
+        "description": "A required tag a resource lacks, or carries with a value not allowed.",
+        "required": [
+          "key"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The value found when it isn't allowed; null when the tag is missing."
+          }
+        }
+      },
+      "TagRule": {
+        "type": "object",
+        "description": "What a policy checks.",
+        "required": [
+          "target",
+          "required"
+        ],
+        "properties": {
+          "required": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RequiredTag"
+            }
+          },
+          "scope": {
+            "$ref": "#/components/schemas/TagScope"
+          },
+          "target": {
+            "$ref": "#/components/schemas/TagTarget"
+          }
+        }
+      },
+      "TagScope": {
+        "type": "object",
+        "description": "Which resources of the target a policy covers. Each field is a comma-separated list of `*` patterns; empty for\nany.",
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "cluster": {
+            "type": "string"
+          },
+          "names": {
+            "type": "string",
+            "description": "Resource, image or service names."
+          },
+          "provider": {
+            "type": "string",
+            "description": "aws | azure | gcp (cloud resources)."
+          },
+          "resourceType": {
+            "type": "string",
+            "description": "`AwsS3Bucket`, `kube_deployment`, …"
+          }
+        }
+      },
       "TagShare": {
         "type": "object",
         "required": [
@@ -78065,6 +78849,229 @@
           },
           "value": {
             "type": "string"
+          }
+        }
+      },
+      "TagTarget": {
+        "type": "string",
+        "description": "What a tagging policy or a provenance lookup is about.",
+        "enum": [
+          "cloud",
+          "kubernetes",
+          "image",
+          "service"
+        ]
+      },
+      "TaggedResource": {
+        "type": "object",
+        "description": "A resource with its tags and source.",
+        "required": [
+          "id",
+          "target",
+          "name",
+          "resourceType",
+          "tags"
+        ],
+        "properties": {
+          "account": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cluster": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "description": "The cloud resource's id (ARN, Azure resource id, …), the Kubernetes uid, the image id or `service:<name>`."
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provenance": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Provenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "aws | azure | gcp"
+          },
+          "region": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resourceType": {
+            "type": "string",
+            "description": "`AwsS3Bucket`, `kube_deployment`, `container_image`, `service`."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`key:value` tags (Kubernetes labels and the Argo CD tracking annotation included)."
+          },
+          "target": {
+            "$ref": "#/components/schemas/TagTarget"
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "TaggingPolicy": {
+        "type": "object",
+        "description": "A policy as stored, with its coverage on the current resources.",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "target",
+          "scope",
+          "required",
+          "enabled",
+          "createdAt",
+          "updatedAt",
+          "coverage"
+        ],
+        "properties": {
+          "coverage": {
+            "$ref": "#/components/schemas/CoverageCount"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "recommended": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The recommended policy it comes from."
+          },
+          "required": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RequiredTag"
+            }
+          },
+          "scope": {
+            "$ref": "#/components/schemas/TagScope"
+          },
+          "target": {
+            "$ref": "#/components/schemas/TagTarget"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "TaggingPolicyInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "target",
+          "required"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "recommended": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The recommended policy it is made from."
+          },
+          "required": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RequiredTag"
+            }
+          },
+          "scope": {
+            "$ref": "#/components/schemas/TagScope"
+          },
+          "target": {
+            "$ref": "#/components/schemas/TagTarget"
+          }
+        }
+      },
+      "TaggingPolicyList": {
+        "type": "object",
+        "required": [
+          "policies",
+          "recommended"
+        ],
+        "properties": {
+          "policies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaggingPolicy"
+            }
+          },
+          "recommended": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendedView"
+            }
           }
         }
       },
@@ -81689,6 +82696,10 @@
     {
       "name": "infrastructure",
       "description": "Hosts, built from host metrics, spans and logs"
+    },
+    {
+      "name": "tagging",
+      "description": "Tagging policies, their coverage, and where resources come from (provenance)"
     },
     {
       "name": "fleet",

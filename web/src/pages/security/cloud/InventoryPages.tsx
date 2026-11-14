@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
@@ -10,6 +10,10 @@ import { InboxPage } from '../InboxPage';
 import { INVENTORY_TABS, SubTabs } from './CloudSecurityLayout';
 import { AdvisoryBody } from './FindingsPages';
 import { EcosystemIcon } from './resourceTypes';
+import { NoSourceToggle, SourceCell } from '../../../components/provenance/SourceCell';
+import { Pager } from '../../../components/ui/Pager';
+import type { TagTarget } from '../../../api/tagging/types';
+import { useResourceProvenance } from '../../infrastructure/taggingQueries';
 import { useCve, useCves, useInfraPackages, useInfraVulnerabilities, useResourceCategories } from './queries';
 
 const PAGE = 25;
@@ -25,6 +29,106 @@ function Chips({ values, max = 2 }: { values: string[]; max?: number }) {
       ))}
       {values.length > max && <span className="tag-chip">+{values.length - max}</span>}
     </span>
+  );
+}
+
+const TARGETS: [TagTarget | '', string][] = [
+  ['', 'All resources'],
+  ['cloud', 'Cloud resources'],
+  ['kubernetes', 'Kubernetes objects'],
+  ['image', 'Images'],
+  ['service', 'Services'],
+];
+
+/** Every resource with where it comes from (its provenance), filterable to those without a known source. */
+function ResourceSources() {
+  const [target, setTarget] = useState<TagTarget | ''>('');
+  const [noSource, setNoSource] = useState(false);
+  const [search, setSearch] = useState('');
+  const [offset, setOffset] = useState(0);
+  const q = useResourceProvenance(target || undefined);
+  const rows = useMemo(
+    () =>
+      (q.data?.resources ?? []).filter(
+        (r) =>
+          (!noSource || !r.provenance) && `${r.name} ${r.resourceType} ${r.account ?? ''} ${r.cluster ?? ''} ${r.team ?? ''} ${r.provenance?.repo ?? ''}`.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [q.data, noSource, search],
+  );
+  if (q.isLoading) return <Loading />;
+  if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
+  const s = q.data!.summary;
+  return (
+    <section className="csm-sources">
+      <h3>Resources and their source</h3>
+      <p className="muted">
+        <b>{s.resolved.toLocaleString()}</b> of {s.total.toLocaleString()} resources name the repository that defines them (Terraform tags, Argo CD, OCI labels, git metadata) ·{' '}
+        <Link to="/infrastructure/tagging">Tag coverage</Link>
+      </p>
+      <div className="csm-source-filters">
+        <label className="sec-search small">
+          <Search size={14} />
+          <input
+            placeholder="Search resources"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setOffset(0);
+            }}
+          />
+        </label>
+        <Select
+          value={target}
+          options={TARGETS.map(([value, label]) => ({ value, label }))}
+          onChange={(v) => {
+            setTarget(v);
+            setOffset(0);
+          }}
+        />
+        <NoSourceToggle
+          checked={noSource}
+          count={s.total - s.resolved}
+          onChange={(v) => {
+            setNoSource(v);
+            setOffset(0);
+          }}
+        />
+      </div>
+      <table className="mon-table syn-table csm-table">
+        <thead>
+          <tr>
+            <th>RESOURCE</th>
+            <th>TYPE</th>
+            <th>ACCOUNT / CLUSTER</th>
+            <th>TEAM</th>
+            <th>SOURCE</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.slice(offset, offset + PAGE).map((r) => (
+            <tr key={r.id}>
+              <td>
+                <b title={r.id}>{r.name}</b>
+              </td>
+              <td className="muted">{r.resourceType}</td>
+              <td className="muted">{[r.provider, r.account, r.cluster, r.namespace].filter(Boolean).join(' · ') || '—'}</td>
+              <td>{r.team ?? <span className="muted">—</span>}</td>
+              <td>
+                <SourceCell provenance={r.provenance} />
+              </td>
+            </tr>
+          ))}
+          {!rows.length && (
+            <tr>
+              <td colSpan={5} className="muted">
+                No resource matches.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <Pager offset={offset} limit={PAGE} total={rows.length} onChange={setOffset} />
+    </section>
   );
 }
 
@@ -88,6 +192,7 @@ export function ResourcesPage() {
           </table>
         </>
       )}
+      <ResourceSources />
     </div>
   );
 }

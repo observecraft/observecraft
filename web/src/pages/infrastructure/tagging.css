@@ -1,0 +1,266 @@
+/* Infrastructure → Resources → Tagging: coverage and tagging policies. Colors from theme tokens. */
+.tg-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 24px 32px;
+}
+
+.tg-subtabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tg-subtabs a {
+  padding: 8px 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.tg-subtabs a.active {
+  border-bottom-color: var(--primary);
+  color: var(--text);
+  font-weight: var(--fw-medium);
+}
+
+.tg-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tg-toolbar p {
+  margin: 0;
+}
+
+.tg-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.tg-kpi,
+.tg-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  padding: 12px 16px;
+}
+
+.tg-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tg-kpi-label {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tg-kpi-value {
+  font-size: 22px;
+  font-weight: var(--fw-semibold);
+}
+
+.tg-kpi-note {
+  font-size: var(--fs-xs);
+}
+
+.tg-card h3 {
+  margin: 0 0 10px;
+  font-size: var(--fs-md, 14px);
+}
+
+.tg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.tg-breakdown {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.tg-breakdown td {
+  padding: 4px 0;
+  vertical-align: middle;
+}
+
+.tg-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-breakdown .num {
+  width: 70px;
+  padding-right: 12px;
+  text-align: right;
+}
+
+.tg-bar {
+  width: 130px;
+}
+
+.tg-label .link-btn {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  text-align: left;
+}
+
+.tg-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
+}
+
+.tg-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.tg-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 240px;
+  max-width: 420px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.tg-search input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.tg-table td {
+  vertical-align: top;
+}
+
+.tg-name {
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-sub {
+  font-size: var(--fs-xs);
+  margin-top: 2px;
+}
+
+.tg-gaps {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tg-bad {
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+}
+
+.tg-badge {
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: var(--fs-xs);
+  background: var(--primary-subtle);
+  color: var(--primary);
+}
+
+.tg-disabled td {
+  opacity: 0.6;
+}
+
+.tg-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.tg-recommended {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tg-recommended li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.tg-required {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(160px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tg-scope {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.tg-snippets {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tg-snippets h4 {
+  margin: 0 0 4px;
+}
+
+.tg-snippets p {
+  margin: 0 0 8px;
+}
+
+.tg-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tg-gaps .tag-chip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.tg-policies .tg-bar .pol-score.compact {
+  width: 110px;
+}

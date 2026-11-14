@@ -458,3 +458,21 @@
   align-items: center;
   gap: 6px;
 }
+
+/* Inventory → Resources: each resource's source. */
+.csm-sources {
+  margin-top: 24px;
+}
+.csm-sources h3 {
+  margin: 0 0 4px;
+}
+.csm-source-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}
+.csm-sources td {
+  overflow-wrap: anywhere;
+}

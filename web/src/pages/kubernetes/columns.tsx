@@ -2,6 +2,7 @@ import type { MouseEvent, ReactNode } from 'react';
 import type { KubeHealth, KubeKind, KubeResource, KubeUtilization } from '../../api/kubernetes/client';
 import { Boxes } from 'lucide-react';
 import { BrandLogo } from '../../components/brand/BrandLogo';
+import { SourceCell } from '../../components/provenance/SourceCell';
 import { formatBytes } from '../../components/ui/Pager';
 
 /** Explorer resources: processes, containers, Kubernetes and ECS kinds. */
@@ -340,6 +341,11 @@ const alloc = (k: 'cpu' | 'memory', label: string): KubeColumn => ({ key: k, lab
 
 const tagValue = (r: KubeResource, key: string) => r.tags.find((x) => x.startsWith(`${key}:`))?.slice(key.length + 1);
 
+/** Where the object comes from (Argo CD tracking), for the kinds people deploy. */
+const source: KubeColumn = { key: 'source', label: 'SOURCE', render: (r) => <SourceCell provenance={r.provenance} /> };
+/** The kinds with a source column and the "No source" filter (`source:none`). */
+export const SOURCE_KINDS: KubeKind[] = ['deployments', 'statefulsets', 'daemonsets', 'cronjobs', 'services', 'ingresses'];
+
 /** Columns a kind's list starts without (they stay available in Customize). */
 export const DEFAULT_HIDDEN: Partial<Record<KubeKind, string[]>> = { containers: ['cluster', 'owner', 'host', 'restarts'] };
 
@@ -420,10 +426,10 @@ export const COLUMNS: Record<KubeKind, KubeColumn[]> = {
   clusters: [nameCol('CLUSTER'), status, t('version', 'VERSION'), n('nodes', 'NODES'), pods, alloc('cpu', 'CPU USAGE/ALLOCATABLE'), alloc('memory', 'MEM USAGE/ALLOCATABLE'), ageCol],
   namespaces: [nameCol('NAMESPACE'), status, cluster, ageCol, pods, cpu, mem],
   nodes: [nameCol('NODE'), status, cluster, t('roles', 'ROLES'), t('version', 'VERSION'), ageCol, pods, alloc('cpu', 'CPU USAGE/ALLOCATABLE'), alloc('memory', 'MEM USAGE/ALLOCATABLE')],
-  deployments: [nameCol('DEPLOYMENT'), status, cluster, ns, ageCol, { ...ready, label: 'PODS READY' }, n('upToDate', 'UP-TO-DATE'), n('available', 'AVAILABLE'), cpu, mem],
+  deployments: [nameCol('DEPLOYMENT'), status, cluster, ns, ageCol, { ...ready, label: 'PODS READY' }, n('upToDate', 'UP-TO-DATE'), n('available', 'AVAILABLE'), cpu, mem, source],
   replicasets: [nameCol('REPLICA SET'), status, cluster, ns, ageCol, { ...ready, label: 'PODS READY' }, n('desired', 'DESIRED'), n('current', 'CURRENT'), cpu, mem],
-  daemonsets: [nameCol('DAEMON SET'), status, cluster, ns, ageCol, n('desired', 'DESIRED'), n('current', 'CURRENT'), ready, n('upToDate', 'UP-TO-DATE'), n('available', 'AVAILABLE'), cpu, mem],
-  statefulsets: [nameCol('STATEFUL SET'), status, cluster, ns, ageCol, { ...ready, label: 'PODS READY' }, n('upToDate', 'UP-TO-DATE'), cpu, mem],
+  daemonsets: [nameCol('DAEMON SET'), status, cluster, ns, ageCol, n('desired', 'DESIRED'), n('current', 'CURRENT'), ready, n('upToDate', 'UP-TO-DATE'), n('available', 'AVAILABLE'), cpu, mem, source],
+  statefulsets: [nameCol('STATEFUL SET'), status, cluster, ns, ageCol, { ...ready, label: 'PODS READY' }, n('upToDate', 'UP-TO-DATE'), cpu, mem, source],
   jobs: [
     nameCol('JOB'),
     status,
@@ -444,6 +450,7 @@ export const COLUMNS: Record<KubeKind, KubeColumn[]> = {
     { key: 'suspend', label: 'SUSPEND', render: (r) => (r.suspend ? 'True' : 'False') },
     n('active', 'ACTIVE'),
     { key: 'lastSchedule', label: 'LAST SCHEDULE', num: true, render: (r) => (r.lastSchedule ? `${age(r.lastSchedule)} ago` : '—') },
+    source,
   ],
   services: [
     nameCol('SERVICE'),
@@ -454,8 +461,9 @@ export const COLUMNS: Record<KubeKind, KubeColumn[]> = {
     t('clusterIp', 'CLUSTER IP', true),
     t('external', 'EXTERNAL IP', true),
     t('ports', 'PORTS', true),
+    source,
   ],
-  ingresses: [nameCol('INGRESS'), status, cluster, ns, ageCol, t('ingressClass', 'CLASS'), t('hosts', 'HOSTS', true), t('external', 'ADDRESS', true)],
+  ingresses: [nameCol('INGRESS'), status, cluster, ns, ageCol, t('ingressClass', 'CLASS'), t('hosts', 'HOSTS', true), t('external', 'ADDRESS', true), source],
   networkpolicies: [nameCol('NETWORK POLICY'), cluster, ns, ageCol],
   poddisruptionbudgets: [nameCol('POD DISRUPTION BUDGET'), status, cluster, ns, ageCol, n('desired', 'DESIRED HEALTHY'), n('current', 'CURRENT HEALTHY'), n('available', 'ALLOWED DISRUPTIONS')],
   limitranges: [nameCol('LIMIT RANGE'), cluster, ns, ageCol],

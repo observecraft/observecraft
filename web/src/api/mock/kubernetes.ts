@@ -2,6 +2,7 @@
 import type { KubeClusterSummary, KubeDetail, KubeFacet, KubeGroup, KubeHealth, KubeKind, KubeResource, KubeSearchPage, KubeSearchRequest, KubeUtilization } from '../kubernetes/client';
 import { parseQuery } from '../../lib/searchQuery';
 import { rng } from './generator';
+import { kubeProvenance } from './tagging';
 
 const MI = 1024 * 1024;
 const KINDS: KubeKind[] = [
@@ -132,6 +133,14 @@ export function inventory(): KubeResource[] {
       dep.images = [`registry.example.com/${w.name}:${w.floatingTag && ci === 1 ? 'latest' : `2.4.${ci}`}`];
       dep.labels = { 'app.kubernetes.io/name': w.name, 'tags.datadoghq.com/service': w.name, 'tags.datadoghq.com/env': cluster.includes('prod') ? 'prod' : 'staging' };
       dep.tags.push(`kube_deployment:${w.name}`, `service:${w.name}`, `env:${dep.labels['tags.datadoghq.com/env']}`, `short_image:${w.name}`, ...(w.team ? [`team:${w.team}`] : []));
+      // Argo CD deploys most workloads (example-org/k8s-apps); its tracking says where each comes from.
+      const argo = kubeProvenance('Deployment', w.name, w.ns, cluster);
+      if (argo) {
+        Object.assign(dep.labels, argo.labels);
+        dep.annotations = argo.annotations;
+        dep.provenance = argo.provenance;
+        dep.tags.push(...Object.entries(argo.labels).map(([k, v]) => `${k}:${v}`));
+      }
       const rs = base('replicasets', cluster, `${w.name}-7d9f8c6b5`, w.ns, `${dep.uid}-rs`, 3 * day);
       Object.assign(rs, { desired: w.replicas, current: w.replicas, ready: dep.ready, status: dep.status, health: dep.health, owner: { kind: 'Deployment', name: w.name, uid: dep.uid } });
       rs.tags.push(`kube_replica_set:${rs.name}`, `kube_deployment:${w.name}`);
@@ -192,6 +201,12 @@ export function inventory(): KubeResource[] {
       const svc = base('services', cluster, w.name, w.ns, `${cluster}-svc-${w.name}`, 12 * day);
       Object.assign(svc, { status: 'Active', serviceType: 'ClusterIP', clusterIp: `172.20.${ci}.${out.length % 250}`, ports: '80/TCP', selector: `app.kubernetes.io/name=${w.name}` });
       svc.tags.push(`kube_service:${w.name}`, 'kube_service_type:ClusterIP');
+      const svcArgo = kubeProvenance('Service', w.name, w.ns, cluster);
+      if (svcArgo) {
+        svc.labels = svcArgo.labels;
+        svc.annotations = svcArgo.annotations;
+        svc.provenance = svcArgo.provenance;
+      }
       out.push(dep, rs, svc, ...own);
       pods.push(...own);
     }
@@ -333,6 +348,7 @@ export function inventory(): KubeResource[] {
 function values(r: KubeResource, key: string): string[] {
   if (key === 'name') return [r.name];
   if (key === 'status') return [r.status];
+  if (key === 'source') return [r.provenance?.via ?? 'none'];
   return r.tags.filter((t) => t.startsWith(`${key}:`)).map((t) => t.slice(key.length + 1));
 }
 
