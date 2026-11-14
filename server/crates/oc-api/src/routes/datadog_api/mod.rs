@@ -40,6 +40,7 @@ pub mod csm_threats;
 pub mod rum;
 pub mod security_findings;
 pub mod security_monitoring;
+pub mod sensitive_data_scanner;
 pub mod slack_integration;
 pub mod teams;
 pub mod users;
@@ -96,6 +97,7 @@ pub fn router() -> Router<AppState> {
         .merge(cost_router())
         .merge(logs::router())
         .merge(aws_router())
+        .merge(sds_router())
         .route(
             "/api/v1/integration/slack/configuration/accounts/{account_name}/channels",
             get(slack_integration::list).post(slack_integration::create),
@@ -157,6 +159,20 @@ pub fn router() -> Router<AppState> {
             "/api/v2/security_monitoring/configuration/suppressions/{suppression_id}",
             get(security_monitoring::get_suppression).patch(security_monitoring::update_suppression).delete(security_monitoring::delete_suppression),
         )
+}
+
+/// Sensitive Data Scanner: `datadog_sensitive_data_scanner_group`, `_rule`, `_group_order` and the standard patterns
+/// ([`sensitive_data_scanner`]).
+fn sds_router() -> Router<AppState> {
+    use axum::routing::patch;
+    use sensitive_data_scanner as sds;
+    Router::new()
+        .route("/api/v2/sensitive-data-scanner/config", get(sds::get_config).patch(sds::reorder_groups))
+        .route("/api/v2/sensitive-data-scanner/config/groups", post(sds::create_group))
+        .route("/api/v2/sensitive-data-scanner/config/groups/{group_id}", patch(sds::update_group).delete(sds::delete_group))
+        .route("/api/v2/sensitive-data-scanner/config/rules", post(sds::create_rule))
+        .route("/api/v2/sensitive-data-scanner/config/rules/{rule_id}", patch(sds::update_rule).delete(sds::delete_rule))
+        .route("/api/v2/sensitive-data-scanner/config/standard-patterns", get(sds::standard_patterns))
 }
 
 /// Cloud Cost Management: `datadog_cost_budget`, `datadog_cost_custom_forecast` and custom costs files ([`cost`]).

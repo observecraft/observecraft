@@ -615,7 +615,7 @@ mod tests {
     }
 
     /// The features the tests replay (what `scripts/datadog-fixtures/fetch.sh` downloads).
-    const FEATURES: [&str; 30] = [
+    const FEATURES: [&str; 31] = [
         "v2/aws_integration",
         "v1/azure_integration",
         "v2/gcp_integration",
@@ -646,6 +646,7 @@ mod tests {
         "v2/teams",
         "v2/key_management",
         "v2/cloud_cost_management",
+        "v2/sensitive_data_scanner",
     ];
 
     #[test]
