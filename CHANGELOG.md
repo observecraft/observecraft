@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.23.0](https://github.com/observecraft/observecraft/compare/v0.22.0...v0.23.0) (2026-11-14)
+
+
+### Features
+
+* **cloud-security:** list every connected cloud account with its name and logo ([da138f6](https://github.com/observecraft/observecraft/commit/da138f675f823515bf3d3f4a0f8d752b4e3303ba))
+* **code-security:** fix with Assist: explain findings and fix them in code (ADR-0008 levels 1 and 2) ([382b3fc](https://github.com/observecraft/observecraft/commit/382b3fcfad3037c0a701ee3429661a28c7307b5d))
+* **code-security:** import GitLab's scanners' results ([329a725](https://github.com/observecraft/observecraft/commit/329a7256eaf1c392d859d655b0d463da6ef04759))
+* **code-security:** show GitLab's findings, repository logos and links ([f649315](https://github.com/observecraft/observecraft/commit/f64931581c50c0e90f2c53c913b6335bc50036e9))
+* **logs:** Datadog-compatible Sensitive Data Scanner API ([68475d5](https://github.com/observecraft/observecraft/commit/68475d58620798fad59ef382750b101a9a23bafe))
+* **logs:** Sensitive Data Scanner API for the UI ([9aa0761](https://github.com/observecraft/observecraft/commit/9aa0761b07a341119cc955c71980abc83e17014a))
+* **logs:** Sensitive Data Scanner engine in the log indexer and live tail ([20f7550](https://github.com/observecraft/observecraft/commit/20f7550bfaaca493ef7474d8af1875bc1b2605fb))
+* **logs:** Sensitive Data Scanner settings and findings pages ([b984709](https://github.com/observecraft/observecraft/commit/b9847098a8dbc4420085cbc67699d76be672acf9))
+* **security:** fix in infrastructure and add tags with Assist (ADR-0008 level 3) ([c41855b](https://github.com/observecraft/observecraft/commit/c41855be2d46deaca1fcd996818f4162b5e59904))
+* **security:** overview shows Cloud Security, Workload Protection and AI Guard ([26b4d66](https://github.com/observecraft/observecraft/commit/26b4d663ee9e647b92b3ad3d4a4a8e489fb1cd17))
+* **security:** service, distribution, ecosystem and cloud resource icons ([1ded451](https://github.com/observecraft/observecraft/commit/1ded4515c58731cdf65bc275607aaf1bd5102dcc))
+* **security:** setup pages for App & API Protection, Cloud Security and Workload Protection ([e30ea6a](https://github.com/observecraft/observecraft/commit/e30ea6a27292ece13e3a455266da2ee7efb76a77))
+* **tagging:** resource provenance, tagging policies and their coverage (ADR-0008) ([8a78ded](https://github.com/observecraft/observecraft/commit/8a78ded6d96233829b52c96a4e6edd00472794d4))
+* **tagging:** Tag Coverage page, policy editor with snippets and Source columns ([706a241](https://github.com/observecraft/observecraft/commit/706a241590a3445ac94fecc0ab7b661d8e700673))
+
+
+### Bug fixes
+
+* **ci:** tf-compat waits for its lanes only, and keeps org-wide lists in one lane ([c808303](https://github.com/observecraft/observecraft/commit/c8083033414c5ebed89c8cb56ffcce0c99e8472b))
+* **cloud-security:** host coverage counts listed hosts that sent an SBOM ([65ffac8](https://github.com/observecraft/observecraft/commit/65ffac8f446ee003557c8789d2da1895365aaf27))
+* **cloud-security:** match host and image packages to distribution advisories ([5d83a10](https://github.com/observecraft/observecraft/commit/5d83a103570ba025b4e0dda948497e5dbc1bef8d))
+* **code-security:** OSV advisories of OS distributions keep their release ([9063bb9](https://github.com/observecraft/observecraft/commit/9063bb9ac4e380f153e5a0b229f6fe3aee270429))
+* **logs:** the rule tester hashes with the org's key, as the indexer does ([2f40bf4](https://github.com/observecraft/observecraft/commit/2f40bf46b670b68660762b5fd6d7398b59b4afe6))
+* **security:** align the attributes the S3 public access fix writes as terraform fmt does ([61c6ecb](https://github.com/observecraft/observecraft/commit/61c6ecb53a69d78ee57891333d5896e8b51615f8))
+* **tagging:** readable resource types and accounts in the provenance and tag coverage tables ([d82c8dd](https://github.com/observecraft/observecraft/commit/d82c8dd2691916e1c9135ecab3bc8f365bbe1815))
+* **workload-protection:** readable Signal Trends axis, no horizontal overflow ([e7fbd23](https://github.com/observecraft/observecraft/commit/e7fbd2314832a2147bd49433898f237d93120dba))
+
+
+### Documentation
+
+* **adr:** fix findings where they come from: provenance, tagging policies and Assist fixes ([08cd489](https://github.com/observecraft/observecraft/commit/08cd489f69bf4ab68063dfe746b741e66abccc53))
+* Sensitive Data Scanner ([7c90c4a](https://github.com/observecraft/observecraft/commit/7c90c4ae137041ee150f1cb14e33312259116203))
+
 ## [0.22.0](https://github.com/observecraft/observecraft/compare/v0.21.3...v0.22.0) (2026-11-13)
 
 
