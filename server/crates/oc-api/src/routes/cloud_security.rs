@@ -825,8 +825,9 @@ pub struct VulnerabilityPrioritization {
 #[derive(Serialize, ToSchema, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CloudCoverage {
+    /// Hosts of the host list (Infrastructure).
     pub hosts: usize,
-    /// Hosts that sent an SBOM in the last week.
+    /// Of those, the hosts that sent an SBOM in the last week.
     pub hosts_scanned: usize,
     pub images: usize,
     pub images_running: usize,
@@ -846,6 +847,14 @@ pub struct CloudSecuritySummary {
     pub misconfigurations: BTreeMap<String, usize>,
     pub vulnerabilities_by_severity: BTreeMap<String, usize>,
     pub inventory: Vec<ResourceCategory>,
+}
+
+/// How many of the listed hosts sent an SBOM. Both sides count hosts of the host list: SBOMs of hosts
+/// gone since (nodes replaced during the week) don't count. Names compare without case and domain.
+pub fn hosts_scanned(listed: &[&str], sbom_hosts: &[String]) -> usize {
+    let short = |h: &str| h.split('.').next().unwrap_or(h).to_ascii_lowercase();
+    let sent: HashSet<String> = sbom_hosts.iter().map(|h| short(h)).collect();
+    listed.iter().map(|h| short(h)).collect::<HashSet<_>>().iter().filter(|h| sent.contains(*h)).count()
 }
 
 #[utoipa::path(get, path = "/api/v1/cloud-security/summary", operation_id = "cloud_security_summary", responses((status = 200, body = CloudSecuritySummary)), tag = "cloud-security")]
@@ -874,21 +883,27 @@ pub async fn summary(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<
     for f in findings.iter().filter(|f| f.status == "open") {
         *misconfigs.entry(f.severity.clone()).or_default() += 1;
     }
-    let (hosts_scanned, images, images_running): (i64, i64, i64) = sqlx::query_as(
-        "SELECT count(*) FILTER (WHERE kind = 'host'), count(*) FILTER (WHERE kind = 'container_image'), count(*) FILTER (WHERE kind = 'container_image' AND in_use) \
+    let (images, images_running): (i64, i64) = sqlx::query_as(
+        "SELECT count(*) FILTER (WHERE kind = 'container_image'), count(*) FILTER (WHERE kind = 'container_image' AND in_use) \
          FROM csm_sbom_entities WHERE org_id = $1 AND last_seen > now() - make_interval(days => $2)",
     )
     .bind(org)
     .bind(STALE_DAYS)
     .fetch_one(&st.postgres)
     .await?;
+    let sbom_hosts: Vec<String> = sqlx::query_scalar("SELECT id FROM csm_sbom_entities WHERE org_id = $1 AND kind = 'host' AND last_seen > now() - make_interval(days => $2)")
+        .bind(org)
+        .bind(STALE_DAYS)
+        .fetch_all(&st.postgres)
+        .await?;
+    let listed: Vec<&str> = resources.iter().filter(|r| r.resource_type == CatalogType::Host).map(|r| r.name.as_str()).collect();
     let accounts: BTreeSet<String> = resources.iter().filter_map(|r| Some(format!("{}:{}", r.cloud.clone()?, r.account.clone()?))).collect();
     let clusters: BTreeSet<&str> = resources.iter().filter_map(|r| r.cluster.as_deref()).collect();
     Ok(Json(CloudSecuritySummary {
         vulnerabilities: prioritization,
         coverage: CloudCoverage {
-            hosts: resources.iter().filter(|r| r.resource_type == CatalogType::Host).count(),
-            hosts_scanned: hosts_scanned as usize,
+            hosts: listed.len(),
+            hosts_scanned: hosts_scanned(&listed, &sbom_hosts),
             images: images as usize,
             images_running: images_running as usize,
             clusters: clusters.len(),
@@ -937,6 +952,16 @@ mod tests {
         assert!(package_of("pkg:rpm/redhat/openssl@3.0.7").is_none());
         let comps = vec![SbomComponent { version: "1".into(), purl: "pkg:deb/debian/x@1?distro=debian-12".into() }];
         assert_eq!(os_of(&comps), "debian 12");
+    }
+
+    #[test]
+    fn host_coverage_counts_listed_hosts_only() {
+        // Hosts gone from the host list (nodes replaced during the week) still have SBOMs: they don't count.
+        let listed = ["i-0a1b2c3d4e5f60001", "i-0a1b2c3d4e5f60002", "ip-10-0-1-7.ec2.internal"];
+        let sboms: Vec<String> = ["i-0a1b2c3d4e5f60001", "IP-10-0-1-7", "i-0a1b2c3d4e5f60009", "i-0a1b2c3d4e5f60010"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(hosts_scanned(&listed, &sboms), 2);
+        assert_eq!(hosts_scanned(&listed, &[]), 0);
+        assert_eq!(hosts_scanned(&[], &sboms), 0);
     }
 
     #[test]
