@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, CloudCog } from 'lucide-react';
+import { ChevronDown, CloudCog, Settings } from 'lucide-react';
 import { Menu } from '../../../components/ui/Dropdown';
 import '../../monitors/monitors.css';
 import '../security.css';
@@ -26,6 +26,9 @@ export function CloudSecurityLayout() {
             { label: 'Security', onClick: () => navigate('/security') },
             { label: 'Cloud SIEM', onClick: () => navigate('/security/siem') },
             { label: 'Cloud Security', onClick: () => navigate('/security/cloud') },
+            { label: 'App & API Protection', onClick: () => navigate('/security/appsec') },
+            { label: 'Workload Protection', onClick: () => navigate('/security/workload-protection') },
+            { label: 'AI Guard', onClick: () => navigate('/security/ai-guard') },
             { label: 'Code Security', onClick: () => navigate('/code-security') },
           ]}
         />
@@ -62,6 +65,11 @@ export function CloudSecurityLayout() {
             ]}
           />
         </nav>
+        <div className="mon-header-actions">
+          <button className="btn" onClick={() => navigate('/security/cloud/settings')}>
+            <Settings size={15} /> Settings
+          </button>
+        </div>
       </header>
       <div className="mon-section">
         <Outlet />

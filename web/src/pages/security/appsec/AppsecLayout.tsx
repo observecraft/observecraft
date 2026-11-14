@@ -71,7 +71,7 @@ export function AppsecLayout() {
           ])}
         </nav>
         <div className="mon-header-actions">
-          <button className="btn" onClick={() => navigate('/security/appsec/inventory/services')}>
+          <button className="btn" onClick={() => navigate('/security/appsec/settings')}>
             <Settings size={15} /> Settings
           </button>
         </div>

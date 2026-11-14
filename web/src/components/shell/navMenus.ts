@@ -488,6 +488,7 @@ export const NAV_SECTIONS: NavItem[][] = [
           [
             ['Inventory', '/security/cloud/inventory'],
             ['CVE Explorer', '/security/cloud/inventory/cves'],
+            ['Settings', '/security/cloud/settings'],
           ],
         ),
         group(
@@ -499,10 +500,10 @@ export const NAV_SECTIONS: NavItem[][] = [
           ],
           [
             ['Policies', '/security/appsec/policies'],
-            ['Settings', '/security/appsec/inventory/services'],
+            ['Settings', '/security/appsec/settings'],
           ],
         ),
-        group('Workload Protection', '/security/workload-protection'),
+        group('Workload Protection', '/security/workload-protection', [['Signals', '/security/workload-protection/signals']], [['Setup', '/security/workload-protection/setup']]),
         group(
           'Sensitive Data Scanner',
           '/organization-settings/sensitive-data-scanner',
