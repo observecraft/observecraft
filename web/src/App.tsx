@@ -229,6 +229,8 @@ import { RecommendationsPage as CostRecommendationsPage } from './pages/cloudCos
 import { PoliciesPage } from './pages/infrastructure/PoliciesPage';
 import { PolicyDetailPage } from './pages/infrastructure/PolicyDetailPage';
 import { PolicyEditorPage } from './pages/infrastructure/PolicyEditorPage';
+import { TagCoveragePage, TaggingPoliciesPage } from './pages/infrastructure/TaggingPage';
+import { TaggingPolicyEditorPage } from './pages/infrastructure/TaggingPolicyEditorPage';
 import { CloudcraftPage } from './pages/infrastructure/CloudcraftPage';
 import { HostsPage } from './pages/infrastructure/HostsPage';
 import { GpuMonitoringPage } from './pages/gpu/GpuMonitoringPage';
@@ -453,6 +455,10 @@ function Shell() {
               <Route path="/infrastructure/policies/new" element={<PolicyEditorPage />} />
               <Route path="/infrastructure/policies/:id" element={<PolicyDetailPage />} />
               <Route path="/infrastructure/policies/:id/edit" element={<PolicyEditorPage />} />
+              <Route path="/infrastructure/tagging" element={<TagCoveragePage />} />
+              <Route path="/infrastructure/tagging/policies" element={<TaggingPoliciesPage />} />
+              <Route path="/infrastructure/tagging/policies/new" element={<TaggingPolicyEditorPage />} />
+              <Route path="/infrastructure/tagging/policies/:id" element={<TaggingPolicyEditorPage />} />
               <Route path="/cloudcraft" element={<CloudcraftPage />} />
             </Route>
             <Route path="/code-security" element={<CodeSecurityLayout />}>

@@ -7966,6 +7966,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/provenance/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's resources with their source (Cloud Security → Inventory). */
+        get: operations["list_resource_provenance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/connectors/oauth/callback": {
         parameters: {
             query?: never;
@@ -9840,6 +9857,63 @@ export interface paths {
         put: operations["update_synthetic_variable"];
         post?: never;
         delete: operations["delete_synthetic_variable"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tagging-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's tagging policies with their coverage, and the recommended set. */
+        get: operations["list_tagging_policies"];
+        put?: never;
+        /** Creates a policy. */
+        post: operations["create_tagging_policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tagging-policies/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Coverage of the enabled policies (or of one policy): per policy, target, account, cluster and team, over time, and
+         *     the non-compliant resources with what they lack and their source.
+         */
+        get: operations["get_tagging_coverage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tagging-policies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One policy with its coverage. */
+        get: operations["get_tagging_policy"];
+        /** Replaces a policy's definition. */
+        put: operations["update_tagging_policy"];
+        post?: never;
+        /** Deletes a policy. */
+        delete: operations["delete_tagging_policy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -14152,6 +14226,11 @@ export interface components {
             summary: string;
             verdict: string;
         };
+        /**
+         * @description Exact: the resource names its source itself. Inferred: a likely match that needs a confirmation.
+         * @enum {string}
+         */
+        Confidence: "exact" | "inferred";
         ConnectSlackAccount: {
             /** @description Bot User OAuth Token (`xoxb-…`) of the workspace's Slack app. */
             botToken: string;
@@ -14594,6 +14673,36 @@ export interface components {
         };
         /** @enum {string} */
         CostType: "amortized" | "billed";
+        /** @description Compliance of the org's resources with its enabled policies. */
+        Coverage: {
+            byAccount: components["schemas"]["TagCoverageRow"][];
+            byCluster: components["schemas"]["TagCoverageRow"][];
+            byPolicy: components["schemas"]["TagCoverageRow"][];
+            byTarget: components["schemas"]["TagCoverageRow"][];
+            byTeam: components["schemas"]["TagCoverageRow"][];
+            /** @description Failing resources, those of the lowest-scoring groups first (at most the limit). */
+            noncompliant: components["schemas"]["NonCompliantResource"][];
+            noncompliantTotal: number;
+            /** @description Resources at least one policy applies to, and those complying with all of theirs. */
+            total: components["schemas"]["CoverageCount"];
+            /** @description Evaluated resources with a known source. */
+            withProvenance: number;
+        };
+        /**
+         * @description Resources evaluated and compliant, and the compliant share in percent (one decimal; null when nothing is
+         *     evaluated).
+         */
+        CoverageCount: {
+            compliant: number;
+            evaluated: number;
+            /** Format: double */
+            score?: number | null;
+        };
+        /** @description The day's coverage. */
+        CoveragePoint: components["schemas"]["CoverageCount"] & {
+            /** @description YYYY-MM-DD (UTC). */
+            day: string;
+        };
         /** @description Coverage of one service and region. */
         CoverageRow: {
             /**
@@ -18560,6 +18669,7 @@ export interface components {
             /** Format: int32 */
             pods?: number | null;
             ports?: string | null;
+            provenance?: components["schemas"]["Provenance"] | null;
             qos?: string | null;
             /** @description "1/2" containers (pods), replicas (workloads) or nodes (daemonsets). */
             ready?: string | null;
@@ -19963,6 +20073,11 @@ export interface components {
         };
         /** @enum {string} */
         NodeAutoscaler: "karpenter" | "cluster_autoscaler" | "none";
+        /** @description A resource failing at least one policy, with what it lacks and where it comes from. */
+        NonCompliantResource: {
+            policies: components["schemas"]["PolicyGaps"][];
+            resource: components["schemas"]["TaggedResource"];
+        };
         NoteRequest: {
             body: string;
         };
@@ -20642,6 +20757,12 @@ export interface components {
              * @description Compliant share in percent, one decimal; null when nothing is evaluated.
              */
             score?: number | null;
+        };
+        /** @description One policy's gaps on a resource. */
+        PolicyGaps: {
+            gaps: components["schemas"]["TagGap"][];
+            policyId: string;
+            policyName: string;
         };
         /** @enum {string} */
         PolicyOperator: "exists" | "not_exists" | "equals" | "not_equals" | "one_of" | "not_one_of" | "matches" | "gt" | "gte" | "lt" | "lte" | "version_gt" | "version_gte" | "version_lt" | "version_lte";
@@ -21470,6 +21591,55 @@ export interface components {
             };
             version: string;
         };
+        /** @description Where a resource comes from. */
+        Provenance: {
+            /**
+             * @description The resource in that file: a Terraform address (`module.storage.aws_s3_bucket.assets`) or a Kubernetes object
+             *     (`Deployment/checkout/order-service`).
+             */
+            address?: string | null;
+            /** @description The Argo CD Application that deploys a Kubernetes object. */
+            application?: string | null;
+            confidence: components["schemas"]["Confidence"];
+            kind: components["schemas"]["ProvenanceKind"];
+            /** @description File or directory in the repository (`envs/prod/storage`, `charts/order-service`). */
+            path?: string | null;
+            /** @description Branch, tag or commit. */
+            ref?: string | null;
+            /**
+             * @description Repository without scheme or `.git` (`github.com/example-org/infra-terraform`); null when only the Argo CD
+             *     Application is known (its object isn't collected).
+             */
+            repo?: string | null;
+            via: components["schemas"]["ProvenanceVia"];
+        };
+        /**
+         * @description What defines the resource.
+         * @enum {string}
+         */
+        ProvenanceKind: "terraform" | "helm" | "kustomize" | "manifest" | "dockerfile" | "code";
+        ProvenanceList: {
+            resources: components["schemas"]["TaggedResource"][];
+            summary: components["schemas"]["ProvenanceSummary"];
+        };
+        /** @description Counts of resources with and without a source, per target and per way it was found. */
+        ProvenanceSummary: {
+            /** @description Per target (`cloud`, …): [resources, resolved]. */
+            byTarget: {
+                [key: string]: number[];
+            };
+            /** @description Per way (`tag`, `argocd`, …): resolved resources. */
+            byVia: {
+                [key: string]: number;
+            };
+            resolved: number;
+            total: number;
+        };
+        /**
+         * @description How the source was found.
+         * @enum {string}
+         */
+        ProvenanceVia: "tag" | "state" | "argocd" | "oci" | "git_metadata";
         /** @description The read-only rendering at `/status/<slug>`: no ids of users, incidents or the org. */
         PublicStatusPage: {
             components: components["schemas"]["StatusPageComponent"][];
@@ -21605,6 +21775,17 @@ export interface components {
             recommendations: components["schemas"]["CostRecommendation"][];
             /** @description The filters' choices: every resource and recommendation type found (before filtering). */
             resourceTypes: components["schemas"]["RecommendationGroup"][];
+        };
+        /** @description A policy of the recommended set. */
+        RecommendedPolicy: {
+            description: string;
+            key: string;
+            name: string;
+            rule: components["schemas"]["TagRule"];
+        };
+        /** @description A recommended policy, and whether the org has a policy made from it. */
+        RecommendedView: components["schemas"]["RecommendedPolicy"] & {
+            installed: boolean;
         };
         /**
          * @description An evaluation result recorded on the span by the application or an evaluator
@@ -21835,6 +22016,13 @@ export interface components {
             secrets: number;
             /** @description The repository's page ('' when its name isn't a URL). */
             url: string;
+        };
+        /** @description A tag every resource in scope must carry. */
+        RequiredTag: {
+            /** @description Allowed values; any value when empty. */
+            allowedValues?: string[];
+            /** @description The key, or alternatives separated by `|` (`tf_path|git_file`). */
+            key: string;
         };
         ResourceCategory: {
             /** @description Hosts, Containers, Kubernetes, Networking, Storage, Container Images, … */
@@ -25542,6 +25730,46 @@ export interface components {
             id: string;
             name: string;
         };
+        TagCoverage: components["schemas"]["Coverage"] & {
+            /** @description Argo CD Applications collected (0: Kubernetes objects resolve to their Application's name only). */
+            argocdApplications: number;
+            /** @description The total per day, oldest first. */
+            history: components["schemas"]["CoveragePoint"][];
+            /** @description Where the evaluated resources come from. */
+            provenance: components["schemas"]["ProvenanceSummary"];
+        };
+        /** @description Coverage of one policy, account, cluster, team or target. */
+        TagCoverageRow: components["schemas"]["CoverageCount"] & {
+            /** @description The policy id, account, cluster, team or target. */
+            key: string;
+            label: string;
+        };
+        /** @description A required tag a resource lacks, or carries with a value not allowed. */
+        TagGap: {
+            key: string;
+            /** @description The value found when it isn't allowed; null when the tag is missing. */
+            value?: string | null;
+        };
+        /** @description What a policy checks. */
+        TagRule: {
+            required: components["schemas"]["RequiredTag"][];
+            scope?: components["schemas"]["TagScope"];
+            target: components["schemas"]["TagTarget"];
+        };
+        /**
+         * @description Which resources of the target a policy covers. Each field is a comma-separated list of `*` patterns; empty for
+         *     any.
+         */
+        TagScope: {
+            account?: string;
+            cluster?: string;
+            /** @description Resource, image or service names. */
+            names?: string;
+            /** @description aws | azure | gcp (cloud resources). */
+            provider?: string;
+            /** @description `AwsS3Bucket`, `kube_deployment`, … */
+            resourceType?: string;
+        };
         TagShare: {
             key: string;
             /**
@@ -25550,6 +25778,66 @@ export interface components {
              */
             share: number;
             value: string;
+        };
+        /**
+         * @description What a tagging policy or a provenance lookup is about.
+         * @enum {string}
+         */
+        TagTarget: "cloud" | "kubernetes" | "image" | "service";
+        /** @description A resource with its tags and source. */
+        TaggedResource: {
+            account?: string | null;
+            cluster?: string | null;
+            env?: string | null;
+            /** @description The cloud resource's id (ARN, Azure resource id, …), the Kubernetes uid, the image id or `service:<name>`. */
+            id: string;
+            name: string;
+            namespace?: string | null;
+            provenance?: components["schemas"]["Provenance"] | null;
+            /** @description aws | azure | gcp */
+            provider?: string | null;
+            region?: string | null;
+            /** @description `AwsS3Bucket`, `kube_deployment`, `container_image`, `service`. */
+            resourceType: string;
+            /** @description `key:value` tags (Kubernetes labels and the Argo CD tracking annotation included). */
+            tags: string[];
+            target: components["schemas"]["TagTarget"];
+            team?: string | null;
+        };
+        /** @description A policy as stored, with its coverage on the current resources. */
+        TaggingPolicy: {
+            coverage: components["schemas"]["CoverageCount"];
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            createdAt: number;
+            createdBy?: string | null;
+            description: string;
+            enabled: boolean;
+            id: string;
+            name: string;
+            /** @description The recommended policy it comes from. */
+            recommended?: string | null;
+            required: components["schemas"]["RequiredTag"][];
+            scope: components["schemas"]["TagScope"];
+            target: components["schemas"]["TagTarget"];
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        TaggingPolicyInput: {
+            description?: string;
+            enabled?: boolean;
+            name: string;
+            /** @description The recommended policy it is made from. */
+            recommended?: string | null;
+            required: components["schemas"]["RequiredTag"][];
+            scope?: components["schemas"]["TagScope"];
+            target: components["schemas"]["TagTarget"];
+        };
+        TaggingPolicyList: {
+            policies: components["schemas"]["TaggingPolicy"][];
+            recommended: components["schemas"]["RecommendedView"][];
         };
         Team: {
             createdVia: string;
@@ -42649,6 +42937,38 @@ export interface operations {
             };
         };
     };
+    list_resource_provenance: {
+        parameters: {
+            query?: {
+                /** @description cloud | kubernetes | image | service; all when empty. */
+                target?: string | null;
+                /** @description Only resources without a source. */
+                missing?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvenanceList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     connector_oauth_callback: {
         parameters: {
             query?: {
@@ -47079,6 +47399,191 @@ export interface operations {
         };
     };
     delete_synthetic_variable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_tagging_policies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaggingPolicyList"];
+                };
+            };
+        };
+    };
+    create_tagging_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaggingPolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaggingPolicy"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_tagging_coverage: {
+        parameters: {
+            query?: {
+                /** @description Only this policy (its id). */
+                policy?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagCoverage"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_tagging_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaggingPolicy"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_tagging_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaggingPolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaggingPolicy"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_tagging_policy: {
         parameters: {
             query?: never;
             header?: never;

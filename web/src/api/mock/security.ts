@@ -26,6 +26,7 @@ import { parseQuery, quoteValue, type Term } from '../../lib/searchQuery';
 import { rng } from './generator';
 import * as cs from './codeSecurity';
 import { allMisconfigs, allVulns } from './cloudSecurity';
+import { misconfigGaps } from './tagging';
 import { USERS } from './errorTracking';
 import { searchUsers } from './identity';
 import { WP_AGENT_RULES, wpDetectionRuleId, wpMitreTags } from './workloadCatalog';
@@ -1660,6 +1661,25 @@ function inboxFindings(): InboxFinding[] {
         link: `/code-security/vulnerabilities/${path}`,
       });
     }
+  }
+  // Resources missing required tags: one low item (security_overview.rs `tagging_inbox_item`).
+  const untagged = misconfigGaps().gaps;
+  if (untagged.length) {
+    out.push({
+      key: 'misconfig:ocs-tag-001',
+      title: 'Resource missing required tags',
+      findingType: 'Misconfiguration',
+      severity: 'low',
+      resourceType: 'Resource',
+      resources: untagged.slice(0, 20).map((g) => g.resource.name),
+      services: [...new Set(untagged.flatMap((g) => g.resource.tags.filter((t) => t.startsWith('service:')).map((t) => t.slice(8))))].sort(),
+      repositories: [],
+      reasons: [`${untagged.length} resource${untagged.length === 1 ? '' : 's'} lack tags the tagging policies require`],
+      firstSeen: 0,
+      triage: 'pending',
+      cve: null,
+      link: '/infrastructure/tagging',
+    });
   }
   for (const m of allMisconfigs().filter((x) => x.status === 'open' && ['critical', 'high'].includes(x.severity))) {
     out.push({

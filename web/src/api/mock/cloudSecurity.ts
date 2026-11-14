@@ -16,6 +16,8 @@ import type {
   ResourceCategory,
 } from '../cloudSecurity/types';
 import { postureFindings, postureRules } from './cloudPosture';
+import { misconfigGaps } from './tagging';
+import { describeGap } from '../tagging/logic';
 
 const DAY = 86_400_000;
 const now = Date.now();
@@ -519,8 +521,51 @@ export function allMisconfigs(): MisconfigFinding[] {
   return out.sort((a, b) => RANK.indexOf(b.severity) - RANK.indexOf(a.severity) || a.ruleId.localeCompare(b.ruleId));
 }
 
+const TAG_RULE = {
+  id: 'ocs-tag-001',
+  name: 'Resource missing required tags',
+  severity: 'low',
+  description:
+    'The resource lacks tags its organization’s tagging policies require, or carries values they don’t allow. Without them its owner, environment or source repository is unknown, and findings on it can’t be fixed where it is defined.',
+  remediation:
+    'Add the missing tags where the resource is defined: Terraform default_tags (AWS) or a merged locals map (Azure), a Yor job in CI, Argo CD tracking for Kubernetes objects, OCI labels at image build. Infrastructure → Resources → Tagging lists each policy and a snippet per convention.',
+  frameworks: [] as string[],
+};
+
+/** Resources failing the tagging policies (mock/tagging.ts) as low-severity findings, as cloud_security.rs makes them. */
+function taggingMisconfigs(): { findings: MisconfigFinding[]; evaluated: number } {
+  const { evaluated, gaps } = misconfigGaps();
+  const findings = gaps.map(({ resource: r, policies }): MisconfigFinding => {
+    const key = `misconfig:${TAG_RULE.id}:${r.id}`;
+    return {
+      key,
+      ruleId: TAG_RULE.id,
+      ruleName: TAG_RULE.name,
+      severity: TAG_RULE.severity,
+      description: TAG_RULE.description,
+      remediation: TAG_RULE.remediation,
+      frameworks: [],
+      detail: policies.map((p) => `${p.gaps.map(describeGap).join(', ')} (${p.policyName})`).join('; '),
+      resourceId: r.id,
+      resourceName: r.name,
+      resourceType: r.resourceType,
+      cluster: r.cluster ?? null,
+      namespace: r.namespace ?? null,
+      account: r.account ?? null,
+      region: r.region ?? null,
+      env: r.env ?? null,
+      service: r.tags.find((t) => t.startsWith('service:'))?.slice(8) ?? null,
+      team: r.team ?? null,
+      status: triage.get(key) ?? 'open',
+      lastSeen: 0,
+    };
+  });
+  return { findings, evaluated };
+}
+
 export async function misconfigurations(status: FindingStatus): Promise<MisconfigPage> {
   const all = allMisconfigs();
+  const tagged = taggingMisconfigs();
   const rules = RULES.map((r) => ({
     ...r,
     evaluated: r.id.startsWith('ocs-host') ? HOSTS.length : r.id === 'ocs-k8s-008' || r.id === 'ocs-k8s-013' ? 14 : 22,
@@ -528,8 +573,8 @@ export async function misconfigurations(status: FindingStatus): Promise<Misconfi
   }));
   // The demo AWS account's scan (mock/cloudPosture.ts).
   const scanned = postureFindings(triage);
-  const findings = [...all, ...scanned].sort((a, b) => RANK.indexOf(b.severity) - RANK.indexOf(a.severity) || a.ruleId.localeCompare(b.ruleId));
-  return delay({ findings: findings.filter((f) => keep(f.status, status)), rules: [...rules, ...postureRules()] });
+  const findings = [...all, ...scanned, ...tagged.findings].sort((a, b) => RANK.indexOf(b.severity) - RANK.indexOf(a.severity) || a.ruleId.localeCompare(b.ruleId));
+  return delay({ findings: findings.filter((f) => keep(f.status, status)), rules: [...rules, ...postureRules(), { ...TAG_RULE, evaluated: tagged.evaluated, failing: tagged.findings.length }] });
 }
 
 export async function setTriage(key: string, status: 'open' | 'muted'): Promise<void> {

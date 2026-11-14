@@ -1,0 +1,24 @@
+import type { components } from '../generated/schema';
+
+type S = components['schemas'];
+export type TagTarget = S['TagTarget'];
+export type TagScope = S['TagScope'];
+export type RequiredTag = S['RequiredTag'];
+export type TagRule = S['TagRule'];
+export type TagGap = S['TagGap'];
+export type TaggingPolicy = S['TaggingPolicy'];
+export type TaggingPolicyInput = S['TaggingPolicyInput'];
+export type TaggingPolicyList = S['TaggingPolicyList'];
+export type RecommendedView = S['RecommendedView'];
+export type CoverageCount = S['CoverageCount'];
+export type CoverageRow = S['TagCoverageRow'];
+export type CoveragePoint = S['CoveragePoint'];
+export type PolicyGaps = S['PolicyGaps'];
+export type NonCompliantResource = S['NonCompliantResource'];
+export type TagCoverage = S['TagCoverage'];
+export type TaggedResource = S['TaggedResource'];
+export type Provenance = S['Provenance'];
+export type ProvenanceKind = S['ProvenanceKind'];
+export type ProvenanceVia = S['ProvenanceVia'];
+export type ProvenanceSummary = S['ProvenanceSummary'];
+export type ProvenanceList = S['ProvenanceList'];

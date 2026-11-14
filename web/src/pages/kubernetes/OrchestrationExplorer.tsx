@@ -28,7 +28,22 @@ import { Menu, Select, usePopover } from '../../components/ui/Dropdown';
 import { Pager } from '../../components/ui/Pager';
 import { addTerm, formatQuery, parseQuery, type Term } from '../../lib/searchQuery';
 import { SummaryGraphs } from './SummaryGraphs';
-import { COLUMNS, DEFAULT_HIDDEN, KIND_INFO, RESOURCE_TREE, TAG_LABELS, facetGroup, isEcs, logQuery, type CellContext, type ExplorerKind, type KubeColumn, type TreeNode } from './columns';
+import {
+  COLUMNS,
+  DEFAULT_HIDDEN,
+  KIND_INFO,
+  RESOURCE_TREE,
+  SOURCE_KINDS,
+  TAG_LABELS,
+  facetGroup,
+  isEcs,
+  logQuery,
+  type CellContext,
+  type ExplorerKind,
+  type KubeColumn,
+  type TreeNode,
+} from './columns';
+import { NoSourceToggle } from '../../components/provenance/SourceCell';
 import { KubePanel } from './KubePanel';
 import { KubernetesIcon } from '../../components/brand/KubernetesIcon';
 import { LiveClock, LiveProvider, OrchestrationHeader, ProductIcon, useLive } from './OrchestrationHeader';
@@ -407,6 +422,18 @@ function Inventory({ kind, onUpdated, filter }: { kind: ExplorerKind; onUpdated:
               )}
             </span>
             <span className="hosts-toolbar-right">
+              {apiKind && SOURCE_KINDS.includes(apiKind) && (
+                <NoSourceToggle
+                  checked={terms.some((t) => t.kind === 'tag' && t.key === 'source' && !t.negate && t.values.includes('none'))}
+                  onChange={(on) =>
+                    setTerms(
+                      on
+                        ? [...terms.filter((t) => !(t.kind === 'tag' && t.key === 'source')), { kind: 'tag', key: 'source', values: ['none'], negate: false }]
+                        : terms.filter((t) => !(t.kind === 'tag' && t.key === 'source')),
+                    )
+                  }
+                />
+              )}
               {view === 'map' && (
                 <Select
                   value={fill}
