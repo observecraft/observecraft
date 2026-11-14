@@ -54,7 +54,7 @@ export const ORG_NAV: { section: string; items: Item[] }[] = [
     items: [
       { to: 'audit-trail', label: 'Audit Trail' },
       { to: 'data-retention', label: 'Data Retention' },
-      { to: '/security/appsec/policies/sensitive-data', label: 'Sensitive Data Scanner', chevron: true },
+      { to: 'sensitive-data-scanner', label: 'Sensitive Data Scanner' },
       { to: 'tagging-policies', label: 'Tagging Policies', badge: 'PREVIEW', soon: true },
     ],
   },

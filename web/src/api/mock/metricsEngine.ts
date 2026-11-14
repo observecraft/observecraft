@@ -16,6 +16,7 @@ import { NETBIRD_METRICS, NETBIRD_SETS } from './netbirdMetrics';
 import { FLEETDM_METRICS, FLEETDM_SETS } from './fleetdmMetrics';
 import { OBSERVECRAFT_METRICS, OBSERVECRAFT_PODS, OBSERVECRAFT_SETS } from './observecraftMetrics';
 import { CORE_METRICS, CORE_SETS } from './coreMetrics';
+import { SDS_MATCH_SERIES } from './sensitiveDataScanner';
 import { INFRA_POD_VALUES, INFRA_PODS } from './kubernetesIntegrationMetrics';
 
 type Tags = Record<string, string>;
@@ -173,6 +174,16 @@ const METRICS: Record<string, MetricDef> = {
   ...NETBIRD_METRICS,
   ...FLEETDM_METRICS,
   ...OBSERVECRAFT_METRICS,
+  // Sensitive Data Scanner matches (count per minute), one series per rule and service.
+  'sds.matches': {
+    set: 'services',
+    entities: SDS_MATCH_SERIES,
+    tags: ['sds_group', 'sds_group_id', 'sds_rule', 'sds_rule_id', 'service'],
+    description: 'Sensitive data matches found by the Sensitive Data Scanner',
+    // Per second, as the API answers counters.
+    base: (e, r) => (e.sds_rule === 'Card numbers' ? 0.5 : e.sds_rule === 'Customer emails' ? 0.9 : 0.03 + r() * 0.2),
+    noise: 0.6,
+  },
   'kubernetes_state.deployment.count': { set: 'deployments', description: 'Deployments', base: () => 1, noise: 0, integer: true },
   'kubernetes_state.deployment.replicas': { set: 'deployments', description: 'Replicas per deployment', base: REPLICAS, noise: 0.02, integer: true },
   'kubernetes_state.deployment.replicas_desired': { set: 'deployments', description: 'Desired replicas', base: REPLICAS, noise: 0.01, integer: true },

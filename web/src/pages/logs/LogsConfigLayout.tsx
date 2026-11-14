@@ -20,7 +20,7 @@ export const LOGS_CONFIG_NAV: { section: string; isNew?: boolean; items: Item[] 
     items: [
       { slug: 'pipelines', label: 'Pipelines' },
       { slug: 'attributes', label: 'Standard Attributes' },
-      { slug: 'sensitive-data-scanner', label: 'Sensitive Data Scanner', href: '/security/appsec/policies/sensitive-data' },
+      { slug: 'sensitive-data-scanner', label: 'Sensitive Data Scanner', href: '/organization-settings/sensitive-data-scanner' },
     ],
   },
   {

@@ -1,0 +1,355 @@
+/* Sensitive Data Scanner: settings (groups, rules, library, editors) and findings. Colors from theme/tokens.css. */
+.sds-intro {
+  max-width: 980px;
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.sds-count {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.sds-summary {
+  margin: 0 0 10px;
+}
+
+.sds-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sds-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.sds-group.off .sds-group-name b,
+.sds-off td {
+  color: var(--text-muted);
+}
+
+.sds-group-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 12px;
+}
+
+.sds-num {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.sds-group-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.sds-group-name > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sds-group-head .lc-filter {
+  max-width: 280px;
+  overflow: hidden;
+}
+
+.sds-group-name .muted,
+.sds-sub {
+  font-size: var(--fs-sm);
+}
+
+.sds-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sds-nowrap {
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+}
+
+.sds-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.sds-actions .switch {
+  margin-left: 6px;
+}
+
+.sds-rules {
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.sds-rules-empty {
+  margin: 12px 0;
+}
+
+.sds-rule-table {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.sds-rule-table th,
+.sds-rule-table td {
+  padding: 6px 8px;
+  vertical-align: top;
+  font-size: var(--fs-md);
+}
+
+.sds-chips .role-chip,
+.sds-rule-table .role-chip {
+  font-size: var(--fs-xs);
+}
+
+.sds-regex {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  word-break: break-all;
+}
+
+.sds-prio {
+  font-size: var(--fs-xs);
+}
+
+.sds-add-rule {
+  margin-top: 10px;
+}
+
+.sds-select {
+  height: 38px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.sds-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}
+
+.sds-badge.hit {
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+}
+
+/* ---------- editors ---------- */
+.sds-form {
+  overflow-y: auto;
+}
+
+.sds-rule-form {
+  max-height: 100%;
+}
+
+.sds-hint {
+  font-weight: var(--fw-regular);
+}
+
+.sds-narrow {
+  max-width: 260px;
+}
+
+.sds-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.sds-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-regular);
+}
+
+.sds-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 14px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.sds-fieldset legend {
+  padding: 0 4px;
+  font-weight: var(--fw-semibold);
+}
+
+.sds-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.sds-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sds-sample {
+  width: 100%;
+  resize: vertical;
+}
+
+.sds-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sds-redacted {
+  flex-basis: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ---------- findings ---------- */
+.sds-findings {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sds-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.sds-findings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.sds-findings-body > p {
+  margin: 0;
+}
+
+.sds-findings .settings-card h2 {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+
+.sds-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.sds-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sds-kpi b {
+  font-size: 26px;
+  font-weight: var(--fw-medium);
+}
+
+.sds-kpi-link a {
+  font-size: var(--fs-lg);
+}
+
+.sds-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.sds-top {
+  width: 100%;
+}
+
+.sds-bar {
+  display: inline-block;
+  width: 90px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-muted);
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.sds-bar span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+@media (max-width: 1100px) {
+  .sds-two,
+  .sds-kpis,
+  .sds-grid.three {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.sds-library {
+  width: 100%;
+}
+
+.sds-page .sds-library td,
+.sds-page .sds-rule-table td,
+.sds-page .sds-sub {
+  white-space: normal;
+}
+
+.sds-library td:first-child {
+  min-width: 240px;
+}
+
+.sds-page .sds-library td {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.sds-empty {
+  margin: 24px 0;
+  text-align: center;
+}

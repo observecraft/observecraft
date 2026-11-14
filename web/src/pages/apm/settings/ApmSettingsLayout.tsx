@@ -17,7 +17,7 @@ const NAV: { to: string; label: string; isNew?: boolean; end?: boolean }[] = [
 
 /** Pages of other products that configure spans too. */
 const ELSEWHERE: { to: string; label: string }[] = [
-  { to: '/security/appsec/policies/sensitive-data', label: 'Sensitive Data Scanner' },
+  { to: '/organization-settings/sensitive-data-scanner', label: 'Sensitive Data Scanner' },
   { to: '/logs/attributes', label: 'Standard Attributes' },
 ];
 
