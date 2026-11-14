@@ -45,6 +45,8 @@ export function SecurityHeader({ product, tabs, settings }: { product: 'Security
           { label: 'Cloud SIEM', onClick: () => navigate('/security/siem') },
           { label: 'Cloud Security', onClick: () => navigate('/security/cloud') },
           { label: 'App & API Protection', onClick: () => navigate('/security/appsec') },
+          { label: 'Workload Protection', onClick: () => navigate('/security/workload-protection') },
+          { label: 'AI Guard', onClick: () => navigate('/security/ai-guard') },
           { label: 'Code Security', onClick: () => navigate('/code-security') },
         ]}
       />

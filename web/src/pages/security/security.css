@@ -273,6 +273,11 @@
 .sec-ov-cap.on a {
   color: #cfe8e6;
 }
+.sec-ov-note {
+  margin: 0;
+  color: #cfe8e6;
+  font-size: var(--fs-sm);
+}
 .sec-ov-pitch {
   display: flex;
   flex-direction: column;
