@@ -147,6 +147,8 @@ import { AppsecOverviewPage } from './pages/security/appsec/OverviewPage';
 import { ApiFindingsPage, CompliancePage } from './pages/security/appsec/FindingsPages';
 import { AppsecUsersPage, AttackersPage, SecurityTracesPage } from './pages/security/appsec/InvestigatePages';
 import { AppsecServicesPage, EndpointsPage } from './pages/security/appsec/InventoryPages';
+import { SensitiveDataFindingsPage } from './pages/sensitiveDataScanner/FindingsPage';
+import { SensitiveDataScannerPage } from './pages/sensitiveDataScanner/SettingsPage';
 import { AppsecRulesPage, BusinessLogicPage, DenylistPage, InAppWafPage, PasslistPage, SensitiveDataPage } from './pages/security/appsec/PoliciesPages';
 import { CloudSummaryPage } from './pages/security/cloud/SummaryPage';
 import { InfraVulnerabilitiesPage, MisconfigurationsPage } from './pages/security/cloud/FindingsPages';
@@ -841,6 +843,8 @@ function Shell() {
               <Route path="filtered" element={<FilteredMetricsPage />} />
             </Route>
             <Route path="/instance/orgs" element={<InstanceOrgsPage />} />
+            <Route path="/sensitive-data-scanner" element={<Navigate to="/sensitive-data-scanner/findings" replace />} />
+            <Route path="/sensitive-data-scanner/findings" element={<SensitiveDataFindingsPage />} />
             <Route path="/organization-settings" element={<OrgSettingsLayout />}>
               <Route index element={<Navigate to="users" replace />} />
               <Route path="users" element={<UsersPage />} />
@@ -851,6 +855,7 @@ function Shell() {
               <Route path="login-methods" element={<LoginMethodsPage />} />
               <Route path="audit-trail" element={<AuditTrailPage />} />
               <Route path="assist" element={<AssistProviderPage />} />
+              <Route path="sensitive-data-scanner" element={<SensitiveDataScannerPage />} />
               <Route path="*" element={<OrgComingSoon />} />
             </Route>
             <Route path="*" element={<ComingSoon />} />
