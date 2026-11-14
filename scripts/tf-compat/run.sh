@@ -27,7 +27,8 @@
 # Its log goes to $OC_TF_WORK/server.log.
 #
 # Other settings: OC_TF_CACHE (OpenTofu binary and provider plugins, default ~/.cache/observecraft/tf-compat),
-# OC_TF_WORK (per-run working directories, default scripts/tf-compat/.work, git-ignored).
+# OC_TF_WORK (per-run working directories, default scripts/tf-compat/.work, git-ignored), TF_COMPAT_JOBS (fixtures
+# run at once, default 4; fixtures ordering a list run in the lane of the objects they order).
 set -euo pipefail
 
 TOFU_VERSION=1.13.2
@@ -52,7 +53,7 @@ fixtures=()
 for arg in "$@"; do
   case "$arg" in
     --local) local_server=true ;;
-    -h | --help) sed -n '2,29p' "$0"; exit 0 ;;
+    -h | --help) sed -n '2,31p' "$0"; exit 0 ;;
     *) fixtures+=("$arg") ;;
   esac
 done
@@ -186,7 +187,7 @@ HCL
 step() {
   local name="$1"
   shift
-  log "  $name"
+  log "  $(basename "$dir"): $name"
   "$@" >>"$dir/run.log" 2>&1
 }
 
@@ -249,24 +250,51 @@ unset DD_API_KEY DD_APP_KEY DD_BEARER_TOKEN DATADOG_API_KEY DATADOG_APP_KEY DATA
 
 auths=(bearer)
 if [ -n "${OC_TF_API_KEY:-}" ]; then auths=(keys bearer); else log "OC_TF_API_KEY unset: skipping the api_key + app_key runs"; fi
-failed=()
+# Fixtures that read a whole ordered list (`*_order`) share a lane with the objects they order: a parallel
+# fixture adding one would show up in their plan. Lanes run in parallel, a lane's fixtures one after another.
+lane() {
+  case "$1" in
+    logs_custom_pipeline | logs_integration_pipeline | logs_pipeline_order) echo logs_pipeline ;;
+    sensitive_data_scanner_*) echo sensitive_data_scanner ;;
+    *_order) echo "${1%_order}" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+run_lane() {
+  local fixture auth
+  for fixture in "$@"; do
+    for auth in "${auths[@]}"; do
+      if ! (run_fixture "$fixture" "$auth"); then
+        echo "$fixture ($auth)" >>"$work/failed"
+        log "FAILED: $fixture ($auth), see $work/$fixture-$auth/run.log:"
+        tail -n 30 "$work/$fixture-$auth/run.log" >&2 || true
+        (cd "$work/$fixture-$auth" && "$tofu" destroy -auto-approve -input=false -no-color >>run.log 2>&1) || true
+        (dir="$work/$fixture-$auth" && teardown_fixture "$fixture") || true
+      fi
+    done
+  done
+}
+
+rm -f "$work/failed"
+# Run first and alone: its init also fills the provider plugin cache, which parallel inits then only read.
 for auth in "${auths[@]}"; do
-  (check_wrong_key_rejected "$auth") || failed+=("wrong key rejected ($auth)")
+  (check_wrong_key_rejected "$auth") || echo "wrong key rejected ($auth)" >>"$work/failed"
 done
 for fixture in "${fixtures[@]}"; do
   [ -d "$here/fixtures/$fixture" ] || die "no fixture $fixture"
-  for auth in "${auths[@]}"; do
-    if ! (run_fixture "$fixture" "$auth"); then
-      failed+=("$fixture ($auth)")
-      log "FAILED: $fixture ($auth), see $work/$fixture-$auth/run.log:"
-      tail -n 30 "$work/$fixture-$auth/run.log" >&2 || true
-      (cd "$work/$fixture-$auth" && "$tofu" destroy -auto-approve -input=false -no-color >>run.log 2>&1) || true
-      (dir="$work/$fixture-$auth" && teardown_fixture "$fixture") || true
-    fi
-  done
 done
-if [ ${#failed[@]} -gt 0 ]; then
-  log "failed: ${failed[*]}"
+jobs_max="${TF_COMPAT_JOBS:-4}"
+lanes="$(for fixture in "${fixtures[@]}"; do printf '%s %s\n' "$(lane "$fixture")" "$fixture"; done | sort -s -k1,1 | awk '$1 != l { if (NR > 1) printf "\n"; l = $1 } { printf "%s ", $2 } END { printf "\n" }')"
+while read -r line; do
+  [ -n "$line" ] || continue
+  while [ "$(jobs -rp | wc -l)" -ge "$jobs_max" ]; do sleep 1; done
+  # shellcheck disable=SC2086 # the lane's fixtures, one word each
+  (run_lane $line) &
+done <<<"$lanes"
+wait
+if [ -s "$work/failed" ]; then
+  log "failed: $(paste -sd ',' "$work/failed")"
   exit 1
 fi
 log "all fixtures passed (${fixtures[*]}; ${auths[*]})"

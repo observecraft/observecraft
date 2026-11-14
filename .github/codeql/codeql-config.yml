@@ -5,3 +5,10 @@ paths-ignore:
   - web/src/api/generated/**
   # The in-browser demo backend: answers only in mock mode (`make web-mock`), with fictional data.
   - web/src/api/mock/**
+  # Integration tests and their recorded fixtures: they run against throwaway services, never in a deployment.
+  - server/crates/*/tests/**
+  - scripts/tf-compat/fixtures/**
+  # The synthetic data generator (`make tracegen`): demo traffic only.
+  - server/crates/oc-tracegen/**
+  # Seed data (dashboards, catalogs) read as data, not code.
+  - server/seeds/**
