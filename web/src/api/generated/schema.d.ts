@@ -8803,6 +8803,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sensitive-data-scanner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_sds_configuration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sensitive-data-scanner/group-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["reorder_sds_groups"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sensitive-data-scanner/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_sds_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sensitive-data-scanner/groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_sds_group"];
+        post?: never;
+        delete: operations["delete_sds_group"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sensitive-data-scanner/groups/{id}/rule-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["reorder_sds_rules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sensitive-data-scanner/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_sds_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sensitive-data-scanner/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_sds_rule"];
+        post?: never;
+        delete: operations["delete_sds_rule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sensitive-data-scanner/standard-patterns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_sds_standard_patterns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sensitive-data-scanner/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["test_sds_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/serverless/functions": {
         parameters: {
             query?: never;
@@ -22516,6 +22660,133 @@ export interface components {
              * @description When telemetry was last read (epoch ms).
              */
             telemetryAt?: number | null;
+        };
+        SdsConfiguration: {
+            /** @description In scanning order. */
+            groups: components["schemas"]["SdsGroup"][];
+            /**
+             * Format: int64
+             * @description Moves on every change (Datadog's `meta.version`).
+             */
+            version: number;
+        };
+        SdsGroup: {
+            description: string;
+            enabled: boolean;
+            id: string;
+            name: string;
+            /** @description `logs`, `rum`, `events`, `apm`: only logs are scanned. */
+            products: string[];
+            /** @description Log search syntax; `*` or empty scans every log. */
+            query: string;
+            /** @description In scanning order. */
+            rules: components["schemas"]["SdsRule"][];
+            /**
+             * Format: double
+             * @description Percent of the matching logs scanned.
+             */
+            samplingRate: number;
+        };
+        SdsGroupInput: {
+            description?: string;
+            enabled?: boolean;
+            name: string;
+            products?: string[];
+            query?: string;
+            /**
+             * Format: double
+             * @description Percent of the matching logs scanned (default 100).
+             */
+            samplingRate?: number | null;
+        };
+        SdsOrderInput: {
+            /** @description Every group (or every rule of the group) once, in the new order. */
+            ids: string[];
+        };
+        SdsReplacement: {
+            /** @description `none`, `hash`, `replacement_string`, `partial_replacement_from_beginning`, `partial_replacement_from_end`. */
+            kind: string;
+            /** Format: int64 */
+            numberOfChars?: number | null;
+            replacementString?: string | null;
+        };
+        SdsRule: {
+            description: string;
+            enabled: boolean;
+            excludedNamespaces: string[];
+            groupId: string;
+            id: string;
+            /** Format: int64 */
+            keywordCharacters?: number | null;
+            /** @description A match counts only with one of these within `keywordCharacters` before it. */
+            keywords: string[];
+            name: string;
+            /** @description Attribute paths scanned (`message` for the message); empty: the whole log. */
+            namespaces: string[];
+            /** @description The rule's own regular expression; None with a standard pattern. */
+            pattern?: string | null;
+            /**
+             * Format: int64
+             * @description 1 (highest) to 5.
+             */
+            priority?: number | null;
+            replacement: components["schemas"]["SdsReplacement"];
+            standardPatternId?: string | null;
+            suppressions: components["schemas"]["SdsSuppressions"];
+            /** @description `key:value` tags added to matching logs. */
+            tags: string[];
+            useRecommendedKeywords: boolean;
+        };
+        SdsRuleInput: {
+            description?: string;
+            enabled?: boolean;
+            excludedNamespaces?: string[];
+            groupId: string;
+            /** Format: int64 */
+            keywordCharacters?: number | null;
+            keywords?: string[];
+            name: string;
+            namespaces?: string[];
+            pattern?: string | null;
+            /** Format: int64 */
+            priority?: number | null;
+            replacement?: components["schemas"]["SdsReplacement"];
+            standardPatternId?: string | null;
+            suppressions?: components["schemas"]["SdsSuppressions"];
+            tags?: string[];
+            useRecommendedKeywords?: boolean;
+        };
+        SdsStandardPattern: {
+            /** @description `credentials`, `finance`, `pii` or `network`. */
+            category: string;
+            description: string;
+            id: string;
+            /** @description Recommended keywords. */
+            keywords: string[];
+            name: string;
+            pattern: string;
+            /** Format: int64 */
+            priority: number;
+            tags: string[];
+        };
+        SdsSuppressions: {
+            endsWith?: string[];
+            exactMatch?: string[];
+            startsWith?: string[];
+        };
+        SdsTestRequest: {
+            /** @description The rule to try (its group, name and `enabled` don't matter). */
+            rule: components["schemas"]["SdsRuleInput"];
+            /** @description Sample text, scanned as a log message. */
+            sample: string;
+        };
+        SdsTestResult: {
+            /** Format: int64 */
+            matches: number;
+            /** @description The sample as the rule leaves it. */
+            redacted: string;
+            /** @description Tags a matching log gets. */
+            tags: string[];
         };
         SecurityInbox: {
             byType: {
@@ -44154,6 +44425,349 @@ export interface operations {
                 content?: never;
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_sds_configuration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SdsConfiguration"];
+                };
+            };
+        };
+    };
+    reorder_sds_groups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SdsOrderInput"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_sds_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SdsGroupInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SdsGroup"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_sds_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SdsGroupInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SdsGroup"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_sds_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    reorder_sds_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SdsOrderInput"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_sds_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SdsRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SdsRule"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_sds_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SdsRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SdsRule"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_sds_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_sds_standard_patterns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SdsStandardPattern"][];
+                };
+            };
+        };
+    };
+    test_sds_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SdsTestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SdsTestResult"];
+                };
+            };
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

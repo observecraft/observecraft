@@ -67,6 +67,7 @@ pub mod log_indexes;
 pub mod log_metrics;
 pub mod log_pipelines;
 pub mod log_restrictions;
+pub mod sensitive_data_scanner;
 pub mod logs_config;
 pub mod log_aggregates;
 pub mod log_analytics;
@@ -773,6 +774,17 @@ use crate::state::AppState;
         log_restrictions::assign_team,
         log_restrictions::unassign_team,
         log_restrictions::preview,
+        sensitive_data_scanner::get_configuration,
+        sensitive_data_scanner::standard_patterns,
+        sensitive_data_scanner::create_group,
+        sensitive_data_scanner::update_group,
+        sensitive_data_scanner::delete_group,
+        sensitive_data_scanner::reorder_groups,
+        sensitive_data_scanner::reorder_rules,
+        sensitive_data_scanner::create_rule,
+        sensitive_data_scanner::update_rule,
+        sensitive_data_scanner::delete_rule,
+        sensitive_data_scanner::test,
         logs_config::list_destinations,
         logs_config::create_destination,
         logs_config::update_destination,
@@ -1155,6 +1167,7 @@ use crate::state::AppState;
     components(schemas(live::LiveTailBatch, workflow_engine::WorkflowStepKind)),
     tags(
         (name = "logs", description = "Log search, facets, histogram and live tail"),
+        (name = "sensitive-data-scanner", description = "Sensitive Data Scanner: scanning groups and rules that redact and tag sensitive data in logs, and the standard pattern library"),
         (name = "code-security", description = "Code Security: vulnerable libraries, static findings, runtime code vulnerabilities and advisories"),
         (name = "apm", description = "Services, endpoints, dependencies and traces computed from spans"),
         (name = "metrics", description = "Metric queries for dashboards (OTel metrics and span-derived trace.* metrics)"),
@@ -1617,6 +1630,21 @@ pub fn router() -> Router<AppState> {
         .route(
             "/api/v1/logs/restriction-queries/{id}/teams/{handle}",
             delete(log_restrictions::unassign_team),
+        )
+        .route("/api/v1/sensitive-data-scanner", get(sensitive_data_scanner::get_configuration))
+        .route("/api/v1/sensitive-data-scanner/standard-patterns", get(sensitive_data_scanner::standard_patterns))
+        .route("/api/v1/sensitive-data-scanner/test", post(sensitive_data_scanner::test))
+        .route("/api/v1/sensitive-data-scanner/groups", post(sensitive_data_scanner::create_group))
+        .route("/api/v1/sensitive-data-scanner/group-order", axum::routing::put(sensitive_data_scanner::reorder_groups))
+        .route(
+            "/api/v1/sensitive-data-scanner/groups/{id}",
+            axum::routing::put(sensitive_data_scanner::update_group).delete(sensitive_data_scanner::delete_group),
+        )
+        .route("/api/v1/sensitive-data-scanner/groups/{id}/rule-order", axum::routing::put(sensitive_data_scanner::reorder_rules))
+        .route("/api/v1/sensitive-data-scanner/rules", post(sensitive_data_scanner::create_rule))
+        .route(
+            "/api/v1/sensitive-data-scanner/rules/{id}",
+            axum::routing::put(sensitive_data_scanner::update_rule).delete(sensitive_data_scanner::delete_rule),
         )
         .route(
             "/api/v1/logs/standard-attributes",
@@ -2143,6 +2171,7 @@ mod tests {
             include_str!("datadog_api/logs/pipelines.rs"),
             include_str!("datadog_api/logs/metrics.rs"),
             include_str!("datadog_api/logs/restrictions.rs"),
+            include_str!("datadog_api/sensitive_data_scanner.rs"),
             include_str!("datadog_api/logs/destinations.rs"),
             include_str!("logs_config.rs"),
             include_str!("datadog_api/keys.rs"),
@@ -2232,6 +2261,7 @@ mod tests {
             include_str!("log_pipelines.rs"),
             include_str!("log_metrics.rs"),
             include_str!("log_restrictions.rs"),
+            include_str!("sensitive_data_scanner.rs"),
             include_str!("standard_attributes.rs"),
             include_str!("../standard_attributes.rs"),
             include_str!("logs.rs"),
@@ -2467,6 +2497,9 @@ mod tests {
             ("../connectors/sources/mod.rs", include_str!("../connectors/sources/mod.rs")),
             ("../connectors/sources/crowdstrike_fdr.rs", include_str!("../connectors/sources/crowdstrike_fdr.rs")),
             ("../connectors/sources/proofpoint_pod.rs", include_str!("../connectors/sources/proofpoint_pod.rs")),
+            ("../sds/mod.rs", include_str!("../sds/mod.rs")),
+            ("../sds/patterns.rs", include_str!("../sds/patterns.rs")),
+            ("../sds/config.rs", include_str!("../sds/config.rs")),
             ("../fleetdm/mod.rs", include_str!("../fleetdm/mod.rs")),
             ("../fleetdm/api.rs", include_str!("../fleetdm/api.rs")),
             ("../fleetdm/crawler.rs", include_str!("../fleetdm/crawler.rs")),
@@ -2591,6 +2624,8 @@ mod tests {
             ("log_aggregates.rs", include_str!("log_aggregates.rs")),
             ("log_pipelines.rs", include_str!("log_pipelines.rs")),
             ("log_restrictions.rs", include_str!("log_restrictions.rs")),
+            ("sensitive_data_scanner.rs", include_str!("sensitive_data_scanner.rs")),
+            ("datadog_api/sensitive_data_scanner.rs", include_str!("datadog_api/sensitive_data_scanner.rs")),
             ("logs.rs", include_str!("logs.rs")),
             ("log_analytics.rs", include_str!("log_analytics.rs")),
             ("metrics.rs", include_str!("metrics.rs")),

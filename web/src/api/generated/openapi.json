@@ -22792,6 +22792,419 @@
         }
       }
     },
+    "/api/v1/sensitive-data-scanner": {
+      "get": {
+        "tags": [
+          "sensitive-data-scanner"
+        ],
+        "operationId": "get_sds_configuration",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SdsConfiguration"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensitive-data-scanner/group-order": {
+      "put": {
+        "tags": [
+          "sensitive-data-scanner"
+        ],
+        "operationId": "reorder_sds_groups",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SdsOrderInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {},
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensitive-data-scanner/groups": {
+      "post": {
+        "tags": [
+          "sensitive-data-scanner"
+        ],
+        "operationId": "create_sds_group",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SdsGroupInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SdsGroup"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensitive-data-scanner/groups/{id}": {
+      "put": {
+        "tags": [
+          "sensitive-data-scanner"
+        ],
+        "operationId": "update_sds_group",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SdsGroupInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SdsGroup"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sensitive-data-scanner"
+        ],
+        "operationId": "delete_sds_group",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensitive-data-scanner/groups/{id}/rule-order": {
+      "put": {
+        "tags": [
+          "sensitive-data-scanner"
+        ],
+        "operationId": "reorder_sds_rules",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SdsOrderInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {},
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensitive-data-scanner/rules": {
+      "post": {
+        "tags": [
+          "sensitive-data-scanner"
+        ],
+        "operationId": "create_sds_rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SdsRuleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SdsRule"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensitive-data-scanner/rules/{id}": {
+      "put": {
+        "tags": [
+          "sensitive-data-scanner"
+        ],
+        "operationId": "update_sds_rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SdsRuleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SdsRule"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sensitive-data-scanner"
+        ],
+        "operationId": "delete_sds_rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensitive-data-scanner/standard-patterns": {
+      "get": {
+        "tags": [
+          "sensitive-data-scanner"
+        ],
+        "operationId": "list_sds_standard_patterns",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SdsStandardPattern"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensitive-data-scanner/test": {
+      "post": {
+        "tags": [
+          "sensitive-data-scanner"
+        ],
+        "operationId": "test_sds_rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SdsTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SdsTestResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/serverless/functions": {
       "post": {
         "tags": [
@@ -68886,6 +69299,443 @@
           }
         }
       },
+      "SdsConfiguration": {
+        "type": "object",
+        "required": [
+          "version",
+          "groups"
+        ],
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SdsGroup"
+            },
+            "description": "In scanning order."
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Moves on every change (Datadog's `meta.version`)."
+          }
+        }
+      },
+      "SdsGroup": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "query",
+          "enabled",
+          "products",
+          "samplingRate",
+          "rules"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`logs`, `rum`, `events`, `apm`: only logs are scanned."
+          },
+          "query": {
+            "type": "string",
+            "description": "Log search syntax; `*` or empty scans every log."
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SdsRule"
+            },
+            "description": "In scanning order."
+          },
+          "samplingRate": {
+            "type": "number",
+            "format": "double",
+            "description": "Percent of the matching logs scanned."
+          }
+        }
+      },
+      "SdsGroupInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "query": {
+            "type": "string"
+          },
+          "samplingRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Percent of the matching logs scanned (default 100)."
+          }
+        }
+      },
+      "SdsOrderInput": {
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every group (or every rule of the group) once, in the new order."
+          }
+        }
+      },
+      "SdsReplacement": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "`none`, `hash`, `replacement_string`, `partial_replacement_from_beginning`, `partial_replacement_from_end`."
+          },
+          "numberOfChars": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "replacementString": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SdsRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "groupId",
+          "name",
+          "description",
+          "namespaces",
+          "excludedNamespaces",
+          "tags",
+          "enabled",
+          "replacement",
+          "keywords",
+          "useRecommendedKeywords",
+          "suppressions"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "excludedNamespaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "groupId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "keywordCharacters": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A match counts only with one of these within `keywordCharacters` before it."
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Attribute paths scanned (`message` for the message); empty: the whole log."
+          },
+          "pattern": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The rule's own regular expression; None with a standard pattern."
+          },
+          "priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "1 (highest) to 5."
+          },
+          "replacement": {
+            "$ref": "#/components/schemas/SdsReplacement"
+          },
+          "standardPatternId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "suppressions": {
+            "$ref": "#/components/schemas/SdsSuppressions"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`key:value` tags added to matching logs."
+          },
+          "useRecommendedKeywords": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SdsRuleInput": {
+        "type": "object",
+        "required": [
+          "groupId",
+          "name"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "excludedNamespaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "groupId": {
+            "type": "string"
+          },
+          "keywordCharacters": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pattern": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "replacement": {
+            "$ref": "#/components/schemas/SdsReplacement"
+          },
+          "standardPatternId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "suppressions": {
+            "$ref": "#/components/schemas/SdsSuppressions"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "useRecommendedKeywords": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SdsStandardPattern": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "pattern",
+          "category",
+          "tags",
+          "keywords",
+          "priority"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "`credentials`, `finance`, `pii` or `network`."
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Recommended keywords."
+          },
+          "name": {
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SdsSuppressions": {
+        "type": "object",
+        "properties": {
+          "endsWith": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exactMatch": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startsWith": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SdsTestRequest": {
+        "type": "object",
+        "required": [
+          "rule",
+          "sample"
+        ],
+        "properties": {
+          "rule": {
+            "$ref": "#/components/schemas/SdsRuleInput",
+            "description": "The rule to try (its group, name and `enabled` don't matter)."
+          },
+          "sample": {
+            "type": "string",
+            "description": "Sample text, scanned as a log message."
+          }
+        }
+      },
+      "SdsTestResult": {
+        "type": "object",
+        "required": [
+          "matches",
+          "redacted",
+          "tags"
+        ],
+        "properties": {
+          "matches": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "redacted": {
+            "type": "string",
+            "description": "The sample as the rule leaves it."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tags a matching log gets."
+          }
+        }
+      },
       "SecurityInbox": {
         "type": "object",
         "required": [
@@ -80585,6 +81435,10 @@
     {
       "name": "logs",
       "description": "Log search, facets, histogram and live tail"
+    },
+    {
+      "name": "sensitive-data-scanner",
+      "description": "Sensitive Data Scanner: scanning groups and rules that redact and tag sensitive data in logs, and the standard pattern library"
     },
     {
       "name": "code-security",
