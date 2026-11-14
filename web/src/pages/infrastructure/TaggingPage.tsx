@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
 import type { EChartsOption } from 'echarts';
 import type { CoverageRow, NonCompliantResource, TaggingPolicy, TagTarget } from '../../api/tagging/types';
 import { describeGap } from '../../api/tagging/logic';
@@ -10,6 +10,7 @@ import { Select } from '../../components/ui/Dropdown';
 import { NoSourceToggle, SourceCell, VIA_LABELS } from '../../components/provenance/SourceCell';
 import { ResourceScope, useAccountNames } from '../../components/provenance/ResourceScope';
 import { ResourceType } from '../security/cloud/resourceTypes';
+import { AddTagsPanel } from './AddTagsPanel';
 import { token } from '../../theme/chartTheme';
 import { ScoreBar } from './PoliciesPage';
 import { useDeleteTaggingPolicy, useSaveTaggingPolicy, useTagCoverage, useTaggingPolicies } from './taggingQueries';
@@ -98,6 +99,7 @@ export function TagCoveragePage() {
   const target = (params.get('target') ?? '') as TagTarget | '';
   const noSource = params.get('source') === 'none';
   const [text, setText] = useState('');
+  const [tagging, setTagging] = useState<string | null>(null);
   const q = useTagCoverage(policy);
   const policies = useTaggingPolicies();
   const names = useAccountNames();
@@ -225,6 +227,7 @@ export function TagCoveragePage() {
                     <col style={{ width: '9%' }} />
                     <col />
                     <col style={{ width: '19%' }} />
+                    <col style={{ width: 112 }} />
                   </colgroup>
                   <thead>
                     <tr>
@@ -234,29 +237,48 @@ export function TagCoveragePage() {
                       <th>TEAM</th>
                       <th>MISSING OR NOT ALLOWED</th>
                       <th>SOURCE</th>
+                      <th />
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((r) => (
-                      <tr key={r.resource.id}>
-                        <td title={`${r.resource.name}\n${r.resource.id}`}>
-                          <b className="tg-name">{r.resource.name}</b>
-                          <div className="muted tg-sub">
-                            <ResourceType type={r.resource.resourceType} resource={r.resource.name} size={13} />
-                          </div>
-                        </td>
-                        <td>{TARGET_SHORT[r.resource.target]}</td>
-                        <td>
-                          <ResourceScope resource={r.resource} names={names} />
-                        </td>
-                        <td title={r.resource.team ?? ''}>{r.resource.team ?? <span className="muted">—</span>}</td>
-                        <td className="prov-wrap">
-                          <Missing r={r} />
-                        </td>
-                        <td>
-                          <SourceCell provenance={r.resource.provenance} />
-                        </td>
-                      </tr>
+                      <Fragment key={r.resource.id}>
+                        <tr>
+                          <td title={`${r.resource.name}\n${r.resource.id}`}>
+                            <b className="tg-name">{r.resource.name}</b>
+                            <div className="muted tg-sub">
+                              <ResourceType type={r.resource.resourceType} resource={r.resource.name} size={13} />
+                            </div>
+                          </td>
+                          <td>{TARGET_SHORT[r.resource.target]}</td>
+                          <td>
+                            <ResourceScope resource={r.resource} names={names} />
+                          </td>
+                          <td title={r.resource.team ?? ''}>{r.resource.team ?? <span className="muted">—</span>}</td>
+                          <td className="prov-wrap">
+                            <Missing r={r} />
+                          </td>
+                          <td>
+                            <SourceCell provenance={r.resource.provenance} />
+                          </td>
+                          <td>
+                            <button
+                              className={`btn btn-sm${tagging === r.resource.id ? ' active' : ''}`}
+                              title="Open a merge request that adds the tags naming this resource's source"
+                              onClick={() => setTagging(tagging === r.resource.id ? null : r.resource.id)}
+                            >
+                              <Sparkles size={13} /> Add tags
+                            </button>
+                          </td>
+                        </tr>
+                        {tagging === r.resource.id && (
+                          <tr className="tg-addtags-row">
+                            <td colSpan={7}>
+                              <AddTagsPanel resource={r.resource} />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

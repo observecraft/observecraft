@@ -1,6 +1,6 @@
 // In-browser tagging policies and provenance for mock mode: the e-commerce demo's cloud resources (Terraform in
 // example-org/infra-terraform, some tagged by Yor, some not at all), its Kubernetes workloads deployed by Argo CD
-// (example-org/k8s-apps), its images and its services. Evaluated with the same rules as the server (tagging/logic.ts).
+// (example-org/k8s-apps, example-org/gitops), its images and its services. Evaluated with the same rules as the server (tagging/logic.ts).
 import type {
   Provenance,
   ProvenanceList,
@@ -34,7 +34,7 @@ interface ArgoApp {
 const ARGO_APPS: ArgoApp[] = [
   { name: 'storefront', repo: 'github.com/example-org/k8s-apps', path: 'apps/storefront/overlays/prod', ref: 'main', kind: 'kustomize' },
   { name: 'checkout', repo: 'github.com/example-org/k8s-apps', path: 'apps/checkout/overlays/prod', ref: 'main', kind: 'kustomize' },
-  { name: 'catalog', repo: 'github.com/example-org/helm-charts', path: 'charts/catalog', ref: 'v3.2.1', kind: 'helm' },
+  { name: 'catalog', repo: 'github.com/example-org/gitops', path: 'apps/catalog', ref: 'main', kind: 'helm' },
 ];
 
 /** How the demo's workloads are tracked by Argo CD in production (staging apps are `<app>-staging`, not collected). */
@@ -285,6 +285,9 @@ const SERVICES: TaggedResource[] = [
 ];
 
 const ALL = (): TaggedResource[] => [...CLOUD, ...kube(), ...IMAGES, ...SERVICES];
+
+/** Every demo resource with its tags and source (remediation's mock resolves findings with it). */
+export const taggedResources = ALL;
 
 // ---------------------------------------------------------------- policies
 

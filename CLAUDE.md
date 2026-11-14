@@ -306,6 +306,13 @@ or SDK features.
   `tagging_policies`, our own API `/api/v1/tagging-policies`: Datadog's provider has no required-tag resource) get a
   recommended set per org, daily coverage snapshots, and Cloud Security's low rule `ocs-tag-001` (one Security Inbox
   item). Terraform state sources are modelled (`terraform_state_sources`, `parse_state`) but not read yet.
+- **Fix with Assist** (ADR-0008 decision 4; `remediation.rs`, `remediation_model.rs`, `remediation_infra.rs`, web
+  `RemediationCard`): explain (run kind `explain`), fix in code (`fix`, manifest bumps) and fix in infrastructure
+  (`fix_infra`): a cloud, Kubernetes or image finding whose provenance names a repository and path a connection reaches;
+  Assist reads only the source directory and the local modules it calls (≤ 12 files) and changes only files there (the
+  Dockerfile for images); an inferred source needs `confirmed`; S3 public access blocks are written without an LLM.
+  Without provenance the finding lists the missing tags and a snippet. Tag Coverage's "Add tags" (`add_tags`, AWS
+  `default_tags` / OCI labels without an LLM) opens the merge request that adds them. Fixes: Postgres `remediation_fixes`.
 - **New features start from the Terraform provider.** Before designing the API of a product area, check whether
   [`DataDog/terraform-provider-datadog`](https://github.com/DataDog/terraform-provider-datadog) (MPL-2.0: read it,
   don't copy it) has resources for it (`datadog_<area>_*`). If it does, the configuration lives under the Datadog

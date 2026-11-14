@@ -1,13 +1,28 @@
 // "Fix with Assist" on a security finding's side panel (ADR-0008): what can be done about the finding (explain, fix in
-// code, needs provenance), an Assist explanation with remediation steps, and a fix reviewed as a diff before its merge
-// request is opened. When the connection can't write, the diff is copied instead.
+// code, fix in infrastructure, needs provenance), an Assist explanation with remediation steps, and a fix reviewed as a
+// diff before its merge request is opened. Infrastructure fixes show the resolved source (an inferred one is confirmed
+// first); findings without one list the tags the resource lacks and the snippet that adds them. When the connection
+// can't write, the diff is copied instead.
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CircleAlert, Copy, ExternalLink, GitPullRequest, LoaderCircle, Sparkles, Tags, Wrench } from 'lucide-react';
-import { explainFinding, fixFinding, openMergeRequest, remediationOf, type FindingRef, type FixView, type Remediation } from '../../api/remediation/client';
+import { CircleAlert, Copy, ExternalLink, FolderGit2, GitPullRequest, LoaderCircle, Sparkles, Tags, Wrench } from 'lucide-react';
+import {
+  explainFinding,
+  fixFinding,
+  openMergeRequest,
+  remediationOf,
+  type FindingRef,
+  type FixSource,
+  type FixView,
+  type MissingTag,
+  type ProvenanceSnippet,
+  type Remediation,
+} from '../../api/remediation/client';
+import type { Provenance } from '../../api/tagging/types';
+import { VIA_LABELS } from '../provenance/SourceCell';
 import { ChangeView } from '../../pages/assist/RunView';
 import { useRun } from '../../pages/assist/runsQueries';
 import { unifiedDiff } from '../../lib/unifiedDiff';
@@ -15,7 +30,8 @@ import '../../pages/assist/assist.css';
 import './remediation.css';
 
 const busy = (s?: string | null) => s === 'queued' || s === 'running';
-const LEVEL: Record<Remediation['level'], string> = { explain: 'Explain', fix_in_code: 'Fix in code', needs_provenance: 'Needs provenance' };
+const LEVEL: Record<Remediation['level'], string> = { explain: 'Explain', fix_in_code: 'Fix in code', fix_in_infra: 'Fix in infrastructure', needs_provenance: 'Needs provenance' };
+const KIND: Record<Provenance['kind'], string> = { terraform: 'Terraform', helm: 'Helm values', kustomize: 'Kustomize', manifest: 'Manifests', dockerfile: 'Dockerfile', code: 'Code' };
 
 const md = (text: string) => (
   <div className="ai-md">
@@ -36,7 +52,8 @@ export function RemediationCard({ finding }: { finding: FindingRef }) {
   const refresh = () => qc.invalidateQueries({ queryKey: key });
   const explain = useMutation({ mutationFn: () => explainFinding(finding), onSuccess: refresh });
   const [repository, setRepository] = useState('');
-  const fix = useMutation({ mutationFn: () => fixFinding({ ...finding, repository: repository || null }), onSuccess: refresh });
+  const [confirmed, setConfirmed] = useState(false);
+  const fix = useMutation({ mutationFn: () => fixFinding({ ...finding, repository: repository || null, confirmed }), onSuccess: refresh });
   if (q.isPending) return null;
   if (q.isError) return <div className="rem-card rem-error">{(q.error as Error).message}</div>;
   const r = q.data;
@@ -50,6 +67,16 @@ export function RemediationCard({ finding }: { finding: FindingRef }) {
         <span className={`rem-level ${r.level}`}>{LEVEL[r.level]}</span>
       </header>
       <p className="muted">{r.reason}</p>
+      {r.source && <SourceBlock p={r.source} />}
+      {r.level === 'fix_in_infra' && r.confirm && r.source && (
+        <label className="rem-confirm">
+          <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+          <span>
+            I checked that <code>{[r.source.repo, r.source.path].filter(Boolean).join('/')}</code> defines this resource: Assist may edit it.
+          </span>
+        </label>
+      )}
+      {r.level === 'needs_provenance' && (r.missingTags.length > 0 || r.snippet) && <MissingTags tags={r.missingTags} snippet={r.snippet ?? null} />}
       {r.level === 'needs_provenance' && r.taggingPolicies && (
         <p className="rem-provenance">
           <Tags size={13} /> Tag the resource with the repository and file that create it, then Assist can propose the fix there. <Link to={r.taggingPolicies}>Set up Tagging Policies</Link>
@@ -70,8 +97,8 @@ export function RemediationCard({ finding }: { finding: FindingRef }) {
             ))}
           </select>
         )}
-        {r.level === 'fix_in_code' && (
-          <button className="btn btn-primary btn-sm" disabled={!!r.connection || fix.isPending || busy(r.fix?.status)} onClick={() => fix.mutate()}>
+        {(r.level === 'fix_in_code' || r.level === 'fix_in_infra') && (
+          <button className="btn btn-primary btn-sm" disabled={!!r.connection || fix.isPending || busy(r.fix?.status) || (r.confirm && !confirmed)} onClick={() => fix.mutate()}>
             <Wrench size={13} /> {fix.isPending ? 'Preparing…' : r.fix ? 'Fix again' : 'Fix'}
           </button>
         )}
@@ -81,8 +108,131 @@ export function RemediationCard({ finding }: { finding: FindingRef }) {
       </div>
       {error && <p className="rem-warn">{error.message}</p>}
       {r.explainRun && <Explanation runId={r.explainRun.id} />}
-      {r.fix && <Fix fix={r.fix} onChange={refresh} />}
+      {r.fix && <FixPanel fix={r.fix} onChange={refresh} />}
     </section>
+  );
+}
+
+/** Where the resource is defined: the repository, path and address or Application, how it was found and how sure. */
+export function SourceBlock({ p, title = 'Source' }: { p: Provenance; title?: string }) {
+  return (
+    <div className="rem-source" aria-label="Resolved source">
+      <div className="rem-row">
+        <h5>
+          <FolderGit2 size={13} /> {title}: {KIND[p.kind]}
+        </h5>
+        <span className="rem-badges">
+          <span className={`rem-conf ${p.confidence}`}>{p.confidence}</span>
+          <span className="tag-chip">via {VIA_LABELS[p.via] ?? p.via}</span>
+        </span>
+      </div>
+      <dl>
+        {p.repo && (
+          <>
+            <dt>Repository</dt>
+            <dd className="mono">{p.repo}</dd>
+          </>
+        )}
+        {p.path && (
+          <>
+            <dt>Path</dt>
+            <dd className="mono">{p.path}</dd>
+          </>
+        )}
+        {p.ref && (
+          <>
+            <dt>Ref</dt>
+            <dd className="mono">{p.ref}</dd>
+          </>
+        )}
+        {p.application && (
+          <>
+            <dt>Argo CD Application</dt>
+            <dd className="mono">{p.application}</dd>
+          </>
+        )}
+        {p.address && (
+          <>
+            <dt>{p.kind === 'terraform' ? 'Address' : 'Object'}</dt>
+            <dd className="mono">{p.address}</dd>
+          </>
+        )}
+      </dl>
+    </div>
+  );
+}
+
+/** The tags a resource lacks (per the policy requiring them) and the snippet that adds them. */
+function MissingTags({ tags, snippet }: { tags: MissingTag[]; snippet: ProvenanceSnippet | null }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    if (!snippet) return;
+    try {
+      await navigator.clipboard.writeText(snippet.code);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <div className="rem-block">
+      {tags.length > 0 && (
+        <>
+          <h5>Missing tags</h5>
+          <div className="rem-tags">
+            {tags.map((t) => (
+              <span key={t.key} className="tag-chip mono" title={t.policy}>
+                {t.key.split('|').join(' | ')}
+                {t.value != null && ` = ${t.value} (not allowed)`}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+      {snippet && (
+        <>
+          <div className="rem-row">
+            <h5>{snippet.title}</h5>
+            <button className="btn btn-sm" onClick={copy}>
+              <Copy size={13} /> {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <pre className="rem-snippet">
+            <code>{snippet.code}</code>
+          </pre>
+        </>
+      )}
+    </div>
+  );
+}
+
+function FixSourceLine({ s }: { s: FixSource }) {
+  return (
+    <p className="muted rem-fine">
+      {s.path != null ? (
+        <>
+          Tags for <b>{s.resource}</b> under <code>{s.path || '(repository root)'}</code>
+        </>
+      ) : (
+        <>
+          <b>{s.resource}</b>
+          {s.located ? (
+            <>
+              {' '}
+              · <code>{s.located.address}</code> in <code>{s.located.file}</code> (lines {s.located.startLine}–{s.located.endLine})
+            </>
+          ) : (
+            s.provenance && (
+              <>
+                {' '}
+                · {s.provenance.repo}/{s.provenance.path ?? ''}
+              </>
+            )
+          )}
+          {s.confirmed && ' · inferred source confirmed'}
+        </>
+      )}
+    </p>
   );
 }
 
@@ -123,7 +273,8 @@ function Explanation({ runId }: { runId: string }) {
   );
 }
 
-function Fix({ fix, onChange }: { fix: FixView; onChange: () => void }) {
+/** A fix: its progress, the proposed change as a diff, and its merge request. */
+export function FixPanel({ fix, onChange }: { fix: FixView; onChange: () => void }) {
   const open = useMutation({ mutationFn: () => openMergeRequest(fix.id), onSuccess: onChange });
   const [copied, setCopied] = useState(false);
   if (busy(fix.status) && fix.runId) return <Progress runId={fix.runId} />;
@@ -155,6 +306,7 @@ function Fix({ fix, onChange }: { fix: FixView; onChange: () => void }) {
           )
         )}
       </div>
+      {fix.source && <FixSourceLine s={fix.source} />}
       {fix.explanation && md(fix.explanation)}
       {fix.change && (
         <>

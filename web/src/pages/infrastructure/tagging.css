@@ -159,7 +159,7 @@
   font: inherit;
 }
 
-.tg-table td {
+.tg-table > tbody > tr > td {
   vertical-align: top;
 }
 
@@ -263,4 +263,47 @@
 
 .tg-policies .tg-bar .pol-score.compact {
   width: 110px;
+}
+
+/* Coverage → Add tags with Assist. */
+.tg-addtags-row > td {
+  white-space: normal;
+  background: var(--bg-subtle);
+}
+
+.tg-addtags {
+  margin: 0;
+}
+
+.tg-addtags-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-2);
+}
+
+.tg-addtags-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.tg-addtags-form .settings-input {
+  width: 320px;
+  max-width: 100%;
+}
+
+/* The diff inside a coverage row keeps its own cells (not the table's). */
+.tg-table .ai-diff td {
+  padding: 0 8px;
+  border-bottom: 0;
+  vertical-align: top;
+}
+.tg-table .ai-diff .ai-code {
+  white-space: pre;
+}
+.tg-addtags .ai-md code {
+  overflow-wrap: anywhere;
 }

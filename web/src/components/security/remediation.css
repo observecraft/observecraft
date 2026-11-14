@@ -51,6 +51,11 @@
   color: var(--status-ok);
 }
 
+.rem-level.fix_in_infra {
+  background: var(--badge-ok-bg);
+  color: var(--status-ok);
+}
+
 .rem-level.needs_provenance {
   background: var(--primary-subtle);
   color: var(--primary);
@@ -113,4 +118,87 @@
 .rem-repo {
   width: auto;
   max-width: 320px;
+}
+
+/* Fix in infrastructure: the resolved source, its confidence, the confirmation of an inferred one. */
+.rem-source {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+
+.rem-source h5 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.rem-source dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 6px 0 0;
+  font-size: var(--fs-sm);
+}
+
+.rem-source dt {
+  color: var(--text-muted);
+}
+
+.rem-source dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.rem-badges {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.rem-conf {
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.rem-conf.exact {
+  background: var(--badge-ok-bg);
+  color: var(--status-ok);
+}
+
+.rem-conf.inferred {
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+}
+
+.rem-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--badge-warn-bg);
+  font-size: var(--fs-sm);
+}
+
+.rem-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rem-snippet {
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 260px;
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }

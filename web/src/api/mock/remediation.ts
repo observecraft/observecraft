@@ -1,13 +1,16 @@
 // In-browser remediation for mock mode (routes/remediation.rs): levels per finding, explanation and fix runs that
-// play like the server's Assist runs, deterministic manifest bumps, and merge requests. The demo's GitHub connection
+// play like the server's Assist runs, deterministic manifest bumps, fixes in infrastructure (mock/remediationInfra.ts),
+// tags added from Tag Coverage, and merge requests. The demo's GitHub connection
 // can write; its GitLab connection is read-only (the diff is copied instead); other hosts have no connection.
 import type { CodeChange, RunSummary } from '../assist/types';
-import type { FindingRef, FixTarget, FixView, Remediation } from '../remediation/client';
+import type { AddTagsInput, FindingRef, FixSource, FixTarget, FixView, Remediation } from '../remediation/client';
 import { addScriptedRun, getRun } from './assistRuns';
 import { findingById, libraryByKey } from './codeSecurity';
+import { taggedResources } from './tagging';
+import { assistChange, connectionError, infraFinding, infraLevel, missingTags, resolve, S3_PUBLIC_ACCESS_CHECKS, s3Change, snippet, tagsChange } from './remediationInfra';
 
 const ME = 'Alex Morgan';
-const TAGGING_POLICIES = '/organization-settings/tagging-policies';
+const TAGGING_POLICIES = '/infrastructure/tagging/policies';
 const GITLAB_READ_ONLY = 'The GitLab token lacks the `api` scope, which opening a merge request needs (it has: read_api, read_repository).';
 
 interface MockFix {
@@ -41,14 +44,21 @@ interface Level {
   targets: FixTarget[];
 }
 
+const isCloud = (r: FindingRef) => r.kind === 'cloud_misconfiguration' || r.kind === 'cloud_vulnerability';
+
+/** A cloud finding's level from its resource's source, and the tags it lacks without one. */
+async function infraOf(r: FindingRef) {
+  const f = await infraFinding(r.kind, r.id);
+  if (!f) throw new Error('No such finding');
+  const { subject, resource, provenance } = resolve(f);
+  const l = infraLevel(subject, provenance);
+  const target = subject === 'host' ? null : subject;
+  const missing = l.level === 'needs_provenance' && target ? missingTags(target, resource) : [];
+  return { f, resource, l, missing, snippet: l.level === 'needs_provenance' && target ? snippet(target, resource, missing) : null };
+}
+
 function levelOf(r: FindingRef): Level {
-  if (r.kind === 'cloud_misconfiguration' || r.kind === 'cloud_vulnerability')
-    return {
-      level: 'needs_provenance',
-      reason:
-        'This finding names a cloud resource, not the code that creates it. Assist can explain it; a fix in code needs the resource’s provenance (tags or labels naming its repository and file), which Tagging Policies define.',
-      targets: [],
-    };
+  if (r.kind === 'resource') return { level: 'explain', reason: 'Tags are added from Tag Coverage, to a repository you pick.', targets: [] };
   if (r.kind === 'library') {
     const v = libraryByKey(r.id);
     if (!v) throw new Error('No such finding');
@@ -155,6 +165,7 @@ function seed() {
         notes: [],
         blocked: null,
         mergeRequest: mr,
+        source: null,
         createdBy: ME,
         createdAt: Date.now() - 2 * 3_600_000,
       },
@@ -167,8 +178,18 @@ function seed() {
 
 export async function remediationOf(r: FindingRef): Promise<Remediation> {
   seed();
-  const l = levelOf(r);
-  const conn = l.targets[0] ? connectionFor(l.targets[0].repository) : null;
+  let extra: Pick<Remediation, 'source' | 'confirm' | 'missingTags' | 'snippet'> = { source: null, confirm: false, missingTags: [], snippet: null };
+  let l: Level;
+  let conn: ReturnType<typeof connectionFor> | null;
+  if (isCloud(r)) {
+    const x = await infraOf(r);
+    l = { level: x.l.level, reason: x.l.reason, targets: [] };
+    conn = x.l.connection ?? null;
+    extra = { source: x.l.source ?? null, confirm: x.l.confirm, missingTags: x.missing, snippet: x.snippet };
+  } else {
+    l = levelOf(r);
+    conn = l.targets[0] ? connectionFor(l.targets[0].repository) : null;
+  }
   const explain = explanations.get(refKey(r));
   let explainRun: RunSummary | null = null;
   if (explain) {
@@ -182,11 +203,12 @@ export async function remediationOf(r: FindingRef): Promise<Remediation> {
     taggingPolicies: l.level === 'needs_provenance' ? TAGGING_POLICIES : null,
     explainRun,
     fix: latest ? await view(latest) : null,
+    ...extra,
   };
 }
 
 export async function explainFinding(r: FindingRef): Promise<RunSummary> {
-  const l = levelOf(r);
+  const l = isCloud(r) ? { level: 'explain' as const } : levelOf(r);
   const lib = r.kind === 'library' ? libraryByKey(r.id) : undefined;
   const f = r.kind === 'code' ? findingById(r.id) : undefined;
   const title = lib?.title ?? f?.ruleName ?? (r.kind === 'cloud_vulnerability' ? 'Vulnerable package on a host' : 'Cloud resource misconfiguration');
@@ -214,12 +236,13 @@ export async function explainFinding(r: FindingRef): Promise<RunSummary> {
 }
 
 export async function fixFinding(r: FindingRef): Promise<FixView> {
+  if (isCloud(r)) return fixInfra(r);
   const l = levelOf(r);
   if (l.level !== 'fix_in_code') throw new Error(l.reason);
   const target = l.targets.find((t) => !r.repository || t.repository === r.repository) ?? l.targets[0];
   const conn = connectionFor(target.repository);
   if (typeof conn === 'string') throw new Error(conn);
-  const base = { id: uuid(), findingKind: r.kind, findingId: r.id, repository: target.repository, blocked: conn.blocked, mergeRequest: null, createdBy: ME, createdAt: Date.now() };
+  const base = { id: uuid(), findingKind: r.kind, findingId: r.id, repository: target.repository, blocked: conn.blocked, mergeRequest: null, source: null, createdBy: ME, createdAt: Date.now() };
   if (r.kind === 'library') {
     const v = libraryByKey(r.id)!;
     const file = target.files[0];
@@ -257,6 +280,126 @@ export async function fixFinding(r: FindingRef): Promise<FixView> {
       notes: f.kind === 'secret' ? ['Rotate the credential: removing it from the code doesn’t revoke it, and it stays in the repository’s history.'] : [],
     },
   };
+  fixes.push(fix);
+  return view(fix);
+}
+
+const CI: Record<string, string> = {
+  terraform:
+    'The repository’s CI must pass before this is merged: `terraform plan` must show only the intended change (and `terraform fmt -check` / `validate` pass). Nothing is merged or applied automatically.',
+  helm: 'The repository’s CI must pass before this is merged: `helm template` (or Argo CD’s diff) must render only the intended change. Nothing is merged or synced automatically.',
+  kustomize: 'The repository’s CI must pass before this is merged: `kustomize build` (or Argo CD’s diff) must render only the intended change. Nothing is merged or synced automatically.',
+  manifest: 'The repository’s CI must pass before this is merged: the manifests must validate and Argo CD’s diff show only the intended change. Nothing is merged or synced automatically.',
+  dockerfile: 'The image must build in the repository’s CI, then be rebuilt, rescanned and redeployed for the finding to close. Nothing is merged automatically.',
+};
+
+async function fixInfra(r: FindingRef): Promise<FixView> {
+  const { f, l } = await infraOf(r);
+  if (l.level !== 'fix_in_infra' || !l.source) throw new Error(l.reason);
+  const p = l.source;
+  if (l.confirm && !r.confirmed) throw new Error('The source was inferred: confirm it before Assist edits it.');
+  const repository = p.repo!;
+  const conn = connectionFor(repository);
+  if (typeof conn === 'string') throw new Error(conn);
+  const source: FixSource = {
+    resource: f.resourceType.startsWith('kube_') ? (p.address ?? f.resourceName) : f.resourceType === 'container_image' ? f.resourceName : f.resourceId,
+    provenance: p,
+    located: null,
+    confirmed: !!(l.confirm && r.confirmed),
+    path: null,
+  };
+  const notes = [CI[p.kind] ?? CI.terraform, ...(source.confirmed ? [`The source was inferred (via ${p.via}) and confirmed by ${ME} before the fix.`] : [])];
+  const base = { id: uuid(), findingKind: r.kind, findingId: r.id, repository, blocked: conn.blocked, mergeRequest: null, createdBy: ME, createdAt: Date.now() };
+  if (p.kind === 'terraform' && S3_PUBLIC_ACCESS_CHECKS.includes(f.ruleId)) {
+    const { change, located } = s3Change();
+    const fix: MockFix = {
+      view: {
+        ...base,
+        method: 'editor',
+        runId: null,
+        notes: [...notes, 'If something relies on public access to this bucket (a static website, public downloads), serve it through CloudFront with origin access control before merging.'],
+        source: { ...source, located },
+      },
+      change,
+    };
+    fixes.push(fix);
+    return view(fix);
+  }
+  const change = assistChange(f, p);
+  const files = change.files.map((x) => x.path);
+  const run = addScriptedRun(
+    'fix_infra',
+    `Fix ${f.title} on ${f.resourceName}`,
+    { finding: { kind: r.kind, id: r.id }, repository, source: p, confirmed: !!r.confirmed },
+    [
+      `Fixing ${f.title} on ${f.resourceName} in ${repository}/${p.path ?? ''}.`,
+      ['list_source_files', {}, `${files.length + 4} files`],
+      ['read_source_file', { path: files[0] }, `${files[0]}, ${change.files[0].before?.split('\n').length ?? 0} lines`],
+      ['propose_change', { title: change.title }, 'Proposed. Now conclude.'],
+    ],
+    { summary: `${f.title}: ${change.description}`, verdict: 'change_proposed', confidence: 'high', evidence: [], nextSteps: ['Review the diff', 'Open the merge request and let CI run'] },
+    change,
+  );
+  const fix: MockFix = { view: { ...base, method: 'assist', runId: run.id, notes, source } };
+  fixes.push(fix);
+  return view(fix);
+}
+
+export async function addTags(input: AddTagsInput): Promise<FixView> {
+  const resource = taggedResources().find((x) => x.id === input.resourceId);
+  if (!resource) throw new Error('No such resource');
+  if (resource.target === 'kubernetes')
+    throw new Error(
+      'Argo CD writes its tracking annotation itself: set application.resourceTrackingMethod: annotation in argocd-cm and collect the Applications with the Cluster Agent (Tagging → Policies has the snippet).',
+    );
+  const repository = input.repository
+    .trim()
+    .replace(/^https?:\/\//, '')
+    .replace(/\.git$/, '');
+  const missing = connectionError(repository);
+  if (missing) throw new Error(missing);
+  const conn = connectionFor(repository);
+  const path = (input.path ?? '')
+    .trim()
+    .replace(/^\.\//, '')
+    .replace(/^\/+|\/+$/g, '');
+  const { change, method, notes } = tagsChange(resource, repository, path);
+  const base = {
+    id: uuid(),
+    findingKind: 'resource',
+    findingId: resource.id,
+    repository,
+    blocked: typeof conn === 'string' ? null : conn.blocked,
+    mergeRequest: null,
+    createdBy: ME,
+    createdAt: Date.now(),
+    source: { resource: resource.name, provenance: resource.provenance ?? null, located: null, confirmed: false, path },
+  };
+  if (method === 'editor') {
+    const fix: MockFix = { view: { ...base, method, runId: null, notes }, change };
+    fixes.push(fix);
+    return view(fix);
+  }
+  const run = addScriptedRun(
+    'add_tags',
+    `Add provenance tags for ${resource.name} to ${repository}`,
+    { finding: { kind: 'resource', id: resource.id }, repository, path },
+    [
+      `Adding the tags that name where ${resource.name} is defined.`,
+      ['list_source_files', {}, '7 files'],
+      ['read_source_file', { path: change.files[0].path }, 'read'],
+      ['propose_change', { title: change.title }, 'Proposed. Now conclude.'],
+    ],
+    {
+      summary: change.description ?? change.title,
+      verdict: 'change_proposed',
+      confidence: 'high',
+      evidence: [],
+      nextSteps: ['Review the diff', 'Merge, then apply so the resources carry their source'],
+    },
+    change,
+  );
+  const fix: MockFix = { view: { ...base, method: 'assist', runId: run.id, notes } };
   fixes.push(fix);
   return view(fix);
 }

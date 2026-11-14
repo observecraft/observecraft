@@ -608,7 +608,7 @@ async fn run(st: &AppState, org: &str, id: &str, steps: &Arc<Mutex<Vec<RunStep>>
     if kind == Kind::Testing {
         return crate::routes::ai_testing::run_job(st, org, id, &row.subject.0, &model, &system, steps, msgs, usage).await;
     }
-    if matches!(kind, Kind::Explain | Kind::Fix) {
+    if matches!(kind, Kind::Explain | Kind::Fix | Kind::FixInfra | Kind::AddTags) {
         return crate::routes::remediation::run_job(st, org, id, kind, &row.subject.0, &model, &system, steps, msgs, usage).await;
     }
     msgs.push(Msg::User(opening(st, &ctx, &row.kind, &row.title, &row.subject.0).await.map_err(e)?));

@@ -8217,6 +8217,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/remediation/add-tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds the tags that name a resource's source to the repository that defines it: the AWS provider's `default_tags`
+         *     or the Dockerfile's OCI labels without an LLM when they can be written, else an Assist run (`add_tags`) limited to
+         *     the directory. Reviewed and opened as a merge request like other fixes.
+         */
+        post: operations["remediation_add_tags"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/remediation/explain": {
         parameters: {
             query?: never;
@@ -8245,7 +8266,8 @@ export interface paths {
         put?: never;
         /**
          * Fixes the finding in code: a library's manifest is bumped right away; a static finding gets an Assist run
-         *     limited to its file. Either way the result is a proposal to review before opening the merge request.
+         *     limited to its file; a cloud finding is fixed where its provenance says the resource is defined. Either way the
+         *     result is a proposal to review before opening the merge request.
          */
         post: operations["remediation_fix"];
         delete?: never;
@@ -12144,6 +12166,15 @@ export interface components {
         AddResponder: {
             role: string;
             userId: string;
+        };
+        /** @description Tag Coverage → Add tags with Assist: a resource, and the repository (and directory) that defines it. */
+        AddTagsInput: {
+            /** @description The Terraform root module, chart or image build directory; the repository root when empty. */
+            path?: string;
+            /** @description `github.com/example-org/infra-terraform` */
+            repository: string;
+            /** @description The resource's id in Tag Coverage. */
+            resourceId: string;
         };
         AdvisoryDetail: {
             aliases: string[];
@@ -16485,9 +16516,11 @@ export interface components {
         };
         /**
          * @description A finding: `library` (a library vulnerability's key), `code` (a static finding's id: SAST, secret, IaC),
-         *     `cloud_misconfiguration` or `cloud_vulnerability` (their triage keys).
+         *     `cloud_misconfiguration` or `cloud_vulnerability` (their triage keys), `resource` (a resource of Tag Coverage).
          */
         FindingRef: {
+            /** @description Fix in infrastructure: the person confirmed an inferred source. */
+            confirmed?: boolean;
             id: string;
             kind: string;
             /** @description Fix: the repository to change, when the finding is in several (default: the first). */
@@ -16509,6 +16542,17 @@ export interface components {
              * @default
              */
             status: string;
+        };
+        /** @description The resource of an infrastructure fix and where it was changed. */
+        FixSource: {
+            /** @description An inferred source the person confirmed. */
+            confirmed?: boolean;
+            located?: components["schemas"]["Located"] | null;
+            /** @description Added tags: the directory they were added under. */
+            path?: string | null;
+            provenance?: components["schemas"]["Provenance"] | null;
+            /** @description The cloud id, Kubernetes object or image. */
+            resource: string;
         };
         /** @description A repository and the file to change. */
         FixTarget: {
@@ -16537,6 +16581,7 @@ export interface components {
             notes: string[];
             repository: string;
             runId?: string | null;
+            source?: components["schemas"]["FixSource"] | null;
             /** @description ready | queued | running | concluded | failed | cancelled */
             status: string;
         };
@@ -19326,6 +19371,16 @@ export interface components {
             /** Format: int64 */
             offset: number;
         };
+        /** @description Where the resource is defined. */
+        Located: {
+            /** @description `aws_s3_bucket.assets` (in its module's file). */
+            address: string;
+            /** @description address | name (a block naming the cloud resource) */
+            by: string;
+            endLine: number;
+            file: string;
+            startLine: number;
+        };
         LogArchive: {
             accessKey: string;
             bucket: string;
@@ -19877,6 +19932,14 @@ export interface components {
             name: string;
             remediation: string;
             severity: string;
+        };
+        /** @description A provenance tag a resource lacks, per the policy requiring it. */
+        MissingTag: {
+            /** @description The key or its alternatives (`tf_repo|git_repo`). */
+            key: string;
+            policy: string;
+            /** @description The value found when it isn't allowed. */
+            value?: string | null;
         };
         MonitorAuto: {
             autoInvestigate: boolean;
@@ -21762,6 +21825,12 @@ export interface components {
             resources: components["schemas"]["TaggedResource"][];
             summary: components["schemas"]["ProvenanceSummary"];
         };
+        /** @description How to add the missing tags where the resource is defined. */
+        ProvenanceSnippet: {
+            code: string;
+            language: string;
+            title: string;
+        };
         /** @description Counts of resources with and without a source, per target and per way it was found. */
         ProvenanceSummary: {
             /** @description Per target (`cloud`, …): [resources, resolved]. */
@@ -22042,13 +22111,19 @@ export interface components {
             slos: components["schemas"]["RelatedAsset"][];
         };
         Remediation: {
+            /** @description Fix in infrastructure from an inferred source: confirm it before fixing (`confirmed` on the fix request). */
+            confirm: boolean;
             /** @description Fix in code: why no connection reaches the first target's repository (none: one does). */
             connection?: string | null;
             explainRun?: components["schemas"]["RunSummary"] | null;
             fix?: components["schemas"]["FixView"] | null;
             level: components["schemas"]["RemediationLevel"];
+            /** @description Needs provenance: the tags the resource lacks, per the tagging policy requiring them. */
+            missingTags: components["schemas"]["MissingTag"][];
             /** @description Why this level applies. */
             reason: string;
+            snippet?: components["schemas"]["ProvenanceSnippet"] | null;
+            source?: components["schemas"]["Provenance"] | null;
             /** @description Needs provenance: where to set it up. */
             taggingPolicies?: string | null;
             /** @description Fix in code: the repositories and files a fix changes. */
@@ -22058,7 +22133,7 @@ export interface components {
          * @description What can be done about a finding.
          * @enum {string}
          */
-        RemediationLevel: "explain" | "fix_in_code" | "needs_provenance";
+        RemediationLevel: "explain" | "fix_in_code" | "fix_in_infra" | "needs_provenance";
         ReorderIndexes: {
             /** @description Every index id, in routing order. */
             ids: string[];
@@ -43544,6 +43619,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Remediation"];
+                };
+            };
+        };
+    };
+    remediation_add_tags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddTagsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixView"];
                 };
             };
         };
