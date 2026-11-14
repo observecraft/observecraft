@@ -76,7 +76,7 @@
   width: 100%;
 }
 
-.prov-table td {
+.prov-table > tbody > tr > td {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

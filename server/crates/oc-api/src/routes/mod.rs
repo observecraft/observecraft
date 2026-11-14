@@ -110,6 +110,7 @@ pub mod code_security;
 pub mod code_security_model;
 pub mod provenance;
 pub mod remediation;
+pub mod remediation_infra;
 pub mod remediation_manifests;
 pub mod remediation_model;
 pub mod resource_policies;
@@ -594,6 +595,7 @@ use crate::state::AppState;
         remediation::fix,
         remediation::get_fix,
         remediation::open_merge_request,
+        remediation::add_tags,
         datadog_api::cost::budget_summaries,
         datadog_api::cost::ui_budget,
         datadog_api::cost::ui_save_budget,
@@ -1188,7 +1190,7 @@ use crate::state::AppState;
         (name = "logs", description = "Log search, facets, histogram and live tail"),
         (name = "sensitive-data-scanner", description = "Sensitive Data Scanner: scanning groups and rules that redact and tag sensitive data in logs, and the standard pattern library"),
         (name = "code-security", description = "Code Security: vulnerable libraries, static findings, runtime code vulnerabilities and advisories"),
-        (name = "remediation", description = "Remediation of security findings: explanations, fixes in code and their merge requests"),
+        (name = "remediation", description = "Remediation of security findings: explanations, fixes in code and in infrastructure, provenance tags and their merge requests"),
         (name = "apm", description = "Services, endpoints, dependencies and traces computed from spans"),
         (name = "metrics", description = "Metric queries for dashboards (OTel metrics and span-derived trace.* metrics)"),
         (name = "dashboards", description = "Dashboards, dashboard lists and the monitor summary widget"),
@@ -1336,6 +1338,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/remediation/fix", post(remediation::fix))
         .route("/api/v1/remediation/fixes/{id}", get(remediation::get_fix))
         .route("/api/v1/remediation/fixes/{id}/merge-request", post(remediation::open_merge_request))
+        .route("/api/v1/remediation/add-tags", post(remediation::add_tags))
         .route("/api/v1/assist/investigations/monitors/{id}", axum::routing::put(assist_runs::set_monitor_auto))
         .route("/api/v1/notebooks", post(notebooks::create))
         .route("/api/v1/notebooks/search", post(notebooks::search))
@@ -2579,6 +2582,7 @@ mod tests {
             ("code_security_model.rs", include_str!("code_security_model.rs")),
             ("remediation.rs", include_str!("remediation.rs")),
             ("remediation_model.rs", include_str!("remediation_model.rs")),
+            ("remediation_infra.rs", include_str!("remediation_infra.rs")),
             ("remediation_manifests.rs", include_str!("remediation_manifests.rs")),
             ("datadog_api/cost.rs", include_str!("datadog_api/cost.rs")),
             ("datadog_api/cost_bills.rs", include_str!("datadog_api/cost_bills.rs")),

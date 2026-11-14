@@ -239,6 +239,8 @@ export function MisconfigurationsPage() {
   const query = params.get('q') ?? (params.get('rule') ? `@rule:${params.get('rule')}` : '');
   const open = params.get('finding');
   const [controls, setControls] = useState(true);
+  // The failing resource whose fix the drawer shows (the first one until another is picked).
+  const [picked, setPicked] = useState<string | null>(null);
   const q = useMisconfigurations(status);
   const terms = parseQuery(query);
   const all = q.data?.findings ?? [];
@@ -363,7 +365,18 @@ export function MisconfigurationsPage() {
             <p>{rule.description}</p>
             <h4>Remediation</h4>
             <p className="csm-remediation">{rule.remediation}</p>
-            {all.some((x) => x.ruleId === rule.id) && <RemediationCard finding={{ kind: 'cloud_misconfiguration', id: all.find((x) => x.ruleId === rule.id)!.key }} />}
+            {(() => {
+              const failing = all.filter((x) => x.ruleId === rule.id);
+              const f = failing.find((x) => x.key === picked) ?? failing[0];
+              return (
+                f && (
+                  <>
+                    {failing.length > 1 && <p className="muted csm-pick">Fix for {f.resourceName}: pick another resource below.</p>}
+                    <RemediationCard key={f.key} finding={{ kind: 'cloud_misconfiguration', id: f.key }} />
+                  </>
+                )
+              );
+            })()}
             <div className="sec-tags">
               {rule.frameworks.map((x) => (
                 <span key={x} className="tag-chip">
@@ -377,7 +390,11 @@ export function MisconfigurationsPage() {
                 {all
                   .filter((x) => x.ruleId === rule.id)
                   .map((x) => (
-                    <tr key={x.key}>
+                    <tr
+                      key={x.key}
+                      className={`csm-pickable${x.key === (all.some((y) => y.ruleId === rule.id && y.key === picked) ? picked : all.find((y) => y.ruleId === rule.id)?.key) ? ' selected' : ''}`}
+                      onClick={() => setPicked(x.key)}
+                    >
                       <td>
                         <b>{x.resourceName}</b>
                         <div className="muted sec-sub">{[resourceKind(x.resourceType).name, where(x)].filter(Boolean).join(' · ')}</div>
@@ -613,7 +630,9 @@ export function InfraVulnerabilitiesPage() {
 
 function VulnDrawer({ id, rows, onClose }: { id: string; rows: InfraVulnerability[]; onClose: () => void }) {
   const a = useCve(id);
-  const first = rows[0];
+  // The resource whose fix the drawer shows: an image first (hosts have no repository), then another picked below.
+  const [picked, setPicked] = useState<string | null>(null);
+  const first = rows.find((v) => v.key === picked) ?? rows.find((v) => v.resourceKind !== 'host') ?? rows[0];
   return (
     <Drawer
       onClose={onClose}
@@ -623,7 +642,8 @@ function VulnDrawer({ id, rows, onClose }: { id: string; rows: InfraVulnerabilit
     >
       <ImpactSummary rows={rows} />
       {a.isLoading ? <Loading /> : a.data && <AdvisoryBody a={a.data} />}
-      {first && <RemediationCard finding={{ kind: 'cloud_vulnerability', id: first.key }} />}
+      {first && rows.length > 1 && <p className="muted csm-pick">Fix for {first.resourceName}: pick another resource below.</p>}
+      {first && <RemediationCard key={first.key} finding={{ kind: 'cloud_vulnerability', id: first.key }} />}
       <h4>Impacted resources</h4>
       {!rows.length ? (
         <p className="muted">No host or image of yours has an affected version.</p>
@@ -631,7 +651,7 @@ function VulnDrawer({ id, rows, onClose }: { id: string; rows: InfraVulnerabilit
         <table className="mon-table syn-table">
           <tbody>
             {rows.map((v) => (
-              <tr key={v.key}>
+              <tr key={v.key} className={`csm-pickable${v.key === first?.key ? ' selected' : ''}`} onClick={() => setPicked(v.key)}>
                 <td>
                   <b className="csm-with-icon">
                     <OsIcon os={v.os} /> {v.resourceName}

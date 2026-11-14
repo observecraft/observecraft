@@ -476,3 +476,15 @@
 .csm-sources td {
   overflow-wrap: anywhere;
 }
+
+/* Finding drawers: the resource whose fix is shown. */
+.csm-pickable {
+  cursor: pointer;
+}
+.csm-pickable.selected td {
+  background: var(--bg-selected);
+}
+.csm-pick {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-sm);
+}

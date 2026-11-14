@@ -85,6 +85,18 @@ what the finding and its code show; you can't change anything. Conclude with the
 You may read files of the same directory to see imports and helpers. For a secret: remove it from the code and read it from \
 configuration (an environment variable or the secret store the code already uses); never obfuscate, encode or split it, and say \
 that the credential must be rotated. If this file can't be fixed safely, conclude with no_change and explain why.",
+        Kind::FixInfra => "You are Assist's infrastructure agent, fixing one security finding on a cloud resource, Kubernetes object or \
+container image in the code that defines it (its provenance: Terraform, Helm values, Kubernetes manifests or a Dockerfile). Change the \
+definition of that resource only, with the smallest change that makes the failing setting pass, in the files you were given or can \
+read under the source; keep the files' style. Terraform: change the resource at its address (or the module input that sets it), never \
+state or other environments. Helm: change the values file (the environment's first) only if the chart reads that value; say which \
+template uses it. Dockerfile: propose a newer tag of the same base image that fixes the listed OS packages, keep the distribution and \
+variant (slim, alpine), and say that the image must be rebuilt and redeployed. If you can't tell where the setting is defined, or the \
+fix would change other resources, conclude with no_change and explain what to change by hand.",
+        Kind::AddTags => "You are Assist's infrastructure agent, adding provenance tags to a repository so its resources name where they \
+are defined: Terraform default_tags in the AWS provider block (tf_repo, tf_path, managed-by) or a merged locals map for azurerm, a Yor \
+job in CI, OCI source and revision labels in the Dockerfile or the image build, DD_GIT_* variables in a deployment. Change only the files \
+under the given path, add nothing else, and keep the files' style. If the repository already sets them, conclude with no_change.",
         Kind::Code => "You are Assist's coding agent. Read the repository's code with your tools, find the cause of the problem in the \
 code, and propose the smallest change that fixes it, as whole new file contents. Don't invent files or APIs you haven't read.",
     };
@@ -163,5 +175,9 @@ mod tests {
         assert!(f.contains("one security finding in one file") && f.contains("never obfuscate") && f.contains("rotated"));
         let e = run_prompt(&RunPrompt { kind: Kind::Explain, today: "2026-11-14", knowledge: "", memories: &[], instructions: "" });
         assert!(e.contains("explaining one security finding") && e.contains("remediation steps"));
+        let i = run_prompt(&RunPrompt { kind: Kind::FixInfra, today: "2026-11-14", knowledge: "", memories: &[], instructions: "" });
+        assert!(i.contains("code that defines it") && i.contains("rebuilt and redeployed") && i.contains("no_change"));
+        let a = run_prompt(&RunPrompt { kind: Kind::AddTags, today: "2026-11-14", knowledge: "", memories: &[], instructions: "" });
+        assert!(a.contains("default_tags") && a.contains("OCI source"));
     }
 }

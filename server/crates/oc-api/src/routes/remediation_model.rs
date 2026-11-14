@@ -18,6 +18,8 @@ pub enum Level {
     Explain,
     /// A change to the repository, reviewed as a merge request.
     FixInCode,
+    /// A change to the infrastructure code that defines the resource (its provenance), reviewed as a merge request.
+    FixInInfra,
     /// Fixable once the resource's source (repository and file) is known: tagging policies.
     NeedsProvenance,
 }
@@ -31,6 +33,8 @@ pub enum Kind {
     Iac,
     CloudMisconfiguration,
     CloudVulnerability,
+    /// A resource lacking the tags that name its source (Tag Coverage → Add tags with Assist).
+    MissingTags,
 }
 
 impl Kind {
@@ -42,6 +46,7 @@ impl Kind {
             Kind::Iac => "IaC misconfiguration",
             Kind::CloudMisconfiguration => "Cloud misconfiguration",
             Kind::CloudVulnerability => "Infrastructure vulnerability",
+            Kind::MissingTags => "Resource missing provenance tags",
         }
     }
 
@@ -87,6 +92,7 @@ pub struct FixTarget {
 /// The level that applies, why, and what a fix would change.
 pub fn level(f: &Facts) -> (Level, String, Vec<FixTarget>) {
     match f.kind {
+        Kind::MissingTags => (Level::Explain, "Tags are added from Tag Coverage, to a repository you pick.".into(), vec![]),
         Kind::CloudMisconfiguration | Kind::CloudVulnerability => (
             Level::NeedsProvenance,
             "This finding names a cloud resource, not the code that creates it. Assist can explain it; a fix in code needs the resource's provenance (tags or labels naming its repository and file), which Tagging Policies define.".into(),
@@ -208,6 +214,10 @@ pub struct Description<'a> {
     pub notes: &'a [String],
     /// The finding in ObserveCraft.
     pub link: &'a str,
+    /// Infrastructure fixes: the resource and its source (Markdown list items).
+    pub source: &'a str,
+    /// What the repository's CI must show (empty: the generic note).
+    pub ci: &'a str,
 }
 
 pub fn merge_request_description(d: &Description) -> String {
@@ -222,12 +232,13 @@ pub fn merge_request_description(d: &Description) -> String {
     if !d.location.is_empty() {
         s.push_str(&format!("- Location: `{}`\n", d.location));
     }
+    s.push_str(d.source);
     s.push_str(&format!("\n### Change\n\n{}\n", d.change.trim()));
     let mut notes: Vec<String> = d.notes.to_vec();
     if d.kind == Kind::Secret && !notes.iter().any(|n| n.contains("otate")) {
         notes.push(SECRET_NOTE.into());
     }
-    notes.push("The repository's CI must pass before this is merged: review the change and the pipeline's results. Nothing is merged automatically.".into());
+    notes.push(if d.ci.is_empty() { "The repository's CI must pass before this is merged: review the change and the pipeline's results. Nothing is merged automatically.".into() } else { d.ci.to_string() });
     s.push_str("\n### Before merging\n\n");
     for n in notes {
         s.push_str(&format!("- {n}\n"));
@@ -256,6 +267,7 @@ mod tests {
     #[test]
     fn cloud_findings_need_provenance_and_can_be_explained() {
         for k in [Kind::CloudMisconfiguration, Kind::CloudVulnerability] {
+            // (remediation_infra decides the level once the resource's provenance is known.)
             let (level, why, targets) = level(&facts(k));
             assert_eq!(level, Level::NeedsProvenance);
             assert!(why.contains("Tagging Policies") && targets.is_empty());
@@ -337,12 +349,14 @@ mod tests {
             change: "Bumps lodash from ^4.17.20 to ^4.17.21.",
             notes: &notes,
             link: "https://observecraft.example.com/code-security/vulnerabilities/libraries",
+            source: "",
+            ci: "",
         });
         assert!(d.starts_with("Fixes a library vulnerability found by ObserveCraft: **Command injection in lodash** (high severity)."), "{d}");
         assert!(d.contains("- Advisory: `GHSA-35jh-r3h4-6jhm`, `CVE-2021-23337`") && d.contains("- Location: `web/package.json`"));
         assert!(d.contains("### Change\n\nBumps lodash") && d.contains("- Regenerate the lockfile."));
         assert!(d.contains("CI must pass") && d.contains("Nothing is merged automatically"));
-        let secret = merge_request_description(&Description { kind: Kind::Secret, title: "AWS access key", severity: "critical", ids: &[], location: "config/settings.py:12", change: "Reads the key from the environment.", notes: &[], link: "x" });
+        let secret = merge_request_description(&Description { kind: Kind::Secret, title: "AWS access key", severity: "critical", ids: &[], location: "config/settings.py:12", change: "Reads the key from the environment.", notes: &[], link: "x", source: "", ci: "" });
         assert!(secret.contains(SECRET_NOTE));
     }
 
@@ -351,5 +365,26 @@ mod tests {
         assert!(major_note("jackson-databind", "2.13.0", "3.0.0").unwrap().contains("new major version"));
         assert_eq!(major_note("lodash", "4.17.20", "4.17.21"), None);
         assert_eq!(major_note("golang.org/x/net", "v0.17.0", "v0.23.0"), None);
+    }
+
+    #[test]
+    fn an_infrastructure_fix_names_its_source_and_the_ci_that_checks_it() {
+        let ids = vec!["s3_bucket_level_public_access_block".to_string()];
+        let source = "- Resource: `arn:aws:s3:::example-shop-assets`\n- Provenance: exact, via tags\n";
+        let d = merge_request_description(&Description {
+            kind: Kind::CloudMisconfiguration,
+            title: "S3 bucket allows public ACLs",
+            severity: "high",
+            ids: &ids,
+            location: "",
+            change: "Blocks public access.",
+            notes: &[],
+            link: "x",
+            source,
+            ci: "`terraform plan` must show only the intended change.",
+        });
+        assert!(d.starts_with("Fixes a cloud misconfiguration found by ObserveCraft") && d.contains("- Rule: `s3_bucket_level_public_access_block`\n- Resource: `arn:aws:s3:::example-shop-assets`"), "{d}");
+        assert!(d.contains("- `terraform plan` must show only the intended change.") && !d.contains("review the change and the pipeline"), "{d}");
+        assert_eq!(Kind::MissingTags.label(), "Resource missing provenance tags");
     }
 }

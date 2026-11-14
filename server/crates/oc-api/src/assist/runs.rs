@@ -29,6 +29,11 @@ pub enum Kind {
     Explain,
     /// A security finding fixed in its file: a change proposed to the repository (ADR-0008, level Fix in code).
     Fix,
+    /// A cloud resource, Kubernetes object or image finding fixed where its provenance says it is defined: Terraform,
+    /// Helm values, manifests or a Dockerfile (ADR-0008, level Fix in infrastructure).
+    FixInfra,
+    /// Provenance tags added to a repository (Terraform default_tags, a Yor job, OCI labels; ADR-0008 decision 5).
+    AddTags,
 }
 
 impl Kind {
@@ -41,11 +46,13 @@ impl Kind {
             Kind::Testing => "testing",
             Kind::Explain => "explain",
             Kind::Fix => "fix",
+            Kind::FixInfra => "fix_infra",
+            Kind::AddTags => "add_tags",
         }
     }
 
     pub fn parse(s: &str) -> Option<Kind> {
-        [Kind::Investigation, Kind::Security, Kind::Agent, Kind::Code, Kind::Testing, Kind::Explain, Kind::Fix].into_iter().find(|k| k.as_str() == s)
+        [Kind::Investigation, Kind::Security, Kind::Agent, Kind::Code, Kind::Testing, Kind::Explain, Kind::Fix, Kind::FixInfra, Kind::AddTags].into_iter().find(|k| k.as_str() == s)
     }
 
     /// The verdicts `conclude` accepts.
@@ -54,7 +61,7 @@ impl Kind {
             Kind::Investigation => &["conclusive", "inconclusive", "no_issue"],
             Kind::Security => &["benign", "suspicious", "malicious", "inconclusive"],
             Kind::Agent => &["done", "needs_attention", "failed"],
-            Kind::Code | Kind::Fix => &["change_proposed", "no_change", "failed"],
+            Kind::Code | Kind::Fix | Kind::FixInfra | Kind::AddTags => &["change_proposed", "no_change", "failed"],
             Kind::Explain => &["explained", "inconclusive"],
             Kind::Testing => &["tests_proposed", "no_tests", "failed"],
         }
@@ -157,11 +164,13 @@ pub struct RunTools<T: Tools> {
     change: Mutex<Option<CodeChange>>,
     /// The only files a change may touch (a fix of one finding: its file).
     paths: Option<Vec<String>>,
+    /// The only directories a change may touch (an infrastructure fix: its source's).
+    dirs: Option<Vec<String>>,
 }
 
 impl<T: Tools> RunTools<T> {
     pub fn new(base: T, kind: Kind, actions: bool) -> Self {
-        RunTools { base, kind, actions, conclusion: Mutex::new(None), change: Mutex::new(None), paths: None }
+        RunTools { base, kind, actions, conclusion: Mutex::new(None), change: Mutex::new(None), paths: None, dirs: None }
     }
 
     /// Limits the change to these files.
@@ -170,12 +179,18 @@ impl<T: Tools> RunTools<T> {
         self
     }
 
+    /// Limits the change to files under these directories (an empty one is the repository root).
+    pub fn only_under(mut self, dirs: Vec<String>) -> Self {
+        self.dirs = Some(dirs);
+        self
+    }
+
     pub fn kind(&self) -> Kind {
         self.kind
     }
 
     fn proposes(&self) -> bool {
-        matches!(self.kind, Kind::Code | Kind::Fix)
+        matches!(self.kind, Kind::Code | Kind::Fix | Kind::FixInfra | Kind::AddTags)
     }
 
     /// The tools it wraps.
@@ -201,6 +216,11 @@ impl<T: Tools> RunTools<T> {
             if let Some(allowed) = &self.paths {
                 if !allowed.iter().any(|a| a == path) {
                     return Err(format!("Only {} may change in this run, not {path}", allowed.join(", ")));
+                }
+            }
+            if let Some(dirs) = &self.dirs {
+                if !dirs.iter().any(|d| d.is_empty() || path.starts_with(&format!("{d}/"))) {
+                    return Err(format!("Only files under {} may change in this run, not {path}", dirs.join(", ")));
                 }
             }
             let after = f["content"].as_str().ok_or_else(|| format!("{path}: give its whole new content"))?;
@@ -346,5 +366,22 @@ mod tests {
         e.run("conclude", &json!({"summary": "SQL injection: the input reaches the query", "verdict": "explained", "next_steps": ["Use bound parameters"]})).await.unwrap();
         assert_eq!(e.conclusion().unwrap().verdict, "explained");
         assert_eq!((Kind::parse("explain"), Kind::parse("fix")), (Some(Kind::Explain), Some(Kind::Fix)));
+    }
+
+    #[tokio::test]
+    async fn infrastructure_fixes_change_only_files_under_their_source() {
+        assert_eq!((Kind::parse("fix_infra"), Kind::parse("add_tags")), (Some(Kind::FixInfra), Some(Kind::AddTags)));
+        for kind in [Kind::FixInfra, Kind::AddTags] {
+            assert_eq!(kind.verdicts(), &["change_proposed", "no_change", "failed"]);
+            let t = RunTools::new(Base, kind, false).only_under(vec!["envs/prod/storage".into(), "modules/storage".into()]);
+            assert!(names(&t).contains(&"propose_change".to_string()));
+            let outside = json!({"title": "x", "files": [{"path": "envs/staging/main.tf", "content": "x"}]});
+            assert!(t.run("propose_change", &outside).await.unwrap_err().contains("Only files under envs/prod/storage, modules/storage"));
+            let near = json!({"title": "x", "files": [{"path": "envs/prod/storagex/main.tf", "content": "x"}]});
+            assert!(t.run("propose_change", &near).await.is_err());
+            let ok = json!({"title": "Block public access", "files": [{"path": "modules/storage/main.tf", "content": "x"}, {"path": "envs/prod/storage/main.tf", "content": "y"}]});
+            t.run("propose_change", &ok).await.unwrap();
+            assert_eq!(t.change().unwrap().files.len(), 2);
+        }
     }
 }

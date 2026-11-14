@@ -38,9 +38,9 @@ test('each kind of finding gets its level', async () => {
   assert.equal((await mock.remediationOf({ kind: 'library', id: inRepo.key })).level, 'fix_in_code');
   if (runtimeOnly) assert.equal((await mock.remediationOf({ kind: 'library', id: runtimeOnly.key })).level, 'needs_provenance');
   assert.equal((await mock.remediationOf({ kind: 'code', id: 'f-sql' })).level, 'fix_in_code');
-  const cloud = await mock.remediationOf({ kind: 'cloud_misconfiguration', id: 'misconfig:x' });
+  const cloud = await mock.remediationOf({ kind: 'cloud_misconfiguration', id: 'misconfig:ocs-k8s-001:uid-5-node-debugger' });
   assert.equal(cloud.level, 'needs_provenance');
-  assert.equal(cloud.taggingPolicies, '/organization-settings/tagging-policies');
+  assert.equal(cloud.taggingPolicies, '/infrastructure/tagging/policies');
   // Seeded: a proposal waiting for review and one with an open merge request.
   assert.equal((await mock.remediationOf({ kind: 'code', id: 'f-path' })).fix.mergeRequest, null);
   assert.equal((await mock.remediationOf({ kind: 'code', id: 'f-iac2' })).fix.mergeRequest.state, 'open');
@@ -67,12 +67,69 @@ test('a code fix and an explanation are Assist runs that conclude', async () => 
   const fix = await mock.fixFinding({ kind: 'code', id: 'f-secret' });
   assert.equal(fix.method, 'assist');
   assert.ok(fix.notes[0].includes('Rotate'));
-  const run = await mock.explainFinding({ kind: 'cloud_misconfiguration', id: 'misconfig:x' });
+  const run = await mock.explainFinding({ kind: 'cloud_misconfiguration', id: 'misconfig:ocs-k8s-001:uid-5-node-debugger' });
   await sleep(4500);
   const done = await mock.getFix(fix.id);
   assert.equal(done.status, 'concluded');
   assert.ok(done.change.files[0].after.includes('secret store'));
-  const r = await mock.remediationOf({ kind: 'cloud_misconfiguration', id: 'misconfig:x' });
+  const r = await mock.remediationOf({ kind: 'cloud_misconfiguration', id: 'misconfig:ocs-k8s-001:uid-5-node-debugger' });
   assert.equal(r.explainRun.id, run.id);
   assert.equal(r.explainRun.verdict, 'explained');
+});
+
+const cloudSec = await import('../web/src/api/mock/cloudSecurity.ts');
+const misconfig = async (rule, name) => (await cloudSec.misconfigurations('all')).findings.find((f) => f.ruleId === rule && f.resourceName === name).key;
+const vuln = (name, kind = 'container_image') => cloudSec.allVulns().find((v) => v.resourceKind === kind && v.resourceName.includes(name)).key;
+
+test('cloud findings are fixed in infrastructure when their source resolves, else say what is missing', async () => {
+  const s3 = await mock.remediationOf({ kind: 'cloud_misconfiguration', id: await misconfig('s3_bucket_level_public_access_block', 'example-shop-assets') });
+  assert.equal(s3.level, 'fix_in_infra');
+  assert.deepEqual([s3.source.repo, s3.source.path, s3.source.via, s3.confirm], ['github.com/example-org/infra-terraform', 'envs/prod/storage', 'tag', false]);
+  const helm = await mock.remediationOf({ kind: 'cloud_misconfiguration', id: await misconfig('ocs-k8s-009', 'catalog-service') });
+  assert.deepEqual([helm.level, helm.source.repo, helm.source.kind, helm.source.application], ['fix_in_infra', 'github.com/example-org/gitops', 'helm', 'catalog']);
+  const inferred = await mock.remediationOf({ kind: 'cloud_misconfiguration', id: await misconfig('ocs-k8s-005', 'order-service') });
+  assert.deepEqual([inferred.level, inferred.confirm], ['fix_in_infra', true]);
+  const appOnly = await mock.remediationOf({ kind: 'cloud_misconfiguration', id: await misconfig('ocs-k8s-006', 'billing') });
+  assert.equal(appOnly.level, 'needs_provenance');
+  assert.match(appOnly.reason, /payments/);
+  const untracked = await mock.remediationOf({ kind: 'cloud_misconfiguration', id: 'misconfig:ocs-k8s-001:uid-5-node-debugger' });
+  assert.equal(untracked.missingTags[0].key, 'argocd.argoproj.io/tracking-id|app.kubernetes.io/instance');
+  assert.match(untracked.snippet.code, /resourceTrackingMethod: annotation/);
+  const img = await mock.remediationOf({ kind: 'cloud_vulnerability', id: vuln('storefront-api') });
+  assert.deepEqual([img.level, img.source.kind], ['fix_in_infra', 'dockerfile']);
+  const noLabels = await mock.remediationOf({ kind: 'cloud_vulnerability', id: vuln('catalog-service') });
+  assert.equal(noLabels.level, 'needs_provenance');
+  assert.deepEqual(
+    noLabels.missingTags.map((m) => m.key),
+    ['org.opencontainers.image.source|git.repository_url', 'org.opencontainers.image.revision|git.commit.sha'],
+  );
+  assert.match(noLabels.snippet.code, /-t registry\.example\.com\/catalog-service/);
+  assert.equal((await mock.remediationOf({ kind: 'cloud_vulnerability', id: vuln('i-0a1b', 'host') })).level, 'explain');
+});
+
+test('an infrastructure fix: the S3 block without an LLM, a confirmation for an inferred source, Helm values by Assist', async () => {
+  const s3 = await mock.fixFinding({ kind: 'cloud_misconfiguration', id: await misconfig('s3_bucket_level_public_access_block', 'example-shop-assets') });
+  assert.deepEqual([s3.method, s3.status, s3.source.located.address], ['editor', 'ready', 'aws_s3_bucket.assets']);
+  assert.match(s3.change.files[0].after, /restrict_public_buckets = true/);
+  const opened = await mock.openMergeRequest(s3.id);
+  assert.equal(opened.mergeRequest.state, 'open');
+  const order = await misconfig('ocs-k8s-005', 'order-service');
+  await assert.rejects(mock.fixFinding({ kind: 'cloud_misconfiguration', id: order }), /confirm/);
+  const confirmed = await mock.fixFinding({ kind: 'cloud_misconfiguration', id: order, confirmed: true });
+  assert.deepEqual([confirmed.method, confirmed.source.confirmed], ['assist', true]);
+  const helm = await mock.fixFinding({ kind: 'cloud_misconfiguration', id: await misconfig('ocs-k8s-009', 'catalog-service') });
+  await sleep(4500);
+  const done = await mock.getFix(helm.id);
+  assert.equal(done.status, 'concluded');
+  assert.equal(done.change.files[0].path, 'apps/catalog/values-prod.yaml');
+  await assert.rejects(mock.fixFinding({ kind: 'cloud_misconfiguration', id: await misconfig('ocs-k8s-006', 'billing') }), /payments/);
+});
+
+test('tags are added from Tag Coverage to the repository picked', async () => {
+  const fix = await mock.addTags({ resourceId: 'arn:aws:s3:::example-shop-logs', repository: 'github.com/example-org/infra-terraform', path: 'envs/prod/logging' });
+  assert.deepEqual([fix.method, fix.findingKind, fix.source.path], ['editor', 'resource', 'envs/prod/logging']);
+  assert.match(fix.change.files[0].after, /tf_path    = "envs\/prod\/logging"/);
+  assert.equal((await mock.remediationOf({ kind: 'resource', id: 'arn:aws:s3:::example-shop-logs' })).fix.id, fix.id);
+  await assert.rejects(mock.addTags({ resourceId: 'shop-prod-eu-dep-workflow-engine', repository: 'github.com/example-org/k8s-apps', path: '' }), /Argo CD/);
+  await assert.rejects(mock.addTags({ resourceId: 'arn:aws:s3:::example-shop-logs', repository: 'git.example.com/x/y', path: '' }), /No GitHub or GitLab connection/);
 });

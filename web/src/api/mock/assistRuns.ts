@@ -361,7 +361,7 @@ export function addTestingRun(
  * (and, for a fix, its proposed `change`).
  */
 export function addScriptedRun(
-  kind: 'explain' | 'fix',
+  kind: 'explain' | 'fix' | 'fix_infra' | 'add_tags',
   title: string,
   subject: Record<string, unknown>,
   steps: ([string, Record<string, unknown>, string] | string)[],

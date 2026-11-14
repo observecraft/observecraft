@@ -336,6 +336,11 @@ pub async fn run_snapshots(st: AppState) {
     }
 }
 
+/// The org's enabled policies by name (remediation: the tags a resource lacks).
+pub async fn enabled_rules(st: &AppState, org: &str) -> Result<Vec<(String, CompiledRule)>, ApiError> {
+    Ok(load_policies(st, org).await?.into_iter().filter(|(p, _)| p.enabled).map(|(p, c)| (p.name, c)).collect())
+}
+
 /// Cloud resources, Kubernetes objects and images failing the org's enabled policies (Cloud Security's
 /// [`MISCONFIG_RULE`]), and how many were evaluated.
 pub async fn misconfig_gaps(st: &AppState, org: &str) -> Result<(usize, Vec<NonCompliantResource>), ApiError> {

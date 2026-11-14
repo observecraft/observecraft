@@ -20989,6 +20989,36 @@
         }
       }
     },
+    "/api/v1/remediation/add-tags": {
+      "post": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Adds the tags that name a resource's source to the repository that defines it: the AWS provider's `default_tags`\nor the Dockerfile's OCI labels without an LLM when they can be written, else an Assist run (`add_tags`) limited to\nthe directory. Reviewed and opened as a merge request like other fixes.",
+        "operationId": "remediation_add_tags",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTagsInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/remediation/explain": {
       "post": {
         "tags": [
@@ -21024,7 +21054,7 @@
         "tags": [
           "remediation"
         ],
-        "summary": "Fixes the finding in code: a library's manifest is bumped right away; a static finding gets an Assist run\nlimited to its file. Either way the result is a proposal to review before opening the merge request.",
+        "summary": "Fixes the finding in code: a library's manifest is bumped right away; a static finding gets an Assist run\nlimited to its file; a cloud finding is fixed where its provenance says the resource is defined. Either way the\nresult is a proposal to review before opening the merge request.",
         "operationId": "remediation_fix",
         "requestBody": {
           "content": {
@@ -34727,6 +34757,28 @@
           },
           "userId": {
             "type": "string"
+          }
+        }
+      },
+      "AddTagsInput": {
+        "type": "object",
+        "description": "Tag Coverage → Add tags with Assist: a resource, and the repository (and directory) that defines it.",
+        "required": [
+          "resourceId",
+          "repository"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The Terraform root module, chart or image build directory; the repository root when empty."
+          },
+          "repository": {
+            "type": "string",
+            "description": "`github.com/example-org/infra-terraform`"
+          },
+          "resourceId": {
+            "type": "string",
+            "description": "The resource's id in Tag Coverage."
           }
         }
       },
@@ -49169,12 +49221,16 @@
       },
       "FindingRef": {
         "type": "object",
-        "description": "A finding: `library` (a library vulnerability's key), `code` (a static finding's id: SAST, secret, IaC),\n`cloud_misconfiguration` or `cloud_vulnerability` (their triage keys).",
+        "description": "A finding: `library` (a library vulnerability's key), `code` (a static finding's id: SAST, secret, IaC),\n`cloud_misconfiguration` or `cloud_vulnerability` (their triage keys), `resource` (a resource of Tag Coverage).",
         "required": [
           "kind",
           "id"
         ],
         "properties": {
+          "confirmed": {
+            "type": "boolean",
+            "description": "Fix in infrastructure: the person confirmed an inferred source."
+          },
           "id": {
             "type": "string"
           },
@@ -49238,6 +49294,51 @@
             "type": "string",
             "description": "open (default) | muted | all",
             "default": ""
+          }
+        }
+      },
+      "FixSource": {
+        "type": "object",
+        "description": "The resource of an infrastructure fix and where it was changed.",
+        "required": [
+          "resource"
+        ],
+        "properties": {
+          "confirmed": {
+            "type": "boolean",
+            "description": "An inferred source the person confirmed."
+          },
+          "located": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Located",
+                "description": "The Terraform resource found (deterministic fixes)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Added tags: the directory they were added under."
+          },
+          "provenance": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Provenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resource": {
+            "type": "string",
+            "description": "The cloud id, Kubernetes object or image."
           }
         }
       },
@@ -49345,6 +49446,17 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "source": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FixSource",
+                "description": "Fix in infrastructure and added tags: the resource and the source the change was made in."
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "status": {
@@ -58375,6 +58487,38 @@
           }
         ]
       },
+      "Located": {
+        "type": "object",
+        "description": "Where the resource is defined.",
+        "required": [
+          "file",
+          "startLine",
+          "endLine",
+          "address",
+          "by"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "`aws_s3_bucket.assets` (in its module's file)."
+          },
+          "by": {
+            "type": "string",
+            "description": "address | name (a block naming the cloud resource)"
+          },
+          "endLine": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "file": {
+            "type": "string"
+          },
+          "startLine": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
       "LogArchive": {
         "type": "object",
         "required": [
@@ -60113,6 +60257,30 @@
           },
           "severity": {
             "type": "string"
+          }
+        }
+      },
+      "MissingTag": {
+        "type": "object",
+        "description": "A provenance tag a resource lacks, per the policy requiring it.",
+        "required": [
+          "policy",
+          "key"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "The key or its alternatives (`tf_repo|git_repo`)."
+          },
+          "policy": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The value found when it isn't allowed."
           }
         }
       },
@@ -66174,6 +66342,26 @@
           }
         }
       },
+      "ProvenanceSnippet": {
+        "type": "object",
+        "description": "How to add the missing tags where the resource is defined.",
+        "required": [
+          "title",
+          "language",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
       "ProvenanceSummary": {
         "type": "object",
         "description": "Counts of resources with and without a source, per target and per way it was found.",
@@ -67085,9 +67273,15 @@
         "required": [
           "level",
           "reason",
-          "targets"
+          "targets",
+          "confirm",
+          "missingTags"
         ],
         "properties": {
+          "confirm": {
+            "type": "boolean",
+            "description": "Fix in infrastructure from an inferred source: confirm it before fixing (`confirmed` on the fix request)."
+          },
           "connection": {
             "type": [
               "string",
@@ -67120,9 +67314,38 @@
           "level": {
             "$ref": "#/components/schemas/RemediationLevel"
           },
+          "missingTags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MissingTag"
+            },
+            "description": "Needs provenance: the tags the resource lacks, per the tagging policy requiring them."
+          },
           "reason": {
             "type": "string",
             "description": "Why this level applies."
+          },
+          "snippet": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProvenanceSnippet",
+                "description": "Needs provenance: how to add them where the resource is defined."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Provenance",
+                "description": "Cloud findings: the resource's source (also when no connection reaches it)."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "taggingPolicies": {
             "type": [
@@ -67146,6 +67369,7 @@
         "enum": [
           "explain",
           "fix_in_code",
+          "fix_in_infra",
           "needs_provenance"
         ]
       },
@@ -83058,7 +83282,7 @@
     },
     {
       "name": "remediation",
-      "description": "Remediation of security findings: explanations, fixes in code and their merge requests"
+      "description": "Remediation of security findings: explanations, fixes in code and in infrastructure, provenance tags and their merge requests"
     },
     {
       "name": "apm",
