@@ -8200,6 +8200,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/remediation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** What can be done about a finding: its level and why, its latest explanation and fix (with the merge request's state). */
+        post: operations["remediation_of_finding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/remediation/explain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Starts an Assist run explaining the finding, with remediation steps (polled as other runs). */
+        post: operations["remediation_explain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/remediation/fix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fixes the finding in code: a library's manifest is bumped right away; a static finding gets an Assist run
+         *     limited to its file. Either way the result is a proposal to review before opening the merge request.
+         */
+        post: operations["remediation_fix"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/remediation/fixes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A fix with its merge request's state refreshed. */
+        get: operations["remediation_get_fix"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/remediation/fixes/{id}/merge-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Opens the merge request (pull request) of a fix on a new branch, with a description naming the finding,
+         *     its rule or CVE, the change and that CI must pass; the fix keeps it, so the finding shows its state.
+         */
+        post: operations["remediation_open_merge_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roles": {
         parameters: {
             query?: never;
@@ -16392,6 +16483,16 @@ export interface components {
              */
             kind: string;
         };
+        /**
+         * @description A finding: `library` (a library vulnerability's key), `code` (a static finding's id: SAST, secret, IaC),
+         *     `cloud_misconfiguration` or `cloud_vulnerability` (their triage keys).
+         */
+        FindingRef: {
+            id: string;
+            kind: string;
+            /** @description Fix: the repository to change, when the finding is in several (default: the first). */
+            repository?: string | null;
+        };
         FindingRuleStatus: {
             description: string;
             evaluated: number;
@@ -16407,6 +16508,36 @@ export interface components {
              * @description open (default) | muted | all
              * @default
              */
+            status: string;
+        };
+        /** @description A repository and the file to change. */
+        FixTarget: {
+            /** @description The finding's file, or the manifests to try for a library (`dir/*.csproj`: any project file there). */
+            files: string[];
+            /** @description As Code Security names it (`github.com/example-org/storefront`). */
+            repository: string;
+        };
+        /** @description A fix of a finding: the change proposed (a manifest bump, or an Assist run's change) and its merge request. */
+        FixView: {
+            /** @description Why a merge request can't be opened with the connection (the scope it lacks): copy the diff instead. */
+            blocked?: string | null;
+            change?: components["schemas"]["CodeChange"] | null;
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            /** @description Why no change was proposed, and what to do instead. */
+            explanation?: string | null;
+            findingId: string;
+            findingKind: string;
+            id: string;
+            mergeRequest?: components["schemas"]["MergeRequest"] | null;
+            /** @description manifest (a deterministic bump) | assist (an Assist run) */
+            method: string;
+            /** @description What must still happen (the lockfile, rotating a credential); also in the merge request. */
+            notes: string[];
+            repository: string;
+            runId?: string | null;
+            /** @description ready | queued | running | concluded | failed | cancelled */
             status: string;
         };
         FlagCondition: {
@@ -19527,6 +19658,15 @@ export interface components {
             sourceRun?: string | null;
             text: string;
         };
+        MergeRequest: {
+            branch: string;
+            draft: boolean;
+            /** Format: int64 */
+            number: number;
+            /** @description open | merged | closed */
+            state: string;
+            url: string;
+        };
         MetricCardinality: {
             /**
              * Format: int64
@@ -21901,6 +22041,24 @@ export interface components {
             notebooks: components["schemas"]["RelatedAsset"][];
             slos: components["schemas"]["RelatedAsset"][];
         };
+        Remediation: {
+            /** @description Fix in code: why no connection reaches the first target's repository (none: one does). */
+            connection?: string | null;
+            explainRun?: components["schemas"]["RunSummary"] | null;
+            fix?: components["schemas"]["FixView"] | null;
+            level: components["schemas"]["RemediationLevel"];
+            /** @description Why this level applies. */
+            reason: string;
+            /** @description Needs provenance: where to set it up. */
+            taggingPolicies?: string | null;
+            /** @description Fix in code: the repositories and files a fix changes. */
+            targets: components["schemas"]["FixTarget"][];
+        };
+        /**
+         * @description What can be done about a finding.
+         * @enum {string}
+         */
+        RemediationLevel: "explain" | "fix_in_code" | "needs_provenance";
         ReorderIndexes: {
             /** @description Every index id, in routing order. */
             ids: string[];
@@ -43363,6 +43521,117 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    remediation_of_finding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingRef"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Remediation"];
+                };
+            };
+        };
+    };
+    remediation_explain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingRef"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunSummary"];
+                };
+            };
+        };
+    };
+    remediation_fix: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingRef"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixView"];
+                };
+            };
+        };
+    };
+    remediation_get_fix: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixView"];
+                };
+            };
+        };
+    };
+    remediation_open_merge_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixView"];
                 };
             };
         };

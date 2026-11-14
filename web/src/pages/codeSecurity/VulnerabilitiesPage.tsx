@@ -17,6 +17,7 @@ import {
   type StaticFinding,
 } from '../../api/codeSecurity/client';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
+import { RemediationCard } from '../../components/security/RemediationCard';
 import { Select } from '../../components/ui/Dropdown';
 import { SubTabs, VULN_TYPES } from './CodeSecurityLayout';
 import { Drawer, fmtDate, Onboarding, PackageChip, Pill, RepoName, ScannerName, SeverityBadge, SEVERITIES, shortRepo, SourceBadges, timeAgo } from './common';
@@ -375,6 +376,7 @@ function LibraryDrawer({ v, onClose }: { v: LibraryVulnerability; onClose: () =>
                 ))}
             </tbody>
           </table>
+          <RemediationCard finding={{ kind: 'library', id: v.key }} />
         </div>
         <NextSteps
           remediation={v.fixed ? `Upgrade ${v.package} to ${v.fixed} or later.` : 'No fixed version is published for this advisory yet.'}
@@ -551,6 +553,7 @@ function FindingDrawer({ f, onClose }: { f: StaticFinding; onClose: () => void }
               )}
             </dl>
           </section>
+          <RemediationCard finding={{ kind: 'code', id: f.id }} />
         </div>
         <NextSteps
           remediation={

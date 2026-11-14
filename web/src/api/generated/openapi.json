@@ -20959,6 +20959,156 @@
         }
       }
     },
+    "/api/v1/remediation": {
+      "post": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "What can be done about a finding: its level and why, its latest explanation and fix (with the merge request's state).",
+        "operationId": "remediation_of_finding",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Remediation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/remediation/explain": {
+      "post": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Starts an Assist run explaining the finding, with remediation steps (polled as other runs).",
+        "operationId": "remediation_explain",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/remediation/fix": {
+      "post": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Fixes the finding in code: a library's manifest is bumped right away; a static finding gets an Assist run\nlimited to its file. Either way the result is a proposal to review before opening the merge request.",
+        "operationId": "remediation_fix",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/remediation/fixes/{id}": {
+      "get": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "A fix with its merge request's state refreshed.",
+        "operationId": "remediation_get_fix",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/remediation/fixes/{id}/merge-request": {
+      "post": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Opens the merge request (pull request) of a fix on a new branch, with a description naming the finding,\nits rule or CVE, the change and that CI must pass; the fix keeps it, so the finding shows its state.",
+        "operationId": "remediation_open_merge_request",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roles": {
       "get": {
         "tags": [
@@ -49017,6 +49167,29 @@
           }
         ]
       },
+      "FindingRef": {
+        "type": "object",
+        "description": "A finding: `library` (a library vulnerability's key), `code` (a static finding's id: SAST, secret, IaC),\n`cloud_misconfiguration` or `cloud_vulnerability` (their triage keys).",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "repository": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Fix: the repository to change, when the finding is in several (default: the first)."
+          }
+        }
+      },
       "FindingRuleStatus": {
         "type": "object",
         "required": [
@@ -49065,6 +49238,118 @@
             "type": "string",
             "description": "open (default) | muted | all",
             "default": ""
+          }
+        }
+      },
+      "FixTarget": {
+        "type": "object",
+        "description": "A repository and the file to change.",
+        "required": [
+          "repository",
+          "files"
+        ],
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The finding's file, or the manifests to try for a library (`dir/*.csproj`: any project file there)."
+          },
+          "repository": {
+            "type": "string",
+            "description": "As Code Security names it (`github.com/example-org/storefront`)."
+          }
+        }
+      },
+      "FixView": {
+        "type": "object",
+        "description": "A fix of a finding: the change proposed (a manifest bump, or an Assist run's change) and its merge request.",
+        "required": [
+          "id",
+          "findingKind",
+          "findingId",
+          "repository",
+          "method",
+          "status",
+          "notes",
+          "createdBy",
+          "createdAt"
+        ],
+        "properties": {
+          "blocked": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why a merge request can't be opened with the connection (the scope it lacks): copy the diff instead."
+          },
+          "change": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CodeChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why no change was proposed, and what to do instead."
+          },
+          "findingId": {
+            "type": "string"
+          },
+          "findingKind": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mergeRequest": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MergeRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "method": {
+            "type": "string",
+            "description": "manifest (a deterministic bump) | assist (an Assist run)"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What must still happen (the lockfile, rotating a credential); also in the merge request."
+          },
+          "repository": {
+            "type": "string"
+          },
+          "runId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "ready | queued | running | concluded | failed | cancelled"
           }
         }
       },
@@ -59133,6 +59418,35 @@
           }
         }
       },
+      "MergeRequest": {
+        "type": "object",
+        "required": [
+          "url",
+          "number",
+          "branch",
+          "draft",
+          "state"
+        ],
+        "properties": {
+          "branch": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "boolean"
+          },
+          "number": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "state": {
+            "type": "string",
+            "description": "open | merged | closed"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
       "MetricCardinality": {
         "type": "object",
         "required": [
@@ -66765,6 +67079,75 @@
             }
           }
         }
+      },
+      "Remediation": {
+        "type": "object",
+        "required": [
+          "level",
+          "reason",
+          "targets"
+        ],
+        "properties": {
+          "connection": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Fix in code: why no connection reaches the first target's repository (none: one does)."
+          },
+          "explainRun": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RunSummary",
+                "description": "The latest explanation run of the finding."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fix": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FixView",
+                "description": "The latest fix of the finding, with its merge request."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "level": {
+            "$ref": "#/components/schemas/RemediationLevel"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why this level applies."
+          },
+          "taggingPolicies": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Needs provenance: where to set it up."
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FixTarget"
+            },
+            "description": "Fix in code: the repositories and files a fix changes."
+          }
+        }
+      },
+      "RemediationLevel": {
+        "type": "string",
+        "description": "What can be done about a finding.",
+        "enum": [
+          "explain",
+          "fix_in_code",
+          "needs_provenance"
+        ]
       },
       "ReorderIndexes": {
         "type": "object",
@@ -82672,6 +83055,10 @@
     {
       "name": "code-security",
       "description": "Code Security: vulnerable libraries, static findings, runtime code vulnerabilities and advisories"
+    },
+    {
+      "name": "remediation",
+      "description": "Remediation of security findings: explanations, fixes in code and their merge requests"
     },
     {
       "name": "apm",

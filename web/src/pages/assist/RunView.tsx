@@ -18,6 +18,7 @@ const VERDICT_TONE: Record<string, string> = {
   benign: 'ok',
   done: 'ok',
   change_proposed: 'ok',
+  explained: 'ok',
   tests_proposed: 'ok',
   no_tests: 'muted',
   inconclusive: 'muted',

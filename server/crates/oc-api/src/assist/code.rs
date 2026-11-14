@@ -73,7 +73,7 @@ fn query(pairs: &[(&str, &str)]) -> String {
 }
 
 impl Forge {
-    fn auth(&self) -> Auth {
+    pub(crate) fn auth(&self) -> Auth {
         match self.kind {
             ForgeKind::Github => Auth::Bearer(self.token.clone()),
             ForgeKind::Gitlab => Auth::GitlabToken(self.token.clone()),

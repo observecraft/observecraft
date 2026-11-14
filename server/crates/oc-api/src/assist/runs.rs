@@ -25,6 +25,10 @@ pub enum Kind {
     Code,
     /// AI Testing: a site explored in a browser and browser tests proposed for its journeys.
     Testing,
+    /// A security finding explained, with remediation steps (ADR-0008, level Explain).
+    Explain,
+    /// A security finding fixed in its file: a change proposed to the repository (ADR-0008, level Fix in code).
+    Fix,
 }
 
 impl Kind {
@@ -35,11 +39,13 @@ impl Kind {
             Kind::Agent => "agent",
             Kind::Code => "code",
             Kind::Testing => "testing",
+            Kind::Explain => "explain",
+            Kind::Fix => "fix",
         }
     }
 
     pub fn parse(s: &str) -> Option<Kind> {
-        [Kind::Investigation, Kind::Security, Kind::Agent, Kind::Code, Kind::Testing].into_iter().find(|k| k.as_str() == s)
+        [Kind::Investigation, Kind::Security, Kind::Agent, Kind::Code, Kind::Testing, Kind::Explain, Kind::Fix].into_iter().find(|k| k.as_str() == s)
     }
 
     /// The verdicts `conclude` accepts.
@@ -48,7 +54,8 @@ impl Kind {
             Kind::Investigation => &["conclusive", "inconclusive", "no_issue"],
             Kind::Security => &["benign", "suspicious", "malicious", "inconclusive"],
             Kind::Agent => &["done", "needs_attention", "failed"],
-            Kind::Code => &["change_proposed", "no_change", "failed"],
+            Kind::Code | Kind::Fix => &["change_proposed", "no_change", "failed"],
+            Kind::Explain => &["explained", "inconclusive"],
             Kind::Testing => &["tests_proposed", "no_tests", "failed"],
         }
     }
@@ -148,11 +155,27 @@ pub struct RunTools<T: Tools> {
     actions: bool,
     conclusion: Mutex<Option<Conclusion>>,
     change: Mutex<Option<CodeChange>>,
+    /// The only files a change may touch (a fix of one finding: its file).
+    paths: Option<Vec<String>>,
 }
 
 impl<T: Tools> RunTools<T> {
     pub fn new(base: T, kind: Kind, actions: bool) -> Self {
-        RunTools { base, kind, actions, conclusion: Mutex::new(None), change: Mutex::new(None) }
+        RunTools { base, kind, actions, conclusion: Mutex::new(None), change: Mutex::new(None), paths: None }
+    }
+
+    /// Limits the change to these files.
+    pub fn only_paths(mut self, paths: Vec<String>) -> Self {
+        self.paths = Some(paths);
+        self
+    }
+
+    pub fn kind(&self) -> Kind {
+        self.kind
+    }
+
+    fn proposes(&self) -> bool {
+        matches!(self.kind, Kind::Code | Kind::Fix)
     }
 
     /// The tools it wraps.
@@ -175,6 +198,11 @@ impl<T: Tools> RunTools<T> {
         for f in input["files"].as_array().ok_or("List the changed files")? {
             let path = f["path"].as_str().unwrap_or_default().trim_start_matches("./");
             super::code::check_path(path)?;
+            if let Some(allowed) = &self.paths {
+                if !allowed.iter().any(|a| a == path) {
+                    return Err(format!("Only {} may change in this run, not {path}", allowed.join(", ")));
+                }
+            }
             let after = f["content"].as_str().ok_or_else(|| format!("{path}: give its whole new content"))?;
             files.push(ChangedFile { path: path.to_string(), before: None, after: after.to_string() });
         }
@@ -210,7 +238,7 @@ impl<T: Tools> RunTools<T> {
 impl<T: Tools + Sync> Tools for RunTools<T> {
     fn specs(&self) -> Vec<ToolSpec> {
         let mut specs: Vec<ToolSpec> = self.base.specs().into_iter().filter(|s| self.actions || !self.base.writes(&s.name)).collect();
-        if self.kind == Kind::Code {
+        if self.proposes() {
             specs.push(propose_spec());
         }
         specs.push(conclude_spec(self.kind));
@@ -225,7 +253,7 @@ impl<T: Tools + Sync> Tools for RunTools<T> {
         if name == "conclude" {
             return self.record(input);
         }
-        if name == "propose_change" && self.kind == Kind::Code {
+        if name == "propose_change" && self.proposes() {
             return self.propose(input);
         }
         if self.base.writes(name) && !self.actions {
@@ -302,5 +330,21 @@ mod tests {
         t.run("propose_change", &ok).await.unwrap();
         let c = t.change().unwrap();
         assert_eq!((c.title.as_str(), c.files.len(), c.files[0].path.as_str()), ("Use an index for cart lookups", 1, "app/models/cart.rb"));
+    }
+
+    #[tokio::test]
+    async fn a_fix_changes_only_its_finding_s_file_and_an_explanation_proposes_nothing() {
+        let t = RunTools::new(Base, Kind::Fix, false).only_paths(vec!["app/payments.py".into()]);
+        assert!(names(&t).contains(&"propose_change".to_string()));
+        let other = json!({"title": "Fix", "files": [{"path": "app/other.py", "content": "x"}]});
+        assert!(t.run("propose_change", &other).await.unwrap_err().contains("Only app/payments.py"));
+        let ok = json!({"title": "Use a parameterized query", "files": [{"path": "./app/payments.py", "content": "x"}]});
+        t.run("propose_change", &ok).await.unwrap();
+        assert_eq!(t.change().unwrap().files[0].path, "app/payments.py");
+        let e = RunTools::new(Base, Kind::Explain, false);
+        assert!(!names(&e).contains(&"propose_change".to_string()));
+        e.run("conclude", &json!({"summary": "SQL injection: the input reaches the query", "verdict": "explained", "next_steps": ["Use bound parameters"]})).await.unwrap();
+        assert_eq!(e.conclusion().unwrap().verdict, "explained");
+        assert_eq!((Kind::parse("explain"), Kind::parse("fix")), (Some(Kind::Explain), Some(Kind::Fix)));
     }
 }

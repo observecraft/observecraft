@@ -608,6 +608,9 @@ async fn run(st: &AppState, org: &str, id: &str, steps: &Arc<Mutex<Vec<RunStep>>
     if kind == Kind::Testing {
         return crate::routes::ai_testing::run_job(st, org, id, &row.subject.0, &model, &system, steps, msgs, usage).await;
     }
+    if matches!(kind, Kind::Explain | Kind::Fix) {
+        return crate::routes::remediation::run_job(st, org, id, kind, &row.subject.0, &model, &system, steps, msgs, usage).await;
+    }
     msgs.push(Msg::User(opening(st, &ctx, &row.kind, &row.title, &row.subject.0).await.map_err(e)?));
     let tools = RunTools::new(OrgTools { st: st.clone(), ctx, disabled }, kind, actions);
     let l = Loop { model: &model, tools: &tools, system: &system, auto_approve: actions, max_steps: crate::assist::agent::MAX_STEPS };
