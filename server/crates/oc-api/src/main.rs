@@ -41,6 +41,7 @@ mod pipelines;
 mod posture;
 mod routes;
 mod s3;
+mod sds;
 mod self_monitoring;
 mod spl;
 mod standard_attributes;

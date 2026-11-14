@@ -26,7 +26,10 @@
 //! After the pipelines, logs matching a custom destination's query are queued for forwarding (see
 //! `log_forwarding`), whether an index keeps them or not.
 //!
-//! Index rules, pipelines, standard attributes, custom destinations and generated metrics are reloaded every 10 s.
+//! After the pipelines and standard attributes, the org's Sensitive Data Scanner (see `sds`) redacts and tags each
+//! log, so everything downstream (indexes, generated metrics, forwarding, the 72-hour copy) gets the scanned log.
+//!
+//! Index rules, pipelines, standard attributes, custom destinations, generated metrics and scanners are reloaded every 10 s.
 //! Quota-bearing indexes reserve shared, durable admissions in Postgres before storage delivery.
 
 #[path = "log_quota.rs"]
@@ -102,6 +105,8 @@ pub struct Indexer {
     metric_buckets: Mutex<Aggregator>,
     /// Each org's custom destinations and the logs queued for them.
     forwarder: Arc<Forwarder>,
+    /// Each org's Sensitive Data Scanner, run after the pipelines.
+    pub(crate) sds: Arc<crate::sds::Scanners>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -209,6 +214,7 @@ impl Indexer {
         *self.pipelines.write().unwrap() = by_org.into_iter().map(|(k, v)| (k, Arc::new(v))).collect();
         self.reload_standard_attributes(st).await?;
         self.forwarder.reload(st).await?;
+        self.sds.reload(&st.postgres).await?;
         self.reload_log_metrics(st).await
     }
 
@@ -472,6 +478,7 @@ pub(crate) fn prepare_normalized(ix: &Indexer, rows: &mut [crate::log_normalize:
         let org_pipelines = all.get(&row.org_id).cloned().unwrap_or_default();
         let standard = ix.standard_for(&row.org_id);
         if org_pipelines.is_empty() && !standard.names_an_alias(row.attr.keys()) {
+            scan_normalized(&ix.sds, row, true);
             continue;
         }
         let mut log = pipelines::log::Log::default();
@@ -498,6 +505,19 @@ pub(crate) fn prepare_normalized(ix: &Indexer, rows: &mut [crate::log_normalize:
             }
         }
         row.attrs = log.attrs;
+        scan_normalized(&ix.sds, row, true);
+    }
+}
+
+/// Runs the org's Sensitive Data Scanner on a row of the Kafka ingester; `counted` counts its matches (not for
+/// live tail's copy).
+pub(crate) fn scan_normalized(sds: &crate::sds::Scanners, row: &mut crate::log_normalize::Row, counted: bool) {
+    let crate::log_normalize::Row { org_id, id, service, status, host, source, message, tags, attr, .. } = row;
+    let mut target = crate::sds::Target { id, service, status, host, source, message, tags, attr };
+    if counted {
+        sds.scan(org_id, &mut target);
+    } else {
+        sds.scan_uncounted(org_id, &mut target);
     }
 }
 
@@ -509,6 +529,7 @@ pub(crate) fn prepare_rows(ix: &Indexer, input: Vec<Value>, now: i64) -> Vec<Val
         let org_pipelines = ix.pipelines.read().unwrap().get(&org_id).cloned().unwrap_or_default();
         let clock = ev.get("id").and_then(Value::as_str).map(|id| log_metrics::processing_clock(id, now)).unwrap_or(now);
         pipelines::process_row(&org_pipelines, &ix.standard_for(&org_id), &mut ev, clock);
+        ix.sds.scan_row(&org_id, &mut ev);
         rows.push(ev);
     }
     rows
@@ -725,8 +746,10 @@ async fn internal_metrics(State(st): State<AppState>, headers: HeaderMap) -> Res
 /// Starts the internal indexer listener and its refresh loops.
 pub async fn serve(st: AppState) -> anyhow::Result<()> {
     let ix = Arc::new(Indexer::default());
+    ix.sds.set_secret(&st.config.secret_key);
     ix.reload(&st).await?;
     log_forwarding::spawn(st.clone(), ix.forwarder.clone());
+    tokio::spawn(crate::sds::write_matches(st.clone(), ix.sds.clone()));
     let (st2, ix2) = (st.clone(), ix.clone());
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_secs(10));
