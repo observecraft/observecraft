@@ -250,12 +250,15 @@ unset DD_API_KEY DD_APP_KEY DD_BEARER_TOKEN DATADOG_API_KEY DATADOG_APP_KEY DATA
 
 auths=(bearer)
 if [ -n "${OC_TF_API_KEY:-}" ]; then auths=(keys bearer); else log "OC_TF_API_KEY unset: skipping the api_key + app_key runs"; fi
-# Fixtures that read a whole ordered list (`*_order`) share a lane with the objects they order: a parallel
-# fixture adding one would show up in their plan. Lanes run in parallel, a lane's fixtures one after another.
+# Fixtures that read an org-wide list (an order, the pending users, the monitors) share a lane with the fixtures
+# creating its members: a parallel one adding a member would show up in their plan. Lanes run in parallel, a
+# lane's fixtures one after another.
 lane() {
   case "$1" in
     logs_custom_pipeline | logs_integration_pipeline | logs_pipeline_order) echo logs_pipeline ;;
     sensitive_data_scanner_*) echo sensitive_data_scanner ;;
+    user | team | role) echo identity ;;
+    monitor | service_level_objective | slo_correction | downtime | downtime_schedule) echo monitors ;;
     *_order) echo "${1%_order}" ;;
     *) echo "$1" ;;
   esac
@@ -285,14 +288,22 @@ for fixture in "${fixtures[@]}"; do
   [ -d "$here/fixtures/$fixture" ] || die "no fixture $fixture"
 done
 jobs_max="${TF_COMPAT_JOBS:-4}"
+# The lanes' processes: a plain `wait` would also wait for the local server, which never exits.
+lane_pids=()
+running() {
+  local n=0 pid
+  for pid in "${lane_pids[@]}"; do kill -0 "$pid" 2>/dev/null && n=$((n + 1)); done
+  echo "$n"
+}
 lanes="$(for fixture in "${fixtures[@]}"; do printf '%s %s\n' "$(lane "$fixture")" "$fixture"; done | sort -s -k1,1 | awk '$1 != l { if (NR > 1) printf "\n"; l = $1 } { printf "%s ", $2 } END { printf "\n" }')"
 while read -r line; do
   [ -n "$line" ] || continue
-  while [ "$(jobs -rp | wc -l)" -ge "$jobs_max" ]; do sleep 1; done
+  while [ "$(running)" -ge "$jobs_max" ]; do sleep 1; done
   # shellcheck disable=SC2086 # the lane's fixtures, one word each
   (run_lane $line) &
+  lane_pids+=("$!")
 done <<<"$lanes"
-wait
+wait "${lane_pids[@]}"
 if [ -s "$work/failed" ]; then
   log "failed: $(paste -sd ',' "$work/failed")"
   exit 1
