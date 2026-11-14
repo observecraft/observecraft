@@ -5081,6 +5081,26 @@
         }
       }
     },
+    "/api/v1/code-security/gitlab": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "summary": "Code Security's import from GitLab: whether the GitLab connection imports its scanners' results, and each\nproject's last import.",
+        "operationId": "gitlab_import",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabImportStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/code-security/inventory/libraries": {
       "post": {
         "tags": [
@@ -50122,6 +50142,7 @@
           "includeSubgroups",
           "projectPaths",
           "allProjects",
+          "importCodeSecurity",
           "updatedAt"
         ],
         "properties": {
@@ -50133,6 +50154,9 @@
           },
           "groupPath": {
             "type": "string"
+          },
+          "importCodeSecurity": {
+            "type": "boolean"
           },
           "includeSubgroups": {
             "type": "boolean"
@@ -50168,6 +50192,11 @@
             "type": "string",
             "description": "A group to follow (`example-org` or `example-org/platform`).",
             "default": ""
+          },
+          "importCodeSecurity": {
+            "type": "boolean",
+            "description": "Also import the results of GitLab's own scanners (SAST, Secret Detection, Dependency Scanning) into Code\nSecurity. The token's user needs at least the Developer role on the projects.",
+            "default": false
           },
           "includeSubgroups": {
             "type": "boolean",
@@ -50347,6 +50376,114 @@
               "null"
             ],
             "description": "The token's user."
+          }
+        }
+      },
+      "GitlabImportStatus": {
+        "type": "object",
+        "description": "Code Security's import from GitLab (Code Security → Settings).",
+        "required": [
+          "connected",
+          "enabled",
+          "baseUrl",
+          "projects",
+          "openFindings",
+          "openLibraryVulnerabilities"
+        ],
+        "properties": {
+          "baseUrl": {
+            "type": "string"
+          },
+          "connected": {
+            "type": "boolean",
+            "description": "GitLab is connected (Software Delivery → Settings → GitLab CI)."
+          },
+          "discoveredAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last project list."
+          },
+          "discoveryError": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CrawlIssue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "The connection imports Code Security results."
+          },
+          "lastImportAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the latest project import."
+          },
+          "openFindings": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Open code, secret and IaC findings, and open library vulnerabilities, imported."
+          },
+          "openLibraryVulnerabilities": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitlabImportedProject"
+            }
+          }
+        }
+      },
+      "GitlabImportedProject": {
+        "type": "object",
+        "description": "A project's import.",
+        "required": [
+          "id",
+          "path",
+          "findings"
+        ],
+        "properties": {
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CrawlIssue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "findings": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Findings the last import stored."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "lastImportAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last complete import."
+          },
+          "path": {
+            "type": "string"
           }
         }
       },
@@ -56081,6 +56218,9 @@
           "firstSeen",
           "lastSeen",
           "status",
+          "statusReason",
+          "sources",
+          "url",
           "occurrences"
         ],
         "properties": {
@@ -56176,11 +56316,26 @@
           "severity": {
             "type": "string"
           },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Where it was found: runtime (tracers) | upload (an SBOM upload) | gitlab (GitLab's dependency scanning)."
+          },
           "status": {
             "type": "string"
           },
+          "statusReason": {
+            "type": "string",
+            "description": "Why it is muted (GitLab's dismissal reason)."
+          },
           "title": {
             "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "The vulnerability's page in the source control (GitLab)."
           },
           "version": {
             "type": "string"
@@ -60415,7 +60570,7 @@
           },
           "source": {
             "type": "string",
-            "description": "runtime (a service loads it) | static (a repository declares it)"
+            "description": "runtime (a service loads it) | static (a repository declares it, uploaded) | gitlab (GitLab's dependency scanning)"
           }
         }
       },
@@ -65833,7 +65988,10 @@
           "secrets",
           "iacViolations",
           "lastBranch",
-          "lastCommit"
+          "lastCommit",
+          "provider",
+          "url",
+          "gitlabImport"
         ],
         "properties": {
           "codeViolations": {
@@ -65843,6 +66001,10 @@
           "codeVulnerabilities": {
             "type": "integer",
             "minimum": 0
+          },
+          "gitlabImport": {
+            "type": "boolean",
+            "description": "Its results are imported from GitLab's Vulnerability Report."
           },
           "iacViolations": {
             "type": "integer",
@@ -65869,12 +66031,20 @@
             "type": "integer",
             "minimum": 0
           },
+          "provider": {
+            "type": "string",
+            "description": "github | gitlab | bitbucket | git"
+          },
           "repository": {
             "type": "string"
           },
           "secrets": {
             "type": "integer",
             "minimum": 0
+          },
+          "url": {
+            "type": "string",
+            "description": "The repository's page ('' when its name isn't a URL)."
           }
         }
       },
@@ -73460,7 +73630,10 @@
           "prNumber",
           "firstSeen",
           "lastSeen",
-          "status"
+          "status",
+          "statusReason",
+          "sources",
+          "url"
         ],
         "properties": {
           "branch": {
@@ -73530,11 +73703,26 @@
           "snippet": {
             "type": "string"
           },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every source that reports it: upload | gitlab."
+          },
           "status": {
             "type": "string"
           },
+          "statusReason": {
+            "type": "string",
+            "description": "Why it is muted (GitLab's dismissal reason)."
+          },
           "tool": {
             "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "The finding's page in the source control (GitLab)."
           }
         }
       },

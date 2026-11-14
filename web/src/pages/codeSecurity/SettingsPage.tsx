@@ -1,12 +1,19 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Check, ChevronRight, Code2, ExternalLink, ScanEye, ShieldCheck } from 'lucide-react';
-import { setup } from '../../api/codeSecurity/client';
+import { AlertTriangle, Check, ChevronRight, Code2, ExternalLink, ScanEye, ShieldCheck } from 'lucide-react';
+import { gitlabImport, setup, type GitlabImportStatus } from '../../api/codeSecurity/client';
 import { BrandLogo } from '../../components/brand/BrandLogo';
 import { CodeBlock } from '../../components/code/CodeBlock';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
-import { fmtDate } from './common';
+import { fmtDate, timeAgo } from './common';
+
+/** GitLab's own scanners, from its CI templates: their results land in the project's Vulnerability Report. */
+const GITLAB_SCANNERS = `include:
+  - template: Jobs/SAST.gitlab-ci.yml                 # code (Semgrep and language analyzers)
+  - template: Jobs/SAST-IaC.gitlab-ci.yml             # infrastructure as code (KICS)
+  - template: Jobs/Secret-Detection.gitlab-ci.yml     # secrets (Gitleaks)
+  - template: Jobs/Dependency-Scanning.gitlab-ci.yml  # libraries`;
 
 const PROVIDERS = [
   { id: 'github', label: 'GitHub', logo: 'github' },
@@ -61,6 +68,50 @@ jobs:
   return { filename: 'shell', code: `export DD_SITE=${site}\nexport DD_API_KEY=<ingest key> DD_APP_KEY=<application key>\n${steps}` };
 }
 
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** The import of GitLab's scanners' results: off, or each project's last import. */
+function GitlabImport({ g }: { g: GitlabImportStatus }) {
+  const errors = [g.discoveryError && { what: 'Project list', ...g.discoveryError }, ...g.projects.filter((p) => p.error).map((p) => ({ what: p.path, ...p.error! }))].filter(Boolean) as {
+    what: string;
+    message: string;
+  }[];
+  return (
+    <section className="cs-setup-card">
+      <BrandLogo name="gitlab" size={22} />
+      <div>
+        <h3>Results of GitLab&apos;s scanners</h3>
+        <p className="muted">
+          Already scanning with GitLab (SAST, Secret Detection, Dependency Scanning)? Import each project&apos;s Vulnerability Report instead of scanning again: findings keep their link to GitLab, and
+          GitLab&apos;s dismissals show as mutes. Container scanning is not imported.
+        </p>
+        {!g.connected ? (
+          <Status ok={false}>GitLab is not connected</Status>
+        ) : !g.enabled ? (
+          <Status ok={false}>Connected to {g.baseUrl}, import off</Status>
+        ) : (
+          <Status ok={g.projects.length > 0 && errors.length === 0}>
+            {plural(g.projects.length, 'project')} · last import {timeAgo(g.lastImportAt)} · {plural(g.openFindings, 'open finding')} ·{' '}
+            {plural(g.openLibraryVulnerabilities, 'vulnerable library', 'vulnerable libraries')}
+          </Status>
+        )}
+        {errors.map((e) => (
+          <p key={e.what} className="form-error">
+            <AlertTriangle size={13} /> {e.what}: {e.message}
+          </p>
+        ))}
+        <h4>1. Connect GitLab with a read_api token</h4>
+        <p className="muted">
+          In <Link to="/delivery/settings?provider=gitlab">Software Delivery → Settings → GitLab CI</Link>, connect GitLab and check <b>Import Code Security results</b>. The token&apos;s user needs at
+          least the Developer role on the projects to read their vulnerabilities.
+        </p>
+        <h4>2. Run GitLab&apos;s scanners in the projects&apos; pipelines</h4>
+        <CodeBlock filename=".gitlab-ci.yml" code={GITLAB_SCANNERS} />
+      </div>
+    </section>
+  );
+}
+
 function Status({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
     <span className={`cs-status${ok ? ' ok' : ''}`}>
@@ -72,6 +123,7 @@ function Status({ ok, children }: { ok: boolean; children: React.ReactNode }) {
 /** Code Security → Settings: what is set up, and how to send each kind of data. */
 export function SettingsPage() {
   const q = useQuery({ queryKey: ['code-security', 'setup'], queryFn: ({ signal }) => setup(signal) });
+  const gitlab = useQuery({ queryKey: ['code-security', 'gitlab'], queryFn: ({ signal }) => gitlabImport(signal) });
   const [provider, setProvider] = useState<(typeof PROVIDERS)[number]['id']>('github');
   const [lang, setLang] = useState<(typeof LANGS)[number]['id']>('java');
   const site = window.location.hostname;
@@ -145,6 +197,7 @@ export function SettingsPage() {
             </div>
             <h4>2. Run the scans in CI</h4>
             <CodeBlock filename={ci.filename} code={ci.code} />
+            {provider === 'gitlab' && <p className="muted cs-note">Or import the results of GitLab&apos;s own scanners, below.</p>}
             <p className="muted cs-note">
               datadog-ci sends SBOMs to <code>https://{site}/</code> and SARIF reports to <code>https://cicodescan-intake.{site}/</code>: route both hosts (the second to the intake). A{' '}
               <code>DD_SITE</code> of two labels gets <code>app.</code> prepended. Scans of pull requests (with <code>DD_PR_NUMBER</code> or the CI's pull request variables) are listed under PR
@@ -152,6 +205,8 @@ export function SettingsPage() {
             </p>
           </div>
         </section>
+
+        {gitlab.data && <GitlabImport g={gitlab.data} />}
 
         <section className="cs-setup-card">
           <ExternalLink size={22} />

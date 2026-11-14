@@ -48,6 +48,7 @@ function status(): Status {
       includeSubgroups: saved.input.includeSubgroups ?? true,
       projectPaths: saved.input.projectPaths ?? [],
       allProjects: saved.input.allProjects ?? false,
+      importCodeSecurity: saved.input.importCodeSecurity ?? false,
       updatedAt: saved.at,
     },
     projects,

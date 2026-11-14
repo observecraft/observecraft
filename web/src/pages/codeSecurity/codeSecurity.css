@@ -944,3 +944,29 @@
 .cs-filters .dd {
   min-width: 150px;
 }
+
+/* Repositories with their source control's logo, scanners, and where a finding was reported. */
+a.cs-repo {
+  color: inherit;
+}
+a.cs-repo:hover {
+  color: var(--link);
+}
+.cs-scanner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cs-sources {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cs-source {
+  gap: 4px;
+  text-decoration: none;
+  color: inherit;
+}
+a.cs-source:hover {
+  border-color: var(--link);
+}

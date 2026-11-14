@@ -14,6 +14,7 @@
 //   GET  /api/v1/code-security/pull-requests                 pullRequests
 //   POST /api/v1/code-security/triage                        triage
 //   GET  /api/v1/code-security/setup                         setup
+//   GET  /api/v1/code-security/gitlab                        gitlabImport        (GitLab's scanners' results, imported)
 import type { components } from '../generated/schema';
 import { API_MODE, get, post } from '../http';
 import * as mock from '../mock/codeSecurity';
@@ -40,6 +41,7 @@ export type InventoryService = S['InventoryService'];
 export type RuleSummary = S['RuleSummary'];
 export type PullRequestScan = S['PullRequestScan'];
 export type CodeSecuritySetup = S['CodeSecuritySetup'];
+export type GitlabImportStatus = S['GitlabImportStatus'];
 export type FindingKind = 'sast' | 'secret' | 'iac';
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'unknown';
 
@@ -109,6 +111,11 @@ export async function triage(key: string, status: 'open' | 'muted', reason = '')
 export async function setup(signal?: AbortSignal): Promise<CodeSecuritySetup> {
   if (!live) return mock.setup();
   return get('/api/v1/code-security/setup', {}, signal);
+}
+
+export async function gitlabImport(signal?: AbortSignal): Promise<GitlabImportStatus> {
+  if (!live) return mock.gitlabImport();
+  return get('/api/v1/code-security/gitlab', {}, signal);
 }
 
 /** The triage key of a library vulnerability (the advisory on the package, any version). */
