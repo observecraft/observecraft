@@ -235,6 +235,9 @@ async fn main() -> anyhow::Result<()> {
         let traces: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, gitlab::crawler::TRACES_TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(gitlab::crawler::GitlabCrawler { api: Arc::new(gitlab::api::Rest { allow_private: state.config.portal_allow_private }), sink: traces });
         tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, gitlab::crawler::INTERVAL_SECS, concurrency)));
+        // Code Security from GitLab: the connections' projects' Vulnerability Reports, imported into Postgres.
+        let importer: Arc<dyn cloud::jobs::Crawler> = Arc::new(gitlab::security::GitlabSecurityCrawler { api: Arc::new(gitlab::api::Rest { allow_private: state.config.portal_allow_private }) });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), importer, gitlab::security::INTERVAL_SECS, concurrency)));
         // The authentik integration's poller: the instances' events as logs (JSON logs).
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, authentik::crawler::LOGS_TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(authentik::crawler::AuthentikCrawler { api: Arc::new(authentik::api::Rest { allow_private: state.config.portal_allow_private }), sink: logs });

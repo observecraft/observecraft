@@ -1,6 +1,8 @@
 //! Software Delivery → Settings → GitLab CI: an org's connection to GitLab (`gitlab_ci_connections`),
-//! which the server polls for finished pipelines (`crate::gitlab`). Admins save, test and remove it and
-//! ask for a sync; every member reads it and the sync's status.
+//! which the server polls for finished pipelines (`crate::gitlab`) and, with `import_code_security`, for its
+//! scanners' results (`crate::gitlab::security`). Admins save, test and remove it and ask for a sync; every
+//! member reads it and the sync's status. Turning the import off (or removing the connection) removes the
+//! imported results.
 //!
 //! - The token is sealed at rest, never answered, and scrubbed from errors. A saved token is only ever
 //!   sent to the URL it was saved for: changing the URL needs the token again.
@@ -19,6 +21,7 @@ use crate::cloud::jobs::{self, CrawlIssue};
 use crate::error::{ApiError, ApiResult};
 use crate::gitlab::api::{self as gl, check_path, GitlabApi, Rest};
 use crate::gitlab::crawler::{discover, scope_project_id, Connection, PROVIDER};
+use crate::gitlab::security;
 use crate::state::{AppState, OrgId};
 
 const MAX_TOKEN_CHARS: usize = 4096;
@@ -40,6 +43,9 @@ pub struct GitlabCiInput {
     /// Every project the token sees, active in the last 30 days (with an admin's or auditor's token: the
     /// whole instance).
     pub all_projects: bool,
+    /// Also import the results of GitLab's own scanners (SAST, Secret Detection, Dependency Scanning) into Code
+    /// Security. The token's user needs at least the Developer role on the projects.
+    pub import_code_security: bool,
 }
 
 /// The connection as saved; the token is never answered.
@@ -51,6 +57,7 @@ pub struct GitlabCiConnection {
     pub include_subgroups: bool,
     pub project_paths: Vec<String>,
     pub all_projects: bool,
+    pub import_code_security: bool,
     /// Epoch ms.
     pub updated_at: i64,
 }
@@ -172,16 +179,17 @@ pub async fn check(api: &dyn GitlabApi, conn: &Connection) -> GitlabCiTest {
 }
 
 async fn saved(st: &AppState, org: &str) -> Result<Option<(String, GitlabCiConnection)>, sqlx::Error> {
-    /// id, base_url, group_path, include_subgroups, project_paths, all_projects, updated_at
-    type Row = (String, String, String, bool, Vec<String>, bool, i64);
+    /// id, base_url, group_path, include_subgroups, project_paths, all_projects, import_code_security, updated_at
+    type Row = (String, String, String, bool, Vec<String>, bool, bool, i64);
     let row: Option<Row> = sqlx::query_as(
-        "SELECT id::text, base_url, group_path, include_subgroups, project_paths, all_projects, (extract(epoch FROM updated_at) * 1000)::bigint FROM gitlab_ci_connections WHERE org_id = $1",
+        "SELECT id::text, base_url, group_path, include_subgroups, project_paths, all_projects, import_code_security, (extract(epoch FROM updated_at) * 1000)::bigint \
+         FROM gitlab_ci_connections WHERE org_id = $1",
     )
     .bind(org)
     .fetch_optional(&st.postgres)
     .await?;
-    Ok(row.map(|(id, base_url, group_path, include_subgroups, project_paths, all_projects, updated_at)| {
-        (id, GitlabCiConnection { base_url, group_path, include_subgroups, project_paths, all_projects, updated_at })
+    Ok(row.map(|(id, base_url, group_path, include_subgroups, project_paths, all_projects, import_code_security, updated_at)| {
+        (id, GitlabCiConnection { base_url, group_path, include_subgroups, project_paths, all_projects, import_code_security, updated_at })
     }))
 }
 
@@ -211,9 +219,14 @@ pub async fn status(st: &AppState, org: &str) -> Result<GitlabCiStatus, sqlx::Er
     Ok(out)
 }
 
-/// Asks the poller to run the org's jobs now (the discovery first).
+/// Asks the poller to run the org's jobs now (the discovery first), the Code Security import's too.
 async fn poll_now(st: &AppState, org: &str) -> Result<u64, sqlx::Error> {
-    Ok(sqlx::query("UPDATE cloud_crawl_jobs SET next_run_at = now() WHERE provider = $1 AND org_id = $2").bind(PROVIDER).bind(org).execute(&st.postgres).await?.rows_affected())
+    Ok(sqlx::query("UPDATE cloud_crawl_jobs SET next_run_at = now() WHERE provider = ANY($1) AND org_id = $2")
+        .bind([PROVIDER, security::PROVIDER])
+        .bind(org)
+        .execute(&st.postgres)
+        .await?
+        .rows_affected())
 }
 
 /// The GitLab CI connection and its sync status (no token).
@@ -232,9 +245,11 @@ pub async fn put_gitlab(State(st): State<AppState>, Admin(ctx): Admin, Json(inpu
     let previous = saved(&st, &ctx.org_id).await?;
     let mut tx = st.postgres.begin().await?;
     sqlx::query(
-        "INSERT INTO gitlab_ci_connections (org_id, base_url, token_enc, group_path, include_subgroups, project_paths, updated_by, all_projects) VALUES ($1, $2, $3, $4, $5, $6, $7::uuid, $8) \
+        "INSERT INTO gitlab_ci_connections (org_id, base_url, token_enc, group_path, include_subgroups, project_paths, updated_by, all_projects, import_code_security) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7::uuid, $8, $9) \
          ON CONFLICT (org_id) DO UPDATE SET base_url = EXCLUDED.base_url, token_enc = EXCLUDED.token_enc, group_path = EXCLUDED.group_path, \
-         include_subgroups = EXCLUDED.include_subgroups, project_paths = EXCLUDED.project_paths, updated_by = EXCLUDED.updated_by, all_projects = EXCLUDED.all_projects, updated_at = now()",
+         include_subgroups = EXCLUDED.include_subgroups, project_paths = EXCLUDED.project_paths, updated_by = EXCLUDED.updated_by, all_projects = EXCLUDED.all_projects, \
+         import_code_security = EXCLUDED.import_code_security, updated_at = now()",
     )
     .bind(&ctx.org_id)
     .bind(&conn.base_url)
@@ -244,16 +259,22 @@ pub async fn put_gitlab(State(st): State<AppState>, Admin(ctx): Admin, Json(inpu
     .bind(&conn.project_paths)
     .bind(&ctx.user_id)
     .bind(conn.all_projects)
+    .bind(input.import_code_security)
     .execute(&mut *tx)
     .await?;
     // Another GitLab: its project and pipeline ids are not the old one's.
-    if previous.as_ref().is_some_and(|(_, p)| p.base_url != conn.base_url) {
+    let moved = previous.as_ref().is_some_and(|(_, p)| p.base_url != conn.base_url);
+    if moved {
         sqlx::query("DELETE FROM cloud_crawl_jobs WHERE provider = $1 AND org_id = $2").bind(PROVIDER).bind(&ctx.org_id).execute(&mut *tx).await?;
         sqlx::query("DELETE FROM gitlab_ci_exported WHERE org_id = $1").bind(&ctx.org_id).execute(&mut *tx).await?;
     }
-    // The discovery job now, rather than at the poller's next planning (which keeps it).
-    sqlx::query("INSERT INTO cloud_crawl_jobs (provider, org_id, account_id, scope) SELECT $1, org_id, id, '' FROM gitlab_ci_connections WHERE org_id = $2 ON CONFLICT DO NOTHING")
-        .bind(PROVIDER)
+    if moved || !input.import_code_security {
+        security::forget(&mut tx, &ctx.org_id).await?;
+    }
+    // The discovery jobs now, rather than at the poller's next planning (which keeps them).
+    let providers: Vec<&str> = if input.import_code_security { vec![PROVIDER, security::PROVIDER] } else { vec![PROVIDER] };
+    sqlx::query("INSERT INTO cloud_crawl_jobs (provider, org_id, account_id, scope) SELECT p, org_id, id, '' FROM gitlab_ci_connections, unnest($1::text[]) p WHERE org_id = $2 ON CONFLICT DO NOTHING")
+        .bind(&providers)
         .bind(&ctx.org_id)
         .execute(&mut *tx)
         .await?;
@@ -274,6 +295,7 @@ pub async fn delete_gitlab(State(st): State<AppState>, Admin(ctx): Admin) -> Res
     }
     sqlx::query("DELETE FROM cloud_crawl_jobs WHERE provider = $1 AND org_id = $2").bind(PROVIDER).bind(&ctx.org_id).execute(&mut *tx).await?;
     sqlx::query("DELETE FROM gitlab_ci_exported WHERE org_id = $1").bind(&ctx.org_id).execute(&mut *tx).await?;
+    security::forget(&mut tx, &ctx.org_id).await?;
     tx.commit().await?;
     ctx.audit(&st, "ci.gitlab_deleted", "gitlab", "").await;
     Ok(StatusCode::NO_CONTENT)
@@ -389,6 +411,30 @@ mod tests {
         assert!(get_gitlab(State(st.clone()), OrgId(a.org_id.clone())).await.unwrap().0.connection.is_some());
         assert_eq!(delete_gitlab(State(st.clone()), Admin(a.clone())).await.unwrap(), StatusCode::NO_CONTENT);
         assert!(get_gitlab(State(st.clone()), OrgId(a.org_id.clone())).await.unwrap().0.connection.is_none());
+    }
+
+    #[tokio::test]
+    async fn importing_code_security_adds_its_jobs_and_turning_it_off_removes_the_results() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let a = crate::test_support::admin_of_new_org(st, "gitlab-cs").await;
+        let on = input(json!({"baseUrl": "https://gitlab.example.com", "token": "glpat-x", "groupPath": "example-org", "importCodeSecurity": true}));
+        let s = put_gitlab(State(st.clone()), Admin(a.clone()), Json(on)).await.unwrap().0;
+        assert!(s.connection.unwrap().import_code_security);
+        let jobs = || async {
+            sqlx::query_scalar::<_, String>("SELECT provider FROM cloud_crawl_jobs WHERE org_id = $1 ORDER BY provider").bind(&a.org_id).fetch_all(&st.postgres).await.unwrap()
+        };
+        assert_eq!(jobs().await, [PROVIDER, security::PROVIDER]);
+        sqlx::query("INSERT INTO cs_findings (org_id, id, kind, tool, rule_id, source) VALUES ($1, 'gl1', 'sast', 'semgrep', 'r', 'gitlab'), ($1, 'up1', 'sast', 'semgrep', 'r', 'upload')")
+            .bind(&a.org_id)
+            .execute(&st.postgres)
+            .await
+            .unwrap();
+        let off = input(json!({"baseUrl": "https://gitlab.example.com", "groupPath": "example-org"}));
+        let _ = put_gitlab(State(st.clone()), Admin(a.clone()), Json(off)).await.unwrap();
+        assert_eq!(jobs().await, [PROVIDER]);
+        let left: Vec<String> = sqlx::query_scalar("SELECT id FROM cs_findings WHERE org_id = $1").bind(&a.org_id).fetch_all(&st.postgres).await.unwrap();
+        assert_eq!(left, ["up1"]);
     }
 
     #[tokio::test]
