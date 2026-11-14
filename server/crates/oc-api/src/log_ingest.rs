@@ -179,8 +179,9 @@ async fn store(st: &AppState, ix: &Arc<Indexer>, out: &Arc<Outputs>, rows: Vec<R
     let (ix_rows, watched) = (ix.clone(), out.watched());
     let (rows, by_org) = tokio::task::spawn_blocking(move || {
         let mut rows = rows;
-        // Live tail gets the logs as normalized, before the org's pipelines (as from Vector).
-        let by_org = live_payloads(&rows, &watched);
+        // Live tail gets the logs as normalized, before the org's pipelines (as from Vector), scanned by the org's
+        // Sensitive Data Scanner.
+        let by_org = live_payloads(&rows, &watched, &ix_rows.sds);
         logproc::prepare_normalized(&ix_rows, &mut rows, now);
         (rows, by_org)
     })
@@ -197,14 +198,22 @@ async fn store(st: &AppState, ix: &Arc<Indexer>, out: &Arc<Outputs>, rows: Vec<R
     Ok(())
 }
 
-/// Live tail's records: the logs of orgs with an open session, as normalized, grouped by org.
-fn live_payloads(rows: &[Row], watched: &HashSet<String>) -> HashMap<String, Vec<Vec<u8>>> {
+/// Live tail's records: the logs of orgs with an open session, as normalized and redacted by the org's Sensitive
+/// Data Scanner (`sds`), grouped by org.
+fn live_payloads(rows: &[Row], watched: &HashSet<String>, sds: &crate::sds::Scanners) -> HashMap<String, Vec<Vec<u8>>> {
     let mut by_org: HashMap<String, Vec<Vec<u8>>> = HashMap::new();
     if watched.is_empty() {
         return by_org;
     }
     for row in rows.iter().filter(|r| watched.contains(&r.org_id)) {
-        if let Ok(json) = serde_json::to_vec(row) {
+        let json = if sds.get(&row.org_id).is_some() {
+            let mut copy = row.clone();
+            logproc::scan_normalized(sds, &mut copy, false);
+            serde_json::to_vec(&copy)
+        } else {
+            serde_json::to_vec(row)
+        };
+        if let Ok(json) = json {
             by_org.entry(row.org_id.clone()).or_default().push(json);
         }
     }
@@ -682,12 +691,49 @@ mod tests {
         };
         let rows = vec![row("acme"), row("other"), row("acme")];
         let watched: std::collections::HashSet<String> = ["acme".to_string()].into();
-        let live = live_payloads(&rows, &watched);
+        let live = live_payloads(&rows, &watched, &Default::default());
         assert_eq!(live.keys().collect::<Vec<_>>(), ["acme"]);
         assert_eq!(live["acme"].len(), 2);
         let first: serde_json::Value = serde_json::from_slice(&live["acme"][0]).unwrap();
         assert_eq!((first["message"].as_str(), first["attr"]["user_agent"].as_str()), (Some("hi"), Some("curl")));
-        assert!(live_payloads(&rows, &Default::default()).is_empty());
+        assert!(live_payloads(&rows, &Default::default(), &Default::default()).is_empty());
+    }
+
+    /// Live tail's copy is redacted by the org's Sensitive Data Scanner, as the stored logs are; its matches aren't
+    /// counted twice.
+    #[test]
+    fn live_tail_gets_logs_redacted_by_the_sensitive_data_scanner() {
+        use crate::sds::config::{Config, GroupRow, RuleRow};
+        let now = chrono::Utc::now();
+        let fields = serde_json::json!({ "source_type": "kafka", "_oc_kafka_headers": { "x-oc-org": "acme" }, "message": "paid with 4111 1111 1111 1111", "card": "5555-5555-5555-4444" });
+        let rows = vec![log_normalize::normalize(crate::log_normalize::LogEvent { fields: fields.as_object().unwrap().clone(), timestamp: Some(now) }, now).unwrap()];
+        let sds = crate::sds::Scanners::default();
+        let cfg = Config {
+            version: 1,
+            groups: vec![GroupRow { id: "g".into(), attributes: serde_json::json!({ "name": "PCI", "is_enabled": true, "filter": { "query": "*" } }) }],
+            rules: vec![RuleRow {
+                id: "r".into(),
+                group_id: "g".into(),
+                standard_pattern_id: Some("credit_card".into()),
+                attributes: serde_json::json!({ "name": "cards", "is_enabled": true, "text_replacement": { "type": "replacement_string", "replacement_string": "[card]" } }),
+            }],
+        };
+        sds.put("acme", 1, crate::sds::Scanner::compile(&cfg));
+        let live = live_payloads(&rows, &["acme".to_string()].into(), &sds);
+        let first: serde_json::Value = serde_json::from_slice(&live["acme"][0]).unwrap();
+        assert_eq!(first["message"], "paid with [card]");
+        assert_eq!(first["attr"]["card"], "[card]");
+        assert_eq!(first["tags"]["sensitive_data"], "credit_card");
+        assert_eq!(rows[0].message, "paid with 4111 1111 1111 1111", "the stored path scans its own copy");
+        assert!(sds.drain_points(0).is_empty());
+
+        // The indexer's path scans after the pipelines and counts.
+        let ix = logproc::test_indexer(&["acme"]);
+        ix.sds.put("acme", 1, crate::sds::Scanner::compile(&cfg));
+        let mut stored = rows.clone();
+        logproc::prepare_normalized(&ix, &mut stored, now.timestamp_millis());
+        assert_eq!(stored[0].message, "paid with [card]");
+        assert_eq!(ix.sds.drain_points(0).len(), 1);
     }
 
     /// Rows admitted as `Row` write the same indexed lines as the same rows admitted as JSON.
