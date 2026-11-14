@@ -394,14 +394,10 @@ async fn sync_osv(st: &AppState, base: &str, http: &reqwest::Client) -> anyhow::
             }
         }
     }
-    let (mut ok, mut again): (Vec<&(String, String)>, Vec<&(String, String)>) = (due.iter().filter(|(e, _)| !model::osv_queryable(e)).collect(), vec![]);
-    for (k, p) in queried.iter().enumerate() {
-        if retry.contains(&k) {
-            again.push(p);
-        } else {
-            ok.push(p);
-        }
-    }
+    let failed_pkg = |k: &usize| retry.contains(k);
+    let again: Vec<&(String, String)> = queried.iter().enumerate().filter(|(k, _)| failed_pkg(k)).map(|(_, p)| *p).collect();
+    let ok: Vec<&(String, String)> =
+        due.iter().filter(|(e, _)| !model::osv_queryable(e)).chain(queried.iter().enumerate().filter(|(k, _)| !failed_pkg(k)).map(|(_, p)| *p)).collect();
     for (pkgs, hours_ago) in [(ok, 0), (again, OSV_REFRESH_HOURS - 1)] {
         let (ecos, names): (Vec<String>, Vec<String>) = pkgs.into_iter().cloned().unzip();
         sqlx::query(
