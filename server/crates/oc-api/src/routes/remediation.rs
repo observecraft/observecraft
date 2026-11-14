@@ -1130,7 +1130,8 @@ mod tests {
         assert!(e.contains("Explain this code vulnerability") && e.contains("python-security/sql-injection") && e.contains("    2  b\n    3  c\n    4  d"), "{e}");
         assert!(!explain_opening(Kind::CloudMisconfiguration, &detail, "").contains("```"));
         let f = fix_opening(Kind::Secret, &detail, "app/billing/charges.py", 4, "STRIPE_KEY = \"x\"\n");
-        assert!(f.contains("Change only app/billing/charges.py") && f.contains("must be rotated") && f.contains("STRIPE_KEY"), "{f}");
+        // No message: the opening carries the secret's line, which a failing assert would print.
+        assert!(f.contains("Change only app/billing/charges.py") && f.contains("must be rotated") && f.contains("STRIPE_KEY"));
     }
 
     #[tokio::test]
