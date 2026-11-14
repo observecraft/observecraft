@@ -74,52 +74,93 @@ pub struct SbomEntity {
     pub components: Vec<SbomComponent>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default, Clone)]
+#[serde(rename_all = "camelCase", default)]
 pub struct SbomComponent {
     /// Used when the purl has no version.
-    #[serde(default)]
     pub version: String,
-    #[serde(default)]
     pub purl: String,
+    /// The source package of an OS package (Trivy's `SrcName`), and its `epoch:version-release`.
+    pub src_name: String,
+    pub src_version: String,
 }
 
 fn qualifier<'a>(purl: &'a str, key: &str) -> Option<&'a str> {
     purl.split_once('?')?.1.split(['&', '#']).find_map(|kv| kv.strip_prefix(key)?.strip_prefix('='))
 }
 
-/// A package's OSV ecosystem, name and version from its purl: OS packages (deb, apk) by distribution
-/// release, language packages as Code Security keys them.
+/// A package's OSV ecosystem, name and version from its purl: OS packages (deb, rpm, apk) by distribution
+/// release with the `epoch=` qualifier in the version (`1:1.5.2-6+deb12u1`), language packages as Code
+/// Security keys them.
 pub fn package_of(purl: &str) -> Option<(String, String, String)> {
     let rest = purl.strip_prefix("pkg:")?;
     let (kind, after) = rest.split_once('/')?;
-    if matches!(kind, "deb" | "apk") {
+    if matches!(kind, "deb" | "apk" | "rpm") {
         let path = after.split(['?', '#']).next()?;
         let (path, version) = path.rsplit_once('@')?;
         let (vendor, name) = path.split_once('/').unwrap_or(("", path));
         let distro = qualifier(purl, "distro").unwrap_or_default();
-        let release = distro.rsplit('-').next().unwrap_or(distro);
+        // `debian-12.5`, `amazon-2023.3.20240219`, `opensuse.leap-15.5`; Alpine's is the bare release.
+        let release = distro.strip_prefix(vendor).map(|r| r.trim_start_matches('-')).unwrap_or_else(|| distro.rsplit('-').next().unwrap_or(distro));
+        let major = release.split(['.', ' ']).next().unwrap_or(release);
         let eco = match (kind, vendor) {
-            ("deb", "debian") => format!("Debian:{}", release.split('.').next().unwrap_or(release)),
+            ("deb", "debian") => format!("Debian:{major}"),
             ("deb", "ubuntu") => {
-                let lts = release.ends_with(".04") && release.split('.').next().and_then(|y| y.parse::<u32>().ok()).is_some_and(|y| y % 2 == 0);
+                let lts = release.ends_with(".04") && major.parse::<u32>().is_ok_and(|y| y % 2 == 0);
                 format!("Ubuntu:{release}{}", if lts { ":LTS" } else { "" })
             }
-            ("apk", _) => format!("Alpine:v{}", release.split('.').take(2).collect::<Vec<_>>().join(".")),
+            ("apk", "alpine") => format!("Alpine:v{}", release.split('.').take(2).collect::<Vec<_>>().join(".")),
+            ("apk", "wolfi") => "Wolfi".into(),
+            ("apk", "chainguard") => "Chainguard".into(),
+            ("rpm", "alma" | "almalinux") => format!("AlmaLinux:{major}"),
+            ("rpm", "rocky") => format!("Rocky Linux:{major}"),
+            // OSV's Red Hat advisories are keyed by product stream (`Red Hat:enterprise_linux:9::baseos`): listed, rarely matched.
+            ("rpm", "redhat") => format!("Red Hat:{major}"),
+            ("rpm", "centos") => format!("CentOS:{major}"),
+            ("rpm", "amazon") => format!("Amazon Linux:{major}"),
+            ("rpm", "oracle") => format!("Oracle Linux:{major}"),
+            ("rpm", "fedora") => format!("Fedora:{major}"),
+            ("rpm", "photon") => format!("Photon OS:{}", if release.contains('.') { release.to_string() } else { format!("{release}.0") }),
+            ("rpm", "mageia") => format!("Mageia:{major}"),
+            ("rpm", "opensuse.leap" | "opensuse-leap") => format!("openSUSE:Leap {release}"),
+            ("rpm", "opensuse.tumbleweed" | "opensuse-tumbleweed") => "openSUSE:Tumbleweed".into(),
+            ("rpm", "sles" | "suse") => {
+                let sp = release.split('.').nth(1).filter(|m| *m != "0").map(|m| format!(" SP{m}")).unwrap_or_default();
+                format!("SUSE:Linux Enterprise Server {major}{sp}")
+            }
+            ("rpm", "cbl-mariner" | "mariner" | "azurelinux") => format!("Azure Linux:{major}"),
+            ("deb" | "apk" | "rpm", v) if !v.is_empty() => format!("{v}:{major}"),
             _ => return None,
         };
-        return Some((eco, name.to_string(), version.replace("%7E", "~").replace("%2B", "+")));
+        let version = model::percent_decode(version);
+        let version = match qualifier(purl, "epoch").filter(|e| *e != "0" && !e.is_empty()) {
+            Some(e) if !version.contains(':') => format!("{e}:{version}"),
+            _ => version,
+        };
+        return Some((eco, model::percent_decode(name), version));
     }
     model::parse_purl(purl).map(|(e, n, v)| (e.to_string(), n, v))
 }
 
-/// The distribution of an SBOM, from its OS packages' purls (`debian 12`).
+/// [`package_of`] of a component, an OS package keyed by its source package when the SBOM names it:
+/// distributions' advisories are by source package (`openssl`, not `libssl3`).
+pub fn package_of_component(c: &SbomComponent) -> Option<(String, String, String)> {
+    let (eco, name, version) = package_of(&c.purl)?;
+    if c.src_name.is_empty() || !model::language_of_ecosystem(&eco).is_empty() {
+        return Some((eco, name, version));
+    }
+    let version = if c.src_version.is_empty() { version } else { c.src_version.clone() };
+    Some((eco, c.src_name.clone(), version))
+}
+
+/// The distribution of an SBOM, from its OS packages' purls (`debian 12`, `amazon linux 2023`, `wolfi`).
 pub fn os_of(components: &[SbomComponent]) -> String {
     components
         .iter()
         .find_map(|c| {
             let (eco, _, _) = package_of(&c.purl)?;
-            let (name, release) = eco.split_once(':')?;
-            matches!(name, "Debian" | "Ubuntu" | "Alpine").then(|| format!("{} {}", name.to_lowercase(), release.trim_end_matches(":LTS").trim_start_matches('v')))
+            let (name, release) = eco.split_once(':').unwrap_or((&eco, ""));
+            model::language_of_ecosystem(name).is_empty().then(|| format!("{} {}", name.to_lowercase(), release.trim_end_matches(":LTS").trim_start_matches('v')).trim().to_string())
         })
         .unwrap_or_default()
 }
@@ -173,7 +214,7 @@ pub async fn store_sbom(st: &AppState, org: &str, upload: &SbomUpload) -> Result
             let mut seen = HashSet::new();
             let (mut ecos, mut names, mut versions, mut purls) = (vec![], vec![], vec![], vec![]);
             for c in &e.components {
-                let Some((eco, n, v)) = package_of(&c.purl) else { continue };
+                let Some((eco, n, v)) = package_of_component(c) else { continue };
                 let v = if v.is_empty() { c.version.clone() } else { v };
                 if v.is_empty() || !seen.insert((eco.clone(), n.clone(), v.clone())) {
                     continue;
@@ -287,7 +328,7 @@ pub async fn infra_vulnerabilities(st: &AppState, org: &str) -> Result<Vec<Infra
         .into_iter()
         .filter_map(|r| {
             let ranges: Vec<AffectedRange> = serde_json::from_str(&r.ranges).unwrap_or_default();
-            if !model::is_affected(&r.version, &ranges, &r.versions) {
+            if !model::is_affected_in(&r.ecosystem, &r.version, &ranges, &r.versions) {
                 return None;
             }
             let key = format!("csm-vuln:{}:{}:{}", r.advisory_id, r.entity_id, r.name);
@@ -301,7 +342,7 @@ pub async fn infra_vulnerabilities(st: &AppState, org: &str) -> Result<Vec<Infra
                 severity: r.severity,
                 score: r.score.map(|s| (s as f64 * 10.0).round() / 10.0),
                 cwes: r.cwes,
-                fixed: model::fix_for(&r.version, &ranges),
+                fixed: model::fix_for_in(&r.ecosystem, &r.version, &ranges),
                 ecosystem: r.ecosystem,
                 package: r.name,
                 version: r.version,
@@ -949,9 +990,54 @@ mod tests {
         assert_eq!(package_of("pkg:deb/ubuntu/x@1?distro=ubuntu-23.10").unwrap().0, "Ubuntu:23.10");
         assert_eq!(package_of("pkg:apk/alpine/example-musl@1.2.4-r2?arch=x86_64&distro=3.19.1").unwrap(), ("Alpine:v3.19".into(), "example-musl".into(), "1.2.4-r2".into()));
         assert_eq!(package_of("pkg:maven/com.example.json/json-core@2.15.0").unwrap().0, "Maven");
-        assert!(package_of("pkg:rpm/redhat/openssl@3.0.7").is_none());
-        let comps = vec![SbomComponent { version: "1".into(), purl: "pkg:deb/debian/x@1?distro=debian-12".into() }];
+        let comps = vec![SbomComponent { version: "1".into(), purl: "pkg:deb/debian/x@1?distro=debian-12".into(), ..Default::default() }];
         assert_eq!(os_of(&comps), "debian 12");
+    }
+
+    #[test]
+    fn os_purls_keep_epochs_rpm_and_wolfi() {
+        let p = |purl: &str| package_of(purl).unwrap();
+        // Trivy puts a non-zero epoch in a qualifier; advisories compare `epoch:version-release`.
+        assert_eq!(p("pkg:deb/debian/libpam0g@1.5.2-6%2Bdeb12u1?arch=amd64&distro=debian-12.5&epoch=1").2, "1:1.5.2-6+deb12u1");
+        assert_eq!(p("pkg:deb/debian/libssl3@3.0.11-1%7Edeb12u2?arch=amd64&distro=debian-12.5&epoch=0").2, "3.0.11-1~deb12u2");
+        assert_eq!(p("pkg:rpm/rocky/openssl-libs@3.0.7-27.el9?arch=x86_64&distro=rocky-9.3&epoch=1"), ("Rocky Linux:9".into(), "openssl-libs".into(), "1:3.0.7-27.el9".into()));
+        assert_eq!(p("pkg:rpm/alma/glibc@2.34-100.el9?arch=x86_64&distro=alma-9.4").0, "AlmaLinux:9");
+        assert_eq!(p("pkg:rpm/redhat/openssl@3.0.7-27.el9?distro=redhat-9.3").0, "Red Hat:9");
+        assert_eq!(p("pkg:rpm/amazon/curl@8.5.0-1.amzn2023.0.2?distro=amazon-2023.3.20240219").0, "Amazon Linux:2023");
+        assert_eq!(p("pkg:rpm/centos/bash@4.2.46-35.el7_9?distro=centos-7.9.2009").0, "CentOS:7");
+        assert_eq!(p("pkg:rpm/opensuse.leap/zlib@1.2.13-150500.4.3.1?distro=opensuse.leap-15.5").0, "openSUSE:Leap 15.5");
+        assert_eq!(p("pkg:apk/wolfi/glibc@2.38-r10?arch=x86_64&distro=20230201"), ("Wolfi".into(), "glibc".into(), "2.38-r10".into()));
+        assert_eq!(p("pkg:apk/chainguard/openssl@3.3.0-r8?distro=20230214").0, "Chainguard");
+        // Only ecosystems OSV knows are looked up there.
+        assert!(model::osv_queryable("Debian:12") && model::osv_queryable("Wolfi") && model::osv_queryable("PyPI") && model::osv_queryable("Rocky Linux:9"));
+        assert!(!model::osv_queryable("Amazon Linux:2023") && !model::osv_queryable("CentOS:7"));
+        let os = |purl: &str| os_of(&[SbomComponent { purl: purl.into(), ..Default::default() }]);
+        assert_eq!(os("pkg:rpm/amazon/curl@8.5.0-1.amzn2023?distro=amazon-2023.3"), "amazon linux 2023");
+        assert_eq!(os("pkg:apk/wolfi/glibc@2.38-r10?distro=20230201"), "wolfi");
+        assert_eq!(os("pkg:deb/ubuntu/x@1?distro=ubuntu-22.04"), "ubuntu 22.04");
+        assert_eq!(os("pkg:pypi/requests@2.31.0"), "");
+    }
+
+    #[test]
+    fn os_packages_are_keyed_by_their_source_package() {
+        let c = SbomComponent {
+            version: "3.0.11-1~deb12u2".into(),
+            purl: "pkg:deb/debian/libssl3@3.0.11-1~deb12u2?arch=amd64&distro=debian-12.5".into(),
+            src_name: "openssl".into(),
+            src_version: "3.0.11-1~deb12u2".into(),
+        };
+        assert_eq!(package_of_component(&c).unwrap(), ("Debian:12".into(), "openssl".into(), "3.0.11-1~deb12u2".into()));
+        // No source version: the binary's.
+        let c2 = SbomComponent { src_version: String::new(), ..c };
+        assert_eq!(package_of_component(&c2).unwrap().2, "3.0.11-1~deb12u2");
+        // Language packages keep their own name.
+        let lib = SbomComponent { purl: "pkg:pypi/requests@2.31.0".into(), src_name: "x".into(), ..Default::default() };
+        assert_eq!(package_of_component(&lib).unwrap().1, "requests");
+        // Through the upload's JSON.
+        let up: SbomUpload = serde_json::from_value(serde_json::json!({ "host": "h", "entities": [{ "kind": "host", "id": "h", "components": [
+            { "version": "1.2.4-r2", "purl": "pkg:apk/alpine/musl-utils@1.2.4-r2?distro=3.19.1", "srcName": "musl", "srcVersion": "1.2.4-r2" }] }] }))
+        .unwrap();
+        assert_eq!(package_of_component(&up.entities[0].components[0]).unwrap(), ("Alpine:v3.19".into(), "musl".into(), "1.2.4-r2".into()));
     }
 
     #[test]

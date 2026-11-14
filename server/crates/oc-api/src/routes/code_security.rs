@@ -333,7 +333,9 @@ pub(crate) async fn store_advisory(pg: &sqlx::PgPool, AdvisoryWrite(a, source): 
     tx.commit().await
 }
 
-/// One pass of the OSV lookup: the packages some org uses that weren't looked up recently.
+/// One pass of the OSV lookup: the packages some org uses that weren't looked up recently. Returns how
+/// many packages were due (0: none left). One advisory failing doesn't fail the pass: the packages it
+/// affects are looked up again in an hour, the others are checked.
 async fn sync_osv(st: &AppState, base: &str, http: &reqwest::Client) -> anyhow::Result<usize> {
     // Package names only (no org data leaves the server, and none is read per org here): the
     // libraries of Code Security and the packages of Cloud Security's SBOMs.
@@ -348,51 +350,83 @@ async fn sync_osv(st: &AppState, base: &str, http: &reqwest::Client) -> anyhow::
     if due.is_empty() {
         return Ok(0);
     }
-    let queries: Vec<Value> = due.iter().map(|(e, n)| json!({ "package": { "ecosystem": e, "name": n } })).collect();
-    let res: Value = http.post(format!("{base}/v1/querybatch")).json(&json!({ "queries": queries })).send().await?.error_for_status()?.json().await?;
-    let mut ids: BTreeMap<String, String> = BTreeMap::new();
-    for r in res.get("results").and_then(Value::as_array).into_iter().flatten() {
-        for v in r.get("vulns").and_then(Value::as_array).into_iter().flatten() {
-            if let Some(id) = v.get("id").and_then(Value::as_str) {
-                ids.insert(id.to_string(), v.get("modified").and_then(Value::as_str).unwrap_or("").to_string());
-            }
-        }
-    }
-    let known: Vec<(String, Option<i64>)> = sqlx::query_as("SELECT id, (EXTRACT(EPOCH FROM modified) * 1000)::bigint FROM cs_advisories WHERE id = ANY($1)")
-        .bind(ids.keys().cloned().collect::<Vec<_>>())
-        .fetch_all(&st.postgres)
-        .await?;
+    // OSV rejects a batch with an ecosystem it doesn't know (Amazon Linux, CentOS…): those are only checked.
+    let queried: Vec<&(String, String)> = due.iter().filter(|(e, _)| model::osv_queryable(e)).collect();
+    let ids = if queried.is_empty() {
+        Default::default()
+    } else {
+        let queries: Vec<Value> = queried.iter().map(|(e, n)| json!({ "package": { "ecosystem": e, "name": n } })).collect();
+        let res: Value = http.post(format!("{base}/v1/querybatch")).json(&json!({ "queries": queries })).send().await?.error_for_status()?.json().await?;
+        model::osv_batch_advisories(&res)
+    };
+    // Advisories stored while distributions lost their release (`Debian` for `Debian:12`) are stored again.
+    let known: Vec<(String, Option<i64>)> = sqlx::query_as(
+        "SELECT a.id, (EXTRACT(EPOCH FROM a.modified) * 1000)::bigint FROM cs_advisories a WHERE a.id = ANY($1) \
+         AND NOT EXISTS (SELECT 1 FROM cs_advisory_packages p WHERE p.advisory_id = a.id AND p.ecosystem = ANY($2))",
+    )
+    .bind(ids.keys().cloned().collect::<Vec<_>>())
+    .bind(model::DISTRO_ECOSYSTEMS.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+    .fetch_all(&st.postgres)
+    .await?;
     let known: HashMap<String, Option<i64>> = known.into_iter().collect();
-    let mut fetched = 0;
-    for (id, modified) in &ids {
+    let (mut fetched, mut unchanged, mut failed) = (0, 0, 0);
+    let mut retry: HashSet<usize> = HashSet::new();
+    for (id, (modified, pkgs)) in &ids {
         let modified = chrono::DateTime::parse_from_rfc3339(modified).ok().map(|d| d.timestamp_millis());
         if let Some(prev) = known.get(id) {
             if prev.is_some() && *prev >= modified {
+                unchanged += 1;
                 continue;
             }
         }
-        let v: Value = match http.get(format!("{base}/v1/vulns/{id}")).send().await.and_then(|r| r.error_for_status()) {
-            Ok(r) => r.json().await?,
+        let fetch = async {
+            let v: Value = http.get(format!("{base}/v1/vulns/{id}")).send().await?.error_for_status()?.json().await?;
+            let a = model::parse_osv(&v).ok_or_else(|| anyhow::anyhow!("not an OSV record"))?;
+            store_advisory(&st.postgres, AdvisoryWrite(&a, "osv")).await?;
+            anyhow::Ok(())
+        };
+        match fetch.await {
+            Ok(()) => fetched += 1,
             Err(e) => {
                 tracing::warn!(id, error = %e, "fetching an OSV advisory failed");
-                continue;
+                failed += 1;
+                retry.extend(pkgs.iter().copied());
             }
-        };
-        if let Some(a) = model::parse_osv(&v) {
-            store_advisory(&st.postgres, AdvisoryWrite(&a, "osv")).await?;
-            fetched += 1;
         }
     }
-    let (ecos, names): (Vec<String>, Vec<String>) = due.into_iter().unzip();
-    sqlx::query(
-        "INSERT INTO cs_osv_packages (ecosystem, package, checked_at) SELECT * , now() FROM unnest($1::text[], $2::text[]) \
-         ON CONFLICT (ecosystem, package) DO UPDATE SET checked_at = now()",
-    )
-    .bind(&ecos)
-    .bind(&names)
-    .execute(&st.postgres)
-    .await?;
-    Ok(fetched)
+    let (mut ok, mut again): (Vec<&(String, String)>, Vec<&(String, String)>) = (due.iter().filter(|(e, _)| !model::osv_queryable(e)).collect(), vec![]);
+    for (k, p) in queried.iter().enumerate() {
+        if retry.contains(&k) {
+            again.push(p);
+        } else {
+            ok.push(p);
+        }
+    }
+    for (pkgs, hours_ago) in [(ok, 0), (again, OSV_REFRESH_HOURS - 1)] {
+        let (ecos, names): (Vec<String>, Vec<String>) = pkgs.into_iter().cloned().unzip();
+        sqlx::query(
+            "INSERT INTO cs_osv_packages (ecosystem, package, checked_at) SELECT e, n, now() - make_interval(hours => $3) FROM unnest($1::text[], $2::text[]) AS u(e, n) \
+             ON CONFLICT (ecosystem, package) DO UPDATE SET checked_at = EXCLUDED.checked_at",
+        )
+        .bind(&ecos)
+        .bind(&names)
+        .bind(hours_ago)
+        .execute(&st.postgres)
+        .await?;
+    }
+    let os = queried.iter().filter(|(e, _)| model::language_of_ecosystem(e).is_empty()).count();
+    tracing::info!(
+        due = due.len(),
+        queried = queried.len(),
+        os_packages = os,
+        not_in_osv = due.len() - queried.len(),
+        advisories = ids.len(),
+        fetched,
+        unchanged,
+        failed,
+        "OSV matching pass"
+    );
+    Ok(due.len())
 }
 
 /// Keeps the advisories of the packages in use current (every few minutes, one server at a time).
@@ -417,7 +451,7 @@ pub async fn run_osv_sync(st: AppState) {
         for _ in 0..10 {
             match sync_osv(&st, &base, &http).await {
                 Ok(0) => break,
-                Ok(n) => tracing::info!(advisories = n, "fetched OSV advisories"),
+                Ok(_) => {}
                 Err(e) => {
                     tracing::warn!(error = %e, "OSV lookup failed");
                     break;
