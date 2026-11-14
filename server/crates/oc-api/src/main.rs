@@ -185,6 +185,7 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(org_limits::background(routes::synthetics::run_scheduler(state.clone())));
     tokio::spawn(org_limits::background(routes::scorecards::run_scheduler(state.clone())));
     tokio::spawn(org_limits::background(routes::resource_policies::run_snapshots(state.clone())));
+    tokio::spawn(org_limits::background(routes::tagging_policies::run_snapshots(state.clone())));
     tokio::spawn(org_limits::background(routes::resource_changes::run(state.clone())));
     if state.config.seed_demo {
         tokio::spawn(org_limits::background(routes::cloud_cost::run_demo(state.clone(), state.config.dev_org.clone())));

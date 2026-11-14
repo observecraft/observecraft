@@ -526,9 +526,63 @@ pub async fn misconfigurations_of(st: &AppState, org: &str) -> Result<(Vec<Misco
     let (mut findings, mut rules) = evaluate(&resources, &manifests, &triage);
     let (scanned, scanned_rules) = posture_misconfigurations(&crate::posture::store::findings(&st.postgres, org, false).await?);
     findings.extend(scanned);
+    // Resources missing the tags the org's tagging policies require (a failure there leaves the other rules shown).
+    let (evaluated, gaps) = super::tagging_policies::misconfig_gaps(st, org).await.unwrap_or_else(|e| {
+        tracing::warn!(org = %org, error = %e, "evaluating tagging policies for misconfigurations failed");
+        (0, vec![])
+    });
+    let (tagged, tag_rule) = tagging_misconfigurations(evaluated, &gaps, &triage);
+    findings.extend(tagged);
+    rules.push(tag_rule);
     findings.sort_by(|a, b| model::severity_rank(&b.severity).cmp(&model::severity_rank(&a.severity)).then(a.rule_id.cmp(&b.rule_id)).then(a.resource_name.cmp(&b.resource_name)));
     rules.extend(scanned_rules);
     Ok((findings, rules))
+}
+
+/// Resources failing the org's tagging policies as findings of the low-severity rule
+/// [`super::tagging_policies::MISCONFIG_RULE`], with the rule's counts.
+pub fn tagging_misconfigurations(evaluated: usize, gaps: &[super::tagging_rules::NonCompliantResource], triage: &HashMap<String, String>) -> (Vec<MisconfigFinding>, MisconfigRuleStatus) {
+    use super::tagging_policies::{misconfig_detail, MISCONFIG_DESCRIPTION, MISCONFIG_NAME, MISCONFIG_REMEDIATION, MISCONFIG_RULE};
+    let findings = gaps
+        .iter()
+        .map(|g| {
+            let r = &g.resource;
+            let key = format!("misconfig:{MISCONFIG_RULE}:{}", r.id);
+            MisconfigFinding {
+                status: triage.get(&key).cloned().unwrap_or_else(|| "open".into()),
+                key,
+                rule_id: MISCONFIG_RULE.into(),
+                rule_name: MISCONFIG_NAME.into(),
+                severity: "low".into(),
+                description: MISCONFIG_DESCRIPTION.into(),
+                remediation: MISCONFIG_REMEDIATION.into(),
+                frameworks: vec![],
+                detail: misconfig_detail(g),
+                resource_id: r.id.clone(),
+                resource_name: r.name.clone(),
+                resource_type: r.resource_type.clone(),
+                cluster: r.cluster.clone(),
+                namespace: r.namespace.clone(),
+                account: r.account.clone(),
+                region: r.region.clone(),
+                env: r.env.clone(),
+                service: super::provenance::tag_values(&r.tags, "service").first().map(|v| v.to_string()),
+                team: r.team.clone(),
+                last_seen: 0,
+            }
+        })
+        .collect();
+    let rule = MisconfigRuleStatus {
+        id: MISCONFIG_RULE.into(),
+        name: MISCONFIG_NAME.into(),
+        severity: "low".into(),
+        description: MISCONFIG_DESCRIPTION.into(),
+        remediation: MISCONFIG_REMEDIATION.into(),
+        frameworks: vec![],
+        evaluated,
+        failing: gaps.len(),
+    };
+    (findings, rule)
 }
 
 /// The cloud account scans' results (`crate::posture`) as findings and rules of this page: the failures, and per
@@ -1024,6 +1078,34 @@ pub async fn seed_demo_advisories(st: &AppState) -> Result<(), ApiError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resources_missing_required_tags_are_low_severity_findings_with_their_triage() {
+        use super::super::provenance::{TagTarget, TaggedResource};
+        use super::super::tagging_rules::{NonCompliantResource, PolicyGaps, TagGap};
+        let resource = TaggedResource {
+            id: "arn:aws:s3:::example-shop-assets".into(),
+            target: TagTarget::Cloud,
+            name: "example-shop-assets".into(),
+            resource_type: "AwsS3Bucket".into(),
+            provider: Some("aws".into()),
+            account: Some("123456789012".into()),
+            region: Some("eu-west-1".into()),
+            cluster: None,
+            namespace: None,
+            env: Some("prod".into()),
+            team: None,
+            tags: vec!["env:prod".into(), "service:storefront-api".into()],
+            provenance: None,
+        };
+        let gaps = vec![NonCompliantResource { resource, policies: vec![PolicyGaps { policy_id: "p".into(), policy_name: "Owners".into(), gaps: vec![TagGap { key: "team".into(), value: None }] }] }];
+        let triage = HashMap::from([("misconfig:ocs-tag-001:arn:aws:s3:::example-shop-assets".to_string(), "muted".to_string())]);
+        let (findings, rule) = tagging_misconfigurations(4, &gaps, &triage);
+        assert_eq!((rule.id.as_str(), rule.severity.as_str(), rule.evaluated, rule.failing), ("ocs-tag-001", "low", 4, 1));
+        let f = &findings[0];
+        assert_eq!((f.rule_name.as_str(), f.detail.as_str(), f.status.as_str()), ("Resource missing required tags", "team missing (Owners)", "muted"));
+        assert_eq!((f.account.as_deref(), f.service.as_deref(), f.resource_type.as_str()), (Some("123456789012"), Some("storefront-api"), "AwsS3Bucket"));
+    }
 
     #[test]
     fn purls_map_to_osv_ecosystems() {

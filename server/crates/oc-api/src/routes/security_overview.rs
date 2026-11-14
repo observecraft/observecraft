@@ -195,6 +195,35 @@ pub async fn inbox(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Se
     }))
 }
 
+/// Resources missing the tags the org's tagging policies require, as one low-severity item (listed one by one they
+/// would bury the severe findings); it opens the tag coverage page.
+pub fn tagging_inbox_item(misconfigs: &[super::cloud_security::MisconfigFinding]) -> Option<InboxFinding> {
+    use super::tagging_policies::{MISCONFIG_NAME, MISCONFIG_RULE};
+    const MAX_RESOURCES: usize = 20;
+    let open: Vec<&super::cloud_security::MisconfigFinding> = misconfigs.iter().filter(|m| m.rule_id == MISCONFIG_RULE && m.status == "open").collect();
+    if open.is_empty() {
+        return None;
+    }
+    let mut services: Vec<String> = open.iter().filter_map(|m| m.service.clone()).collect();
+    services.sort();
+    services.dedup();
+    Some(InboxFinding {
+        key: format!("misconfig:{MISCONFIG_RULE}"),
+        title: MISCONFIG_NAME.into(),
+        finding_type: "Misconfiguration".into(),
+        severity: "low".into(),
+        resource_type: "Resource".into(),
+        resources: open.iter().take(MAX_RESOURCES).map(|m| m.resource_name.clone()).collect(),
+        services,
+        repositories: vec![],
+        reasons: vec![format!("{} resource{} lack tags the tagging policies require", open.len(), if open.len() == 1 { "" } else { "s" })],
+        first_seen: 0,
+        triage: "pending".into(),
+        cve: None,
+        link: "/infrastructure/tagging".into(),
+    })
+}
+
 pub async fn inbox_findings(st: &AppState, org: &str) -> Result<Vec<InboxFinding>, ApiError> {
     let kev: HashSet<String> = sqlx::query_scalar("SELECT cve_id FROM security_kev").fetch_all(&st.postgres).await?.into_iter().collect();
     let severe = vec!["critical".to_string(), "high".to_string()];
@@ -252,6 +281,7 @@ pub async fn inbox_findings(st: &AppState, org: &str) -> Result<Vec<InboxFinding
     }
     // Cloud Security: critical and high misconfigurations, and vulnerabilities of running hosts and images.
     let (misconfigs, _) = super::cloud_security::misconfigurations_of(st, org).await?;
+    out.extend(tagging_inbox_item(&misconfigs));
     for m in misconfigs.into_iter().filter(|m| m.status == "open" && matches!(m.severity.as_str(), "critical" | "high")) {
         out.push(InboxFinding {
             key: m.key,
@@ -298,4 +328,43 @@ pub async fn inbox_findings(st: &AppState, org: &str) -> Result<Vec<InboxFinding
     }
     out.sort_by(|a, b| super::security_rules::severity_rank(&b.severity).cmp(&super::security_rules::severity_rank(&a.severity)).then(b.first_seen.cmp(&a.first_seen)));
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::routes::cloud_security::tagging_misconfigurations;
+    use crate::routes::provenance::{TagTarget, TaggedResource};
+    use crate::routes::tagging_rules::{NonCompliantResource, PolicyGaps, TagGap};
+
+    fn gap(name: &str, service: Option<&str>) -> NonCompliantResource {
+        let resource = TaggedResource {
+            id: format!("arn:aws:s3:::{name}"),
+            target: TagTarget::Cloud,
+            name: name.into(),
+            resource_type: "AwsS3Bucket".into(),
+            provider: Some("aws".into()),
+            account: Some("123456789012".into()),
+            region: None,
+            cluster: None,
+            namespace: None,
+            env: None,
+            team: None,
+            tags: service.map(|s| vec![format!("service:{s}")]).unwrap_or_default(),
+            provenance: None,
+        };
+        NonCompliantResource { resource, policies: vec![PolicyGaps { policy_id: "p".into(), policy_name: "Owners".into(), gaps: vec![TagGap { key: "team".into(), value: None }] }] }
+    }
+
+    #[test]
+    fn resources_missing_tags_are_one_low_inbox_item_without_the_muted_ones() {
+        let triage = std::collections::HashMap::from([("misconfig:ocs-tag-001:arn:aws:s3:::example-shop-logs".to_string(), "muted".to_string())]);
+        let (findings, _) = tagging_misconfigurations(3, &[gap("example-shop-assets", Some("storefront-api")), gap("example-shop-logs", None), gap("example-shop-backups", Some("storefront-api"))], &triage);
+        let item = tagging_inbox_item(&findings).unwrap();
+        assert_eq!((item.severity.as_str(), item.title.as_str(), item.link.as_str()), ("low", "Resource missing required tags", "/infrastructure/tagging"));
+        assert_eq!(item.resources, vec!["example-shop-assets", "example-shop-backups"]);
+        assert_eq!(item.services, vec!["storefront-api"]);
+        assert_eq!(item.reasons, vec!["2 resources lack tags the tagging policies require"]);
+        assert!(tagging_inbox_item(&[]).is_none());
+    }
 }
