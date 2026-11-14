@@ -40660,6 +40660,39 @@
           "none"
         ]
       },
+      "CloudAccount": {
+        "type": "object",
+        "required": [
+          "provider",
+          "id",
+          "name",
+          "connected",
+          "resources"
+        ],
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "description": "Connected in Integrations (else only seen on resources)."
+          },
+          "id": {
+            "type": "string",
+            "description": "AWS account id, Azure subscription id, GCP project id."
+          },
+          "name": {
+            "type": "string",
+            "description": "The subscription's or project's display name (empty when unknown)."
+          },
+          "provider": {
+            "type": "string",
+            "description": "aws | azure | gcp"
+          },
+          "resources": {
+            "type": "integer",
+            "description": "Its resources in the catalog.",
+            "minimum": 0
+          }
+        }
+      },
       "CloudCoverage": {
         "type": "object",
         "required": [
@@ -40675,9 +40708,9 @@
           "accounts": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CloudAccount"
             },
-            "description": "Cloud accounts and their providers seen in the catalog."
+            "description": "The connected cloud accounts (AWS accounts, Azure subscriptions, GCP projects) and those only\nseen in the resource catalog."
           },
           "clusters": {
             "type": "integer",
@@ -40685,11 +40718,12 @@
           },
           "hosts": {
             "type": "integer",
+            "description": "Hosts of the host list (Infrastructure).",
             "minimum": 0
           },
           "hostsScanned": {
             "type": "integer",
-            "description": "Hosts that sent an SBOM in the last week.",
+            "description": "Of those, the hosts that sent an SBOM in the last week.",
             "minimum": 0
           },
           "images": {

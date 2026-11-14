@@ -13805,12 +13805,28 @@ export interface components {
         };
         /** @enum {string} */
         Cloud: "aws" | "azure" | "gcp" | "oracle" | "alibaba" | "none";
+        CloudAccount: {
+            /** @description Connected in Integrations (else only seen on resources). */
+            connected: boolean;
+            /** @description AWS account id, Azure subscription id, GCP project id. */
+            id: string;
+            /** @description The subscription's or project's display name (empty when unknown). */
+            name: string;
+            /** @description aws | azure | gcp */
+            provider: string;
+            /** @description Its resources in the catalog. */
+            resources: number;
+        };
         CloudCoverage: {
-            /** @description Cloud accounts and their providers seen in the catalog. */
-            accounts: string[];
+            /**
+             * @description The connected cloud accounts (AWS accounts, Azure subscriptions, GCP projects) and those only
+             *     seen in the resource catalog.
+             */
+            accounts: components["schemas"]["CloudAccount"][];
             clusters: number;
+            /** @description Hosts of the host list (Infrastructure). */
             hosts: number;
-            /** @description Hosts that sent an SBOM in the last week. */
+            /** @description Of those, the hosts that sent an SBOM in the last week. */
             hostsScanned: number;
             images: number;
             imagesRunning: number;

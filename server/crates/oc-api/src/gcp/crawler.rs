@@ -330,8 +330,11 @@ impl Crawler for GcpCrawler {
     async fn run(&self, st: &AppState, job: &JobKey, now_ms: i64) -> Result<Outcome, sqlx::Error> {
         let Some(account) = accounts::get_row(st, &job.org_id, &job.account_id).await? else { return Ok(Outcome::Idle) };
         if job.scope.is_empty() {
-            return Ok(match self.api.projects(&account.client_email).await {
-                Ok(projects) => Outcome::Discovered(projects),
+            return Ok(match self.api.named_projects(&account.client_email).await {
+                Ok(projects) => {
+                    jobs::save_scope_names(st, job, &projects).await?;
+                    Outcome::Discovered(projects.into_iter().map(|(id, _)| id).collect())
+                }
                 Err(e) => Outcome::Failed(issue(&e)),
             });
         }

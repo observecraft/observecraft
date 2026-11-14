@@ -875,8 +875,41 @@ pub struct CloudCoverage {
     pub clusters: usize,
     /// Kubernetes objects evaluated by the misconfiguration rules.
     pub resources_evaluated: usize,
-    /// Cloud accounts and their providers seen in the catalog.
-    pub accounts: Vec<String>,
+    /// The connected cloud accounts (AWS accounts, Azure subscriptions, GCP projects) and those only
+    /// seen in the resource catalog.
+    pub accounts: Vec<CloudAccount>,
+}
+
+#[derive(Serialize, ToSchema, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudAccount {
+    /// aws | azure | gcp
+    pub provider: String,
+    /// AWS account id, Azure subscription id, GCP project id.
+    pub id: String,
+    /// The subscription's or project's display name (empty when unknown).
+    pub name: String,
+    /// Connected in Integrations (else only seen on resources).
+    pub connected: bool,
+    /// Its resources in the catalog.
+    pub resources: usize,
+}
+
+/// The connected accounts (provider, id, name) with their resource counts from the catalog's (provider,
+/// account) pairs, and the accounts only the catalog knows. Ids compare without case (Azure GUIDs).
+pub fn cloud_accounts(connected: Vec<(String, String, String)>, seen: &[(String, String)]) -> Vec<CloudAccount> {
+    let key = |p: &str, id: &str| (p.to_ascii_lowercase(), id.to_ascii_lowercase());
+    let mut out: BTreeMap<(String, String), CloudAccount> = BTreeMap::new();
+    for (provider, id, name) in connected {
+        let e = out.entry(key(&provider, &id)).or_insert_with(|| CloudAccount { provider: provider.to_ascii_lowercase(), id: id.clone(), name: String::new(), connected: true, resources: 0 });
+        if e.name.is_empty() {
+            e.name = name;
+        }
+    }
+    for (provider, id) in seen {
+        out.entry(key(provider, id)).or_insert_with(|| CloudAccount { provider: provider.to_ascii_lowercase(), id: id.clone(), name: String::new(), connected: false, resources: 0 }).resources += 1;
+    }
+    out.into_values().collect()
 }
 
 #[derive(Serialize, ToSchema)]
@@ -938,7 +971,16 @@ pub async fn summary(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<
         .fetch_all(&st.postgres)
         .await?;
     let listed: Vec<&str> = resources.iter().filter(|r| r.resource_type == CatalogType::Host).map(|r| r.name.as_str()).collect();
-    let accounts: BTreeSet<String> = resources.iter().filter_map(|r| Some(format!("{}:{}", r.cloud.clone()?, r.account.clone()?))).collect();
+    let connected: Vec<(String, String, String)> = sqlx::query_as(
+        "SELECT 'aws', aws_account_id, '' FROM aws_accounts WHERE org_id = $1 \
+         UNION SELECT j.provider, j.scope, COALESCE(n.name, '') FROM cloud_crawl_jobs j \
+         LEFT JOIN cloud_scope_names n ON n.org_id = j.org_id AND n.provider = j.provider AND n.scope = j.scope \
+         WHERE j.org_id = $1 AND j.provider IN ('azure', 'gcp') AND j.scope <> ''",
+    )
+    .bind(org)
+    .fetch_all(&st.postgres)
+    .await?;
+    let seen: Vec<(String, String)> = resources.iter().filter_map(|r| Some((r.cloud.clone()?, r.account.clone()?))).collect();
     let clusters: BTreeSet<&str> = resources.iter().filter_map(|r| r.cluster.as_deref()).collect();
     Ok(Json(CloudSecuritySummary {
         vulnerabilities: prioritization,
@@ -949,7 +991,7 @@ pub async fn summary(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<
             images_running: images_running as usize,
             clusters: clusters.len(),
             resources_evaluated: resources.iter().filter(|r| target_of(r).is_some() && (r.resource_type == CatalogType::Host || manifests.contains_key(&r.id))).count(),
-            accounts: accounts.into_iter().collect(),
+            accounts: cloud_accounts(connected, &seen),
         },
         misconfigurations: misconfigs,
         vulnerabilities_by_severity: by_severity,
@@ -1048,6 +1090,33 @@ mod tests {
         assert_eq!(hosts_scanned(&listed, &sboms), 2);
         assert_eq!(hosts_scanned(&listed, &[]), 0);
         assert_eq!(hosts_scanned(&[], &sboms), 0);
+    }
+
+    #[test]
+    fn cloud_accounts_list_every_connected_account() {
+        let connected = vec![
+            ("aws".to_string(), "123456789012".to_string(), String::new()),
+            ("azure".to_string(), "0b1c2d3e-0000-4000-8000-000000000001".to_string(), "Storefront Production".to_string()),
+            ("gcp".to_string(), "example-storefront".to_string(), "Example Storefront".to_string()),
+        ];
+        // The catalog's resources count per account; an account only seen there (an Agent's cloud tags) is listed too.
+        let seen = vec![
+            ("aws".to_string(), "123456789012".to_string()),
+            ("aws".to_string(), "123456789012".to_string()),
+            ("azure".to_string(), "0B1C2D3E-0000-4000-8000-000000000001".to_string()),
+            ("aws".to_string(), "210987654321".to_string()),
+        ];
+        let a = cloud_accounts(connected, &seen);
+        let rows: Vec<(&str, &str, &str, bool, usize)> = a.iter().map(|a| (a.provider.as_str(), a.id.as_str(), a.name.as_str(), a.connected, a.resources)).collect();
+        assert_eq!(
+            rows,
+            [
+                ("aws", "123456789012", "", true, 2),
+                ("aws", "210987654321", "", false, 1),
+                ("azure", "0b1c2d3e-0000-4000-8000-000000000001", "Storefront Production", true, 1),
+                ("gcp", "example-storefront", "Example Storefront", true, 0),
+            ]
+        );
     }
 
     #[test]

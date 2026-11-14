@@ -107,6 +107,10 @@ pub enum GcpError {
 pub trait GcpApi: Send + Sync {
     /// The ids of the active projects the service account can see.
     async fn projects(&self, service_account: &str) -> Result<Vec<String>, GcpError>;
+    /// The active projects with their display names: (project id, name).
+    async fn named_projects(&self, service_account: &str) -> Result<Vec<(String, String)>, GcpError> {
+        Ok(self.projects(service_account).await?.into_iter().map(|p| (p, String::new())).collect())
+    }
     async fn descriptors(&self, service_account: &str, project: &str) -> Result<Vec<Descriptor>, GcpError>;
     async fn time_series(&self, service_account: &str, project: &str, d: &Descriptor, start_ms: i64, end_ms: i64) -> Result<Vec<Series>, GcpError>;
 }
@@ -307,10 +311,14 @@ impl Rest {
 #[async_trait::async_trait]
 impl GcpApi for Rest {
     async fn projects(&self, service_account: &str) -> Result<Vec<String>, GcpError> {
+        Ok(self.named_projects(service_account).await?.into_iter().map(|(id, _)| id).collect())
+    }
+
+    async fn named_projects(&self, service_account: &str) -> Result<Vec<(String, String)>, GcpError> {
         let token = self.impersonate(service_account).await?;
         let url = format!("{}/v1/projects", self.endpoints.resource_manager);
         let all = self.pages(&token, &url, &[("filter", "lifecycleState:ACTIVE".into())], "projects").await?;
-        Ok(all.iter().filter_map(|p| p["projectId"].as_str().map(str::to_string)).collect())
+        Ok(all.iter().filter_map(|p| Some((p["projectId"].as_str()?.to_string(), p["name"].as_str().unwrap_or_default().to_string()))).collect())
     }
 
     async fn descriptors(&self, service_account: &str, project: &str) -> Result<Vec<Descriptor>, GcpError> {
@@ -441,7 +449,7 @@ mod tests {
                     if q.get("pageToken").map(String::as_str) == Some("p2") {
                         return Json(json!({ "projects": [{ "projectId": "example-catalog" }] }));
                     }
-                    Json(json!({ "projects": [{ "projectId": "example-storefront" }], "nextPageToken": "p2" }))
+                    Json(json!({ "projects": [{ "projectId": "example-storefront", "name": "Example Storefront" }], "nextPageToken": "p2" }))
                 }),
             )
             .route(
@@ -491,6 +499,8 @@ mod tests {
         let api = rest(&base);
         let sa = "observecraft@example-storefront.iam.gserviceaccount.com";
         assert_eq!(api.projects(sa).await.unwrap(), ["example-storefront", "example-catalog"]);
+        let named = api.named_projects(sa).await.unwrap();
+        assert_eq!(named, [("example-storefront".to_string(), "Example Storefront".to_string()), ("example-catalog".to_string(), String::new())]);
         let descriptors = api.descriptors(sa, "example-storefront").await.unwrap();
         assert_eq!((descriptors[0].kind.as_str(), descriptors[0].sample_period_ms, descriptors[0].ingest_delay_ms), ("GAUGE", 60_000, 240_000));
         assert_eq!(descriptors[1].sample_period_ms, 0);
