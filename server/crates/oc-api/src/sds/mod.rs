@@ -393,6 +393,19 @@ impl Scanner {
 /// (org, group id, group, rule id, rule, service) → matches.
 type MatchKey = (String, String, String, String, String, String);
 
+/// The key an org's hashes are made with: the server's secret and the org, so hashes can't be compared across installs
+/// or orgs. The log indexer and the rule tester use the same one.
+pub fn org_salt(secret: &str, org: &str) -> Vec<u8> {
+    salted(&Sha256::digest(format!("sds:{secret}").as_bytes()), org)
+}
+
+fn salted(base: &[u8], org: &str) -> Vec<u8> {
+    let mut s = base.to_vec();
+    s.extend_from_slice(org.as_bytes());
+    s.push(0);
+    s
+}
+
 /// Every org's scanner, and the matches not written yet.
 #[derive(Default)]
 pub struct Scanners {
@@ -408,10 +421,7 @@ impl Scanners {
     }
 
     fn salt_for(&self, org: &str) -> Vec<u8> {
-        let mut s = self.salt.get().cloned().unwrap_or_default();
-        s.extend_from_slice(org.as_bytes());
-        s.push(0);
-        s
+        salted(self.salt.get().map(Vec::as_slice).unwrap_or_default(), org)
     }
 
     /// The org's scanner, when it scans something.
@@ -527,7 +537,7 @@ pub async fn write_matches(st: crate::state::AppState, scanners: Arc<Scanners>) 
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::config::{Config, GroupRow, RuleRow};
     use super::*;
     use serde_json::json;
@@ -559,7 +569,7 @@ mod tests {
     }
 
     fn run(s: &Scanner, l: &mut Log, id: &str) -> Vec<Hit> {
-        s.scan(&mut Target { id, service: "billing", status: "info", host: "", source: "", message: &mut l.message, tags: &mut l.tags, attr: &mut l.attr }, b"salt")
+        s.scan(&mut Target { id, service: "billing", status: "info", host: "", source: "", message: &mut l.message, tags: &mut l.tags, attr: &mut l.attr }, &test_salt())
     }
 
     #[test]
@@ -578,16 +588,31 @@ mod tests {
         assert_eq!(hits, vec![Hit { group_id: "g".into(), group: "PCI".into(), rule_id: "r".into(), rule: "cards".into(), count: 2 }]);
     }
 
+    /// A key made at run time, as the server makes them from its secret.
+    pub(crate) fn test_salt() -> Vec<u8> {
+        org_salt(&format!("{:032x}", rand::random::<u128>()), "test-org")
+    }
+
+    /// The rule tester hashes with the key the log indexer uses for the same org.
+    #[test]
+    fn the_tester_hashes_as_the_indexer_does() {
+        let secret = format!("{:032x}", rand::random::<u128>());
+        let scanners = Scanners::default();
+        scanners.set_secret(&secret);
+        assert_eq!(scanners.salt_for("acme"), org_salt(&secret, "acme"));
+        assert_ne!(org_salt(&secret, "acme"), org_salt(&secret, "globex"));
+    }
+
     #[test]
     fn replacements() {
-        let salt = b"k";
+        let salt = &test_salt();
         assert_eq!(redact("card 4111111111111111 ok", &[(5, 21)], &Replacement::FromEnd(12), salt), "card 4111************ ok");
         assert_eq!(redact("card 4111111111111111 ok", &[(5, 21)], &Replacement::FromBeginning(12), salt), "card ************1111 ok");
         assert_eq!(redact("ab", &[(0, 2)], &Replacement::FromBeginning(5), salt), "**");
         let hashed = redact("x secret y", &[(2, 8)], &Replacement::Hash, salt);
         assert_eq!(hashed.len(), "x  y".len() + 16);
         assert_eq!(hashed, redact("x secret y", &[(2, 8)], &Replacement::Hash, salt), "stable");
-        assert_ne!(hashed, redact("x secret y", &[(2, 8)], &Replacement::Hash, b"other"), "keyed");
+        assert_ne!(hashed, redact("x secret y", &[(2, 8)], &Replacement::Hash, &test_salt()), "keyed");
         assert_eq!(replacement(Some(&json!({"type": "partial_replacement_from_end", "number_of_chars": 4}))), Replacement::FromEnd(4));
         assert_eq!(replacement(None), Replacement::None);
     }
@@ -687,7 +712,7 @@ mod tests {
             vec![rule("r", "g", Some("us_ssn"), json!({ "name": "ssn", "is_enabled": true, "text_replacement": { "type": "partial_replacement_from_beginning", "number_of_chars": 7 } }))],
         );
         let mut row = json!({ "id": "x", "service": "billing", "message": "ssn 123-45-6789", "tags": {}, "attr": { "user.ssn": "123-45-6789", "n": "1" }, "attributes": "{\"user\":{\"ssn\":\"123-45-6789\"},\"n\":1}" });
-        let hits = s.scan_row(&mut row, b"");
+        let hits = s.scan_row(&mut row, &test_salt());
         assert_eq!(hits.len(), 1);
         assert_eq!(row["message"], "ssn *******6789");
         assert_eq!(row["attr"]["user.ssn"], "*******6789");

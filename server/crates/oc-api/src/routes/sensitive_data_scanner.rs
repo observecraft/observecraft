@@ -402,7 +402,7 @@ pub async fn delete_rule(State(st): State<AppState>, Admin(ctx): Admin, Path(id)
 }
 
 /// Tries a rule on sample text without saving it.
-pub fn test_rule(input: &SdsTestRequest) -> Result<SdsTestResult, String> {
+pub fn test_rule(input: &SdsTestRequest, salt: &[u8]) -> Result<SdsTestResult, String> {
     if input.sample.len() > MAX_SAMPLE_BYTES {
         return Err(format!("The sample is at most {} KiB", MAX_SAMPLE_BYTES / 1024));
     }
@@ -417,7 +417,7 @@ pub fn test_rule(input: &SdsTestRequest) -> Result<SdsTestResult, String> {
         rules: vec![RuleRow { id: "test".into(), group_id: "test".into(), standard_pattern_id: standard_of(&input.rule).map(str::to_string), attributes: attrs }],
     };
     let (mut message, mut tags, mut attr) = (input.sample.clone(), Default::default(), Default::default());
-    let hits = Scanner::compile(&cfg).scan(&mut Target { id: "test", service: "", status: "", host: "", source: "", message: &mut message, tags: &mut tags, attr: &mut attr }, b"sds-test");
+    let hits = Scanner::compile(&cfg).scan(&mut Target { id: "test", service: "", status: "", host: "", source: "", message: &mut message, tags: &mut tags, attr: &mut attr }, salt);
     let mut tags: Vec<String> = tags.into_iter().map(|(k, v): (String, String)| if v.is_empty() { k } else { format!("{k}:{v}") }).collect();
     tags.sort();
     Ok(SdsTestResult { matches: hits.iter().map(|h| h.count).sum(), redacted: message, tags })
@@ -425,8 +425,9 @@ pub fn test_rule(input: &SdsTestRequest) -> Result<SdsTestResult, String> {
 
 #[utoipa::path(post, path = "/api/v1/sensitive-data-scanner/test", operation_id = "test_sds_rule", request_body = SdsTestRequest,
     responses((status = 200, body = SdsTestResult), (status = 400, body = crate::error::ErrorBody)), tag = "sensitive-data-scanner")]
-pub async fn test(_ctx: AuthContext, Json(input): Json<SdsTestRequest>) -> ApiResult<SdsTestResult> {
-    test_rule(&input).map(Json).map_err(ApiError::BadRequest)
+pub async fn test(State(st): State<AppState>, ctx: AuthContext, Json(input): Json<SdsTestRequest>) -> ApiResult<SdsTestResult> {
+    // Hashes as the log indexer would for this org, so a hashed value can be looked up in the logs.
+    test_rule(&input, &crate::sds::org_salt(&st.config.secret_key, &ctx.org_id)).map(Json).map_err(ApiError::BadRequest)
 }
 
 #[cfg(test)]
@@ -465,10 +466,10 @@ mod tests {
         let r = test_rule(&SdsTestRequest {
             rule: rule(json!({ "groupId": "", "name": "t", "pattern": r"order-\d+", "namespaces": ["user"], "tags": ["sensitive_data:order"], "replacement": { "kind": "replacement_string", "replacementString": "[order]" } })),
             sample: "refund order-42 and order-43".into(),
-        })
+        }, &crate::sds::tests::test_salt())
         .unwrap();
         assert_eq!((r.matches, r.redacted.as_str(), r.tags.clone()), (2, "refund [order] and [order]", vec!["sensitive_data:order".to_string()]));
-        let r = test_rule(&SdsTestRequest { rule: rule(json!({ "groupId": "", "name": "t", "standardPatternId": "email_address" })), sample: "to alice@example.com".into() }).unwrap();
+        let r = test_rule(&SdsTestRequest { rule: rule(json!({ "groupId": "", "name": "t", "standardPatternId": "email_address" })), sample: "to alice@example.com".into() }, &crate::sds::tests::test_salt()).unwrap();
         assert_eq!((r.matches, r.redacted.as_str()), (1, "to alice@example.com"));
         assert!(r.tags.contains(&"sensitive_data:email_address".to_string()));
     }
