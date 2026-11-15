@@ -18078,6 +18078,7 @@ export interface components {
             /** Format: double */
             score?: number | null;
             severity: string;
+            /** @description The advisory's summary, else its details' first sentence, else `<package>: <CVE>`. */
             title: string;
         };
         InfraPackage: {

@@ -603,7 +603,7 @@ export function InfraVulnerabilitiesPage() {
                         ) : (
                           <>
                             <b>{v.title}</b>
-                            <div className="muted sec-sub mono">{v.cve ?? v.advisoryId}</div>
+                            <div className="muted sec-sub mono">{[...new Set([v.cve, v.advisoryId].filter(Boolean))].join(' · ')}</div>
                           </>
                         )}
                       </td>
@@ -640,7 +640,7 @@ function VulnDrawer({ id, rows, onClose }: { id: string; rows: InfraVulnerabilit
   return (
     <Drawer
       onClose={onClose}
-      title={a.data?.summary ?? first?.title ?? id}
+      title={a.data?.summary || first?.title || id}
       severity={a.data?.severity ?? first?.severity ?? 'medium'}
       sub={`${[...new Set([first?.cve, id].filter(Boolean))].join(' · ')}${a.data?.score ? ` · CVSS ${a.data.score}` : ''}`}
     >

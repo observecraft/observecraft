@@ -54087,7 +54087,8 @@
             "type": "string"
           },
           "title": {
-            "type": "string"
+            "type": "string",
+            "description": "The advisory's summary, else its details' first sentence, else `<package>: <CVE>`."
           }
         }
       },
