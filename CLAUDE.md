@@ -283,6 +283,12 @@ or SDK features.
   (`/api/v1/synthetics/ai-testing/...`); accepting creates the tests and a suite per journey. Agent profiles
   (`ai_testing_profiles`) name global variables: the model only sees `{{ NAME }}`. The UI is
   `web/src/pages/synthetics/aiTesting/` (jobs read with the Assist runs client, mock in `mock/aiTesting.ts`).
+- **MCP server** (ADR-0009, `docs/mcp.md`; `mcp/mod.rs` protocol, `mcp/tools.rs` tools, `routes/mcp.rs`): AI agents call
+  `POST /api/v1/mcp` (Streamable HTTP, JSON answers, stateless; protocol 2026-07-28 and the `initialize`-based
+  2025-xx versions) with an application key (Bearer or `DD-APPLICATION-KEY`), outside the session middleware. Tools
+  are read-only calls of the UI's handlers (Assist's read-only tools through `OrgTools::call`), with row, text and
+  31-day range caps, a 30 s timeout, a per-user burst limit and an `mcp.tool_call` audit event; the UI shows the endpoint
+  and client setup under Personal Settings → Application Keys. Our own tool names, never Datadog's.
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **Slack** (`routes/slack.rs`, `datadog_api/slack_integration.rs`, page `web/src/pages/integrations/slack/`): workspaces
