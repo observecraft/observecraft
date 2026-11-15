@@ -128,6 +128,8 @@ const cases = [
   ['trace: Datadog ids in attributes', json({ message: 'x', dd: { trace_id: 'abcdefabcdefabcdefabcdefabcdefab', span_id: 'abcdefabcdefabcd' } })],
   ['trace: zero and malformed ids', json({ message: 'x', trace_id: '00000000000000000000000000000000', span_id: 'xyz' })],
   ['trace: decimal Datadog id is not hex 32', json({ message: 'x', dd: { trace_id: '1234567890', span_id: '42' } })],
+  // OpenTelemetry-instrumented apps writing both forms: Datadog's decimal ids must not hide the hex ones.
+  ['trace: decimal Datadog ids next to hex ones', agent(JSON.stringify({ message: 'request done', 'dd.trace_id': '8526493282340211301', 'dd.span_id': '4925631298457231011', trace_id: '4bf92f3577b34da6a3ce929d0e0e4736', span_id: '00f067aa0ba902b7' }), 'info')],
 
   // Tags, service, host, source.
   ['tags: ECS resources', otlp({ resources: { 'oc.org_id': 'acme', 'aws.ecs.cluster.arn': 'arn:aws:ecs:us-east-1:123456789012:cluster/prod', 'aws.ecs.task.family': 'web', 'aws.ecs.task.revision': '3', 'cloud.region': 'us-east-1', 'cloud.account.id': '123456789012' }, message: 'x' })],

@@ -451,26 +451,15 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
     let ts = ts.or(received_at).or(timestamp).unwrap_or(now);
 
     // Trace and span ids.
-    let mut trace_id = fields.get("trace_id").and_then(to_string).unwrap_or_default();
-    let mut span_id = fields.get("span_id").and_then(to_string).unwrap_or_default();
-    for k in ["dd.trace_id", "contextMap.dd.trace_id", "named_tags.dd.trace_id", "trace_id"] {
-        if trace_id.is_empty() {
-            trace_id = text_of(&flat, k);
-        }
-    }
-    for k in ["dd.span_id", "contextMap.dd.span_id", "named_tags.dd.span_id", "span_id"] {
-        if span_id.is_empty() {
-            span_id = text_of(&flat, k);
-        }
-    }
-    let mut trace_id = trace_id.to_lowercase();
-    let mut span_id = span_id.to_lowercase();
-    if !TRACE_ID.is_match(&trace_id) || trace_id == "00000000000000000000000000000000" {
-        trace_id.clear();
-    }
-    if !SPAN_ID.is_match(&span_id) {
-        span_id.clear();
-    }
+    // The first id in hex form: a decimal Datadog id (dd.trace_id) doesn't hide a hex one written next to it.
+    let ids = |own: &str, keys: [&str; 4], valid: &dyn Fn(&str) -> bool| {
+        let first = fields.get(own).and_then(to_string).unwrap_or_default();
+        std::iter::once(first).chain(keys.iter().map(|k| text_of(&flat, k))).map(|v| v.to_lowercase()).find(|v| valid(v)).unwrap_or_default()
+    };
+    let trace_id = ids("trace_id", ["dd.trace_id", "contextMap.dd.trace_id", "named_tags.dd.trace_id", "trace_id"], &|v| {
+        TRACE_ID.is_match(v) && v != "00000000000000000000000000000000"
+    });
+    let span_id = ids("span_id", ["dd.span_id", "contextMap.dd.span_id", "named_tags.dd.span_id", "span_id"], &|v| SPAN_ID.is_match(v));
 
     // Datadog tags from resources.
     let r: Map<String, Value> = res.iter().map(|(k, v)| (k.clone(), Value::String(text(v)))).collect();
