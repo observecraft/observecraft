@@ -60859,6 +60859,10 @@
             "type": "boolean",
             "description": "Go to No Data when a group stops reporting for `noDataMinutes`."
           },
+          "requireFullWindow": {
+            "type": "boolean",
+            "description": "Datadog's `require_full_window`: a group is evaluated only once its data covers the whole window."
+          },
           "thresholds": {
             "$ref": "#/components/schemas/Thresholds"
           },

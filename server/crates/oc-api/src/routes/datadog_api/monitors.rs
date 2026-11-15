@@ -178,6 +178,10 @@ pub fn from_datadog(doc: &Value) -> Result<Mapped, String> {
     let missing = options.get("on_missing_data").and_then(Value::as_str);
     opts.notify_no_data = notify_no_data || missing == Some("show_and_notify_no_data");
     opts.missing_resolves = missing == Some("resolve");
+    opts.require_full_window = match options.get("require_full_window") {
+        None | Some(Value::Null) => matches!(opts.time_aggregation, TimeAggregator::Avg | TimeAggregator::Min | TimeAggregator::Sum),
+        Some(v) => v.as_bool().ok_or("options.require_full_window must be a boolean")?,
+    };
     opts.no_data_minutes = match options.get("no_data_timeframe") {
         None | Some(Value::Null) => (2 * opts.window_minutes).clamp(1, 1440),
         Some(v) => v.as_i64().ok_or("options.no_data_timeframe must be a number of minutes")?,
@@ -323,6 +327,7 @@ fn parse_metric_alert(q: &str) -> Result<(MonitorType, String, MonitorOptions), 
         notify_no_data: false,
         no_data_minutes: 10,
         missing_resolves: false,
+        require_full_window: false,
     };
     Ok((if apm { MonitorType::Apm } else { MonitorType::Metric }, metric_query.to_string(), options))
 }
@@ -402,6 +407,7 @@ fn parse_log_alert(q: &str) -> Result<(MonitorType, String, MonitorOptions), Str
         notify_no_data: false,
         no_data_minutes: 10,
         missing_resolves: false,
+        require_full_window: false,
     };
     Ok((MonitorType::Log, query, options))
 }
@@ -443,7 +449,7 @@ pub fn to_datadog(m: &Mapped) -> Value {
         "notify_audit": false,
         "include_tags": true,
         "new_host_delay": 300,
-        "require_full_window": false,
+        "require_full_window": o.require_full_window,
     });
     if m.kind == MonitorType::Log {
         options["groupby_simple_monitor"] = json!(false);
@@ -1165,6 +1171,15 @@ mod tests {
         d["options"] = json!({ "on_missing_data": "show_and_notify_no_data" });
         let m = from_datadog(&d).unwrap();
         assert_eq!((m.options.notify_no_data, m.options.no_data_minutes), (true, 10));
+
+        // require_full_window: as given, else Datadog's default (on for avg, min and sum windows, off for max and last).
+        d["options"] = json!({ "require_full_window": false });
+        assert!(!from_datadog(&d).unwrap().options.require_full_window);
+        d["options"] = json!({});
+        assert!(from_datadog(&d).unwrap().options.require_full_window, "avg(last_5m)");
+        let mut last = metric("last(last_5m):avg:system.load.1{*} > 4");
+        last["options"] = json!({});
+        assert!(!from_datadog(&last).unwrap().options.require_full_window);
 
         // `resolve`: a group that stops reporting goes back to OK.
         d["options"] = json!({ "on_missing_data": "resolve" });

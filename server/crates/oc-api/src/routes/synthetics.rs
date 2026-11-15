@@ -638,6 +638,7 @@ pub fn notification_message(template: &str, monitor_name: &str, previous: Monito
         notify_no_data: false,
         no_data_minutes: 10,
         missing_resolves: false,
+        require_full_window: false,
     };
     let group = BTreeMap::new();
     let ctx = MessageContext { status: next, previous, value: Some(f64::from(failing)), opts: &opts, monitor_name, group: &group };

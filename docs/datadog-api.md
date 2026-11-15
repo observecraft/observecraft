@@ -391,12 +391,13 @@ it as drift.
 | `options.thresholds.critical`, `warning`, `critical_recovery`, `warning_recovery` | thresholds and recovery thresholds (`critical` must match the query) |
 | `options.notify_no_data`, `on_missing_data: show_and_notify_no_data` | notify on no data |
 | `options.on_missing_data: resolve` | a group that stops reporting goes back to OK |
+| `options.require_full_window` | a group is evaluated once its data covers the whole window (default as Datadog's: on for avg, min and sum windows) |
 | `options.no_data_timeframe` | no-data timeframe (default twice the window) |
 | `name`, `message` (its `@handles` are the recipients), `priority`, `tags`, `draft_status` | the same |
 
 **Accepted, stored and returned, not enforced yet:** `options.evaluation_delay`, `new_group_delay`,
 `new_host_delay`, `renotify_interval`, `renotify_occurrences`, `renotify_statuses`, `escalation_message`,
-`include_tags`, `require_full_window`, `notify_by`, `notify_audit`, `timeout_h`, `on_missing_data: show_no_data`,
+`include_tags`, `notify_by`, `notify_audit`, `timeout_h`, `on_missing_data: show_no_data`,
 `group_retention_duration` (groups that stop reporting are dropped after Datadog's default of 24 hours), `threshold_windows`, `scheduling_options`,
 `notification_preset_name`, `groupby_simple_monitor`, `enable_logs_sample`, `enable_samples`, `locked`,
 `thresholds.ok` and `thresholds.unknown`; `restricted_roles` (editing follows our roles), `assets`, the log

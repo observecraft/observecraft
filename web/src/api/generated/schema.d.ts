@@ -20108,6 +20108,8 @@ export interface components {
             noDataMinutes?: number;
             /** @description Go to No Data when a group stops reporting for `noDataMinutes`. */
             notifyNoData?: boolean;
+            /** @description Datadog's `require_full_window`: a group is evaluated only once its data covers the whole window. */
+            requireFullWindow?: boolean;
             thresholds: components["schemas"]["Thresholds"];
             timeAggregation: components["schemas"]["TimeAggregator"];
             /**
