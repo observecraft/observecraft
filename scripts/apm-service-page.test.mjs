@@ -170,3 +170,17 @@ test('a dependency node links to its service page and to the traces of its calls
     traces: `/apm/traces?query=${encodeURIComponent('service:storefront-api @peer.service:orders-db')}`,
   });
 });
+
+test('host charts read the Datadog Agent first, then the metrics OpenTelemetry hostmetrics sends by default', () => {
+  const chart = (id) => logic.HOST_CHARTS.find((c) => c.id === id).variants.map((v) => v.queries('host:aks-nodepool1-12345678-vmss000000')[0]);
+  assert.deepEqual(chart('disk-queue'), [
+    'avg:system.io.avg_q_sz{host:aks-nodepool1-12345678-vmss000000} by {device}',
+    'avg:system.disk.pending_operations{host:aks-nodepool1-12345678-vmss000000} by {device}',
+  ]);
+  // Disk used: the Agent's KiB, then hostmetrics' bytes in use (on by default), then its utilization (opt-in).
+  assert.deepEqual(chart('disk'), [
+    'max:system.disk.used{host:aks-nodepool1-12345678-vmss000000} by {device}',
+    'max:system.filesystem.usage{host:aks-nodepool1-12345678-vmss000000,state:used} by {device}',
+    'max:system.filesystem.utilization{host:aks-nodepool1-12345678-vmss000000} by {mountpoint}',
+  ]);
+});

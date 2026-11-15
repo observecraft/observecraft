@@ -229,3 +229,11 @@ test('browser network policy: only the server calls it, and pages reach no inter
   const open = render(['browser.enabled=true', 'networkPolicy.enabled=true', 'synthetics.allowPrivateTargets=true']);
   assert.doesNotMatch(open.out, /oc-observecraft-browser-egress/);
 });
+
+test('observecraft-agent: host metrics include the disks and the filesystems’ utilization (the service page’s disk charts)', { skip: !hasHelm }, () => {
+  const agent = fileURLToPath(new URL('../deploy/helm/observecraft-agent', import.meta.url));
+  const r = spawnSync('helm', ['template', 'oca', agent, '--set', 'endpoint=http://observecraft-intake:4318', '--set', 'apiKey=ocik_example', '--set', 'clusterName=shop-prod'], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^\s+disk:\n\s+exclude:\n\s+devices:/m);
+  assert.match(r.stdout, /system\.filesystem\.utilization:\n\s+enabled: true/);
+});

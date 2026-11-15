@@ -951,6 +951,46 @@ mod tests {
         assert_eq!(s[0].tags, vec!["device:/dev/sda1".to_string()]);
     }
 
+    /// A payload as the Agent's v2 serializer sends a node's check metrics (zstd protobuf; the `device:` tag moved to a
+    /// `device` resource, `device_name` left in the tags, origin metadata), through the intake's conversion: the disk
+    /// and io series carry their device on the same host resource as the load.
+    #[test]
+    fn an_agents_disk_and_io_series_keep_their_device_on_the_hosts_resource() {
+        use prost::Message;
+        let host = "aks-nodepool1-12345678-vmss000000";
+        let serie = |metric: &str, device: Option<&str>, tags: &[&str]| pb::MetricSeries {
+            resources: std::iter::once(pb::Resource { r#type: "host".into(), name: host.into() }).chain(device.map(|d| pb::Resource { r#type: "device".into(), name: d.into() })).collect(),
+            metric: metric.into(),
+            tags: tags.iter().map(|t| t.to_string()).collect(),
+            points: vec![pb::MetricPoint { value: 0.5, timestamp: 1_700_000_000 }],
+            r#type: 3,
+            source_type_name: "System".into(),
+            interval: 15,
+            ..Default::default()
+        };
+        let payload = pb::MetricPayload {
+            series: vec![
+                serie("system.load.1", None, &[]),
+                serie("system.io.avg_q_sz", Some("sda"), &["device_name:sda"]),
+                serie("system.disk.used", Some("/dev/sda1"), &["device_name:sda1"]),
+                serie("system.disk.in_use", Some("/dev/sda1"), &["device_name:sda1"]),
+            ],
+        };
+        let body = zstd::encode_all(&payload.encode_to_vec()[..], 3).unwrap();
+        let mut h = HeaderMap::new();
+        h.insert(header::CONTENT_ENCODING, HeaderValue::from_static("zstd"));
+        let series = parse_v2(&inflate(&h, &body).unwrap(), true).unwrap();
+        let req = to_otlp(&series, Some("datadog-agent"));
+        assert_eq!(req.resource_metrics.len(), 1, "one host resource");
+        assert!(attrs(req.resource_metrics[0].resource.as_ref().unwrap()).contains(&("host.name".to_string(), host.to_string())));
+        let device = |name: &str| {
+            let m = req.resource_metrics[0].scope_metrics[0].metrics.iter().find(|m| m.name == name).unwrap();
+            let Some(otlp::metric::Data::Gauge(g)) = &m.data else { panic!("{name} is a gauge") };
+            g.data_points[0].attributes.iter().find(|a| a.key == "device").map(|a| otlp::text(a).to_string())
+        };
+        assert_eq!((device("system.load.1"), device("system.io.avg_q_sz"), device("system.disk.used")), (None, Some("sda".to_string()), Some("/dev/sda1".to_string())));
+    }
+
     #[test]
     fn v1_points_and_types() {
         let s = parse_v1(br#"{"series":[{"metric":"orders.placed","type":"count","interval":20,"points":[[1700000000,3],[1700000020,null]],"host":"web-2","tags":["env:prod"]}]}"#).unwrap();

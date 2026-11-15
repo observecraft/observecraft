@@ -73,8 +73,11 @@ receivers:
       cpu: { metrics: { system.cpu.utilization: { enabled: true } } }
       memory: { metrics: { system.memory.utilization: { enabled: true } } }
       load: {}
+      # The node's block devices (pending operations: the service page's disk queue), loop and RAM disks left out.
+      disk: { exclude: { devices: ["^loop[0-9]+$", "^ram[0-9]+$"], match_type: regexp } }
       # The node's real filesystems (container, kubelet and virtual mounts left out).
       filesystem:
+        metrics: { system.filesystem.utilization: { enabled: true } }
         exclude_mount_points:
           mount_points: ["/dev/*", "/proc/*", "/sys/*", "/run/*", "/hostfs/*", "/etc/*", "/var/log/pods*", "/var/lib/observecraft-agent*", "/var/lib/docker/*", "/var/lib/kubelet/*", "/var/lib/containerd/*", "/snap/*"]
           match_type: regexp
