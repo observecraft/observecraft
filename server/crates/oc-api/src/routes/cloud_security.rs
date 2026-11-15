@@ -261,6 +261,7 @@ pub struct InfraVulnerability {
     pub advisory_id: String,
     pub cve: Option<String>,
     pub aliases: Vec<String>,
+    /// The advisory's summary, else its details' first sentence, else `<package>: <CVE>`.
     pub title: String,
     pub severity: String,
     pub score: Option<f64>,
@@ -309,6 +310,8 @@ struct AdvisoryMeta {
     id: String,
     aliases: Vec<String>,
     summary: String,
+    /// The start of the details (a title when there is no summary).
+    details: String,
     severity: String,
     score: Option<f32>,
     cwes: Vec<String>,
@@ -343,7 +346,7 @@ pub async fn infra_vulnerabilities_in(st: &AppState, org: &str, scope: &VulnScop
     // Each advisory's text once, not once per package of every host and image.
     let ids: Vec<&str> = rows.iter().map(|r| r.advisory_id.as_str()).collect::<HashSet<_>>().into_iter().collect();
     let (meta, triage, kev) = tokio::try_join!(
-        async { sqlx::query_as::<_, AdvisoryMeta>("SELECT id, aliases, summary, severity, score, cwes FROM cs_advisories WHERE id = ANY($1)").bind(&ids).fetch_all(&st.postgres).await.map_err(ApiError::from) },
+        async { sqlx::query_as::<_, AdvisoryMeta>("SELECT id, aliases, summary, left(details, 400) AS details, severity, score, cwes FROM cs_advisories WHERE id = ANY($1)").bind(&ids).fetch_all(&st.postgres).await.map_err(ApiError::from) },
         code_security::triage_map(st, org),
         async { sqlx::query_scalar::<_, String>("SELECT cve_id FROM security_kev").fetch_all(&st.postgres).await.map_err(ApiError::from) },
     )?;
@@ -358,13 +361,14 @@ fn infra_vulnerabilities_of(rows: Vec<VulnRow>, meta: &HashMap<String, AdvisoryM
         .filter_map(|r| {
             let a = meta.get(&r.advisory_id)?;
             let key = format!("csm-vuln:{}:{}:{}", r.advisory_id, r.entity_id, r.name);
+            let cve = a.aliases.iter().find(|x| x.starts_with("CVE-")).cloned();
             Some(InfraVulnerability {
                 status: triage.get(&key).cloned().unwrap_or_else(|| "open".into()),
                 key,
-                cve: a.aliases.iter().find(|x| x.starts_with("CVE-")).cloned(),
+                title: model::vulnerability_title(&a.summary, &a.details, &r.name, cve.as_deref(), &r.advisory_id),
+                cve,
                 exploit_available: a.aliases.iter().any(|x| kev.contains(x)),
                 aliases: a.aliases.clone(),
-                title: if a.summary.is_empty() { r.advisory_id.clone() } else { a.summary.clone() },
                 severity: a.severity.clone(),
                 score: a.score.map(|s| (s as f64 * 10.0).round() / 10.0),
                 cwes: a.cwes.clone(),
@@ -411,6 +415,7 @@ pub struct InfraAdvisory {
     pub advisory_id: String,
     pub cve: Option<String>,
     pub aliases: Vec<String>,
+    /// The advisory's summary, else its details' first sentence, else `<package>: <CVE>`.
     pub title: String,
     pub severity: String,
     pub score: Option<f64>,

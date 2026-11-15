@@ -205,6 +205,15 @@ pub async fn inbox(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Se
     }))
 }
 
+/// A vulnerability's title naming its package once: `<title> in <package>` unless the title starts with it.
+fn titled(title: &str, package: &str) -> String {
+    if title.strip_prefix(package).is_some_and(|rest| rest.starts_with(':')) {
+        title.to_string()
+    } else {
+        format!("{title} in {package}")
+    }
+}
+
 /// Resources missing the tags the org's tagging policies require, as one low-severity item (listed one by one they
 /// would bury the severe findings); it opens the tag coverage page.
 pub fn tagging_inbox_item(misconfigs: &[super::cloud_security::MisconfigFinding]) -> Option<InboxFinding> {
@@ -268,7 +277,7 @@ pub async fn inbox_findings(st: &AppState, org: &str) -> Result<Vec<InboxFinding
         }
         out.push(InboxFinding {
             key: format!("vuln:{}:{}:{}", v.advisory_id, v.ecosystem, v.package),
-            title: format!("{} in {}", v.title, v.package),
+            title: titled(&v.title, &v.package),
             finding_type: "Library Vulnerability".into(),
             severity: v.severity,
             resource_type: if v.services.is_empty() { "Repository".into() } else { "Service".into() },
@@ -334,7 +343,7 @@ pub async fn inbox_findings(st: &AppState, org: &str) -> Result<Vec<InboxFinding
         }
         out.push(InboxFinding {
             key: v.key,
-            title: format!("{} in {}", v.title, v.package),
+            title: titled(&v.title, &v.package),
             finding_type: "Infrastructure Vulnerability".into(),
             severity: v.severity,
             resource_type: if v.resource_kind == "host" { "Host".into() } else { "Container Image".into() },
@@ -376,6 +385,12 @@ mod tests {
             provenance: None,
         };
         NonCompliantResource { resource, policies: vec![PolicyGaps { policy_id: "p".into(), policy_name: "Owners".into(), gaps: vec![TagGap { key: "team".into(), value: None }] }] }
+    }
+
+    #[test]
+    fn titles_name_the_package_once() {
+        assert_eq!(titled("example-zlib: heap overflow when inflating crafted streams", "example-zlib"), "example-zlib: heap overflow when inflating crafted streams");
+        assert_eq!(titled("Heap overflow when inflating crafted streams", "example-zlib"), "Heap overflow when inflating crafted streams in example-zlib");
     }
 
     #[test]

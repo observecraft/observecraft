@@ -232,6 +232,27 @@ pub fn is_affected_in(ecosystem: &str, version: &str, ranges: &[AffectedRange], 
     })
 }
 
+/// Characters of a title taken from an advisory's details.
+const TITLE_CHARS: usize = 160;
+
+/// A vulnerability's title, a sentence rather than an advisory id: OSV's summary, else the first sentence of its
+/// details (distributions' records carry only the CVE's description), else `<package>: <CVE or advisory id>`.
+pub fn vulnerability_title(summary: &str, details: &str, package: &str, cve: Option<&str>, id: &str) -> String {
+    if !summary.trim().is_empty() {
+        return summary.trim().to_string();
+    }
+    let details = details.trim();
+    let end = [". ", ".\n", "\n"].iter().filter_map(|p| details.find(p)).min().unwrap_or(details.len());
+    let first = details[..end].trim().trim_end_matches('.');
+    if first.is_empty() {
+        return format!("{package}: {}", cve.unwrap_or(id));
+    }
+    if first.chars().count() <= TITLE_CHARS {
+        return first.to_string();
+    }
+    format!("{}…", first.chars().take(TITLE_CHARS).collect::<String>().trim_end())
+}
+
 /// An advisory's affected ranges of one package (a `cs_advisory_packages` row).
 #[derive(Debug, Clone, Default, sqlx::FromRow)]
 pub struct AdvisoryPackageRanges {
@@ -1152,6 +1173,21 @@ pub fn parse_iast(json: &str) -> Vec<IastVulnerability> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn vulnerability_titles_read_like_sentences_not_advisory_ids() {
+        // OSV's summary when it has one.
+        assert_eq!(vulnerability_title("openssl: timing side channel in RSA", "Long text.", "openssl", Some("CVE-2026-0001"), "DEBIAN-CVE-2026-0001"), "openssl: timing side channel in RSA");
+        // Debian's and Ubuntu's records carry only the CVE's description: its first sentence.
+        let details = "In the Linux kernel, the following vulnerability has been resolved: net: fix a use after free in the socket layer. More text follows.";
+        assert_eq!(vulnerability_title("", details, "linux", Some("CVE-2026-42960"), "DEBIAN-CVE-2026-42960"), "In the Linux kernel, the following vulnerability has been resolved: net: fix a use after free in the socket layer");
+        let long = format!("{} end", "word ".repeat(60));
+        let t = vulnerability_title("", &long, "zlib", None, "UBUNTU-CVE-2026-1");
+        assert!(t.chars().count() <= 161 && t.ends_with('…'), "{t}");
+        // Nothing to read: the package and the CVE (else the advisory id).
+        assert_eq!(vulnerability_title("", "", "glibc", Some("CVE-2026-1234"), "DEBIAN-CVE-2026-1234"), "glibc: CVE-2026-1234");
+        assert_eq!(vulnerability_title(" ", "\n", "glibc", None, "OCSA-DEMO-1"), "glibc: OCSA-DEMO-1");
+    }
 
     #[test]
     fn versions_are_matched_once_against_their_packages_advisories_with_the_fix() {
