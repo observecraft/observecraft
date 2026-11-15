@@ -19,6 +19,7 @@ const PERMISSIONS = [
   'waf:GetWebACL',
   'waf-regional:ListWebACLs',
   'waf-regional:GetWebACL',
+  'iam:ListAccountAliases',
 ];
 const EXCLUDED = ['AWS/SQS', 'AWS/ElasticMapReduce', 'AWS/Usage'];
 

@@ -315,8 +315,8 @@ pub fn catalog() -> &'static Catalog {
 
 /// What the AWS crawler calls (`crate::aws::api`): CloudWatch's metric list and data, resource tags, and the lookups of
 /// the resources whose ARNs their metrics don't carry (`crate::aws::naming::LOOKUPS`: REST APIs, RDS proxies, DMS
-/// replication instances, WAF Classic web ACLs).
-pub const STANDARD_PERMISSIONS: [&str; 10] = [
+/// replication instances, WAF Classic web ACLs), and the account's alias.
+pub const STANDARD_PERMISSIONS: [&str; 11] = [
     "cloudwatch:GetMetricData",
     "cloudwatch:ListMetrics",
     "tag:GetResources",
@@ -327,6 +327,8 @@ pub const STANDARD_PERMISSIONS: [&str; 10] = [
     "waf:GetWebACL",
     "waf-regional:ListWebACLs",
     "waf-regional:GetWebACL",
+    // The account's alias, its name in lists of accounts.
+    "iam:ListAccountAliases",
 ];
 
 // ================================================================ storage

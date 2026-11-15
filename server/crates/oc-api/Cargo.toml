@@ -20,6 +20,8 @@ aws-sdk-s3 = "1"
 # CrowdStrike Falcon Data Replicator: its feed's SQS notifications (connectors/sources/crowdstrike_fdr.rs).
 aws-sdk-sqs = "1"
 aws-sdk-resourcegroupstagging = "1"
+# The account's alias (IAM ListAccountAliases) names it in lists of cloud accounts.
+aws-sdk-iam = "1"
 # Resources whose ARNs their metrics don't carry (aws/naming.rs LOOKUPS): REST APIs, RDS proxies, DMS replication
 # instances, WAF Classic web ACLs.
 aws-sdk-apigateway = "1"

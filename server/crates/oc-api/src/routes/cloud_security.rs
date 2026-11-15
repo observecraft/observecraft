@@ -1202,7 +1202,8 @@ pub async fn summary(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<
         },
         async {
             sqlx::query_as::<_, (String, String, String)>(
-                "SELECT 'aws', aws_account_id, '' FROM aws_accounts WHERE org_id = $1 \
+                "SELECT 'aws', a.aws_account_id, COALESCE(n.name, '') FROM aws_accounts a \
+                 LEFT JOIN cloud_scope_names n ON n.org_id = a.org_id AND n.provider = 'aws' AND n.scope = a.aws_account_id WHERE a.org_id = $1 \
                  UNION SELECT j.provider, j.scope, COALESCE(n.name, '') FROM cloud_crawl_jobs j \
                  LEFT JOIN cloud_scope_names n ON n.org_id = j.org_id AND n.provider = j.provider AND n.scope = j.scope \
                  WHERE j.org_id = $1 AND j.provider IN ('azure', 'gcp') AND j.scope <> ''",

@@ -1,8 +1,8 @@
 //! The AWS APIs the crawler calls, behind [`AwsApi`] (tests use a fake), and their implementation
 //! with the official AWS SDK ([`Sdk`]): the server's own identity from the default credential chain
 //! (environment, EKS IRSA / Pod Identity, ECS, EC2 instance profile), AssumeRole into the customer's
-//! role with its external id (or the account's access keys), CloudWatch ListMetrics / GetMetricData
-//! and the Resource Groups Tagging API.
+//! role with its external id (or the account's access keys), CloudWatch ListMetrics / GetMetricData,
+//! the Resource Groups Tagging API and the account's alias (IAM ListAccountAliases).
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -103,6 +103,8 @@ pub trait AwsApi: Send + Sync {
     /// One of [`super::naming::LOOKUPS`] in the region: REST APIs' ids by name, RDS proxies' and DMS replication
     /// instances' ARNs by name, WAF Classic web ACLs' ARNs by metric name (`webacls`: CloudFront's, global).
     async fn resource_ids(&self, target: &Target, lookup: &str) -> Result<HashMap<String, String>, AwsError>;
+    /// The account's alias (IAM ListAccountAliases; an account has at most one), its name in lists of accounts.
+    async fn account_alias(&self, target: &Target) -> Result<Option<String>, AwsError>;
 }
 
 /// The AWS SDK. Clients are kept per account and region (their credentials are cached and renewed
@@ -123,6 +125,7 @@ struct Clients {
     /// WAF Classic: CloudFront's web ACLs (global, us-east-1) and the region's.
     waf: aws_sdk_waf::Client,
     waf_regional: aws_sdk_wafregional::Client,
+    iam: aws_sdk_iam::Client,
 }
 
 const CLIENT_TTL: Duration = Duration::from_secs(3600);
@@ -172,6 +175,7 @@ impl Sdk {
             dms: aws_sdk_databasemigration::Client::new(&config),
             waf: aws_sdk_waf::Client::from_conf(aws_sdk_waf::config::Builder::from(&config).region(Region::new("us-east-1")).build()),
             waf_regional: aws_sdk_wafregional::Client::new(&config),
+            iam: aws_sdk_iam::Client::new(&config),
         };
         cache.insert(target.clone(), (clients.clone(), Instant::now()));
         clients
@@ -284,6 +288,12 @@ impl AwsApi for Sdk {
 
     async fn resource_ids(&self, target: &Target, lookup: &str) -> Result<HashMap<String, String>, AwsError> {
         self.lookup(target, lookup).await
+    }
+
+    async fn account_alias(&self, target: &Target) -> Result<Option<String>, AwsError> {
+        let client = self.clients(target).await.iam;
+        let out = client.list_account_aliases().send().await.map_err(sdk_error)?;
+        Ok(out.account_aliases().first().cloned())
     }
 }
 
