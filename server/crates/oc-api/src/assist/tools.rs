@@ -223,6 +223,11 @@ pub fn catalog() -> Vec<(&'static str, &'static str, bool)> {
     DEFS.iter().map(|d| (d.name, d.skill, d.writes)).collect()
 }
 
+/// One tool's description and input schema (the MCP server offers Assist's read-only tools too).
+pub(crate) fn spec(name: &str) -> Option<ToolSpec> {
+    DEFS.iter().find(|d| d.name == name).map(|d| ToolSpec { name: d.name.to_string(), description: d.description.to_string(), schema: (d.schema)() })
+}
+
 /// A range (epoch ms) from a tool's `from` / `to`.
 pub fn parse_range(input: &Value, now: i64, default_from: &str) -> Result<logs::TimeRange, String> {
     let at = |v: Option<&str>, default: &str| -> Result<i64, String> {
@@ -251,15 +256,15 @@ pub fn parse_range(input: &Value, now: i64, default_from: &str) -> Result<logs::
     Ok(range)
 }
 
-fn req<T: DeserializeOwned>(v: Value) -> Result<T, String> {
+pub(crate) fn req<T: DeserializeOwned>(v: Value) -> Result<T, String> {
     serde_json::from_value(v).map_err(|e| format!("Invalid input: {e}"))
 }
 
-fn limit(input: &Value, default: u64, max: u64) -> u64 {
+pub(crate) fn limit(input: &Value, default: u64, max: u64) -> u64 {
     input["limit"].as_u64().unwrap_or(default).clamp(1, max)
 }
 
-fn err(e: ApiError) -> String {
+pub(crate) fn err(e: ApiError) -> String {
     match e {
         ApiError::BadRequest(m) => m,
         other => other.to_string(),
@@ -295,7 +300,7 @@ impl OrgTools {
         chrono::Utc::now().timestamp_millis()
     }
 
-    async fn call(&self, name: &str, input: &Value) -> Result<Value, String> {
+    pub(crate) async fn call(&self, name: &str, input: &Value) -> Result<Value, String> {
         let st = || State(self.st.clone());
         let org = || OrgId(self.ctx.org_id.clone());
         let now = Self::now();

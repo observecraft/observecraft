@@ -15324,6 +15324,117 @@
         }
       }
     },
+    "/api/v1/mcp": {
+      "get": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "The server sends nothing on its own, so there is no GET stream (and no session to DELETE).",
+        "operationId": "mcp_stream",
+        "responses": {
+          "405": {
+            "description": "No server-initiated stream"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "One JSON-RPC message from an MCP client (`initialize`, `server/discover`, `ping`, `tools/list`,\n`tools/call`); notifications are accepted with 202.",
+        "operationId": "mcp_message",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Bearer ocak_… (an application key)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "DD-APPLICATION-KEY",
+            "in": "header",
+            "description": "Application key, instead of Authorization",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "MCP-Protocol-Version",
+            "in": "header",
+            "description": "2026-07-28, 2025-11-25, 2025-06-18 or 2025-03-26",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "A JSON-RPC 2.0 request or notification",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Notification accepted"
+          },
+          "400": {
+            "description": "Malformed message, header mismatch or unsupported protocol version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid application key"
+          },
+          "403": {
+            "description": "Origin not allowed"
+          },
+          "404": {
+            "description": "Unknown method (2026-07-28)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me": {
       "get": {
         "tags": [
@@ -83460,6 +83571,10 @@
     {
       "name": "datadog-api",
       "description": "Datadog-compatible management API for Datadog's Terraform provider and API clients: DD-API-KEY / DD-APPLICATION-KEY headers, Datadog's paths and error shape"
+    },
+    {
+      "name": "mcp",
+      "description": "MCP server for AI agents (Model Context Protocol over Streamable HTTP, application key auth): read-only tools over logs, metrics, traces, monitors, incidents and more"
     },
     {
       "name": "health"

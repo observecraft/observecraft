@@ -6053,6 +6053,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The server sends nothing on its own, so there is no GET stream (and no session to DELETE). */
+        get: operations["mcp_stream"];
+        put?: never;
+        /**
+         * One JSON-RPC message from an MCP client (`initialize`, `server/discover`, `ping`, `tools/list`,
+         *     `tools/call`); notifications are accepted with 202.
+         */
+        post: operations["mcp_message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -39281,6 +39302,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SplTranslation"];
+                };
+            };
+        };
+    };
+    mcp_stream: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No server-initiated stream */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    mcp_message: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Bearer ocak_… (an application key) */
+                Authorization?: string | null;
+                /** @description Application key, instead of Authorization */
+                "DD-APPLICATION-KEY"?: string | null;
+                /** @description 2026-07-28, 2025-11-25, 2025-06-18 or 2025-03-26 */
+                "MCP-Protocol-Version"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /** @description A JSON-RPC 2.0 request or notification */
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description JSON-RPC response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Notification accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed message, header mismatch or unsupported protocol version */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description No valid application key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Origin not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown method (2026-07-28) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };
