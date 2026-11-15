@@ -67,6 +67,7 @@ visibility in one place, built on OpenTelemetry and ClickHouse.**
 | 🚨 | **Monitors** | Metric, APM, log and change monitors; warn/alert thresholds with recovery; backtesting; downtimes; notifications to webhooks (HMAC-signed), Slack and email with retries; quality checks |
 | 🧯 | **Incidents** | Declare, triage, timeline, impacts, follow-ups and analytics |
 | 🚀 | **Software Delivery** | CI pipeline explorer, flaky-test management, DORA metrics from OpenTelemetry CI/CD semantic conventions; GitLab CI pipelines pulled through GitLab's API (no inbound access needed) |
+| 🤖 | **MCP server** | AI agents (Claude Code, IDE assistants) query logs, metrics, traces, monitors, incidents, dashboards and security findings over the Model Context Protocol with an application key; read-only tools, audited ([docs/mcp.md](docs/mcp.md)) |
 | 🔐 | **Identity & tenancy** | Organizations with an instance admin console, one account across orgs, password + TOTP MFA, SAML 2.0, OIDC, roles, teams, SAML group mappings, application and ingest API keys, audit trail |
 
 <details>
