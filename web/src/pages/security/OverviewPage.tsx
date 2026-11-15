@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { EChartsOption } from 'echarts';
-import { ArrowRight, Boxes, Bot, CheckCircle2, Cloud, CloudCog, Code2, Cpu, FolderGit2, Radar, Server, ShieldAlert, Waypoints } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Boxes, Bot, CheckCircle2, Cloud, CloudCog, Code2, Cpu, FolderGit2, Loader2, Radar, Server, ShieldAlert, Waypoints } from 'lucide-react';
 import { Chart } from '../../components/charts/Chart';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { compact } from '../../lib/format';
@@ -11,6 +11,7 @@ import { useCloudSummary } from './cloud/queries';
 import { useWpSummary } from './workload/overviewQueries';
 import { useAiGuardSummary } from './aiGuard/queries';
 import { useAppsecServices } from './appsec/queries';
+import { cloudSecurityCard, workloadCard, type CapabilityState } from './overviewCards';
 
 const WEEK = 7 * 86_400_000;
 
@@ -19,25 +20,19 @@ export function SecurityOverviewPage() {
   const q = useSecurityOverview();
   // The products' own summaries, over the last 7 days (fixed when the page opens).
   const [range] = useState(() => ({ from: Date.now() - WEEK, to: Date.now() }));
-  const cloud = useCloudSummary().data;
-  const wp = useWpSummary(range).data;
+  const cloud = cloudSecurityCard(useCloudSummary());
+  const wp = workloadCard(useWpSummary(range));
   const ai = useAiGuardSummary({ range }).data;
   const appsecServices = useAppsecServices().data;
   if (q.isLoading) return <Loading />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const o = q.data!;
   const c = o.codeSecurity;
-  const cov = cloud?.coverage;
-  const sbom = !!cov && cov.hostsScanned + cov.images > 0;
-  const posture = !!cloud && (cov!.resourcesEvaluated > 0 || cov!.accounts.some((a) => a.connected));
-  const connectedAccounts = cov?.accounts.filter((a) => a.connected).length ?? 0;
-  const misconfigs = cloud ? Object.values(cloud.misconfigurations).reduce((a, n) => a + n, 0) : 0;
-  const wpAgents = wp?.agents;
-  const wpOn = !!wpAgents && wpAgents.hostsEnabled + wpAgents.serverlessEnabled > 0;
-  const wpSignals = wp ? Object.values(wp.signals).reduce((a, n) => a + n, 0) : 0;
   const aiOn = !!ai && ai.total > 0;
   const appsecOn = (appsecServices ?? []).filter((s) => s.protected || s.securityTraces > 0);
   const n = (on: boolean, v: number) => (on ? compact(v) : '—');
+  // A product's number once its summary is read: '…' while it loads, '—' when the product isn't set up or failed.
+  const of = (state: CapabilityState, v: number | undefined) => (state === 'pending' ? '…' : v === undefined ? '—' : compact(v));
   const appSec: EChartsOption = {
     grid: { left: 24, right: 8, top: 8, bottom: 20 },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
@@ -138,12 +133,12 @@ export function SecurityOverviewPage() {
           <h3>
             <CloudCog size={17} /> Cloud Security
           </h3>
-          <Capability on={sbom} label="Host & container image vulnerabilities (SBOMs)" to={sbom ? '/security/cloud/vulnerabilities' : undefined} enable="/security/cloud/settings" />
-          <Capability on={posture} label="Misconfigurations (posture)" to={posture ? '/security/cloud/findings' : undefined} enable="/security/cloud/settings" />
+          <Capability state={cloud.sbom} label="Host & container image vulnerabilities (SBOMs)" to="/security/cloud/vulnerabilities" enable="/security/cloud/settings" />
+          <Capability state={cloud.posture} label="Misconfigurations (posture)" to="/security/cloud/findings" enable="/security/cloud/settings" />
           <Capability
-            on={connectedAccounts > 0}
-            label={connectedAccounts ? `${connectedAccounts} cloud accounts connected` : 'Cloud accounts'}
-            to={connectedAccounts ? '/security/cloud' : undefined}
+            state={cloud.accounts}
+            label={cloud.connectedAccounts ? `${cloud.connectedAccounts} cloud account${cloud.connectedAccounts === 1 ? '' : 's'} connected` : 'Cloud accounts'}
+            to="/security/cloud"
             enable="/security/cloud/settings"
           />
         </section>
@@ -152,12 +147,17 @@ export function SecurityOverviewPage() {
             <Cpu size={17} /> Workload Protection
           </h3>
           <Capability
-            on={wpOn}
-            label={wpOn ? `${wpAgents!.hostsEnabled} of ${wpAgents!.hosts} hosts with runtime security` : 'Runtime security on Agents'}
-            to={wpOn ? '/security/workload-protection/inventory/coverage' : undefined}
+            state={wp.runtime}
+            label={wp.runtime === 'on' ? `${wp.hostsEnabled} of ${wp.hosts} hosts with runtime security` : 'Runtime security on Agents'}
+            to="/security/workload-protection/inventory/coverage"
             enable="/security/workload-protection/setup"
           />
-          <Capability on={wpOn && (wp?.detectionRules ?? 0) > 0} label={`${wp?.detectionRules ?? 0} detection rules`} to="/security/workload-protection/policies/detection-rules" />
+          <Capability
+            state={wp.detectionRules}
+            label={wp.rules === undefined ? 'Detection rules' : `${wp.rules} detection rule${wp.rules === 1 ? '' : 's'}`}
+            to="/security/workload-protection/policies/detection-rules"
+            enable="/security/workload-protection/setup"
+          />
         </section>
         <section className="sec-ov-product">
           <h3>
@@ -213,14 +213,14 @@ export function SecurityOverviewPage() {
         </section>
         <section className="sec-ov-result">
           <div className="sec-ov-row">
-            <Metric value={sbom ? compact(cloud!.vulnerabilities.total) : '—'} label="Cloud Vulnerabilities" to="/security/cloud/vulnerabilities" />
-            <Metric value={sbom ? compact(cloud!.vulnerabilities.highExploitRisk) : '—'} label="High Exploit Risk" to="/security/cloud/vulnerabilities?running=1&exploit=1" />
-            <Metric value={posture ? compact(misconfigs) : '—'} label="Misconfigurations" to="/security/cloud/findings" />
+            <Metric value={of(cloud.sbom, cloud.vulnerabilities)} label="Cloud Vulnerabilities" to="/security/cloud/vulnerabilities" />
+            <Metric value={of(cloud.sbom, cloud.highExploitRisk)} label="High Exploit Risk" to="/security/cloud/vulnerabilities?running=1&exploit=1" />
+            <Metric value={of(cloud.posture, cloud.misconfigurations)} label="Misconfigurations" to="/security/cloud/findings" />
           </div>
         </section>
         <section className="sec-ov-result">
           <div className="sec-ov-row">
-            <Metric value={wpOn ? compact(wpSignals) : '—'} label="Workload Signals" badge="7d" to="/security/workload-protection/signals" />
+            <Metric value={of(wp.runtime, wp.runtime === 'on' ? wp.signals : undefined)} label="Workload Signals" badge="7d" to="/security/workload-protection/signals" />
             <Metric value={aiOn ? compact(ai!.unsafeCount) : '—'} label="Unsafe AI Prompts" badge="7d" to="/security/ai-guard" />
           </div>
         </section>
@@ -241,20 +241,22 @@ function InventoryBox({ title, icon, children }: { title: string; icon: ReactNod
   );
 }
 
-function Capability({ on, label, to, enable = '/code-security/settings' }: { on: boolean; label: string; to?: string; enable?: string }) {
+/** A product capability: on (with a link to it), off (with a link to set it up), or its product's summary still loading or failed. */
+function Capability({ on, state, label, to, enable = '/code-security/settings' }: { on?: boolean; state?: CapabilityState; label: string; to?: string; enable?: string }) {
+  const s: CapabilityState = state ?? (on ? 'on' : 'off');
+  const icon = { on: <CheckCircle2 size={15} />, off: <Waypoints size={15} />, pending: <Loader2 size={15} className="sec-ov-spin" />, error: <AlertTriangle size={15} /> }[s];
   return (
-    <div className={`sec-ov-cap${on ? ' on' : ''}`}>
-      {on ? <CheckCircle2 size={15} /> : <Waypoints size={15} />}
+    <div className={`sec-ov-cap${s === 'on' ? ' on' : ''}`}>
+      {icon}
       <span>{label}</span>
-      {on && to ? (
-        <Link to={to}>View</Link>
-      ) : (
-        !on && (
-          <Link className="sec-ov-enable" to={enable}>
-            Enable
-          </Link>
-        )
+      {s === 'on' && to && <Link to={to}>View</Link>}
+      {s === 'off' && (
+        <Link className="sec-ov-enable" to={enable}>
+          Enable
+        </Link>
       )}
+      {s === 'pending' && <span className="sec-ov-state">Checking…</span>}
+      {s === 'error' && <span className="sec-ov-state">Couldn&rsquo;t load</span>}
     </div>
   );
 }

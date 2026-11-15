@@ -41186,6 +41186,7 @@
           "imagesRunning",
           "clusters",
           "resourcesEvaluated",
+          "misconfigurationChecks",
           "accounts"
         ],
         "properties": {
@@ -41216,6 +41217,11 @@
           },
           "imagesRunning": {
             "type": "integer",
+            "minimum": 0
+          },
+          "misconfigurationChecks": {
+            "type": "integer",
+            "description": "Rule × resource evaluations of every misconfiguration source (our rules, account scans, tagging policies).",
             "minimum": 0
           },
           "resourcesEvaluated": {

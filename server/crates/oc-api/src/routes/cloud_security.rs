@@ -1069,6 +1069,8 @@ pub struct CloudCoverage {
     pub clusters: usize,
     /// Kubernetes objects evaluated by the misconfiguration rules.
     pub resources_evaluated: usize,
+    /// Rule × resource evaluations of every misconfiguration source (our rules, account scans, tagging policies).
+    pub misconfiguration_checks: usize,
     /// The connected cloud accounts (AWS accounts, Azure subscriptions, GCP projects) and those only
     /// seen in the resource catalog.
     pub accounts: Vec<CloudAccount>,
@@ -1160,15 +1162,25 @@ async fn vulnerability_counts(st: &AppState, org: &str) -> Result<VulnCounts, Ap
     Ok(sqlx::query_as(sqlx::AssertSqlSafe(sql)).bind(org).bind(STALE_DAYS).bind(&kev).fetch_one(&st.postgres).await?)
 }
 
+/// Open misconfigurations by severity, and how many rule × resource evaluations there were, over every source the
+/// Findings page shows (our rules, the account scans' checks, the tagging policies).
+pub fn misconfiguration_summary(findings: &[MisconfigFinding], rules: &[MisconfigRuleStatus]) -> (BTreeMap<String, usize>, usize) {
+    let mut by_severity: BTreeMap<String, usize> = ["critical", "high", "medium", "low"].iter().map(|s| (s.to_string(), 0)).collect();
+    for f in findings.iter().filter(|f| f.status == "open") {
+        *by_severity.entry(f.severity.clone()).or_default() += 1;
+    }
+    (by_severity, rules.iter().map(|r| r.evaluated).sum())
+}
+
 #[utoipa::path(get, path = "/api/v1/cloud-security/summary", operation_id = "cloud_security_summary", responses((status = 200, body = CloudSecuritySummary)), tag = "cloud-security")]
 pub async fn summary(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<CloudSecuritySummary> {
     let org = &ctx.org_id;
     let pg = &st.postgres;
-    let (counts, resources, manifests, triage, (images, images_running), sbom_hosts, connected) = tokio::try_join!(
+    let (counts, resources, manifests, (findings, rules), (images, images_running), sbom_hosts, connected) = tokio::try_join!(
         vulnerability_counts(&st, org),
         catalog::load_all(&st, org),
         manifests(&st, org),
-        code_security::triage_map(&st, org),
+        misconfigurations_of(&st, org),
         async {
             sqlx::query_as::<_, (i64, i64)>(
                 "SELECT count(*) FILTER (WHERE kind = 'container_image'), count(*) FILTER (WHERE kind = 'container_image' AND in_use) \
@@ -1213,11 +1225,8 @@ pub async fn summary(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<
     if counts.unknown > 0 {
         by_severity.insert("unknown".into(), counts.unknown as usize);
     }
-    let (findings, _) = evaluate(&resources, &manifests, &triage);
-    let mut misconfigs: BTreeMap<String, usize> = ["critical", "high", "medium", "low"].iter().map(|s| (s.to_string(), 0)).collect();
-    for f in findings.iter().filter(|f| f.status == "open") {
-        *misconfigs.entry(f.severity.clone()).or_default() += 1;
-    }
+    // The Findings page's misconfigurations: our rules, the account scans and the tagging policies.
+    let (misconfigs, misconfiguration_checks) = misconfiguration_summary(&findings, &rules);
     let listed: Vec<&str> = resources.iter().filter(|r| r.resource_type == CatalogType::Host).map(|r| r.name.as_str()).collect();
     let seen: Vec<(String, String)> = resources.iter().filter_map(|r| Some((r.cloud.clone()?, r.account.clone()?))).collect();
     let clusters: BTreeSet<&str> = resources.iter().filter_map(|r| r.cluster.as_deref()).collect();
@@ -1230,6 +1239,7 @@ pub async fn summary(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<
             images_running: images_running as usize,
             clusters: clusters.len(),
             resources_evaluated: resources.iter().filter(|r| target_of(r).is_some() && (r.resource_type == CatalogType::Host || manifests.contains_key(&r.id))).count(),
+            misconfiguration_checks,
             accounts: cloud_accounts(connected, &seen),
         },
         misconfigurations: misconfigs,
@@ -1425,6 +1435,38 @@ mod tests {
         assert_eq!(findings[0].frameworks, vec!["CIS-2.0"]);
         // Checks that only passed are listed too, named by their id when the scanner sent no title.
         assert_eq!(rules.iter().map(|r| (r.id.as_str(), r.name.as_str(), r.evaluated, r.failing)).collect::<Vec<_>>(), vec![("s3_bucket_public_access", "s3_bucket_public_access", 40, 1), ("iam_root_mfa", "iam_root_mfa", 1, 0)]);
+    }
+
+    #[test]
+    fn the_summary_counts_open_misconfigurations_and_checks_of_every_source() {
+        let finding = |rule: &str, severity: &str, status: &str| MisconfigFinding {
+            key: format!("misconfig:{rule}"),
+            rule_id: rule.into(),
+            rule_name: rule.into(),
+            severity: severity.into(),
+            description: String::new(),
+            remediation: String::new(),
+            frameworks: vec![],
+            detail: String::new(),
+            resource_id: "r".into(),
+            resource_name: "r".into(),
+            resource_type: "AwsS3Bucket".into(),
+            cluster: None,
+            namespace: None,
+            account: None,
+            region: None,
+            env: None,
+            service: None,
+            team: None,
+            status: status.into(),
+            last_seen: 0,
+        };
+        let rule = |id: &str, evaluated: usize| MisconfigRuleStatus { id: id.into(), name: id.into(), severity: "high".into(), description: String::new(), remediation: String::new(), frameworks: vec![], evaluated, failing: 0 };
+        // A Kubernetes rule, an account scan's check and the tagging rule; the muted one isn't counted.
+        let findings = [finding("ocs-k8s-001", "high", "open"), finding("s3_bucket_public_access", "critical", "open"), finding("ocs-tag-001", "low", "open"), finding("ocs-k8s-002", "medium", "muted")];
+        let (by_severity, checks) = misconfiguration_summary(&findings, &[rule("ocs-k8s-001", 12), rule("s3_bucket_public_access", 40), rule("ocs-tag-001", 0)]);
+        assert_eq!(by_severity, BTreeMap::from([("critical".into(), 1), ("high".into(), 1), ("medium".into(), 0), ("low".into(), 1)]));
+        assert_eq!(checks, 52);
     }
 
     #[test]
