@@ -380,8 +380,42 @@ impl Crawler for AwsCrawler {
         if let (Outcome::Collected { .. }, Some(marks)) = (&run.outcome, &run.daily_marks) {
             save_daily_marks(st, key, marks).await?;
         }
+        if matches!(run.outcome, Outcome::Collected { .. }) {
+            refresh_account_name(st, self.api.as_ref(), &job).await?;
+        }
         Ok(run.outcome)
     }
+}
+
+/// Names the account by its alias (IAM ListAccountAliases), asked once a day per account; the name is kept when the
+/// call fails (a role without `iam:ListAccountAliases`) or the account has no alias. Stored with the Azure
+/// subscriptions' and GCP projects' names (`cloud_scope_names`, scope = the account id).
+async fn refresh_account_name(st: &AppState, api: &dyn AwsApi, job: &Job) -> Result<(), sqlx::Error> {
+    let account = &job.target.account_id;
+    let due: bool = sqlx::query_scalar("SELECT NOT EXISTS (SELECT 1 FROM cloud_scope_names WHERE org_id = $1 AND provider = $2 AND scope = $3 AND updated_at > now() - interval '1 day')")
+        .bind(&job.org_id)
+        .bind(PROVIDER)
+        .bind(account)
+        .fetch_one(&st.postgres)
+        .await?;
+    if !due {
+        return Ok(());
+    }
+    let alias = api.account_alias(&job.target).await.unwrap_or_else(|e| {
+        tracing::info!(org = %job.org_id, account = %account, error = %e.message(), "reading the AWS account's alias failed (iam:ListAccountAliases)");
+        None
+    });
+    sqlx::query(
+        "INSERT INTO cloud_scope_names (org_id, provider, scope, name) VALUES ($1, $2, $3, $4) \
+         ON CONFLICT (org_id, provider, scope) DO UPDATE SET name = CASE WHEN EXCLUDED.name = '' THEN cloud_scope_names.name ELSE EXCLUDED.name END, updated_at = now()",
+    )
+    .bind(&job.org_id)
+    .bind(PROVIDER)
+    .bind(account)
+    .bind(alias.unwrap_or_default())
+    .execute(&st.postgres)
+    .await?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -413,6 +447,10 @@ mod tests {
         fail_ids: Option<AwsError>,
         /// Each GetMetricData call: its statistics, start, end and period.
         calls: StdMutex<Vec<Call>>,
+        /// The account's alias, and how often it was asked for.
+        alias: Option<String>,
+        fail_alias: Option<AwsError>,
+        alias_calls: StdMutex<usize>,
     }
 
     #[async_trait::async_trait]
@@ -437,6 +475,10 @@ mod tests {
         async fn resource_ids(&self, _t: &Target, lookup: &str) -> Result<HashMap<String, String>, AwsError> {
             self.looked_up.lock().unwrap().push(lookup.to_string());
             self.fail_ids.clone().map_or_else(|| Ok(self.ids.get(lookup).cloned().unwrap_or_default()), Err)
+        }
+        async fn account_alias(&self, _t: &Target) -> Result<Option<String>, AwsError> {
+            *self.alias_calls.lock().unwrap() += 1;
+            self.fail_alias.clone().map_or_else(|| Ok(self.alias.clone()), Err)
         }
     }
 
@@ -646,6 +688,27 @@ mod tests {
         jobs::record(st, &key, &c.run(st, &key, NOW + 600_000).await.unwrap(), 600).await.unwrap();
         let s = status().await;
         assert_eq!((s.collected_until, s.error.as_ref().and_then(|e| e.missing_action.clone())), (Some((NOW - LAG_MS) / 60_000 * 60_000), Some("cloudwatch:ListMetrics".to_string())));
+    }
+
+    #[tokio::test]
+    async fn the_accounts_alias_names_it_asked_once_a_day_and_kept_when_denied() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "aws-alias").await;
+        let id = account(st, &org, json!({ "include_only": ["us-east-1"] }), true).await;
+        planned(st).await;
+        let key = JobKey { provider: PROVIDER.into(), org_id: org.clone(), account_id: id, scope: "us-east-1".into(), collected_until: None };
+        let name = || async { sqlx::query_scalar::<_, String>("SELECT name FROM cloud_scope_names WHERE org_id = $1 AND provider = 'aws' AND scope = '123456789012'").bind(&org).fetch_optional(&st.postgres).await.unwrap() };
+        let api = Arc::new(FakeAws { alias: Some("example-shop-prod".into()), ..Default::default() });
+        let c = AwsCrawler { api: api.clone(), sink: Arc::new(FakeSink::default()), interval_secs: 600 };
+        c.run(st, &key, NOW).await.unwrap();
+        c.run(st, &key, NOW + 600_000).await.unwrap();
+        assert_eq!((name().await.as_deref(), *api.alias_calls.lock().unwrap()), (Some("example-shop-prod"), 1));
+        // The role without iam:ListAccountAliases: the name stays, and is asked for again the next day.
+        sqlx::query("UPDATE cloud_scope_names SET updated_at = now() - interval '2 days' WHERE org_id = $1").bind(&org).execute(&st.postgres).await.unwrap();
+        let denied = Arc::new(FakeAws { fail_alias: Some(AwsError::AccessDenied { action: Some("iam:ListAccountAliases".into()), message: "denied".into() }), ..Default::default() });
+        AwsCrawler { api: denied, sink: Arc::new(FakeSink::default()), interval_secs: 600 }.run(st, &key, NOW + 1_200_000).await.unwrap();
+        assert_eq!(name().await.as_deref(), Some("example-shop-prod"));
     }
 
     #[tokio::test]
