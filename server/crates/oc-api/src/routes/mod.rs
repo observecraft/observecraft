@@ -72,6 +72,7 @@ pub mod logs_config;
 pub mod log_aggregates;
 pub mod log_analytics;
 pub mod logs;
+pub mod mcp;
 pub mod metric_catalog;
 pub mod metric_inventory;
 pub mod metric_rules;
@@ -170,6 +171,8 @@ use crate::state::AppState;
     paths(
         health::healthz,
         health::readyz,
+        mcp::handle,
+        mcp::not_allowed,
         datadog_api::validate::validate,
         datadog_api::validate::validate_keys,
         datadog_api::current_user::current_user,
@@ -1219,6 +1222,7 @@ use crate::state::AppState;
         (name = "automation", description = "Workflow Automation (workflows, triggers, runs) and App Builder"),
         (name = "auth", description = "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"),
         (name = "datadog-api", description = "Datadog-compatible management API for Datadog's Terraform provider and API clients: DD-API-KEY / DD-APPLICATION-KEY headers, Datadog's paths and error shape"),
+        (name = "mcp", description = "MCP server for AI agents (Model Context Protocol over Streamable HTTP, application key auth): read-only tools over logs, metrics, traces, monitors, incidents and more"),
         (name = "health")
     )
 )]
@@ -1227,7 +1231,7 @@ pub struct ApiDoc;
 /// Every route: the API behind the session / application-key middleware, and the Datadog-compatible
 /// routes, which authenticate with Datadog's key headers themselves ([`datadog_api`]).
 pub fn app(state: AppState) -> Router<AppState> {
-    router().layer(axum::middleware::from_fn_with_state(state, crate::auth::require)).merge(datadog_api::router())
+    router().layer(axum::middleware::from_fn_with_state(state, crate::auth::require)).merge(datadog_api::router()).merge(mcp::router())
 }
 
 pub fn router() -> Router<AppState> {
@@ -2121,6 +2125,7 @@ mod tests {
     fn every_route_path_parses() {
         let _ = super::router();
         let _ = super::datadog_api::router();
+        let _ = super::mcp::router();
     }
 
     /// openapi-typescript keys operations by id, so two handlers with the same function name in
@@ -2698,6 +2703,9 @@ mod tests {
             ("../assist/prompt.rs", include_str!("../assist/prompt.rs")),
             ("../assist/tools.rs", include_str!("../assist/tools.rs")),
             ("../assist/testing.rs", include_str!("../assist/testing.rs")),
+            ("mcp.rs", include_str!("mcp.rs")),
+            ("../mcp/mod.rs", include_str!("../mcp/mod.rs")),
+            ("../mcp/tools.rs", include_str!("../mcp/tools.rs")),
             ("notebooks.rs", include_str!("notebooks.rs")),
             ("notifications.rs", include_str!("notifications.rs")),
             ("on_call.rs", include_str!("on_call.rs")),

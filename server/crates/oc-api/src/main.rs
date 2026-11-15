@@ -35,6 +35,7 @@ mod log_normalize;
 mod log_records;
 mod log_stack;
 mod logproc;
+mod mcp;
 mod metric_rollups;
 mod org_limits;
 mod pipelines;

@@ -178,7 +178,7 @@ impl Row {
     }
 }
 
-async fn load(st: &AppState, org: &str, user: &str, id: &str) -> Result<Dashboard, ApiError> {
+pub(crate) async fn load(st: &AppState, org: &str, user: &str, id: &str) -> Result<Dashboard, ApiError> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(SELECT);
     qb.push(", d.definition, NULL::bigint AS total")
         .push(FROM)

@@ -105,7 +105,7 @@ pub fn client_ip(st: &AppState, headers: &HeaderMap, peer: Option<SocketAddr>) -
     peer.map(|p| p.ip().to_string())
 }
 
-fn origin_allowed(st: &AppState, headers: &HeaderMap) -> bool {
+pub(crate) fn origin_allowed(st: &AppState, headers: &HeaderMap) -> bool {
     let origin = headers
         .get(ORIGIN)
         .and_then(|v| v.to_str().ok())
