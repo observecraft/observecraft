@@ -139,6 +139,9 @@ pub struct MonitorOptions {
     /// Datadog's `on_missing_data: resolve`: a group that stops reporting goes back to OK.
     #[serde(default)]
     pub missing_resolves: bool,
+    /// Datadog's `require_full_window`: a group is evaluated only once its data covers the whole window.
+    #[serde(default)]
+    pub require_full_window: bool,
 }
 
 /// How long a group that stopped reporting stays in the monitor's status (Datadog's default group retention).
@@ -257,6 +260,10 @@ impl MonitorOptions {
     /// aggregator; for change monitors, the difference with the window ending `changeMinutes` earlier.
     pub fn value_at(&self, points: &[(i64, f64)], at: i64) -> Option<f64> {
         let w = self.window_minutes * 60_000;
+        // Within a minute of the window's start counts as covering it (points come every 10 s to a minute).
+        if self.require_full_window && !points.first().is_some_and(|p| p.0 <= at - w + 60_000) {
+            return None;
+        }
         let now = reduce_window(points, at - w, at, self.time_aggregation)?;
         if self.detection != Detection::Change {
             return Some(now);
@@ -561,6 +568,7 @@ mod tests {
             notify_no_data: true,
             no_data_minutes: 10,
             missing_resolves: false,
+            require_full_window: false,
         }
     }
 
@@ -575,6 +583,21 @@ mod tests {
         assert_eq!(o.classify(None, MonitorStatus::Ok), MonitorStatus::NoData);
         let quiet = MonitorOptions { notify_no_data: false, ..o };
         assert_eq!(quiet.classify(None, MonitorStatus::Warn), MonitorStatus::Warn);
+    }
+
+    /// A group whose data starts inside the window isn't evaluated yet (Datadog's require_full_window): a node that
+    /// joins NotReady for a minute doesn't alert on a 15-minute "at all times" query.
+    #[test]
+    fn a_full_window_of_data_is_required_when_asked() {
+        let o = MonitorOptions { window_minutes: 15, time_aggregation: TimeAggregator::Min, require_full_window: true, ..opts() };
+        let now = 100 * 60_000;
+        let minute = |m: i64| now - m * 60_000;
+        let young: Vec<(i64, f64)> = (0..2).map(|m| (minute(m), 1.0)).collect();
+        assert_eq!(o.value_at(&young, now), None, "data for 2 of 15 minutes");
+        let full: Vec<(i64, f64)> = (0..=15).rev().map(|m| (minute(m), 1.0)).collect();
+        assert_eq!(o.value_at(&full, now), Some(1.0));
+        let partial = MonitorOptions { require_full_window: false, ..o };
+        assert_eq!(partial.value_at(&young, now), Some(1.0), "without the option, what there is counts");
     }
 
     #[test]
