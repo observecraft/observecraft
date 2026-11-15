@@ -191,18 +191,17 @@ if is_null(ts) && received_at != null { ts = received_at }
 if is_null(ts) { ts = timestamp(.timestamp) ?? now() }
 ts = timestamp(ts) ?? now()
 
-trace_id = to_string(.trace_id) ?? ""
-span_id = to_string(.span_id) ?? ""
-for_each(["dd.trace_id", "contextMap.dd.trace_id", "named_tags.dd.trace_id", "trace_id"]) -> |_i, k| {
-  if trace_id == "" { trace_id = to_string(get(flat, [k]) ?? null) ?? "" }
+# The first id in hex form: a decimal Datadog id (dd.trace_id) doesn't hide a hex one written next to it.
+trace_id = ""
+span_id = ""
+for_each([to_string(.trace_id) ?? "", to_string(get(flat, ["dd.trace_id"]) ?? null) ?? "", to_string(get(flat, ["contextMap.dd.trace_id"]) ?? null) ?? "", to_string(get(flat, ["named_tags.dd.trace_id"]) ?? null) ?? "", to_string(get(flat, ["trace_id"]) ?? null) ?? ""]) -> |_i, v| {
+  v = downcase(v)
+  if trace_id == "" && match(v, r'^[0-9a-f]{32}$') && v != "00000000000000000000000000000000" { trace_id = v }
 }
-for_each(["dd.span_id", "contextMap.dd.span_id", "named_tags.dd.span_id", "span_id"]) -> |_i, k| {
-  if span_id == "" { span_id = to_string(get(flat, [k]) ?? null) ?? "" }
+for_each([to_string(.span_id) ?? "", to_string(get(flat, ["dd.span_id"]) ?? null) ?? "", to_string(get(flat, ["contextMap.dd.span_id"]) ?? null) ?? "", to_string(get(flat, ["named_tags.dd.span_id"]) ?? null) ?? "", to_string(get(flat, ["span_id"]) ?? null) ?? ""]) -> |_i, v| {
+  v = downcase(v)
+  if span_id == "" && match(v, r'^[0-9a-f]{16}$') { span_id = v }
 }
-trace_id = downcase(trace_id)
-span_id = downcase(span_id)
-if !match(trace_id, r'^[0-9a-f]{32}$') || trace_id == "00000000000000000000000000000000" { trace_id = "" }
-if !match(span_id, r'^[0-9a-f]{16}$') { span_id = "" }
 
 # ---------------------------------------------------------------- Datadog tags from resources
 r = map_values(res) -> |v| { to_string(v) ?? encode_json(v) }
