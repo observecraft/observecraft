@@ -14026,6 +14026,8 @@ export interface components {
             hostsScanned: number;
             images: number;
             imagesRunning: number;
+            /** @description Rule × resource evaluations of every misconfiguration source (our rules, account scans, tagging policies). */
+            misconfigurationChecks: number;
             /** @description Kubernetes objects evaluated by the misconfiguration rules. */
             resourcesEvaluated: number;
         };

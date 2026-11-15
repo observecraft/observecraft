@@ -722,6 +722,7 @@ export async function summary(): Promise<CloudSecuritySummary> {
       imagesRunning: IMAGES.filter((i) => i[3]).length,
       clusters: 1,
       resourcesEvaluated: 42,
+      misconfigurationChecks: 42 * 6,
       accounts: [
         { provider: 'aws', id: '123456789012', name: '', connected: true, resources: 64 },
         { provider: 'aws', id: '210987654321', name: '', connected: false, resources: 3 },
