@@ -92,3 +92,66 @@ export function dependencyLinks(service: string, d: Pick<Dependency, 'service' |
   const query = isInferred(d.kind) && side === 'downstream' ? `service:${quoteValue(service)} @peer.service:${quoteValue(d.service)}` : `service:${quoteValue(d.service)}`;
   return { service: `/apm/services/${encodeURIComponent(d.service)}`, traces: `/apm/traces?query=${encodeURIComponent(query)}` };
 }
+
+// ---------------------------------------------------------------- infrastructure
+
+export type HostUnit = 'number' | 'percent' | 'fraction' | 'bytes' | 'kibibytes' | 'bytesPerSec';
+
+export interface HostVariant {
+  title: string;
+  queries: (h: string) => string[];
+  unit: HostUnit;
+  stacked?: boolean;
+}
+
+/** Host charts in Datadog Agent metric names, with the OpenTelemetry hostmetrics equivalent tried when the Agent's are absent. */
+export const HOST_CHARTS: { id: string; variants: HostVariant[] }[] = [
+  {
+    id: 'queue',
+    variants: [
+      // linux_proc_extras, which the Agent doesn't run by default; else its load check, else hostmetrics.
+      { title: 'Process Queue Length', queries: (h) => [`avg:system.proc.queue_length{${h}}`], unit: 'number' },
+      { title: 'Load average (1m)', queries: (h) => [`avg:system.load.1{${h}}`], unit: 'number' },
+      { title: 'Load average (1m)', queries: (h) => [`avg:system.cpu.load_average.1m{${h}}`], unit: 'number' },
+    ],
+  },
+  {
+    id: 'disk-queue',
+    variants: [
+      { title: 'Disk Queue Length (by device)', queries: (h) => [`avg:system.io.avg_q_sz{${h}} by {device}`], unit: 'number' },
+      { title: 'Disk Queue Length (by device)', queries: (h) => [`avg:system.disk.pending_operations{${h}} by {device}`], unit: 'number' },
+    ],
+  },
+  {
+    id: 'cpu',
+    variants: [
+      { title: 'CPU usage (%)', queries: (h) => [`avg:system.cpu.user{${h}}`, `avg:system.cpu.system{${h}}`, `avg:system.cpu.iowait{${h}}`], unit: 'percent', stacked: true },
+      { title: 'CPU usage (%)', queries: (h) => [`avg:system.cpu.utilization{${h},!state:idle} by {state}`], unit: 'fraction', stacked: true },
+    ],
+  },
+  {
+    id: 'memory',
+    variants: [
+      // The Agent reports memory in MiB.
+      { title: 'Memory breakdown (MiB)', queries: (h) => [`sum:system.mem.used{${h}}`, `sum:system.mem.total{${h}}`], unit: 'number' },
+      { title: 'Memory breakdown', queries: (h) => [`sum:system.memory.usage{${h}} by {state}`], unit: 'bytes', stacked: true },
+    ],
+  },
+  {
+    id: 'network',
+    variants: [
+      { title: 'Network traffic (bytes per sec)', queries: (h) => [`sum:system.net.bytes_rcvd{${h}}`, `sum:system.net.bytes_sent{${h}}`], unit: 'bytesPerSec' },
+      { title: 'Network traffic (bytes per sec)', queries: (h) => [`sum:system.network.io{${h}} by {direction}`], unit: 'bytesPerSec' },
+    ],
+  },
+  {
+    id: 'disk',
+    variants: [
+      // The Agent's disk check reports KiB.
+      { title: 'Disk used (by device)', queries: (h) => [`max:system.disk.used{${h}} by {device}`], unit: 'kibibytes' },
+      // OpenTelemetry hostmetrics: bytes in use (on by default), then the utilization (opt-in).
+      { title: 'Disk used (by device)', queries: (h) => [`max:system.filesystem.usage{${h},state:used} by {device}`], unit: 'bytes' },
+      { title: 'Disk used (%) (by mountpoint)', queries: (h) => [`max:system.filesystem.utilization{${h}} by {mountpoint}`], unit: 'fraction' },
+    ],
+  },
+];

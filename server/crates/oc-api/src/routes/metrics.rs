@@ -2442,6 +2442,44 @@ mod tests {
         assert!(matches!(timeseries(State(st), OrgId(ctx.org_id), Json(req("avg:system.cpu.user{"))).await, Err(ApiError::BadRequest(_))));
     }
 
+    /// The service page's host charts on what the intake makes of the Datadog Agent's disk and io checks (the device as
+    /// a point attribute): grouped by device, next to the load. Skipped without the test databases.
+    #[tokio::test]
+    async fn agent_disk_and_io_series_chart_by_device() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = states[0].clone();
+        let ctx = crate::test_support::admin_of_new_org(&st, "agent-disk").await;
+        let host = "aks-nodepool1-12345678-vmss000000";
+        for (metric, device, value) in [("system.load.1", "", 0.7), ("system.io.avg_q_sz", "sda", 0.2), ("system.io.avg_q_sz", "sdb", 0.1), ("system.disk.used", "/dev/sda1", 1024.0), ("system.disk.used", "/dev/sdb", 2048.0)] {
+            st.clickhouse
+                .query("INSERT INTO otel.metrics_ingest_gauge (ResourceAttributes, MetricName, MetricUnit, Attributes, TimeUnix, Value) VALUES (map('oc.org_id', ?, 'host.name', ?, 'observecraft.collector', 'datadog-agent'), ?, '', mapFilter((k, v) -> v != '', map('device', ?, 'device_name', ?)), now64(9), ?)")
+                .bind(&ctx.org_id)
+                .bind(host)
+                .bind(metric)
+                .bind(device)
+                .bind(device.trim_start_matches("/dev/"))
+                .bind(value)
+                .execute()
+                .await
+                .expect("insert");
+        }
+        let now = now_ms();
+        let req = |q: String| TimeseriesRequest { queries: vec![q], range: TimeRange { from: now - 900_000, to: now + 60_000 }, points: Some(120) };
+        let names = |q: String| {
+            let st = st.clone();
+            let org = ctx.org_id.clone();
+            async move {
+                let Json(series) = timeseries(State(st), OrgId(org), Json(req(q))).await.unwrap();
+                let mut n: Vec<String> = series.into_iter().filter(|s| !s.points.is_empty()).map(|s| s.name).collect();
+                n.sort();
+                n
+            }
+        };
+        assert_eq!(names(format!("avg:system.load.1{{host:{host}}}")).await.len(), 1);
+        assert_eq!(names(format!("avg:system.io.avg_q_sz{{host:{host}}} by {{device}}")).await, ["device:sda", "device:sdb"]);
+        assert_eq!(names(format!("max:system.disk.used{{host:{host}}} by {{device}}")).await, ["device:/dev/sda1", "device:/dev/sdb"]);
+    }
+
     /// Tag values and the metric catalog come from the shared cache: replica B gets replica A's
     /// answer (not points written since), other orgs their own, and a derived metric written on
     /// either replica is in the catalog at once. Skipped unless OC_TEST_CLICKHOUSE_URL and
