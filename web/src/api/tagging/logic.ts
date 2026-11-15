@@ -42,11 +42,31 @@ function inScope(field: string | undefined, value: string | null | undefined): b
   return !ps.length || (value != null && ps.some((p) => glob(p, value)));
 }
 
-/** The resource is of the rule's target and in its scope. */
+/** A `key` or `key:value` pattern matches one of the `key:value` tags (keys compared as normKey). */
+function labelExcluded(field: string | undefined, tags: string[]): boolean {
+  return patterns(field).some((p) => {
+    const i = p.indexOf(':');
+    const key = normKey(i < 0 ? p : p.slice(0, i));
+    const value = i < 0 ? null : p.slice(i + 1).trim();
+    return tags.some((t) => {
+      const j = t.indexOf(':');
+      return j >= 0 && glob(key, normKey(t.slice(0, j))) && (value === null || glob(value, t.slice(j + 1).trim()));
+    });
+  });
+}
+
+/** The resource is of the rule's target and in its scope, and not excluded by its namespace or labels. */
 export function applies(rule: TagRule, r: TaggedResource): boolean {
   const s = rule.scope ?? {};
   return (
-    r.target === rule.target && inScope(s.provider, r.provider) && inScope(s.account, r.account) && inScope(s.cluster, r.cluster) && inScope(s.resourceType, r.resourceType) && inScope(s.names, r.name)
+    r.target === rule.target &&
+    inScope(s.provider, r.provider) &&
+    inScope(s.account, r.account) &&
+    inScope(s.cluster, r.cluster) &&
+    inScope(s.resourceType, r.resourceType) &&
+    inScope(s.names, r.name) &&
+    !(r.namespace != null && patterns(s.excludeNamespaces).some((p) => glob(p, r.namespace!))) &&
+    !labelExcluded(s.excludeLabels, r.tags)
   );
 }
 

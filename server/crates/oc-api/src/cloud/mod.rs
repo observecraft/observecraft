@@ -4,6 +4,7 @@
 pub mod jobs;
 pub mod kafka;
 pub mod naming;
+pub mod resources;
 
 #[cfg(test)]
 pub mod testing;

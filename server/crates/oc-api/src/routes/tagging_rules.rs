@@ -3,7 +3,8 @@
 //! policies, their daily coverage and serves the API.
 //!
 //! A policy targets cloud resources, Kubernetes objects, images or services, narrowed by a scope (cloud provider,
-//! account, cluster, resource type, names; each a comma-separated list of `*` patterns, empty for any). Every
+//! account, cluster, resource type, names; each a comma-separated list of `*` patterns, empty for any) and minus
+//! excluded namespaces and labels (provider-managed Kubernetes add-ons). Every
 //! required tag must be set; a key may list alternatives (`tf_repo|git_repo`: our Terraform tags or Yor's), and
 //! allowed values, when given, restrict its values (without case). Keys compare as `provenance::norm_key` does.
 
@@ -51,6 +52,13 @@ pub struct TagScope {
     /// Resource, image or service names.
     #[serde(default)]
     pub names: String,
+    /// Namespaces whose Kubernetes objects are left out (`kube-system`, `gke-managed-*`).
+    #[serde(default)]
+    pub exclude_namespaces: String,
+    /// Labels or tags that leave a resource out: a key (any value) or `key:value` (`addonmanager.kubernetes.io/mode`,
+    /// `app:coredns*`); keys compare without case.
+    #[serde(default)]
+    pub exclude_labels: String,
 }
 
 /// What a policy checks.
@@ -87,6 +95,8 @@ impl TagGap {
 pub struct CompiledRule {
     rule: TagRule,
     scope: [Vec<String>; 5],
+    exclude_namespaces: Vec<String>,
+    exclude_labels: Vec<String>,
 }
 
 fn patterns(s: &str) -> Vec<String> {
@@ -95,6 +105,16 @@ fn patterns(s: &str) -> Vec<String> {
 
 fn in_scope(patterns: &[String], value: Option<&str>) -> bool {
     patterns.is_empty() || value.is_some_and(|v| patterns.iter().any(|p| glob(p, v)))
+}
+
+/// A `key` or `key:value` pattern matches one of the `key:value` tags (keys as [`super::provenance::norm_key`]).
+fn label_excluded(patterns: &[String], tags: &[String]) -> bool {
+    use super::provenance::norm_key;
+    patterns.iter().any(|p| {
+        let (key, value) = p.split_once(':').map_or((p.as_str(), None), |(k, v)| (k, Some(v.trim())));
+        let key = norm_key(key);
+        tags.iter().filter_map(|t| t.split_once(':')).any(|(k, v)| glob(&key, &norm_key(k)) && value.is_none_or(|want| glob(want, v.trim())))
+    })
 }
 
 impl CompiledRule {
@@ -106,7 +126,7 @@ impl CompiledRule {
             return Err(format!("A policy can require at most {MAX_REQUIRED} tags"));
         }
         let s = &rule.scope;
-        if [&s.provider, &s.account, &s.cluster, &s.resource_type, &s.names].iter().any(|f| f.chars().count() > MAX_SCOPE_CHARS) {
+        if [&s.provider, &s.account, &s.cluster, &s.resource_type, &s.names, &s.exclude_namespaces, &s.exclude_labels].iter().any(|f| f.chars().count() > MAX_SCOPE_CHARS) {
             return Err("The scope is too long".into());
         }
         let mut required = Vec::new();
@@ -122,8 +142,17 @@ impl CompiledRule {
             required.push(RequiredTag { key: alternatives.join("|"), allowed_values: values });
         }
         let scope = [patterns(&s.provider), patterns(&s.account), patterns(&s.cluster), patterns(&s.resource_type), patterns(&s.names)];
-        let rule = TagRule { target: rule.target, scope: TagScope { provider: s.provider.trim().into(), account: s.account.trim().into(), cluster: s.cluster.trim().into(), resource_type: s.resource_type.trim().into(), names: s.names.trim().into() }, required };
-        Ok(CompiledRule { rule, scope })
+        let (exclude_namespaces, exclude_labels) = (patterns(&s.exclude_namespaces), patterns(&s.exclude_labels));
+        let scope_text = TagScope {
+            provider: s.provider.trim().into(),
+            account: s.account.trim().into(),
+            cluster: s.cluster.trim().into(),
+            resource_type: s.resource_type.trim().into(),
+            names: s.names.trim().into(),
+            exclude_namespaces: exclude_namespaces.join(", "),
+            exclude_labels: exclude_labels.join(", "),
+        };
+        Ok(CompiledRule { rule: TagRule { target: rule.target, scope: scope_text, required }, scope, exclude_namespaces, exclude_labels })
     }
 
     /// The rule as checked (keys and values trimmed).
@@ -131,7 +160,7 @@ impl CompiledRule {
         &self.rule
     }
 
-    /// The resource is of the rule's target and in its scope.
+    /// The resource is of the rule's target and in its scope, and not excluded by its namespace or labels.
     pub fn applies(&self, r: &TaggedResource) -> bool {
         let [provider, account, cluster, resource_type, names] = &self.scope;
         r.target == self.rule.target
@@ -140,6 +169,8 @@ impl CompiledRule {
             && in_scope(cluster, r.cluster.as_deref())
             && in_scope(resource_type, Some(&r.resource_type))
             && in_scope(names, Some(&r.name))
+            && !r.namespace.as_deref().is_some_and(|ns| self.exclude_namespaces.iter().any(|p| glob(p, ns)))
+            && !label_excluded(&self.exclude_labels, &r.tags)
     }
 
     /// The required tags the resource lacks or carries with values not allowed; empty when it complies.
@@ -297,6 +328,13 @@ pub struct RecommendedPolicy {
     pub rule: TagRule,
 }
 
+impl RecommendedPolicy {
+    fn scoped(mut self, scope: TagScope) -> Self {
+        self.rule.scope = scope;
+        self
+    }
+}
+
 fn req(key: &str, allowed: &[&str]) -> RequiredTag {
     RequiredTag { key: key.into(), allowed_values: allowed.iter().map(|v| v.to_string()).collect() }
 }
@@ -304,6 +342,10 @@ fn req(key: &str, allowed: &[&str]) -> RequiredTag {
 fn recommended(key: &'static str, name: &'static str, description: &'static str, target: TagTarget, required: Vec<RequiredTag>) -> RecommendedPolicy {
     RecommendedPolicy { key, name, description, rule: TagRule { target, scope: TagScope::default(), required } }
 }
+
+/// What the managed Kubernetes services deploy and manage themselves (add-ons, policy agents): not the org's to track.
+pub const PROVIDER_MANAGED_NAMESPACES: &str = "kube-system, kube-public, kube-node-lease, gatekeeper-system, gke-managed-*, gmp-system, gmp-public";
+pub const PROVIDER_MANAGED_LABELS: &str = "kubernetes.azure.com/managedby, addonmanager.kubernetes.io/mode, eks.amazonaws.com/component, components.gke.io/component-name";
 
 /// The recommended set installed for every org (and offered again in the editor): unified service tagging and git
 /// metadata for services, the Terraform source for cloud resources, Argo CD tracking for Kubernetes objects and the
@@ -334,10 +376,11 @@ pub fn recommended_set() -> Vec<RecommendedPolicy> {
         recommended(
             "kubernetes_argocd_tracking",
             "Kubernetes objects are tracked by Argo CD",
-            "Argo CD's tracking annotation (or label) names the Application whose repository, path and revision define the object.",
+            "Argo CD's tracking annotation (or label) names the Application whose repository, path and revision define the object. The AKS, EKS and GKE add-ons are left out.",
             TagTarget::Kubernetes,
             vec![req("argocd.argoproj.io/tracking-id|app.kubernetes.io/instance", &[])],
-        ),
+        )
+        .scoped(TagScope { exclude_namespaces: PROVIDER_MANAGED_NAMESPACES.into(), exclude_labels: PROVIDER_MANAGED_LABELS.into(), ..Default::default() }),
         recommended(
             "images_oci_source",
             "Images carry their OCI source and revision",
@@ -409,6 +452,48 @@ mod tests {
         assert!(scoped(TagScope { resource_type: "aws*bucket".into(), names: "example-shop-*".into(), ..Default::default() }).applies(&a));
         // A pattern on a field the resource lacks leaves it out.
         assert!(!scoped(TagScope { cluster: "shop-*".into(), ..Default::default() }).applies(&a));
+    }
+
+    #[test]
+    fn excluded_namespaces_and_labels_leave_objects_out_of_scope() {
+        let r = rule(TagTarget::Kubernetes, TagScope { exclude_namespaces: "kube-*, gatekeeper-system".into(), exclude_labels: "addonmanager.kubernetes.io/mode, app:coredns*".into(), ..Default::default() }, vec![req("team", &[])]);
+        let obj = |ns: &str, tags: &[&str]| {
+            let mut o = res(TagTarget::Kubernetes, "x", tags);
+            o.namespace = Some(ns.into());
+            o
+        };
+        assert!(r.applies(&obj("checkout", &["app:order-service"])));
+        assert!(!r.applies(&obj("kube-system", &[])));
+        assert!(!r.applies(&obj("gatekeeper-system", &[])));
+        // A label key alone excludes any value; key:value patterns match the value.
+        assert!(!r.applies(&obj("checkout", &["Addonmanager.kubernetes.io/mode:Reconcile"])));
+        assert!(!r.applies(&obj("checkout", &["app:coredns-autoscaler"])));
+        assert!(r.applies(&obj("checkout", &["app:order-service", "mode:Reconcile"])));
+    }
+
+    #[test]
+    fn the_argo_cd_policy_leaves_out_what_aks_eks_and_gke_manage() {
+        let set = recommended_set();
+        let argo = CompiledRule::new(&set.iter().find(|p| p.key == "kubernetes_argocd_tracking").unwrap().rule).unwrap();
+        let obj = |ns: &str, labels: &[&str]| {
+            let mut o = res(TagTarget::Kubernetes, "x", labels);
+            o.namespace = Some(ns.into());
+            o
+        };
+        for ns in ["kube-system", "kube-public", "kube-node-lease", "gatekeeper-system", "gke-managed-system"] {
+            assert!(!argo.applies(&obj(ns, &[])), "{ns}");
+        }
+        for label in ["kubernetes.azure.com/managedby:aks", "addonmanager.kubernetes.io/mode:Reconcile", "eks.amazonaws.com/component:coredns"] {
+            assert!(!argo.applies(&obj("default", &[label])), "{label}");
+        }
+        assert!(argo.applies(&obj("checkout", &["app.kubernetes.io/name:order-service"])));
+    }
+
+    #[test]
+    fn installed_argo_cd_policies_gain_the_same_exclusions() {
+        let migration = include_str!("../../../../migrations/postgres/0114_cloud_resources.sql");
+        assert!(migration.contains(&format!("'excludeNamespaces', '{PROVIDER_MANAGED_NAMESPACES}'")));
+        assert!(migration.contains(&format!("'excludeLabels', '{PROVIDER_MANAGED_LABELS}'")));
     }
 
     #[test]

@@ -158,7 +158,9 @@ export function TagCoveragePage() {
         {!c.total.evaluated ? (
           <Empty>
             <b>Nothing to evaluate yet.</b>
-            <p className="muted">Tagging policies look at the cloud resources the account scans list, the Kubernetes objects, the images’ SBOMs and the services sending traces.</p>
+            <p className="muted">
+              Tagging policies look at the cloud resources the account scans and the AWS and Azure integrations list, the Kubernetes objects, the images’ SBOMs and the services sending traces.
+            </p>
           </Empty>
         ) : (
           <>

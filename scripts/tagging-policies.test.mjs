@@ -55,6 +55,19 @@ test('scopes match comma-separated patterns and leave out resources lacking the 
   assert.ok(logic.applies(rule('cloud', [req('team')], { names: 'example-shop-*', resourceType: 'aws*bucket' }), a));
 });
 
+test('excluded namespaces and labels leave provider-managed Kubernetes objects out (as tagging_rules.rs)', async () => {
+  const r = rule('kubernetes', [req('team')], { excludeNamespaces: 'kube-*, gatekeeper-system', excludeLabels: 'addonmanager.kubernetes.io/mode, app:coredns*' });
+  const obj = (namespace, tags) => res('kubernetes', 'x', tags, { namespace });
+  assert.ok(logic.applies(r, obj('checkout', ['app:order-service'])));
+  assert.ok(!logic.applies(r, obj('kube-system', [])));
+  assert.ok(!logic.applies(r, obj('checkout', ['Addonmanager.kubernetes.io/mode:Reconcile'])));
+  assert.ok(!logic.applies(r, obj('checkout', ['app:coredns-autoscaler'])));
+  assert.ok(logic.applies(r, obj('checkout', ['mode:Reconcile'])));
+  const argo = (await mock.listPolicies()).recommended.find((p) => p.key === 'kubernetes_argocd_tracking');
+  assert.ok(!logic.applies(argo.rule, obj('default', ['kubernetes.azure.com/managedby:aks'])));
+  assert.ok(!logic.applies(argo.rule, obj('kube-node-lease', [])));
+});
+
 test('coverage counts resources per policy, account, cluster and team, worst first', () => {
   const policies = [
     { id: 'p1', name: 'Owners', rule: rule('cloud', [req('team')]) },
