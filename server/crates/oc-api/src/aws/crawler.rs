@@ -38,6 +38,7 @@ use serde_json::Value;
 use super::api::{AwsApi, AwsError, MetricId, Target, TargetAuth};
 use super::naming::{self, Point};
 use crate::cloud::jobs::{self, Backoff, Crawler, Issue, JobKey, MetricSink, Outcome};
+use crate::cloud::resources::{self, Discovered};
 use crate::routes::datadog_api::aws_integration as accounts;
 use crate::state::AppState;
 
@@ -190,11 +191,13 @@ pub fn issue(e: &AwsError) -> Issue {
 pub struct Crawl {
     pub outcome: Outcome,
     pub daily_marks: Option<HashMap<String, i64>>,
+    /// The region's tagged resources, read on the hourly runs (`crate::cloud::resources`).
+    pub resources: Option<Vec<Discovered>>,
 }
 
 impl From<Outcome> for Crawl {
     fn from(outcome: Outcome) -> Self {
-        Crawl { outcome, daily_marks: None }
+        Crawl { outcome, daily_marks: None, resources: None }
     }
 }
 
@@ -300,6 +303,7 @@ pub async fn crawl(api: &dyn AwsApi, sink: &dyn MetricSink, headers: &[(String, 
             }
         }
     }
+    let resources = daily_due.then(|| tags_by_arn.iter().filter_map(|(arn, tags)| resources::from_arn(arn, tags, &t.account_id)).collect());
     let index = naming::TagIndex::new(&tags_by_arn);
     let mut found: HashMap<String, Vec<String>> = HashMap::new();
     let mut tagged = |ms: Vec<MetricId>| -> Vec<(MetricId, Vec<String>)> {
@@ -348,7 +352,7 @@ pub async fn crawl(api: &dyn AwsApi, sink: &dyn MetricSink, headers: &[(String, 
             return Outcome::Failed(Issue { kind: "other", message: format!("publishing to Kafka failed: {e}"), missing_action: None, backoff: Backoff::Exponential }).into();
         }
     }
-    Crawl { outcome: Outcome::Collected { end_ms: end, metrics: regular.len() + daily.len(), points: points.len(), warning }, daily_marks }
+    Crawl { outcome: Outcome::Collected { end_ms: end, metrics: regular.len() + daily.len(), points: points.len(), warning }, daily_marks, resources }
 }
 
 /// The namespaces of our AWS catalog (outside them, metrics are custom).
@@ -381,6 +385,9 @@ impl Crawler for AwsCrawler {
             save_daily_marks(st, key, marks).await?;
         }
         if matches!(run.outcome, Outcome::Collected { .. }) {
+            if let Some(found) = &run.resources {
+                resources::save(st, &job.org_id, PROVIDER, &job.target.account_id, found).await?;
+            }
             refresh_account_name(st, self.api.as_ref(), &job).await?;
         }
         Ok(run.outcome)
@@ -513,9 +520,13 @@ mod tests {
         };
         let sink = FakeSink::default();
         let headers = vec![("x-oc-org".to_string(), "acme".to_string())];
-        let outcome = crawl(&aws, &sink, &headers, &job(None, config()), NOW, 600_000, &known_namespaces()).await.outcome;
+        let run = crawl(&aws, &sink, &headers, &job(None, config()), NOW, 600_000, &known_namespaces()).await;
+        let outcome = run.outcome;
         let end = (NOW - LAG_MS) / 60_000 * 60_000;
         assert_eq!(outcome, Outcome::Collected { end_ms: end, metrics: 1, points: 8, warning: None });
+        // The first run (and then one an hour) passes on the tagged resources, for tagging policies.
+        let found: Vec<(String, String, Vec<String>)> = run.resources.unwrap().into_iter().map(|r| (r.resource_type, r.name, r.tags)).collect();
+        assert_eq!(found, vec![("AwsEc2Instance".to_string(), "i-0a1b2c3d4e5f60001".to_string(), vec!["team:storefront".to_string()])]);
         // The first window is one interval; every statistic is read, in one call.
         let calls = aws.calls.lock().unwrap().clone();
         assert_eq!(calls, [(vec!["Average".to_string(), "Sum".into(), "Maximum".into(), "Minimum".into()], end - 600_000, end, 60)]);
@@ -580,7 +591,7 @@ mod tests {
         let cpu = || vec![metric("AWS/EC2", "CPUUtilization", &[("InstanceId", "i-1")])];
         let aws = FakeAws { metrics: cpu(), fail_data: Some(denied.clone()), ..Default::default() };
         let sink = FakeSink::default();
-        assert_eq!(crawl(&aws, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await, Crawl { outcome: Outcome::Failed(issue(&denied)), daily_marks: None });
+        assert_eq!(crawl(&aws, &sink, &[], &job(None, config()), NOW, 600_000, &known_namespaces()).await, Crawl { outcome: Outcome::Failed(issue(&denied)), daily_marks: None, resources: None });
         assert!(sink.records.lock().unwrap().is_empty());
 
         let aws = FakeAws { metrics: cpu(), ..Default::default() };

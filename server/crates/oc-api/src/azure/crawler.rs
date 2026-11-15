@@ -41,6 +41,7 @@ use super::api::{AzureApi, AzureError, Credentials, MetricDef, MetricsQuery, Res
 use super::naming;
 use crate::cloud::jobs::{self, Backoff, Crawler, Issue, JobKey, MetricSink, Outcome};
 use crate::cloud::naming::{otlp_json, snake, Point};
+use crate::cloud::resources::{self, Discovered};
 use crate::routes::datadog_api::azure_integration as accounts;
 use crate::state::AppState;
 
@@ -109,11 +110,13 @@ pub struct State {
 pub struct Crawl {
     pub outcome: Outcome,
     pub state: Option<State>,
+    /// The subscription's resources, listed on the hourly runs (`crate::cloud::resources`).
+    pub resources: Option<Vec<Discovered>>,
 }
 
 impl From<Outcome> for Crawl {
     fn from(outcome: Outcome) -> Self {
-        Crawl { outcome, state: None }
+        Crawl { outcome, state: None, resources: None }
     }
 }
 
@@ -257,10 +260,19 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
     if end <= start {
         return Outcome::Idle.into();
     }
-    let resources: Vec<Resource> = match api.resources(creds, subscription).await {
-        Ok(r) => r.into_iter().filter(|r| selected(config, r)).flat_map(|r| { let services = storage_services(&r); std::iter::once(r).chain(services) }).collect(),
+    let listed = match api.resources(creds, subscription).await {
+        Ok(r) => r,
         Err(e) => return Outcome::Failed(issue(&e)).into(),
     };
+    // Coarse grains: on the first run, once an hour, and when one of their intervals completed.
+    let hourly = collected_until.is_none() || start / HOUR_MS != end / HOUR_MS;
+    let found: Option<Vec<Discovered>> = hourly.then(|| {
+        listed
+            .iter()
+            .map(|r| Discovered { id: r.id.to_ascii_lowercase(), name: r.name.clone(), resource_type: r.kind.clone(), region: r.location.clone(), account: subscription.to_string(), tags: r.tags.clone() })
+            .collect()
+    });
+    let resources: Vec<Resource> = listed.into_iter().filter(|r| selected(config, r)).flat_map(|r| { let services = storage_services(&r); std::iter::once(r).chain(services) }).collect();
     // By the type their metrics are named by (function apps apart from web apps) and region.
     let mut groups: BTreeMap<(String, String), Vec<&Resource>> = BTreeMap::new();
     for r in &resources {
@@ -269,8 +281,6 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
     let by_id: HashMap<String, &Resource> = resources.iter().map(|r| (r.id.to_ascii_lowercase(), r)).collect();
     let mut defs_by_type: HashMap<String, Vec<MetricDef>> = HashMap::new();
     let mut marks: HashMap<String, i64> = state.marks.iter().filter(|(_, &at)| at >= end - MARKS_KEEP_MS).map(|(k, v)| (k.clone(), *v)).collect();
-    // Coarse grains: on the first run, once an hour, and when one of their intervals completed.
-    let hourly = collected_until.is_none() || start / HOUR_MS != end / HOUR_MS;
     let mut run = Reads::default();
 
     // The failed reads of earlier runs first (still within a day).
@@ -392,7 +402,7 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
     if pending.len() > MAX_PENDING {
         pending.drain(..pending.len() - MAX_PENDING);
     }
-    Crawl { outcome: Outcome::Collected { end_ms: end, metrics: resources.len(), points: run.points.len(), warning }, state: Some(State { marks, pending }) }
+    Crawl { outcome: Outcome::Collected { end_ms: end, metrics: resources.len(), points: run.points.len(), warning }, state: Some(State { marks, pending }), resources: found }
 }
 
 async fn load_state(st: &AppState, key: &JobKey) -> Result<State, sqlx::Error> {
@@ -465,6 +475,9 @@ impl Crawler for AzureCrawler {
         let run = crawl(self.api.as_ref(), self.sink.as_ref(), &headers, &job.org_id, &creds, &account.config, &job.scope, job.collected_until, &state, now_ms, self.interval_secs * 1000).await;
         if let (Outcome::Collected { .. }, Some(state)) = (&run.outcome, &run.state) {
             save_state(st, job, state).await?;
+        }
+        if let (Outcome::Collected { .. }, Some(found)) = (&run.outcome, &run.resources) {
+            resources::save(st, &job.org_id, PROVIDER, &job.scope, found).await?;
         }
         Ok(run.outcome)
     }
@@ -595,6 +608,11 @@ mod tests {
         let (crawl, sink) = run(&azure, &config, None, &State::default(), NOW).await;
         // 3 series and the 2 selected resources' counts, each minute of the 10-minute window.
         assert_eq!(crawl.outcome, Outcome::Collected { end_ms: END, metrics: 2, points: (3 + 2) * 10, warning: None });
+        // Every resource of the subscription with its tags (metric filters aside), for tagging policies.
+        let found = crawl.resources.clone().unwrap();
+        assert_eq!(found.iter().map(|r| r.name.as_str()).collect::<Vec<_>>(), ["web-1", "web-2", "api", "assets"]);
+        assert_eq!((found[0].resource_type.as_str(), found[0].region.as_str(), found[0].account.as_str(), found[0].tags.clone()), (VM, "westeurope", "sub-a", vec!["env:prod".to_string()]));
+        assert_eq!(found[0].id, found[0].id.to_ascii_lowercase());
         // One batch per type and region, over one interval; App Service split by instance.
         let calls = azure.calls.lock().unwrap().clone();
         assert_eq!(calls.iter().map(|c| (c.0.as_str(), c.1.as_str(), c.2, c.7.clone())).collect::<Vec<_>>(), [(VM, "westeurope", 1, vec![]), (SITE, "northeurope", 1, vec!["Instance".to_string()])]);
@@ -705,7 +723,7 @@ mod tests {
         let denied = AzureError::Forbidden { action: Some("Microsoft.Insights/metrics/read".into()), message: "m".into() };
         let azure = FakeAzure { resources, defs: HashMap::from([(VM.to_string(), vec![cpu()])]), fail_metrics: Some(denied.clone()), ..Default::default() };
         let (crawl, sink) = run(&azure, &json!({}), None, &State::default(), NOW).await;
-        assert_eq!(crawl, Crawl { outcome: Outcome::Failed(issue(&denied)), state: None });
+        assert_eq!(crawl, Crawl { outcome: Outcome::Failed(issue(&denied)), state: None, resources: None });
         assert!(sink.records.lock().unwrap().is_empty());
         assert_eq!(issue(&denied).missing_action.as_deref(), Some("Microsoft.Insights/metrics/read"));
     }

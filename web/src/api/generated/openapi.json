@@ -79476,6 +79476,14 @@
           "cluster": {
             "type": "string"
           },
+          "excludeLabels": {
+            "type": "string",
+            "description": "Labels or tags that leave a resource out: a key (any value) or `key:value` (`addonmanager.kubernetes.io/mode`,\n`app:coredns*`); keys compare without case."
+          },
+          "excludeNamespaces": {
+            "type": "string",
+            "description": "Namespaces whose Kubernetes objects are left out (`kube-system`, `gke-managed-*`)."
+          },
           "names": {
             "type": "string",
             "description": "Resource, image or service names."

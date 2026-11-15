@@ -292,7 +292,13 @@ export const taggedResources = ALL;
 // ---------------------------------------------------------------- policies
 
 const req = (key: string, allowedValues: string[] = []) => ({ key, allowedValues });
-const scope = { provider: '', account: '', cluster: '', resourceType: '', names: '' };
+const scope = { provider: '', account: '', cluster: '', resourceType: '', names: '', excludeNamespaces: '', excludeLabels: '' };
+/** tagging_rules.rs PROVIDER_MANAGED_NAMESPACES / _LABELS: the AKS, EKS and GKE add-ons. */
+const providerManaged = {
+  ...scope,
+  excludeNamespaces: 'kube-system, kube-public, kube-node-lease, gatekeeper-system, gke-managed-*, gmp-system, gmp-public',
+  excludeLabels: 'kubernetes.azure.com/managedby, addonmanager.kubernetes.io/mode, eks.amazonaws.com/component, components.gke.io/component-name',
+};
 
 /** The server's recommended set (tagging_rules.rs `recommended_set`). */
 const RECOMMENDED: { key: string; name: string; description: string; rule: TagRule }[] = [
@@ -317,8 +323,8 @@ const RECOMMENDED: { key: string; name: string; description: string; rule: TagRu
   {
     key: 'kubernetes_argocd_tracking',
     name: 'Kubernetes objects are tracked by Argo CD',
-    description: 'Argo CD’s tracking annotation (or label) names the Application whose repository, path and revision define the object.',
-    rule: { target: 'kubernetes', scope, required: [req('argocd.argoproj.io/tracking-id|app.kubernetes.io/instance')] },
+    description: 'Argo CD’s tracking annotation (or label) names the Application whose repository, path and revision define the object. The AKS, EKS and GKE add-ons are left out.',
+    rule: { target: 'kubernetes', scope: providerManaged, required: [req('argocd.argoproj.io/tracking-id|app.kubernetes.io/instance')] },
   },
   {
     key: 'images_oci_source',

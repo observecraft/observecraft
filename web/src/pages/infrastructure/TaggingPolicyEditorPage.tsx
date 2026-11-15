@@ -23,7 +23,7 @@ interface Draft {
   recommended: string | null;
 }
 
-const EMPTY_SCOPE: Required<TagScope> = { provider: '', account: '', cluster: '', resourceType: '', names: '' };
+const EMPTY_SCOPE: Required<TagScope> = { provider: '', account: '', cluster: '', resourceType: '', names: '', excludeNamespaces: '', excludeLabels: '' };
 const EMPTY: Draft = { name: '', description: '', target: 'cloud', scope: EMPTY_SCOPE, required: [{ key: '', allowed: '' }], enabled: true, recommended: null };
 
 /** Scope fields per target: label, key and placeholder. */
@@ -38,6 +38,8 @@ const SCOPE_FIELDS: Record<TagTarget, [keyof TagScope, string, string][]> = {
     ['cluster', 'Cluster', 'shop-prod-*'],
     ['resourceType', 'Kind', 'kube_deployment, kube_service'],
     ['names', 'Object names', 'storefront-*'],
+    ['excludeNamespaces', 'Except namespaces', 'kube-system, gke-managed-*'],
+    ['excludeLabels', 'Except objects labelled', 'addonmanager.kubernetes.io/mode, app:coredns'],
   ],
   image: [
     ['cluster', 'Cluster', 'shop-prod-*'],

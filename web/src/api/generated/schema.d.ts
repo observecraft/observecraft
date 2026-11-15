@@ -26015,6 +26015,13 @@ export interface components {
         TagScope: {
             account?: string;
             cluster?: string;
+            /**
+             * @description Labels or tags that leave a resource out: a key (any value) or `key:value` (`addonmanager.kubernetes.io/mode`,
+             *     `app:coredns*`); keys compare without case.
+             */
+            excludeLabels?: string;
+            /** @description Namespaces whose Kubernetes objects are left out (`kube-system`, `gke-managed-*`). */
+            excludeNamespaces?: string;
             /** @description Resource, image or service names. */
             names?: string;
             /** @description aws | azure | gcp (cloud resources). */

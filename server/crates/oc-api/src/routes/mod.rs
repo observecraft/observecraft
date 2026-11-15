@@ -2515,6 +2515,7 @@ mod tests {
             ("../cloud/jobs.rs", include_str!("../cloud/jobs.rs")),
             ("../cloud/kafka.rs", include_str!("../cloud/kafka.rs")),
             ("../cloud/naming.rs", include_str!("../cloud/naming.rs")),
+            ("../cloud/resources.rs", include_str!("../cloud/resources.rs")),
             ("../cloud/testing.rs", include_str!("../cloud/testing.rs")),
             ("../authentik/mod.rs", include_str!("../authentik/mod.rs")),
             ("../authentik/api.rs", include_str!("../authentik/api.rs")),

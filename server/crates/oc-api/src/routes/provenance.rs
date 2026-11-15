@@ -2,7 +2,8 @@
 //! revision that define a cloud resource, a Kubernetes object, a container image or a service, read only from the
 //! conventions the customer's tooling follows. No provenance is a valid answer.
 //!
-//! - **Cloud resources** (the cloud account scans' resources, `posture_findings`, with their tags): our `tf_repo` /
+//! - **Cloud resources** (the cloud account scans' resources, `posture_findings`, and those the AWS and Azure crawlers
+//!   discover, `cloud_resources`, with their tags): our `tf_repo` /
 //!   `tf_path` tags (AWS provider `default_tags`, Azure `locals` merged into `tags`), or Yor's `git_org` / `git_repo` /
 //!   `git_file` / `git_commit` / `yor_name` / `yor_trace`; then a Terraform state index ([`parse_state`]) when the org
 //!   connected a read-only state source (`terraform_state_sources`; reading the state is not built yet). A
@@ -408,7 +409,14 @@ pub fn kube_resource(r: &KubeResource) -> Option<TaggedResource> {
     if r.owner.is_some() {
         return None;
     }
+    // Its tags, labels (Argo CD's tracking label, the managed services' own) and Argo CD's tracking annotation.
     let mut tags = r.tags.clone();
+    for (k, v) in &r.labels {
+        let t = format!("{k}:{v}");
+        if !tags.contains(&t) {
+            tags.push(t);
+        }
+    }
     if let Some(t) = r.annotations.get(TRACKING_ANNOTATION) {
         tags.push(format!("{TRACKING_ANNOTATION}:{t}"));
     }
@@ -541,21 +549,54 @@ async fn services(st: &AppState, org: &str) -> Result<Vec<ServiceGitMeta>, ApiEr
     Ok(st.ch(org).query(&sql).fetch_all::<ServiceGitMeta>().await?)
 }
 
+/// A cloud resource as read: from the account scans' results or the crawlers' discovery.
+#[derive(sqlx::FromRow, Debug, Clone)]
+pub struct CloudRow {
+    pub provider: String,
+    pub account: String,
+    pub uid: String,
+    pub name: String,
+    pub resource_type: String,
+    pub region: String,
+    pub tags: Value,
+}
+
+/// The scanned resources, then the crawled ones the scans don't have (ids compare without case: Azure's ids).
+pub fn merge_cloud_rows(scanned: Vec<CloudRow>, crawled: Vec<CloudRow>) -> Vec<CloudRow> {
+    let mut seen: std::collections::HashSet<String> = scanned.iter().map(|r| r.uid.to_ascii_lowercase()).collect();
+    let mut out = scanned;
+    out.extend(crawled.into_iter().filter(|r| seen.insert(r.uid.to_ascii_lowercase())));
+    out
+}
+
+/// Crawled resources not seen for this long are gone.
+const CRAWLED_STALE_DAYS: i32 = 2;
+
+/// The org's cloud resources: those the account scans evaluated (`posture_findings`) and those the AWS and Azure
+/// crawlers discover with their tags (`cloud_resources`), so tagging policies evaluate accounts without scans too.
 async fn cloud_resources(st: &AppState, org: &str) -> Result<Vec<TaggedResource>, ApiError> {
-    let rows: Vec<(String, String, String, String, String, String, Value)> = sqlx::query_as(
-        "SELECT DISTINCT ON (resource_uid) provider, account_id, resource_uid, resource_name, resource_type, region, resource_tags FROM posture_findings \
-         WHERE org_id = $1 ORDER BY resource_uid, last_seen_at DESC",
-    )
-    .bind(org)
-    .fetch_all(&st.postgres)
-    .await?;
+    let (scanned, crawled) = tokio::try_join!(
+        sqlx::query_as::<_, CloudRow>(
+            "SELECT DISTINCT ON (resource_uid) provider, account_id AS account, resource_uid AS uid, resource_name AS name, resource_type, region, resource_tags AS tags \
+             FROM posture_findings WHERE org_id = $1 ORDER BY resource_uid, last_seen_at DESC",
+        )
+        .bind(org)
+        .fetch_all(&st.postgres),
+        sqlx::query_as::<_, CloudRow>(
+            "SELECT provider, account_id AS account, resource_id AS uid, name, resource_type, region, tags FROM cloud_resources \
+             WHERE org_id = $1 AND last_seen > now() - make_interval(days => $2) ORDER BY resource_id",
+        )
+        .bind(org)
+        .bind(CRAWLED_STALE_DAYS)
+        .fetch_all(&st.postgres),
+    )?;
     // No state source is read yet (see the module docs): tags only.
     let state = HashMap::new();
-    Ok(rows
+    Ok(merge_cloud_rows(scanned, crawled)
         .into_iter()
-        .map(|(provider, account, uid, name, resource_type, region, tags)| {
-            let tags: Vec<String> = tags.as_array().into_iter().flatten().filter_map(Value::as_str).map(str::to_string).collect();
-            cloud_resource(&provider, &account, &uid, &name, &resource_type, &region, tags, &state)
+        .map(|r| {
+            let tags: Vec<String> = r.tags.as_array().into_iter().flatten().filter_map(Value::as_str).map(str::to_string).collect();
+            cloud_resource(&r.provider, &r.account, &r.uid, &r.name, &r.resource_type, &r.region, tags, &state)
         })
         .collect())
 }
@@ -826,6 +867,24 @@ mod tests {
         let mut owned = deployment("x", &[], &[]);
         owned.owner = Some(super::super::kubernetes::KubeObjectRef { kind: "Rollout".into(), name: "x".into(), uid: "u".into() });
         assert!(kube_resource(&owned).is_none());
+    }
+
+    #[test]
+    fn kube_objects_carry_their_labels_as_tags() {
+        let mut d = deployment("coredns", &[], &[("kubernetes.azure.com/managedby", "aks"), ("team", "platform")]);
+        d.tags = tags(&["team:platform", "kube_namespace:kube-system"]);
+        let r = kube_resource(&d).unwrap();
+        assert!(r.tags.contains(&"kubernetes.azure.com/managedby:aks".to_string()));
+        assert_eq!(r.tags.iter().filter(|t| t.as_str() == "team:platform").count(), 1, "{:?}", r.tags);
+    }
+
+    #[test]
+    fn crawled_cloud_resources_join_the_scanned_ones_once() {
+        let row = |uid: &str, name: &str| CloudRow { provider: "aws".into(), account: "123456789012".into(), uid: uid.into(), name: name.into(), resource_type: "AwsS3Bucket".into(), region: String::new(), tags: json!(["team:storefront"]) };
+        let scanned = vec![row("arn:aws:s3:::example-shop-assets", "example-shop-assets")];
+        let crawled = vec![row("ARN:AWS:S3:::EXAMPLE-SHOP-ASSETS", "dup"), row("arn:aws:s3:::example-shop-logs", "example-shop-logs")];
+        let merged = merge_cloud_rows(scanned, crawled);
+        assert_eq!(merged.iter().map(|r| r.name.as_str()).collect::<Vec<_>>(), vec!["example-shop-assets", "example-shop-logs"]);
     }
 
     #[test]
