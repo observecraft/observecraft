@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.24.0](https://github.com/observecraft/observecraft/compare/v0.23.0...v0.24.0) (2026-11-15)
+
+
+### Features
+
+* **cloud-security:** name AWS accounts by their alias ([e69a6c5](https://github.com/observecraft/observecraft/commit/e69a6c5cf0bc995ee28a8038b8c9df988c653d8e))
+
+
+### Bug fixes
+
+* **apm:** disk charts of the service page fall back to what OpenTelemetry hosts send ([11ecda6](https://github.com/observecraft/observecraft/commit/11ecda6db141009ecb8cfea21458bdf409dc4f3b))
+* **cloud-security:** title vulnerabilities by their advisory, not its OSV id ([84f48e4](https://github.com/observecraft/observecraft/commit/84f48e46b34918ad11f8411eed7bd706b88548d9))
+* **logs:** a decimal Datadog trace id no longer hides the hex one next to it ([31d2611](https://github.com/observecraft/observecraft/commit/31d2611b58a9da275f1650dc60f5c4238c1ca0b3))
+* **monitors:** evaluate a group once its data covers the window (require_full_window) ([681c9ce](https://github.com/observecraft/observecraft/commit/681c9ce29dad20c0d64f6fd4606cf2c3998423c0))
+* **security:** overview cards wait for their product's summary and count every misconfiguration source ([4734051](https://github.com/observecraft/observecraft/commit/4734051ce87a058bd6562c8c938197091ad95e40))
+* **tagging:** leave provider-managed Kubernetes objects out and evaluate the crawlers' cloud resources ([c0d17b8](https://github.com/observecraft/observecraft/commit/c0d17b8109981bc94433f2b16b6a5d60f861a530))
+
+
+### Performance
+
+* **security:** precompute vulnerability matches and count Cloud Security in the database ([b47afb1](https://github.com/observecraft/observecraft/commit/b47afb191ec32bb152a309753fff89d3c52b9774))
+
 ## [0.23.0](https://github.com/observecraft/observecraft/compare/v0.22.0...v0.23.0) (2026-11-14)
 
 
