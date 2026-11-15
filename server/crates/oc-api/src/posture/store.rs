@@ -231,6 +231,33 @@ const SELECT: &str = "SELECT f.id::text, f.provider, f.account_id, f.check_id, c
     (extract(epoch FROM f.mute_expire_at) * 1000)::bigint AS mute_expire_at, f.muted_by, (extract(epoch FROM f.muted_at) * 1000)::bigint AS muted_at \
     FROM posture_findings f LEFT JOIN posture_checks c ON c.provider = f.provider AND c.check_id = f.check_id";
 
+/// A check's results in the org: resources evaluated and failing, with the check's description.
+#[derive(Clone, Debug, Default, sqlx::FromRow)]
+pub struct CheckCounts {
+    pub check_id: String,
+    pub title: Option<String>,
+    /// Of its latest evaluated resource.
+    pub severity: String,
+    pub description: Option<String>,
+    pub remediation: Option<String>,
+    pub compliance: Option<Value>,
+    pub evaluated: i64,
+    pub failing: i64,
+}
+
+/// Per check, how many of the org's resources it evaluated and how many fail, counted by the database.
+pub async fn check_counts(pg: &PgPool, org: &str) -> Result<Vec<CheckCounts>, sqlx::Error> {
+    sqlx::query_as(
+        "SELECT s.check_id, c.title, s.severity, c.description, c.remediation, c.compliance, s.evaluated, s.failing FROM \
+         (SELECT provider, check_id, count(*) AS evaluated, count(*) FILTER (WHERE evaluation = 'fail') AS failing, \
+          (array_agg(severity ORDER BY evaluation_changed_at DESC))[1] AS severity FROM posture_findings WHERE org_id = $1 GROUP BY provider, check_id) s \
+         LEFT JOIN posture_checks c ON c.provider = s.provider AND c.check_id = s.check_id ORDER BY s.check_id",
+    )
+    .bind(org)
+    .fetch_all(pg)
+    .await
+}
+
 /// The org's findings, newest evaluation change first; `failing_only` leaves out passes.
 pub async fn findings(pg: &PgPool, org: &str, failing_only: bool) -> Result<Vec<FindingRow>, sqlx::Error> {
     let sql = format!("{SELECT} WHERE f.org_id = $1 AND ($2 = false OR f.evaluation = 'fail') ORDER BY f.evaluation_changed_at DESC, f.id");

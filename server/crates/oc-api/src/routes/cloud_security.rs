@@ -7,7 +7,8 @@
 //!   their OSV ecosystem (`Debian:12`, `Alpine:v3.19`, …), language libraries as in Code Security.
 //! - **Vulnerabilities**: those packages matched against the advisories Code Security keeps (OSV.dev,
 //!   looked up for these packages too, and the demo's fictional ones), with whether the image is in use,
-//!   whether a fix exists, and whether the CVE is known exploited (CISA's catalog).
+//!   whether a fix exists, and whether the CVE is known exploited (CISA's catalog). The version ranges are compared
+//!   by Code Security's matching pass (`cs_version_matches`), so reads are joins and counts in the database.
 //! - **Misconfigurations**: [`super::cloud_security_rules`] evaluated on the resource catalog and the
 //!   Kubernetes objects' manifests, when read.
 //! - Triage (mute, reopen) is Code Security's, with `misconfig:<rule>:<resource>` and
@@ -29,7 +30,7 @@ use utoipa::ToSchema;
 use super::catalog::{self, CatalogResource, CatalogType};
 use super::cloud_security_rules::{target_of, Subject, RULES};
 use super::code_security::{self, gunzip_if, internal_org};
-use super::code_security_model::{self as model, AffectedRange};
+use super::code_security_model as model;
 use crate::auth::AuthContext;
 use crate::error::{ApiError, ApiResult};
 use crate::state::AppState;
@@ -300,8 +301,12 @@ struct VulnRow {
     first_seen: i64,
     last_seen: i64,
     advisory_id: String,
-    ranges: String,
-    versions: Vec<String>,
+    fixed: Option<String>,
+}
+
+#[derive(sqlx::FromRow)]
+struct AdvisoryMeta {
+    id: String,
     aliases: Vec<String>,
     summary: String,
     severity: String,
@@ -309,40 +314,61 @@ struct VulnRow {
     cwes: Vec<String>,
 }
 
+/// Which vulnerabilities to read (all by default): the database filters them, so the inbox and a remediation don't
+/// read every vulnerability of the org.
+#[derive(Default)]
+pub struct VulnScope {
+    /// Only these severities (empty: all).
+    pub severities: Vec<String>,
+    /// Only on running images (and hosts).
+    pub running: bool,
+    pub advisory: Option<String>,
+}
+
+/// The org's packages joined to the advisories the matching pass found for their versions
+/// ([`code_security::match_due_versions`]): one indexed join, no version comparison per read.
+const VULN_ROWS: &str = "SELECT e.id AS entity_id, e.kind, e.name AS entity_name, e.host, e.in_use, e.env, e.os, p.ecosystem, p.name, p.version, \
+     (EXTRACT(EPOCH FROM p.first_seen) * 1000)::bigint AS first_seen, (EXTRACT(EPOCH FROM e.last_seen) * 1000)::bigint AS last_seen, m.advisory_id, m.fixed \
+     FROM csm_sbom_entities e JOIN csm_packages p ON p.org_id = e.org_id AND p.entity_id = e.id \
+     JOIN cs_version_matches m ON m.ecosystem = p.ecosystem AND m.package = p.name AND m.version = p.version JOIN cs_advisories a ON a.id = m.advisory_id \
+     WHERE e.org_id = $1 AND e.last_seen > now() - make_interval(days => $2) AND a.withdrawn IS NULL \
+     AND (cardinality($3::text[]) = 0 OR a.severity = ANY($3)) AND (NOT $4 OR e.in_use) AND ($5::text IS NULL OR m.advisory_id = $5)";
+
 pub async fn infra_vulnerabilities(st: &AppState, org: &str) -> Result<Vec<InfraVulnerability>, ApiError> {
-    let rows: Vec<VulnRow> = sqlx::query_as(
-        "SELECT e.id AS entity_id, e.kind, e.name AS entity_name, e.host, e.in_use, e.env, e.os, p.ecosystem, p.name, p.version, \
-         (EXTRACT(EPOCH FROM p.first_seen) * 1000)::bigint AS first_seen, (EXTRACT(EPOCH FROM e.last_seen) * 1000)::bigint AS last_seen, \
-         ap.advisory_id, ap.ranges::text AS ranges, ap.versions, a.aliases, a.summary, a.severity, a.score, a.cwes \
-         FROM csm_packages p JOIN csm_sbom_entities e ON e.org_id = p.org_id AND e.id = p.entity_id \
-         JOIN cs_advisory_packages ap ON ap.ecosystem = p.ecosystem AND ap.package = p.name JOIN cs_advisories a ON a.id = ap.advisory_id \
-         WHERE p.org_id = $1 AND a.withdrawn IS NULL AND e.last_seen > now() - make_interval(days => $2)",
-    )
-    .bind(org)
-    .bind(STALE_DAYS)
-    .fetch_all(&st.postgres)
-    .await?;
-    let triage = code_security::triage_map(st, org).await?;
-    let kev: HashSet<String> = sqlx::query_scalar("SELECT cve_id FROM security_kev").fetch_all(&st.postgres).await?.into_iter().collect();
+    infra_vulnerabilities_in(st, org, &VulnScope::default()).await
+}
+
+pub async fn infra_vulnerabilities_in(st: &AppState, org: &str, scope: &VulnScope) -> Result<Vec<InfraVulnerability>, ApiError> {
+    let rows: Vec<VulnRow> = sqlx::query_as(VULN_ROWS).bind(org).bind(STALE_DAYS).bind(&scope.severities).bind(scope.running).bind(&scope.advisory).fetch_all(&st.postgres).await?;
+    // Each advisory's text once, not once per package of every host and image.
+    let ids: Vec<&str> = rows.iter().map(|r| r.advisory_id.as_str()).collect::<HashSet<_>>().into_iter().collect();
+    let (meta, triage, kev) = tokio::try_join!(
+        async { sqlx::query_as::<_, AdvisoryMeta>("SELECT id, aliases, summary, severity, score, cwes FROM cs_advisories WHERE id = ANY($1)").bind(&ids).fetch_all(&st.postgres).await.map_err(ApiError::from) },
+        code_security::triage_map(st, org),
+        async { sqlx::query_scalar::<_, String>("SELECT cve_id FROM security_kev").fetch_all(&st.postgres).await.map_err(ApiError::from) },
+    )?;
+    let meta: HashMap<String, AdvisoryMeta> = meta.into_iter().map(|a| (a.id.clone(), a)).collect();
+    let kev: HashSet<String> = kev.into_iter().collect();
+    Ok(infra_vulnerabilities_of(rows, &meta, &triage, &kev))
+}
+
+fn infra_vulnerabilities_of(rows: Vec<VulnRow>, meta: &HashMap<String, AdvisoryMeta>, triage: &HashMap<String, String>, kev: &HashSet<String>) -> Vec<InfraVulnerability> {
     let mut out: Vec<InfraVulnerability> = rows
         .into_iter()
         .filter_map(|r| {
-            let ranges: Vec<AffectedRange> = serde_json::from_str(&r.ranges).unwrap_or_default();
-            if !model::is_affected_in(&r.ecosystem, &r.version, &ranges, &r.versions) {
-                return None;
-            }
+            let a = meta.get(&r.advisory_id)?;
             let key = format!("csm-vuln:{}:{}:{}", r.advisory_id, r.entity_id, r.name);
             Some(InfraVulnerability {
                 status: triage.get(&key).cloned().unwrap_or_else(|| "open".into()),
                 key,
-                cve: r.aliases.iter().find(|a| a.starts_with("CVE-")).cloned(),
-                exploit_available: r.aliases.iter().any(|a| kev.contains(a)),
-                aliases: r.aliases,
-                title: if r.summary.is_empty() { r.advisory_id.clone() } else { r.summary },
-                severity: r.severity,
-                score: r.score.map(|s| (s as f64 * 10.0).round() / 10.0),
-                cwes: r.cwes,
-                fixed: model::fix_for_in(&r.ecosystem, &r.version, &ranges),
+                cve: a.aliases.iter().find(|x| x.starts_with("CVE-")).cloned(),
+                exploit_available: a.aliases.iter().any(|x| kev.contains(x)),
+                aliases: a.aliases.clone(),
+                title: if a.summary.is_empty() { r.advisory_id.clone() } else { a.summary.clone() },
+                severity: a.severity.clone(),
+                score: a.score.map(|s| (s as f64 * 10.0).round() / 10.0),
+                cwes: a.cwes.clone(),
+                fixed: r.fixed,
                 ecosystem: r.ecosystem,
                 package: r.name,
                 version: r.version,
@@ -360,7 +386,7 @@ pub async fn infra_vulnerabilities(st: &AppState, org: &str) -> Result<Vec<Infra
         })
         .collect();
     out.sort_by(|a, b| model::severity_rank(&b.severity).cmp(&model::severity_rank(&a.severity)).then(b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal)).then(a.key.cmp(&b.key)));
-    Ok(out)
+    out
 }
 
 #[derive(Deserialize, ToSchema, Default)]
@@ -378,10 +404,100 @@ fn keep(status: &str, filter: &str) -> bool {
     }
 }
 
+/// A vulnerability's advisory, shared by its rows in [`InfraVulnerabilityList`].
+#[derive(Serialize, ToSchema, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct InfraAdvisory {
+    pub advisory_id: String,
+    pub cve: Option<String>,
+    pub aliases: Vec<String>,
+    pub title: String,
+    pub severity: String,
+    pub score: Option<f64>,
+    pub cwes: Vec<String>,
+    pub exploit_available: bool,
+}
+
+/// A host or container image, shared by its rows in [`InfraVulnerabilityList`].
+#[derive(Serialize, ToSchema, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct InfraResource {
+    pub resource_id: String,
+    pub resource_name: String,
+    /// host | container_image
+    pub resource_kind: String,
+    pub host: String,
+    pub env: String,
+    pub os: String,
+    pub running: bool,
+    pub last_seen: i64,
+}
+
+/// A package of a resource affected by an advisory: indexes into the list's advisories and resources. Its triage key
+/// is `csm-vuln:<advisory id>:<resource id>:<package>`.
+#[derive(Serialize, ToSchema, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct InfraVulnerabilityRow {
+    pub advisory: usize,
+    pub resource: usize,
+    pub ecosystem: String,
+    pub package: String,
+    pub version: String,
+    pub fixed: Option<String>,
+    /// open | muted
+    pub status: String,
+    pub first_seen: i64,
+}
+
+/// The vulnerabilities of hosts and images with each advisory and resource once: at hundreds of images the same
+/// advisory text and image names would otherwise repeat in tens of thousands of rows.
+#[derive(Serialize, ToSchema, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct InfraVulnerabilityList {
+    pub advisories: Vec<InfraAdvisory>,
+    pub resources: Vec<InfraResource>,
+    pub rows: Vec<InfraVulnerabilityRow>,
+}
+
+pub fn compact_vulnerabilities(list: Vec<InfraVulnerability>) -> InfraVulnerabilityList {
+    let mut out = InfraVulnerabilityList::default();
+    let (mut advisories, mut resources): (HashMap<String, usize>, HashMap<String, usize>) = (HashMap::new(), HashMap::new());
+    for v in list {
+        let advisory = *advisories.entry(v.advisory_id.clone()).or_insert_with(|| {
+            out.advisories.push(InfraAdvisory {
+                advisory_id: v.advisory_id.clone(),
+                cve: v.cve.clone(),
+                aliases: v.aliases.clone(),
+                title: v.title.clone(),
+                severity: v.severity.clone(),
+                score: v.score,
+                cwes: v.cwes.clone(),
+                exploit_available: v.exploit_available,
+            });
+            out.advisories.len() - 1
+        });
+        let resource = *resources.entry(v.resource_id.clone()).or_insert_with(|| {
+            out.resources.push(InfraResource {
+                resource_id: v.resource_id.clone(),
+                resource_name: v.resource_name.clone(),
+                resource_kind: v.resource_kind.clone(),
+                host: v.host.clone(),
+                env: v.env.clone(),
+                os: v.os.clone(),
+                running: v.running,
+                last_seen: v.last_seen,
+            });
+            out.resources.len() - 1
+        });
+        out.rows.push(InfraVulnerabilityRow { advisory, resource, ecosystem: v.ecosystem, package: v.package, version: v.version, fixed: v.fixed, status: v.status, first_seen: v.first_seen });
+    }
+    out
+}
+
 #[utoipa::path(post, path = "/api/v1/cloud-security/vulnerabilities", operation_id = "cloud_security_vulnerabilities", request_body = FindingStatusFilter,
-    responses((status = 200, body = Vec<InfraVulnerability>)), tag = "cloud-security")]
-pub async fn vulnerabilities(State(st): State<AppState>, ctx: AuthContext, Json(f): Json<FindingStatusFilter>) -> ApiResult<Vec<InfraVulnerability>> {
-    Ok(Json(infra_vulnerabilities(&st, &ctx.org_id).await?.into_iter().filter(|v| keep(&v.status, &f.status)).collect()))
+    responses((status = 200, body = InfraVulnerabilityList)), tag = "cloud-security")]
+pub async fn vulnerabilities(State(st): State<AppState>, ctx: AuthContext, Json(f): Json<FindingStatusFilter>) -> ApiResult<InfraVulnerabilityList> {
+    Ok(Json(compact_vulnerabilities(infra_vulnerabilities(&st, &ctx.org_id).await?.into_iter().filter(|v| keep(&v.status, &f.status)).collect())))
 }
 
 // ================================================================ misconfigurations
@@ -520,17 +636,25 @@ pub fn evaluate(resources: &[CatalogResource], manifests: &HashMap<String, Value
 }
 
 pub async fn misconfigurations_of(st: &AppState, org: &str) -> Result<(Vec<MisconfigFinding>, Vec<MisconfigRuleStatus>), ApiError> {
-    let resources = catalog::load_all(st, org).await?;
-    let manifests = manifests(st, org).await?;
-    let triage = code_security::triage_map(st, org).await?;
-    let (mut findings, mut rules) = evaluate(&resources, &manifests, &triage);
-    let (scanned, scanned_rules) = posture_misconfigurations(&crate::posture::store::findings(&st.postgres, org, false).await?);
-    findings.extend(scanned);
+    use crate::posture::store;
     // Resources missing the tags the org's tagging policies require (a failure there leaves the other rules shown).
-    let (evaluated, gaps) = super::tagging_policies::misconfig_gaps(st, org).await.unwrap_or_else(|e| {
-        tracing::warn!(org = %org, error = %e, "evaluating tagging policies for misconfigurations failed");
-        (0, vec![])
-    });
+    let tagging = async {
+        Ok(super::tagging_policies::misconfig_gaps(st, org).await.unwrap_or_else(|e| {
+            tracing::warn!(org = %org, error = %e, "evaluating tagging policies for misconfigurations failed");
+            (0, vec![])
+        }))
+    };
+    let (resources, manifests, triage, failing, checks, (evaluated, gaps)) = tokio::try_join!(
+        catalog::load_all(st, org),
+        manifests(st, org),
+        code_security::triage_map(st, org),
+        async { store::findings(&st.postgres, org, true).await.map_err(ApiError::from) },
+        async { store::check_counts(&st.postgres, org).await.map_err(ApiError::from) },
+        tagging,
+    )?;
+    let (mut findings, mut rules) = evaluate(&resources, &manifests, &triage);
+    let (scanned, scanned_rules) = posture_misconfigurations(&failing, &checks);
+    findings.extend(scanned);
     let (tagged, tag_rule) = tagging_misconfigurations(evaluated, &gaps, &triage);
     findings.extend(tagged);
     rules.push(tag_rule);
@@ -585,30 +709,24 @@ pub fn tagging_misconfigurations(evaluated: usize, gaps: &[super::tagging_rules:
     (findings, rule)
 }
 
-/// The cloud account scans' results (`crate::posture`) as findings and rules of this page: the failures, and per
-/// check how many resources it evaluated.
-pub fn posture_misconfigurations(rows: &[crate::posture::store::FindingRow]) -> (Vec<MisconfigFinding>, Vec<MisconfigRuleStatus>) {
+/// The cloud account scans' results (`crate::posture`) as findings and rules of this page: the failing resources,
+/// and per check how many resources it evaluated (counted by the database, passes aren't read).
+pub fn posture_misconfigurations(failing: &[crate::posture::store::FindingRow], checks: &[crate::posture::store::CheckCounts]) -> (Vec<MisconfigFinding>, Vec<MisconfigRuleStatus>) {
     let tag = |r: &crate::posture::store::FindingRow, key: &str| {
         r.resource_tags.as_array().into_iter().flatten().filter_map(Value::as_str).find_map(|t| t.strip_prefix(key).and_then(|v| v.strip_prefix(':')).map(str::to_string))
     };
-    let frameworks = |r: &crate::posture::store::FindingRow| r.compliance.as_ref().and_then(Value::as_object).map(|m| m.keys().cloned().collect::<Vec<_>>()).unwrap_or_default();
-    let mut findings = vec![];
-    let mut stats: BTreeMap<&str, (usize, usize, &crate::posture::store::FindingRow)> = BTreeMap::new();
-    for r in rows {
-        let s = stats.entry(r.check_id.as_str()).or_insert((0, 0, r));
-        s.0 += 1;
-        if r.evaluation != "fail" {
-            continue;
-        }
-        s.1 += 1;
-        findings.push(MisconfigFinding {
+    let frameworks = |c: Option<&Value>| c.and_then(Value::as_object).map(|m| m.keys().cloned().collect::<Vec<_>>()).unwrap_or_default();
+    let findings = failing
+        .iter()
+        .filter(|r| r.evaluation == "fail")
+        .map(|r| MisconfigFinding {
             key: format!("posture:{}", r.id),
             rule_id: r.check_id.clone(),
             rule_name: r.title.clone().unwrap_or_else(|| r.check_id.clone()),
             severity: r.severity.clone(),
             description: r.description.clone().unwrap_or_default(),
             remediation: r.remediation.clone().unwrap_or_default(),
-            frameworks: frameworks(r),
+            frameworks: frameworks(r.compliance.as_ref()),
             detail: r.detail.clone(),
             resource_id: r.resource_uid.clone(),
             resource_name: r.resource_name.clone(),
@@ -622,19 +740,19 @@ pub fn posture_misconfigurations(rows: &[crate::posture::store::FindingRow]) -> 
             team: tag(r, "team"),
             status: if r.muted { "muted" } else { "open" }.into(),
             last_seen: r.last_seen_at,
-        });
-    }
-    let rules = stats
-        .into_values()
-        .map(|(evaluated, failing, r)| MisconfigRuleStatus {
-            id: r.check_id.clone(),
-            name: r.title.clone().unwrap_or_else(|| r.check_id.clone()),
-            severity: r.severity.clone(),
-            description: r.description.clone().unwrap_or_default(),
-            remediation: r.remediation.clone().unwrap_or_default(),
-            frameworks: frameworks(r),
-            evaluated,
-            failing,
+        })
+        .collect();
+    let rules = checks
+        .iter()
+        .map(|c| MisconfigRuleStatus {
+            id: c.check_id.clone(),
+            name: c.title.clone().unwrap_or_else(|| c.check_id.clone()),
+            severity: c.severity.clone(),
+            description: c.description.clone().unwrap_or_default(),
+            remediation: c.remediation.clone().unwrap_or_default(),
+            frameworks: frameworks(c.compliance.as_ref()),
+            evaluated: c.evaluated as usize,
+            failing: c.failing as usize,
         })
         .collect();
     (findings, rules)
@@ -674,11 +792,11 @@ fn category_of(t: CatalogType) -> &'static str {
 
 #[utoipa::path(get, path = "/api/v1/cloud-security/resources", operation_id = "cloud_security_resources", responses((status = 200, body = Vec<ResourceCategory>)), tag = "cloud-security")]
 pub async fn resources(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<ResourceCategory>> {
-    Ok(Json(categories(&st, &ctx.org_id).await?))
+    let all = catalog::load_all(&st, &ctx.org_id).await?;
+    Ok(Json(categories(&st, &ctx.org_id, &all).await?))
 }
 
-pub async fn categories(st: &AppState, org: &str) -> Result<Vec<ResourceCategory>, ApiError> {
-    let all = catalog::load_all(st, org).await?;
+pub async fn categories(st: &AppState, org: &str, all: &[CatalogResource]) -> Result<Vec<ResourceCategory>, ApiError> {
     #[derive(Default)]
     struct Acc {
         count: usize,
@@ -689,7 +807,7 @@ pub async fn categories(st: &AppState, org: &str) -> Result<Vec<ResourceCategory
         services: BTreeSet<String>,
     }
     let mut m: BTreeMap<&str, Acc> = BTreeMap::new();
-    for r in &all {
+    for r in all {
         let a = m.entry(category_of(r.resource_type)).or_default();
         a.count += 1;
         *a.types.entry(type_name(r.resource_type)).or_default() += 1;
@@ -743,36 +861,51 @@ struct PackageRow {
     resources: i64,
     running: i64,
     first_seen: i64,
+    vulnerabilities: i64,
+    /// 4 critical … 1 low, 0 unknown, NULL none.
+    max_rank: Option<i32>,
+}
+
+const SEVERITY_RANK_SQL: &str = "CASE a.severity WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END";
+
+fn severity_of_rank(rank: i32) -> &'static str {
+    match rank {
+        4 => "critical",
+        3 => "high",
+        2 => "medium",
+        1 => "low",
+        _ => "unknown",
+    }
 }
 
 #[utoipa::path(get, path = "/api/v1/cloud-security/packages", operation_id = "cloud_security_packages", responses((status = 200, body = Vec<InfraPackage>)), tag = "cloud-security")]
 pub async fn packages(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<InfraPackage>> {
-    let rows: Vec<PackageRow> = sqlx::query_as(
-        "SELECT p.ecosystem, p.name, p.version, count(DISTINCT p.entity_id) AS resources, count(DISTINCT p.entity_id) FILTER (WHERE e.in_use) AS running, \
-         (EXTRACT(EPOCH FROM min(p.first_seen)) * 1000)::bigint AS first_seen \
-         FROM csm_packages p JOIN csm_sbom_entities e ON e.org_id = p.org_id AND e.id = p.entity_id \
-         WHERE p.org_id = $1 AND e.last_seen > now() - make_interval(days => $2) GROUP BY p.ecosystem, p.name, p.version ORDER BY p.name, p.version LIMIT 20000",
-    )
+    // Counted in the database: each package version with its resources, then its matched advisories.
+    let rows: Vec<PackageRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "WITH pk AS (SELECT p.ecosystem, p.name, p.version, count(DISTINCT p.entity_id) AS resources, count(DISTINCT p.entity_id) FILTER (WHERE e.in_use) AS running, \
+           (EXTRACT(EPOCH FROM min(p.first_seen)) * 1000)::bigint AS first_seen \
+           FROM csm_packages p JOIN csm_sbom_entities e ON e.org_id = p.org_id AND e.id = p.entity_id \
+           WHERE p.org_id = $1 AND e.last_seen > now() - make_interval(days => $2) GROUP BY p.ecosystem, p.name, p.version ORDER BY p.name, p.version LIMIT 20000) \
+         SELECT pk.ecosystem, pk.name, pk.version, pk.resources, pk.running, pk.first_seen, count(a.id) AS vulnerabilities, max({SEVERITY_RANK_SQL}) FILTER (WHERE a.id IS NOT NULL) AS max_rank \
+         FROM pk LEFT JOIN cs_version_matches m ON m.ecosystem = pk.ecosystem AND m.package = pk.name AND m.version = pk.version \
+         LEFT JOIN cs_advisories a ON a.id = m.advisory_id AND a.withdrawn IS NULL \
+         GROUP BY pk.ecosystem, pk.name, pk.version, pk.resources, pk.running, pk.first_seen ORDER BY pk.name, pk.version"
+    )))
     .bind(&ctx.org_id)
     .bind(STALE_DAYS)
     .fetch_all(&st.postgres)
     .await?;
-    let vulns = infra_vulnerabilities(&st, &ctx.org_id).await?;
-    // (ecosystem, name, version) → advisories and the most severe.
-    type PackageKey = (String, String, String);
-    let mut by_pkg: HashMap<PackageKey, (HashSet<String>, Option<String>)> = HashMap::new();
-    for v in &vulns {
-        let e = by_pkg.entry((v.ecosystem.clone(), v.package.clone(), v.version.clone())).or_default();
-        e.0.insert(v.advisory_id.clone());
-        if e.1.as_ref().is_none_or(|s| model::severity_rank(&v.severity) > model::severity_rank(s)) {
-            e.1 = Some(v.severity.clone());
-        }
-    }
     Ok(Json(
         rows.into_iter()
-            .map(|r| {
-                let (ids, max) = by_pkg.remove(&(r.ecosystem.clone(), r.name.clone(), r.version.clone())).unwrap_or_default();
-                InfraPackage { ecosystem: r.ecosystem, name: r.name, version: r.version, resources: r.resources as usize, running: r.running as usize, vulnerabilities: ids.len(), max_severity: max, first_seen: r.first_seen }
+            .map(|r| InfraPackage {
+                ecosystem: r.ecosystem,
+                name: r.name,
+                version: r.version,
+                resources: r.resources as usize,
+                running: r.running as usize,
+                vulnerabilities: r.vulnerabilities as usize,
+                max_severity: r.max_rank.map(|k| severity_of_rank(k).to_string()),
+                first_seen: r.first_seen,
             })
             .collect(),
     ))
@@ -834,16 +967,23 @@ struct AdvisoryRow {
     ("impact" = Option<String>, Query), ("exploited" = Option<bool>, Query), ("offset" = Option<i64>, Query), ("limit" = Option<i64>, Query)),
     responses((status = 200, body = CvePage)), tag = "cloud-security")]
 pub async fn cves(State(st): State<AppState>, ctx: AuthContext, Query(q): Query<CveQuery>) -> ApiResult<CvePage> {
-    // What affects the org, by advisory.
-    let infra = infra_vulnerabilities(&st, &ctx.org_id).await?;
-    let libs = code_security::list_library_vulnerabilities(State(st.clone()), crate::state::OrgId(ctx.org_id.clone()), Json(code_security::CsFilter { status: "all".into(), scope: "all".into(), limit: 5000, ..Default::default() }))
-        .await?
-        .0
-        .vulnerabilities;
-    let mut resources: HashMap<String, HashSet<String>> = HashMap::new();
-    for v in &infra {
-        resources.entry(v.advisory_id.clone()).or_default().insert(v.resource_id.clone());
-    }
+    // What affects the org, by advisory: hosts and images counted in the database.
+    let (resources, libs) = tokio::try_join!(
+        async {
+            sqlx::query_as::<_, (String, i64)>(
+                "SELECT m.advisory_id, count(DISTINCT e.id) FROM csm_sbom_entities e JOIN csm_packages p ON p.org_id = e.org_id AND p.entity_id = e.id \
+                 JOIN cs_version_matches m ON m.ecosystem = p.ecosystem AND m.package = p.name AND m.version = p.version \
+                 WHERE e.org_id = $1 AND e.last_seen > now() - make_interval(days => $2) GROUP BY m.advisory_id",
+            )
+            .bind(&ctx.org_id)
+            .bind(STALE_DAYS)
+            .fetch_all(&st.postgres)
+            .await
+            .map_err(ApiError::from)
+        },
+        code_security::library_vulnerabilities(&st, &ctx.org_id),
+    )?;
+    let resources: HashMap<String, usize> = resources.into_iter().map(|(id, n)| (id, n as usize)).collect();
     let mut libraries: HashMap<String, HashSet<String>> = HashMap::new();
     for v in &libs {
         libraries.entry(v.advisory_id.clone()).or_default().insert(v.key.clone());
@@ -890,7 +1030,7 @@ pub async fn cves(State(st): State<AppState>, ctx: AuthContext, Query(q): Query<
                 cve: r.aliases.iter().find(|a| a.starts_with("CVE-")).cloned(),
                 exploited: r.aliases.iter().any(|a| kev.contains(a)),
                 impacted_libraries: libraries.get(&r.id).map_or(0, HashSet::len),
-                impacted_resources: resources.get(&r.id).map_or(0, HashSet::len),
+                impacted_resources: resources.get(&r.id).copied().unwrap_or(0),
                 id: r.id,
                 summary: r.summary,
                 severity: r.severity,
@@ -985,55 +1125,100 @@ pub fn hosts_scanned(listed: &[&str], sbom_hosts: &[String]) -> usize {
     listed.iter().map(|h| short(h)).collect::<HashSet<_>>().iter().filter(|h| sent.contains(*h)).count()
 }
 
+#[derive(sqlx::FromRow, Default)]
+struct VulnCounts {
+    total: i64,
+    running: i64,
+    exploit_available: i64,
+    fix_available: i64,
+    high_or_critical: i64,
+    high_exploit_risk: i64,
+    critical: i64,
+    high: i64,
+    medium: i64,
+    low: i64,
+    unknown: i64,
+}
+
+/// The open vulnerabilities of hosts and images counted in the database: unique advisories per prioritization
+/// criterion, and (advisory, resource, package) occurrences per severity. Muted ones (Code Security's triage) are left out.
+async fn vulnerability_counts(st: &AppState, org: &str) -> Result<VulnCounts, ApiError> {
+    let kev: Vec<String> = sqlx::query_scalar("SELECT cve_id FROM security_kev").fetch_all(&st.postgres).await?;
+    let high = "a.severity IN ('critical', 'high')";
+    let exploited = "a.aliases && $3::text[]";
+    let sql = format!(
+        "SELECT count(DISTINCT m.advisory_id) AS total, count(DISTINCT m.advisory_id) FILTER (WHERE e.in_use) AS running, \
+         count(DISTINCT m.advisory_id) FILTER (WHERE {exploited}) AS exploit_available, count(DISTINCT m.advisory_id) FILTER (WHERE m.fixed IS NOT NULL) AS fix_available, \
+         count(DISTINCT m.advisory_id) FILTER (WHERE {high}) AS high_or_critical, count(DISTINCT m.advisory_id) FILTER (WHERE e.in_use AND {exploited} AND {high}) AS high_exploit_risk, \
+         count(*) FILTER (WHERE a.severity = 'critical') AS critical, count(*) FILTER (WHERE a.severity = 'high') AS high, count(*) FILTER (WHERE a.severity = 'medium') AS medium, \
+         count(*) FILTER (WHERE a.severity = 'low') AS low, count(*) FILTER (WHERE a.severity NOT IN ('critical', 'high', 'medium', 'low')) AS unknown \
+         FROM csm_sbom_entities e JOIN csm_packages p ON p.org_id = e.org_id AND p.entity_id = e.id \
+         JOIN cs_version_matches m ON m.ecosystem = p.ecosystem AND m.package = p.name AND m.version = p.version JOIN cs_advisories a ON a.id = m.advisory_id \
+         LEFT JOIN cs_triage t ON t.org_id = e.org_id AND t.key = 'csm-vuln:' || m.advisory_id || ':' || e.id || ':' || p.name \
+         WHERE e.org_id = $1 AND e.last_seen > now() - make_interval(days => $2) AND a.withdrawn IS NULL AND COALESCE(t.status, 'open') = 'open'"
+    );
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(sql)).bind(org).bind(STALE_DAYS).bind(&kev).fetch_one(&st.postgres).await?)
+}
+
 #[utoipa::path(get, path = "/api/v1/cloud-security/summary", operation_id = "cloud_security_summary", responses((status = 200, body = CloudSecuritySummary)), tag = "cloud-security")]
 pub async fn summary(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<CloudSecuritySummary> {
     let org = &ctx.org_id;
-    let vulns: Vec<InfraVulnerability> = infra_vulnerabilities(&st, org).await?.into_iter().filter(|v| v.status == "open").collect();
-    let uniq = |f: &dyn Fn(&InfraVulnerability) -> bool| vulns.iter().filter(|v| f(v)).map(|v| v.advisory_id.as_str()).collect::<HashSet<_>>().len();
-    let high = |v: &InfraVulnerability| matches!(v.severity.as_str(), "critical" | "high");
+    let pg = &st.postgres;
+    let (counts, resources, manifests, triage, (images, images_running), sbom_hosts, connected) = tokio::try_join!(
+        vulnerability_counts(&st, org),
+        catalog::load_all(&st, org),
+        manifests(&st, org),
+        code_security::triage_map(&st, org),
+        async {
+            sqlx::query_as::<_, (i64, i64)>(
+                "SELECT count(*) FILTER (WHERE kind = 'container_image'), count(*) FILTER (WHERE kind = 'container_image' AND in_use) \
+                 FROM csm_sbom_entities WHERE org_id = $1 AND last_seen > now() - make_interval(days => $2)",
+            )
+            .bind(org)
+            .bind(STALE_DAYS)
+            .fetch_one(pg)
+            .await
+            .map_err(ApiError::from)
+        },
+        async {
+            sqlx::query_scalar::<_, String>("SELECT id FROM csm_sbom_entities WHERE org_id = $1 AND kind = 'host' AND last_seen > now() - make_interval(days => $2)")
+                .bind(org)
+                .bind(STALE_DAYS)
+                .fetch_all(pg)
+                .await
+                .map_err(ApiError::from)
+        },
+        async {
+            sqlx::query_as::<_, (String, String, String)>(
+                "SELECT 'aws', aws_account_id, '' FROM aws_accounts WHERE org_id = $1 \
+                 UNION SELECT j.provider, j.scope, COALESCE(n.name, '') FROM cloud_crawl_jobs j \
+                 LEFT JOIN cloud_scope_names n ON n.org_id = j.org_id AND n.provider = j.provider AND n.scope = j.scope \
+                 WHERE j.org_id = $1 AND j.provider IN ('azure', 'gcp') AND j.scope <> ''",
+            )
+            .bind(org)
+            .fetch_all(pg)
+            .await
+            .map_err(ApiError::from)
+        },
+    )?;
     let prioritization = VulnerabilityPrioritization {
-        total: uniq(&|_| true),
-        running: uniq(&|v| v.running),
-        exploit_available: uniq(&|v| v.exploit_available),
-        fix_available: uniq(&|v| v.fixed.is_some()),
-        high_or_critical: uniq(&high),
-        high_exploit_risk: uniq(&|v| v.running && v.exploit_available && high(v)),
+        total: counts.total as usize,
+        running: counts.running as usize,
+        exploit_available: counts.exploit_available as usize,
+        fix_available: counts.fix_available as usize,
+        high_or_critical: counts.high_or_critical as usize,
+        high_exploit_risk: counts.high_exploit_risk as usize,
     };
-    let mut by_severity: BTreeMap<String, usize> = ["critical", "high", "medium", "low"].iter().map(|s| (s.to_string(), 0)).collect();
-    for v in &vulns {
-        *by_severity.entry(v.severity.clone()).or_default() += 1;
+    let mut by_severity: BTreeMap<String, usize> = [("critical", counts.critical), ("high", counts.high), ("medium", counts.medium), ("low", counts.low)].iter().map(|(s, n)| (s.to_string(), *n as usize)).collect();
+    if counts.unknown > 0 {
+        by_severity.insert("unknown".into(), counts.unknown as usize);
     }
-    let resources = catalog::load_all(&st, org).await?;
-    let manifests = manifests(&st, org).await?;
-    let triage = code_security::triage_map(&st, org).await?;
     let (findings, _) = evaluate(&resources, &manifests, &triage);
     let mut misconfigs: BTreeMap<String, usize> = ["critical", "high", "medium", "low"].iter().map(|s| (s.to_string(), 0)).collect();
     for f in findings.iter().filter(|f| f.status == "open") {
         *misconfigs.entry(f.severity.clone()).or_default() += 1;
     }
-    let (images, images_running): (i64, i64) = sqlx::query_as(
-        "SELECT count(*) FILTER (WHERE kind = 'container_image'), count(*) FILTER (WHERE kind = 'container_image' AND in_use) \
-         FROM csm_sbom_entities WHERE org_id = $1 AND last_seen > now() - make_interval(days => $2)",
-    )
-    .bind(org)
-    .bind(STALE_DAYS)
-    .fetch_one(&st.postgres)
-    .await?;
-    let sbom_hosts: Vec<String> = sqlx::query_scalar("SELECT id FROM csm_sbom_entities WHERE org_id = $1 AND kind = 'host' AND last_seen > now() - make_interval(days => $2)")
-        .bind(org)
-        .bind(STALE_DAYS)
-        .fetch_all(&st.postgres)
-        .await?;
     let listed: Vec<&str> = resources.iter().filter(|r| r.resource_type == CatalogType::Host).map(|r| r.name.as_str()).collect();
-    let connected: Vec<(String, String, String)> = sqlx::query_as(
-        "SELECT 'aws', aws_account_id, '' FROM aws_accounts WHERE org_id = $1 \
-         UNION SELECT j.provider, j.scope, COALESCE(n.name, '') FROM cloud_crawl_jobs j \
-         LEFT JOIN cloud_scope_names n ON n.org_id = j.org_id AND n.provider = j.provider AND n.scope = j.scope \
-         WHERE j.org_id = $1 AND j.provider IN ('azure', 'gcp') AND j.scope <> ''",
-    )
-    .bind(org)
-    .fetch_all(&st.postgres)
-    .await?;
     let seen: Vec<(String, String)> = resources.iter().filter_map(|r| Some((r.cloud.clone()?, r.account.clone()?))).collect();
     let clusters: BTreeSet<&str> = resources.iter().filter_map(|r| r.cluster.as_deref()).collect();
     Ok(Json(CloudSecuritySummary {
@@ -1049,7 +1234,7 @@ pub async fn summary(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<
         },
         misconfigurations: misconfigs,
         vulnerabilities_by_severity: by_severity,
-        inventory: categories(&st, org).await?,
+        inventory: categories(&st, org, &resources).await?,
     }))
 }
 
@@ -1202,6 +1387,47 @@ mod tests {
     }
 
     #[test]
+    fn account_scans_list_failing_resources_and_count_each_check_from_its_totals() {
+        use crate::posture::store::{CheckCounts, FindingRow};
+        let failing = FindingRow {
+            id: "f1".into(),
+            provider: "aws".into(),
+            account_id: "123456789012".into(),
+            check_id: "s3_bucket_public_access".into(),
+            title: Some("S3 bucket is public".into()),
+            description: None,
+            risk: None,
+            remediation: None,
+            service: None,
+            compliance: Some(serde_json::json!({"CIS-2.0": ["2.1.4"]})),
+            reference_urls: None,
+            resource_uid: "arn:aws:s3:::example-shop-assets".into(),
+            resource_name: "example-shop-assets".into(),
+            resource_type: "AwsS3Bucket".into(),
+            region: "eu-west-1".into(),
+            evaluation: "fail".into(),
+            severity: "high".into(),
+            detail: "public".into(),
+            resource_tags: serde_json::json!(["env:prod", "team:storefront"]),
+            first_seen_at: 1,
+            last_seen_at: 2,
+            evaluation_changed_at: 2,
+            muted: false,
+            mute_reason: None,
+            mute_description: None,
+            mute_expire_at: None,
+            muted_by: None,
+            muted_at: None,
+        };
+        let check = |id: &str, evaluated: i64, failing: i64| CheckCounts { check_id: id.into(), title: None, severity: "medium".into(), evaluated, failing, ..Default::default() };
+        let (findings, rules) = posture_misconfigurations(&[failing], &[check("s3_bucket_public_access", 40, 1), check("iam_root_mfa", 1, 0)]);
+        assert_eq!(findings.iter().map(|f| (f.key.as_str(), f.rule_name.as_str(), f.env.as_deref(), f.team.as_deref())).collect::<Vec<_>>(), vec![("posture:f1", "S3 bucket is public", Some("prod"), Some("storefront"))]);
+        assert_eq!(findings[0].frameworks, vec!["CIS-2.0"]);
+        // Checks that only passed are listed too, named by their id when the scanner sent no title.
+        assert_eq!(rules.iter().map(|r| (r.id.as_str(), r.name.as_str(), r.evaluated, r.failing)).collect::<Vec<_>>(), vec![("s3_bucket_public_access", "s3_bucket_public_access", 40, 1), ("iam_root_mfa", "iam_root_mfa", 1, 0)]);
+    }
+
+    #[test]
     fn findings_filter_by_status() {
         assert!(keep("open", ""));
         assert!(!keep("muted", "open"));
@@ -1230,9 +1456,19 @@ mod tests {
         }))
         .unwrap();
         store_sbom(st, &org, &upload).await.unwrap();
+        // Read from the matching pass's results.
+        while code_security::match_due_versions(&st.postgres).await.unwrap() > 0 {}
         let v = infra_vulnerabilities(st, &org).await.unwrap();
         let ids: BTreeSet<&str> = v.iter().map(|x| x.advisory_id.as_str()).collect();
         assert_eq!(ids, ["OCSA-DEMO-2026-0101", "OCSA-DEMO-2026-0102", "OCSA-DEMO-2026-0105"].into_iter().collect());
+        // The summary counts the same in the database; the list carries each advisory and resource once.
+        let c = vulnerability_counts(st, &org).await.unwrap();
+        assert_eq!((c.total, c.running, c.fix_available), (3, 3, 3));
+        assert_eq!(c.critical + c.high + c.medium + c.low + c.unknown, 3);
+        let list = compact_vulnerabilities(v.clone());
+        assert_eq!((list.advisories.len(), list.resources.len(), list.rows.len()), (3, 2, 3));
+        let scoped = infra_vulnerabilities_in(st, &org, &VulnScope { advisory: Some("OCSA-DEMO-2026-0105".into()), ..Default::default() }).await.unwrap();
+        assert_eq!(scoped.iter().map(|x| x.package.as_str()).collect::<Vec<_>>(), vec!["example-musl"]);
         let musl = v.iter().find(|x| x.package == "example-musl").unwrap();
         assert!(musl.running);
         assert_eq!(musl.resource_name, "registry.example.com/storefront-api:1.42.0");

@@ -262,7 +262,9 @@ export function MisconfigurationsPage() {
     const m = new Map<string, MisconfigFinding[]>();
     for (const f of rows) {
       const k = group === 'resource' ? f.resourceId : group === 'none' ? f.key : f.ruleId;
-      m.set(k, [...(m.get(k) ?? []), f]);
+      const items = m.get(k);
+      if (items) items.push(f);
+      else m.set(k, [f]);
     }
     return [...m.entries()].sort((a, b) => RANK.indexOf(b[1][0].severity) - RANK.indexOf(a[1][0].severity) || b[1].length - a[1].length);
   }, [rows, group]);
@@ -501,7 +503,9 @@ export function InfraVulnerabilitiesPage() {
     const m = new Map<string, InfraVulnerability[]>();
     for (const v of rows) {
       const k = group === 'package' ? `${v.ecosystem}:${v.package}@${v.version}` : group === 'resource' ? v.resourceId : group === 'none' ? v.key : v.advisoryId;
-      m.set(k, [...(m.get(k) ?? []), v]);
+      const items = m.get(k);
+      if (items) items.push(v);
+      else m.set(k, [v]);
     }
     return [...m.entries()].sort((a, b) => RANK.indexOf(b[1][0].severity) - RANK.indexOf(a[1][0].severity) || (b[1][0].score ?? 0) - (a[1][0].score ?? 0));
   }, [rows, group]);
