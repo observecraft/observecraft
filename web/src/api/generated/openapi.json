@@ -4983,10 +4983,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/InfraVulnerability"
-                  }
+                  "$ref": "#/components/schemas/InfraVulnerabilityList"
                 }
               }
             }
@@ -54037,6 +54034,57 @@
           }
         }
       },
+      "InfraAdvisory": {
+        "type": "object",
+        "description": "A vulnerability's advisory, shared by its rows in [`InfraVulnerabilityList`].",
+        "required": [
+          "advisoryId",
+          "aliases",
+          "title",
+          "severity",
+          "cwes",
+          "exploitAvailable"
+        ],
+        "properties": {
+          "advisoryId": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cve": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cwes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exploitAvailable": {
+            "type": "boolean"
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
       "InfraPackage": {
         "type": "object",
         "required": [
@@ -54083,18 +54131,10 @@
           }
         }
       },
-      "InfraVulnerability": {
+      "InfraResource": {
         "type": "object",
+        "description": "A host or container image, shared by its rows in [`InfraVulnerabilityList`].",
         "required": [
-          "key",
-          "advisoryId",
-          "aliases",
-          "title",
-          "severity",
-          "cwes",
-          "ecosystem",
-          "package",
-          "version",
           "resourceId",
           "resourceName",
           "resourceKind",
@@ -54102,68 +54142,20 @@
           "env",
           "os",
           "running",
-          "exploitAvailable",
-          "status",
-          "firstSeen",
           "lastSeen"
         ],
         "properties": {
-          "advisoryId": {
-            "type": "string"
-          },
-          "aliases": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "cve": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "cwes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "ecosystem": {
-            "type": "string"
-          },
           "env": {
             "type": "string"
           },
-          "exploitAvailable": {
-            "type": "boolean",
-            "description": "The CVE is in CISA's known exploited catalog."
-          },
-          "firstSeen": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "fixed": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "host": {
             "type": "string"
-          },
-          "key": {
-            "type": "string",
-            "description": "Triage key."
           },
           "lastSeen": {
             "type": "integer",
             "format": "int64"
           },
           "os": {
-            "type": "string"
-          },
-          "package": {
             "type": "string"
           },
           "resourceId": {
@@ -54177,25 +54169,79 @@
             "type": "string"
           },
           "running": {
-            "type": "boolean",
-            "description": "A running container uses the image (hosts always run)."
+            "type": "boolean"
+          }
+        }
+      },
+      "InfraVulnerabilityList": {
+        "type": "object",
+        "description": "The vulnerabilities of hosts and images with each advisory and resource once: at hundreds of images the same\nadvisory text and image names would otherwise repeat in tens of thousands of rows.",
+        "required": [
+          "advisories",
+          "resources",
+          "rows"
+        ],
+        "properties": {
+          "advisories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InfraAdvisory"
+            }
           },
-          "score": {
-            "type": [
-              "number",
-              "null"
-            ],
-            "format": "double"
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InfraResource"
+            }
           },
-          "severity": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InfraVulnerabilityRow"
+            }
+          }
+        }
+      },
+      "InfraVulnerabilityRow": {
+        "type": "object",
+        "description": "A package of a resource affected by an advisory: indexes into the list's advisories and resources. Its triage key\nis `csm-vuln:<advisory id>:<resource id>:<package>`.",
+        "required": [
+          "advisory",
+          "resource",
+          "ecosystem",
+          "package",
+          "version",
+          "status",
+          "firstSeen"
+        ],
+        "properties": {
+          "advisory": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ecosystem": {
             "type": "string"
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fixed": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "package": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "integer",
+            "minimum": 0
           },
           "status": {
             "type": "string",
             "description": "open | muted"
-          },
-          "title": {
-            "type": "string"
           },
           "version": {
             "type": "string"

@@ -208,6 +208,7 @@ pub struct AffectedRange {
 }
 
 /// Whether `version` is affected: in one of the ranges, or listed.
+#[cfg(test)]
 pub fn is_affected(version: &str, ranges: &[AffectedRange], versions: &[String]) -> bool {
     is_affected_in("", version, ranges, versions)
 }
@@ -231,7 +232,47 @@ pub fn is_affected_in(ecosystem: &str, version: &str, ranges: &[AffectedRange], 
     })
 }
 
+/// An advisory's affected ranges of one package (a `cs_advisory_packages` row).
+#[derive(Debug, Clone, Default, sqlx::FromRow)]
+pub struct AdvisoryPackageRanges {
+    pub ecosystem: String,
+    pub package: String,
+    pub advisory_id: String,
+    #[sqlx(json)]
+    pub ranges: Vec<AffectedRange>,
+    pub versions: Vec<String>,
+}
+
+/// A package version an advisory affects, with the fix to move to.
+#[derive(Debug, Clone, PartialEq)]
+pub struct VersionMatch {
+    pub ecosystem: String,
+    pub package: String,
+    pub version: String,
+    pub advisory_id: String,
+    pub fixed: Option<String>,
+}
+
+/// The advisories affecting each `(ecosystem, package, version)`, compared as the ecosystem orders versions: what the
+/// matching pass stores, so reads join matches instead of comparing every version range again.
+pub fn match_versions(due: &[(String, String, String)], advisories: &[AdvisoryPackageRanges]) -> Vec<VersionMatch> {
+    let mut by_pkg: std::collections::HashMap<(&str, &str), Vec<&AdvisoryPackageRanges>> = std::collections::HashMap::new();
+    for a in advisories {
+        by_pkg.entry((a.ecosystem.as_str(), a.package.as_str())).or_default().push(a);
+    }
+    let mut out = vec![];
+    for (eco, name, version) in due {
+        for a in by_pkg.get(&(eco.as_str(), name.as_str())).into_iter().flatten() {
+            if is_affected_in(eco, version, &a.ranges, &a.versions) {
+                out.push(VersionMatch { ecosystem: eco.clone(), package: name.clone(), version: version.clone(), advisory_id: a.advisory_id.clone(), fixed: fix_for_in(eco, version, &a.ranges) });
+            }
+        }
+    }
+    out
+}
+
 /// The fixed version the remediation points to: the lowest fix above `version` (or above any fix).
+#[cfg(test)]
 pub fn fix_for(version: &str, ranges: &[AffectedRange]) -> Option<String> {
     fix_for_in("", version, ranges)
 }
@@ -1111,6 +1152,29 @@ pub fn parse_iast(json: &str) -> Vec<IastVulnerability> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn versions_are_matched_once_against_their_packages_advisories_with_the_fix() {
+        let range = |i: &str, f: &str| AffectedRange { introduced: i.into(), fixed: f.into(), last_affected: String::new() };
+        let pkg = |eco: &str, name: &str, id: &str, ranges: Vec<AffectedRange>, versions: &[&str]| AdvisoryPackageRanges {
+            ecosystem: eco.into(),
+            package: name.into(),
+            advisory_id: id.into(),
+            ranges,
+            versions: versions.iter().map(|v| v.to_string()).collect(),
+        };
+        let advisories = [
+            pkg("Debian:12", "openssl", "DEBIAN-CVE-2026-0001", vec![range("0", "3.0.15-1~deb12u1")], &[]),
+            pkg("Debian:12", "openssl", "DEBIAN-CVE-2026-0002", vec![range("0", "3.0.11-1~deb12u1")], &[]),
+            pkg("npm", "left-pad", "GHSA-test-0001", vec![], &["1.0.0"]),
+        ];
+        let v = |eco: &str, name: &str, ver: &str| (eco.to_string(), name.to_string(), ver.to_string());
+        let due = [v("Debian:12", "openssl", "3.0.11-1~deb12u2"), v("npm", "left-pad", "1.0.0"), v("npm", "left-pad", "1.0.1"), v("Debian:12", "bash", "5.2")];
+        let matched = match_versions(&due, &advisories);
+        let found: Vec<(&str, &str, &str, Option<&str>)> = matched.iter().map(|m| (m.package.as_str(), m.version.as_str(), m.advisory_id.as_str(), m.fixed.as_deref())).collect();
+        // dpkg order: 3.0.11-1~deb12u2 is past the second advisory's fix, before the first's.
+        assert_eq!(found, vec![("openssl", "3.0.11-1~deb12u2", "DEBIAN-CVE-2026-0001", Some("3.0.15-1~deb12u1")), ("left-pad", "1.0.0", "GHSA-test-0001", None)]);
+    }
 
     #[test]
     fn versions_order_like_package_managers() {

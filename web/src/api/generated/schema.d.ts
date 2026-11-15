@@ -18066,6 +18066,18 @@ export interface components {
             test: boolean;
             title: string;
         };
+        /** @description A vulnerability's advisory, shared by its rows in [`InfraVulnerabilityList`]. */
+        InfraAdvisory: {
+            advisoryId: string;
+            aliases: string[];
+            cve?: string | null;
+            cwes: string[];
+            exploitAvailable: boolean;
+            /** Format: double */
+            score?: number | null;
+            severity: string;
+            title: string;
+        };
         InfraPackage: {
             ecosystem: string;
             /** Format: int64 */
@@ -18078,37 +18090,42 @@ export interface components {
             version: string;
             vulnerabilities: number;
         };
-        InfraVulnerability: {
-            advisoryId: string;
-            aliases: string[];
-            cve?: string | null;
-            cwes: string[];
-            ecosystem: string;
+        /** @description A host or container image, shared by its rows in [`InfraVulnerabilityList`]. */
+        InfraResource: {
             env: string;
-            /** @description The CVE is in CISA's known exploited catalog. */
-            exploitAvailable: boolean;
-            /** Format: int64 */
-            firstSeen: number;
-            fixed?: string | null;
             host: string;
-            /** @description Triage key. */
-            key: string;
             /** Format: int64 */
             lastSeen: number;
             os: string;
-            package: string;
             resourceId: string;
             /** @description host | container_image */
             resourceKind: string;
             resourceName: string;
-            /** @description A running container uses the image (hosts always run). */
             running: boolean;
-            /** Format: double */
-            score?: number | null;
-            severity: string;
+        };
+        /**
+         * @description The vulnerabilities of hosts and images with each advisory and resource once: at hundreds of images the same
+         *     advisory text and image names would otherwise repeat in tens of thousands of rows.
+         */
+        InfraVulnerabilityList: {
+            advisories: components["schemas"]["InfraAdvisory"][];
+            resources: components["schemas"]["InfraResource"][];
+            rows: components["schemas"]["InfraVulnerabilityRow"][];
+        };
+        /**
+         * @description A package of a resource affected by an advisory: indexes into the list's advisories and resources. Its triage key
+         *     is `csm-vuln:<advisory id>:<resource id>:<package>`.
+         */
+        InfraVulnerabilityRow: {
+            advisory: number;
+            ecosystem: string;
+            /** Format: int64 */
+            firstSeen: number;
+            fixed?: string | null;
+            package: string;
+            resource: number;
             /** @description open | muted */
             status: string;
-            title: string;
             version: string;
         };
         IngestKey: {
@@ -31130,7 +31147,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InfraVulnerability"][];
+                    "application/json": components["schemas"]["InfraVulnerabilityList"];
                 };
             };
         };

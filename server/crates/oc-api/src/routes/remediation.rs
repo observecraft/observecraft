@@ -136,7 +136,9 @@ async fn load(st: &AppState, org: &str, r: &FindingRef) -> Result<Finding, ApiEr
             Ok(c)
         }
         "cloud_vulnerability" => {
-            let v = super::cloud_security::infra_vulnerabilities(st, org).await?.into_iter().find(|v| v.key == r.id).ok_or_else(missing)?;
+            // `csm-vuln:<advisory>:<resource>:<package>`: only the advisory's rows are read.
+            let scope = super::cloud_security::VulnScope { advisory: r.id.strip_prefix("csm-vuln:").and_then(|k| k.split(':').next()).map(str::to_string), ..Default::default() };
+            let v = super::cloud_security::infra_vulnerabilities_in(st, org, &scope).await?.into_iter().find(|v| v.key == r.id).ok_or_else(missing)?;
             let ids = std::iter::once(v.advisory_id.clone()).chain(v.cve.clone()).collect();
             let facts = InfraFacts { subject: Subject::of_type(&v.resource_kind), resource_id: v.resource_id.clone(), resource_name: v.resource_name.clone(), resource_type: v.resource_kind.clone(), env: Some(v.env.clone()).filter(|e| !e.is_empty()), rule_id: v.advisory_id.clone() };
             let mut c = cloud(Kind::CloudVulnerability, v.title.clone(), v.severity.clone(), ids, v.resource_name.clone(), serde_json::to_value(&v).unwrap_or_default(), page("/security/cloud/vulnerabilities"));

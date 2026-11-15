@@ -13,6 +13,7 @@
 import { API_MODE, get, post } from '../http';
 import * as mock from '../mock/cloudSecurity';
 import * as posture from '../mock/cloudPosture';
+import { expandInfraVulnerabilities } from './expand';
 import type { AdvisoryDetail, CloudSecuritySummary, CvePage, CveQuery, FindingStatus, InfraPackage, InfraVulnerability, MisconfigPage, PostureScans, ResourceCategory } from './types';
 
 export * from './types';
@@ -22,7 +23,7 @@ const live = API_MODE === 'live';
 export const getCloudSecuritySummary = (): Promise<CloudSecuritySummary> => (live ? get('/api/v1/cloud-security/summary', {}) : mock.summary());
 export const listMisconfigurations = (status: FindingStatus = 'open'): Promise<MisconfigPage> => (live ? post('/api/v1/cloud-security/misconfigurations', { status }) : mock.misconfigurations(status));
 export const listInfraVulnerabilities = (status: FindingStatus = 'open'): Promise<InfraVulnerability[]> =>
-  live ? post('/api/v1/cloud-security/vulnerabilities', { status }) : mock.vulnerabilities(status);
+  live ? post('/api/v1/cloud-security/vulnerabilities', { status }).then(expandInfraVulnerabilities) : mock.vulnerabilities(status);
 export const listResourceCategories = (): Promise<ResourceCategory[]> => (live ? get('/api/v1/cloud-security/resources', {}) : mock.resources());
 export const listInfraPackages = (): Promise<InfraPackage[]> => (live ? get('/api/v1/cloud-security/packages', {}) : mock.packages());
 export const searchCves = (q: CveQuery): Promise<CvePage> =>

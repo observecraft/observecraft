@@ -80,25 +80,35 @@ struct InventoryRow {
 pub async fn overview(State(st): State<AppState>, ctx: AuthContext, access: LogAccess) -> ApiResult<SecurityOverview> {
     let org = ctx.org_id.clone();
     let now = chrono::Utc::now().timestamp_millis();
-    let setup = code_security::setup(State(st.clone()), OrgId(org.clone())).await?.0;
-    let summary = code_security::summary(State(st.clone()), OrgId(org.clone())).await?.0;
-    let repos = code_security::repositories(State(st.clone()), OrgId(org.clone())).await?.0;
-    let inv: InventoryRow = st
-        .ch(&org)
-        .query(
-            "SELECT uniqExact(ServiceName) AS services, uniqExactIf(concat(ServiceName, ' ', SpanName), SpanKind = 'Server') AS endpoints, \
-             uniqExactIf(ResourceAttributes['host.name'], ResourceAttributes['host.name'] != '') AS hosts \
-             FROM otel.otel_traces WHERE OrgId = {oc_org:String} AND Timestamp > now() - INTERVAL 1 HOUR",
-        )
-        .fetch_one()
-        .await?;
-    let agent_hosts: i64 = sqlx::query_scalar("SELECT count(*) FROM datadog_hosts WHERE org_id = $1").bind(&org).fetch_one(&st.postgres).await?;
-    let packs = pack_statuses(&st, &org, &access, now).await?;
-    let signals = signals_in(&st, &org, TimeRange { from: now - 7 * DAY, to: now }).await?;
+    let pg = &st.postgres;
+    // Independent reads, at once; library vulnerabilities are read once (the matching pass precomputed them).
+    let (setup, summary, repositories, inv, agent_hosts, packs, signals, vulns, kev) = tokio::try_join!(
+        async { Ok::<_, ApiError>(code_security::setup(State(st.clone()), OrgId(org.clone())).await?.0) },
+        async { Ok::<_, ApiError>(code_security::summary(State(st.clone()), OrgId(org.clone())).await?.0) },
+        async {
+            sqlx::query_scalar::<_, i64>("SELECT count(DISTINCT repository) FROM cs_scans WHERE org_id = $1 AND repository <> '' AND pr_number = ''").bind(&org).fetch_one(pg).await.map_err(ApiError::from)
+        },
+        async {
+            st.ch(&org)
+                .query(
+                    "SELECT uniqExact(ServiceName) AS services, uniqExactIf(concat(ServiceName, ' ', SpanName), SpanKind = 'Server') AS endpoints, \
+                     uniqExactIf(ResourceAttributes['host.name'], ResourceAttributes['host.name'] != '') AS hosts \
+                     FROM otel.otel_traces WHERE OrgId = {oc_org:String} AND Timestamp > now() - INTERVAL 1 HOUR",
+                )
+                .fetch_one::<InventoryRow>()
+                .await
+                .map_err(ApiError::from)
+        },
+        async { sqlx::query_scalar::<_, i64>("SELECT count(*) FROM datadog_hosts WHERE org_id = $1").bind(&org).fetch_one(pg).await.map_err(ApiError::from) },
+        pack_statuses(&st, &org, &access, now),
+        signals_in(&st, &org, TimeRange { from: now - 7 * DAY, to: now }),
+        code_security::library_vulnerabilities(&st, &org),
+        async { sqlx::query_scalar::<_, String>("SELECT cve_id FROM security_kev").fetch_all(pg).await.map_err(ApiError::from) },
+    )?;
     let total = |c: &code_security::SeverityCounts| c.critical + c.high + c.medium + c.low + c.unknown;
-    // Library vulnerabilities, to find the exploited ones and those in attacked services.
-    let vulns = code_security::list_library_vulnerabilities(State(st.clone()), OrgId(org.clone()), Json(CsFilter { limit: 5000, ..Default::default() })).await?.0.vulnerabilities;
-    let kev: HashSet<String> = sqlx::query_scalar("SELECT cve_id FROM security_kev").fetch_all(&st.postgres).await?.into_iter().collect();
+    // Open library vulnerabilities, to find the exploited ones and those in attacked services.
+    let vulns: Vec<&code_security::LibraryVulnerability> = vulns.iter().filter(|v| v.status == "open").collect();
+    let kev: HashSet<String> = kev.into_iter().collect();
     let attacked: HashSet<&str> = signals.iter().filter(|s| s.tags.iter().any(|t| t.starts_with("tactic:"))).flat_map(|s| s.services.iter().map(String::as_str)).collect();
     let code = CodeSecurityCoverage {
         sast: setup.repositories_with_code_scans > 0,
@@ -126,7 +136,7 @@ pub async fn overview(State(st): State<AppState>, ctx: AuthContext, access: LogA
         }
     }
     Ok(Json(SecurityOverview {
-        repositories: repos.len().max(setup.repositories_with_code_scans).max(setup.repositories_with_libraries),
+        repositories: (repositories as usize).max(setup.repositories_with_code_scans).max(setup.repositories_with_libraries),
         services: inv.services,
         endpoints: inv.endpoints,
         hosts: inv.hosts.max(agent_hosts as u64),
@@ -225,9 +235,24 @@ pub fn tagging_inbox_item(misconfigs: &[super::cloud_security::MisconfigFinding]
 }
 
 pub async fn inbox_findings(st: &AppState, org: &str) -> Result<Vec<InboxFinding>, ApiError> {
-    let kev: HashSet<String> = sqlx::query_scalar("SELECT cve_id FROM security_kev").fetch_all(&st.postgres).await?.into_iter().collect();
     let severe = vec!["critical".to_string(), "high".to_string()];
-    let vulns = code_security::list_library_vulnerabilities(State(st.clone()), OrgId(org.to_string()), Json(CsFilter { severity: severe.clone(), limit: 5000, ..Default::default() })).await?.0.vulnerabilities;
+    let findings = |kind: &str| {
+        let filter = FindingFilter { kind: kind.into(), filter: CsFilter { severity: if kind == "secret" { vec![] } else { severe.clone() }, limit: 5000, ..Default::default() } };
+        async move { Ok::<_, ApiError>(code_security::list_findings(State(st.clone()), OrgId(org.to_string()), Json(filter)).await?.0.findings) }
+    };
+    // Every source at once; Cloud Security's vulnerabilities only critical and high on running resources, filtered by the database.
+    let running_severe = super::cloud_security::VulnScope { severities: severe.clone(), running: true, ..Default::default() };
+    let (kev, vulns, sast, secrets, iac, (misconfigs, _), infra) = tokio::try_join!(
+        async { sqlx::query_scalar::<_, String>("SELECT cve_id FROM security_kev").fetch_all(&st.postgres).await.map_err(ApiError::from) },
+        code_security::library_vulnerabilities(st, org),
+        findings("sast"),
+        findings("secret"),
+        findings("iac"),
+        super::cloud_security::misconfigurations_of(st, org),
+        super::cloud_security::infra_vulnerabilities_in(st, org, &running_severe),
+    )?;
+    let kev: HashSet<String> = kev.into_iter().collect();
+    let vulns = vulns.into_iter().filter(|v| v.status == "open" && severe.contains(&v.severity));
     let mut out = Vec::new();
     for v in vulns {
         let exploited = v.cve.iter().chain(v.aliases.iter()).any(|c| kev.contains(c));
@@ -257,10 +282,8 @@ pub async fn inbox_findings(st: &AppState, org: &str) -> Result<Vec<InboxFinding
             link: format!("/code-security/vulnerabilities/libraries?q={}", v.advisory_id),
         });
     }
-    for (kind, label) in [("sast", "Code Vulnerability"), ("secret", "Secret"), ("iac", "IaC Misconfiguration")] {
-        let filter = FindingFilter { kind: kind.into(), filter: CsFilter { severity: if kind == "secret" { vec![] } else { severe.clone() }, limit: 5000, ..Default::default() } };
-        let page = code_security::list_findings(State(st.clone()), OrgId(org.to_string()), Json(filter)).await?.0;
-        for f in page.findings {
+    for (kind, label, found) in [("sast", "Code Vulnerability", sast), ("secret", "Secret", secrets), ("iac", "IaC Misconfiguration", iac)] {
+        for f in found {
             let severity = if kind == "secret" && !matches!(f.severity.as_str(), "critical" | "high") { "high".to_string() } else { f.severity.clone() };
             out.push(InboxFinding {
                 key: format!("finding:{}", f.id),
@@ -280,7 +303,6 @@ pub async fn inbox_findings(st: &AppState, org: &str) -> Result<Vec<InboxFinding
         }
     }
     // Cloud Security: critical and high misconfigurations, and vulnerabilities of running hosts and images.
-    let (misconfigs, _) = super::cloud_security::misconfigurations_of(st, org).await?;
     out.extend(tagging_inbox_item(&misconfigs));
     for m in misconfigs.into_iter().filter(|m| m.status == "open" && matches!(m.severity.as_str(), "critical" | "high")) {
         out.push(InboxFinding {
@@ -299,7 +321,7 @@ pub async fn inbox_findings(st: &AppState, org: &str) -> Result<Vec<InboxFinding
             link: format!("/security/cloud/findings?rule={}", m.rule_id),
         });
     }
-    for v in super::cloud_security::infra_vulnerabilities(st, org).await? {
+    for v in infra {
         if v.status != "open" || !v.running || !matches!(v.severity.as_str(), "critical" | "high") {
             continue;
         }

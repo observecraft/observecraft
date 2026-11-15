@@ -330,7 +330,109 @@ pub(crate) async fn store_advisory(pg: &sqlx::PgPool, AdvisoryWrite(a, source): 
             .execute(&mut *tx)
             .await?;
     }
+    // Matched again: its matches go, and the next matching pass takes the versions of its packages.
+    sqlx::query("DELETE FROM cs_version_matches WHERE advisory_id = $1").bind(&a.id).execute(&mut *tx).await?;
+    sqlx::query("DELETE FROM cs_matched_versions m USING cs_advisory_packages p WHERE p.advisory_id = $1 AND m.ecosystem = p.ecosystem AND m.package = p.package")
+        .bind(&a.id)
+        .execute(&mut *tx)
+        .await?;
     tx.commit().await
+}
+
+/// Package versions matched per pass, and how often every version is matched again.
+const MATCH_BATCH: i64 = 5000;
+const REMATCH_HOURS: i32 = 24;
+
+/// One matching pass: the package versions some org uses (libraries of Code Security, packages of Cloud Security's
+/// SBOMs) that have advisories and weren't matched since their advisories changed, compared with those advisories'
+/// ranges ([`model::match_versions`]) into `cs_version_matches`. Returns how many versions were due (0: none left).
+pub(crate) async fn match_due_versions(pg: &sqlx::PgPool) -> Result<usize, sqlx::Error> {
+    let due: Vec<(String, String, String)> = sqlx::query_as(
+        "SELECT u.ecosystem, u.name, u.version FROM (SELECT ecosystem, name, version FROM csm_packages UNION SELECT ecosystem, name, version FROM cs_libraries) u \
+         WHERE EXISTS (SELECT 1 FROM cs_advisory_packages p WHERE p.ecosystem = u.ecosystem AND p.package = u.name) \
+         AND NOT EXISTS (SELECT 1 FROM cs_matched_versions m WHERE m.ecosystem = u.ecosystem AND m.package = u.name AND m.version = u.version \
+           AND m.matched_at > now() - make_interval(hours => $1)) LIMIT $2",
+    )
+    .bind(REMATCH_HOURS)
+    .bind(MATCH_BATCH)
+    .fetch_all(pg)
+    .await?;
+    if due.is_empty() {
+        return Ok(0);
+    }
+    let pkgs: HashSet<(&str, &str)> = due.iter().map(|(e, n, _)| (e.as_str(), n.as_str())).collect();
+    let (ecos, names): (Vec<&str>, Vec<&str>) = pkgs.into_iter().unzip();
+    let advisories: Vec<model::AdvisoryPackageRanges> = sqlx::query_as(
+        "SELECT p.ecosystem, p.package, p.advisory_id, p.ranges, p.versions FROM cs_advisory_packages p \
+         WHERE (p.ecosystem, p.package) IN (SELECT * FROM unnest($1::text[], $2::text[]))",
+    )
+    .bind(&ecos)
+    .bind(&names)
+    .fetch_all(pg)
+    .await?;
+    let found = model::match_versions(&due, &advisories);
+    let col = |f: fn(&model::VersionMatch) -> String| found.iter().map(f).collect::<Vec<String>>();
+    let due_col = |f: fn(&(String, String, String)) -> &str| due.iter().map(f).collect::<Vec<&str>>();
+    let (d_ecos, d_names, d_versions) = (due_col(|d| &d.0), due_col(|d| &d.1), due_col(|d| &d.2));
+    let mut tx = pg.begin().await?;
+    sqlx::query("DELETE FROM cs_version_matches WHERE (ecosystem, package, version) IN (SELECT * FROM unnest($1::text[], $2::text[], $3::text[]))")
+        .bind(&d_ecos)
+        .bind(&d_names)
+        .bind(&d_versions)
+        .execute(&mut *tx)
+        .await?;
+    // An advisory deleted meanwhile (its packages rematched later) leaves its rows out.
+    sqlx::query(
+        "INSERT INTO cs_version_matches (ecosystem, package, version, advisory_id, fixed) SELECT u.* FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[]) AS u(e, p, v, a, f) \
+         WHERE EXISTS (SELECT 1 FROM cs_advisories a WHERE a.id = u.a) ON CONFLICT DO NOTHING",
+    )
+    .bind(col(|m| m.ecosystem.clone()))
+    .bind(col(|m| m.package.clone()))
+    .bind(col(|m| m.version.clone()))
+    .bind(col(|m| m.advisory_id.clone()))
+    .bind(found.iter().map(|m| m.fixed.clone()).collect::<Vec<Option<String>>>())
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        "INSERT INTO cs_matched_versions (ecosystem, package, version) SELECT * FROM unnest($1::text[], $2::text[], $3::text[]) \
+         ON CONFLICT (ecosystem, package, version) DO UPDATE SET matched_at = now()",
+    )
+    .bind(&d_ecos)
+    .bind(&d_names)
+    .bind(&d_versions)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(due.len())
+}
+
+/// Keeps the matches current: every 30 seconds, under the OSV lookup's lock so an advisory isn't stored while its
+/// versions are matched. Without OSV (no internet) it matches the advisories already stored.
+pub async fn run_vulnerability_matching(st: AppState) {
+    let mut tick = tokio::time::interval(Duration::from_secs(30));
+    loop {
+        tick.tick().await;
+        let Ok(mut conn) = st.postgres.acquire().await else { continue };
+        if !matches!(sqlx::query_scalar::<_, bool>("SELECT pg_try_advisory_lock(7310)").fetch_one(&mut *conn).await, Ok(true)) {
+            continue;
+        }
+        let started = std::time::Instant::now();
+        let mut matched = 0;
+        loop {
+            match match_due_versions(&st.postgres).await {
+                Ok(0) => break,
+                Ok(n) => matched += n,
+                Err(e) => {
+                    tracing::warn!(error = %e, "matching package versions with advisories failed");
+                    break;
+                }
+            }
+        }
+        if matched > 0 {
+            tracing::info!(versions = matched, ms = started.elapsed().as_millis() as u64, "vulnerability matching pass");
+        }
+        let _ = sqlx::query("SELECT pg_advisory_unlock(7310)").execute(&mut *conn).await;
+    }
 }
 
 /// One pass of the OSV lookup: the packages some org uses that weren't looked up recently. Returns how
@@ -677,8 +779,7 @@ struct MatchRow {
     first_seen: i64,
     last_seen: i64,
     advisory_id: String,
-    ranges: String,
-    versions: Vec<String>,
+    fixed: Option<String>,
     aliases: Vec<String>,
     summary: String,
     severity: String,
@@ -690,14 +791,15 @@ fn is_production(env: &str) -> bool {
     matches!(env.to_lowercase().as_str(), "prod" | "production" | "prd" | "live")
 }
 
-/// Every library vulnerability of the org: each (advisory, package version) its libraries match.
+/// Every library vulnerability of the org: each (advisory, package version) its libraries match, as the matching pass
+/// ([`match_due_versions`]) found them.
 pub(crate) async fn library_vulnerabilities(st: &AppState, org: &str) -> Result<Vec<LibraryVulnerability>, ApiError> {
     let rows: Vec<MatchRow> = sqlx::query_as(
         "SELECT l.source, l.ecosystem, l.name, l.version, l.service, l.env, l.repository, l.language, l.file, l.direct, l.dev, \
          (EXTRACT(EPOCH FROM l.first_seen) * 1000)::bigint AS first_seen, (EXTRACT(EPOCH FROM l.last_seen) * 1000)::bigint AS last_seen, \
-         p.advisory_id, p.ranges::text AS ranges, p.versions, a.aliases, a.summary, a.severity, a.score, a.cwes \
-         FROM cs_libraries l JOIN cs_advisory_packages p ON p.ecosystem = l.ecosystem AND p.package = l.name \
-         JOIN cs_advisories a ON a.id = p.advisory_id WHERE l.org_id = $1 AND a.withdrawn IS NULL",
+         m.advisory_id, m.fixed, a.aliases, a.summary, a.severity, a.score, a.cwes \
+         FROM cs_libraries l JOIN cs_version_matches m ON m.ecosystem = l.ecosystem AND m.package = l.name AND m.version = l.version \
+         JOIN cs_advisories a ON a.id = m.advisory_id WHERE l.org_id = $1 AND a.withdrawn IS NULL",
     )
     .bind(org)
     .fetch_all(&st.postgres)
@@ -705,10 +807,6 @@ pub(crate) async fn library_vulnerabilities(st: &AppState, org: &str) -> Result<
     let triage = triage_map(st, org).await?;
     let mut out: BTreeMap<String, LibraryVulnerability> = BTreeMap::new();
     for r in rows {
-        let ranges: Vec<AffectedRange> = serde_json::from_str(&r.ranges).unwrap_or_default();
-        if !model::is_affected(&r.version, &ranges, &r.versions) {
-            continue;
-        }
         let key = format!("{}|{}|{}|{}", r.advisory_id, r.ecosystem, r.name, r.version);
         let v = out.entry(key.clone()).or_insert_with(|| LibraryVulnerability {
             status: triage.get(&format!("vuln:{}:{}:{}", r.advisory_id, r.ecosystem, r.name)).cloned().unwrap_or_else(|| "open".into()),
@@ -720,7 +818,7 @@ pub(crate) async fn library_vulnerabilities(st: &AppState, org: &str) -> Result<
             score: r.score.map(|s| (s as f64 * 10.0).round() / 10.0),
             cwes: r.cwes.clone(),
             language: if r.language.is_empty() { model::language_of_ecosystem(&r.ecosystem).into() } else { r.language.clone() },
-            fixed: model::fix_for(&r.version, &ranges),
+            fixed: r.fixed.clone(),
             ecosystem: r.ecosystem.clone(),
             package: r.name.clone(),
             version: r.version.clone(),
@@ -1968,6 +2066,7 @@ mod tests {
         assert_eq!(res.status(), 202, "{}", res.text().await.unwrap_or_default());
         let adv = demo_advisory(("OCSA-TEST-0001", "CVE-2026-99999", "core: flaw", "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H", "CWE-20", "Maven", "org.example:core", "1.0.0", "1.2.0", 3));
         store_advisory(&s.st.postgres, AdvisoryWrite(&adv, "demo")).await.unwrap();
+        while match_due_versions(&s.st.postgres).await.unwrap() > 0 {}
         let vulns: Vec<LibraryVulnerability> = library_vulnerabilities(&s.st, &s.org).await.unwrap().into_iter().filter(|v| v.advisory_id == "OCSA-TEST-0001").collect();
         assert_eq!(vulns.len(), 1);
         assert_eq!((vulns[0].repositories[0].as_str(), vulns[0].fixed.as_deref(), vulns[0].severity.as_str()), ("github.com/example-org/shop", Some("1.2.0"), "critical"));
