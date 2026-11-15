@@ -2,18 +2,7 @@ import { useMemo, useState } from 'react';
 import qrcode from 'qrcode-generator';
 import { Check, Copy, KeyRound, Laptop, ShieldCheck, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  changePassword,
-  createAppKey,
-  listAppKeys,
-  listSessions,
-  mfaDisable,
-  mfaEnable,
-  mfaSetup,
-  revokeAppKey,
-  revokeSession,
-  securityStatus,
-} from '../../api/auth/client';
+import { changePassword, createAppKey, listAppKeys, listSessions, mfaDisable, mfaEnable, mfaSetup, revokeAppKey, revokeSession, securityStatus } from '../../api/auth/client';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { timeAgo } from '../../lib/format';
 
@@ -72,7 +61,11 @@ function PasswordCard({ hasPassword }: { hasPassword: boolean }) {
   return (
     <section className="settings-card">
       <h2>Password</h2>
-      <p className="muted">{hasPassword ? 'Changing your password signs you out of every other session.' : 'You sign in with single sign-on. You can also set a password for direct sign-in, if your organization allows it.'}</p>
+      <p className="muted">
+        {hasPassword
+          ? 'Changing your password signs you out of every other session.'
+          : 'You sign in with single sign-on. You can also set a password for direct sign-in, if your organization allows it.'}
+      </p>
       <form
         className="security-form"
         onSubmit={(e) => {
@@ -149,7 +142,9 @@ function MfaCard({ enabled }: { enabled: boolean }) {
         </>
       ) : !setup ? (
         <>
-          <p className="muted">Add a second step to password sign-in with an authenticator app (Microsoft Authenticator, Google Authenticator, 1Password, …). Single sign-on uses your identity provider's MFA.</p>
+          <p className="muted">
+            Add a second step to password sign-in with an authenticator app (Microsoft Authenticator, Google Authenticator, 1Password, …). Single sign-on uses your identity provider's MFA.
+          </p>
           <button className="btn btn-primary" onClick={() => start.mutate(undefined, { onSuccess: setSetup })} disabled={start.isPending}>
             <ShieldCheck size={14} /> Set up authenticator app
           </button>
@@ -172,7 +167,16 @@ function MfaCard({ enabled }: { enabled: boolean }) {
                 enable.mutate(code.replace(/\s/g, ''), { onSuccess: () => (setSetup(null), setCode('')) });
               }}
             >
-              <input className="settings-input code-input" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} required autoFocus />
+              <input
+                className="settings-input code-input"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                required
+                autoFocus
+              />
               <button className="btn btn-primary" disabled={enable.isPending}>
                 Verify and turn on
               </button>
@@ -190,7 +194,17 @@ function MfaCard({ enabled }: { enabled: boolean }) {
 
 function browserLabel(ua: string | null | undefined): string {
   if (!ua) return 'Unknown client';
-  const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : /curl|python|Go-http/i.test(ua) ? 'Script' : 'Browser';
+  const browser = /Edg\//.test(ua)
+    ? 'Edge'
+    : /Chrome\//.test(ua)
+      ? 'Chrome'
+      : /Firefox\//.test(ua)
+        ? 'Firefox'
+        : /Safari\//.test(ua)
+          ? 'Safari'
+          : /curl|python|Go-http/i.test(ua)
+            ? 'Script'
+            : 'Browser';
   const os = /Mac OS X/.test(ua) ? 'macOS' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : '';
   return os ? `${browser} on ${os}` : browser;
 }
@@ -304,6 +318,43 @@ export function AppKeysTab() {
           </table>
         )}
       </section>
+      <McpServerCard appKey={created} />
     </div>
+  );
+}
+
+/** How MCP clients (AI agents) connect to this installation's MCP server with an application key. */
+export function mcpSnippets(url: string, key: string) {
+  const config = { mcpServers: { observecraft: { type: 'http', url, headers: { Authorization: `Bearer ${key}` } } } };
+  return [
+    { label: 'Claude Code', text: `claude mcp add --transport http observecraft ${url} \\\n  --header "Authorization: Bearer ${key}"` },
+    { label: 'Other MCP clients (JSON configuration)', text: JSON.stringify(config, null, 2) },
+  ];
+}
+
+/** Personal Settings → Application Keys: the MCP server's endpoint and client configuration. */
+function McpServerCard({ appKey }: { appKey: string | null }) {
+  const url = `${window.location.origin}/api/v1/mcp`;
+  return (
+    <section className="settings-card">
+      <h2>MCP Server</h2>
+      <p className="muted">
+        AI agents (Claude Code, IDE assistants, your own agents) can query this organization's logs, metrics, traces, monitors, incidents, dashboards and security findings over the Model Context
+        Protocol. Connect them with an application key: they act as you, with your role and your log restrictions, and only read.
+      </p>
+      <div className="new-key-row">
+        <code>{url}</code>
+        <CopyButton text={url} />
+      </div>
+      {mcpSnippets(url, appKey ?? '<application key>').map((s) => (
+        <div key={s.label} className="key-snippet">
+          <div className="key-snippet-head">
+            <span>{s.label}</span>
+            <CopyButton text={s.text} />
+          </div>
+          <pre>{s.text}</pre>
+        </div>
+      ))}
+    </section>
   );
 }
