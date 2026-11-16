@@ -47,9 +47,14 @@ function localTime(tz: string | null | undefined, now: number): string {
   }
 }
 
+const SECTION_IDS: Section[] = ['profile', 'security', 'home', 'time', 'accessibility', 'email', 'orgs', 'mobile'];
+
 export function PersonalSettings() {
   const q = useProfile();
-  const [section, setSection] = useState<Section>('profile');
+  // Emails link straight to a section (`?section=email`).
+  const [params] = useSearchParams();
+  const linked = params.get('section') as Section | null;
+  const [section, setSection] = useState<Section>(linked && SECTION_IDS.includes(linked) ? linked : 'profile');
   return (
     <div className="settings-page">
       <SettingsHeader kind="personal" />

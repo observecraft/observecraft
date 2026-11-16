@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowRight,
   BookOpen,
@@ -65,6 +65,10 @@ function StatusInner() {
   const [declaring, setDeclaring] = useState(false);
   const [details, setDetails] = useState(false);
   const [filters, setFilters] = useState<GroupFilter>(NO_FILTER);
+  // Emails' "Mute 1 h" links here with `?mute=60`: asked, never applied on opening.
+  const [params, setParams] = useSearchParams();
+  const askMute = MUTE_OPTIONS.find((o) => o.minutes != null && String(o.minutes) === params.get('mute'));
+  const dismissMute = () => setParams((p) => (p.delete('mute'), p), { replace: true });
   if (q.isPending) return <Loading label="Loading monitor…" />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const m = q.data;
@@ -173,6 +177,17 @@ function StatusInner() {
             </button>
           </div>
         </section>
+        {askMute && !m.muted && (
+          <div className="mon-muted-banner">
+            <VolumeX size={16} /> Mute notifications of this monitor for {askMute.label}?
+            <button className="btn btn-sm btn-primary" disabled={bulk.isPending} onClick={() => bulk.mutate({ ids: [id], action: 'mute', muteMinutes: askMute.minutes }, { onSuccess: dismissMute })}>
+              Mute
+            </button>
+            <button className="link-btn" onClick={dismissMute}>
+              Cancel
+            </button>
+          </div>
+        )}
         {m.muted && (
           <div className="mon-muted-banner">
             <VolumeX size={16} /> Notifications are muted {m.mutedUntil ? `for another ${fmtDuration(m.mutedUntil - Date.now())} (until ${fmtDateTime(m.mutedUntil)})` : 'until unmuted'}.
