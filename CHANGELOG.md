@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.26.0](https://github.com/observecraft/observecraft/compare/v0.25.0...v0.26.0) (2026-11-16)
+
+
+### Features
+
+* **notifications:** HTML emails with the logo, state band, graph and working buttons ([f1241b3](https://github.com/observecraft/observecraft/commit/f1241b3c0ed5c0e1996accbc4773a3b8df2ecafd))
+* **web:** confirm a mute and open Personal Settings sections from email links ([b98241c](https://github.com/observecraft/observecraft/commit/b98241ce523ac75e8106d046c9149a6535e78ea8))
+
+
+### Documentation
+
+* describe ObserveCraft's emails ([ff4f39e](https://github.com/observecraft/observecraft/commit/ff4f39e20f94f5de10e28f18e0f1d3a50fe8de49))
+
 ## [0.25.0](https://github.com/observecraft/observecraft/compare/v0.24.0...v0.25.0) (2026-11-16)
 
 
