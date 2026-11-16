@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.25.0](https://github.com/observecraft/observecraft/compare/v0.24.0...v0.25.0) (2026-11-16)
+
+
+### Features
+
+* **api:** MCP server for AI agents ([a8e426e](https://github.com/observecraft/observecraft/commit/a8e426eb8328c4a559ab9d25c6903840b78b6426))
+* **web:** show the MCP server endpoint and client setup with application keys ([1e12e33](https://github.com/observecraft/observecraft/commit/1e12e333412edc837a95a64d19bee465decc1d0a))
+
+
+### Documentation
+
+* **adr:** ADR-0009, an MCP server for AI agents on the API server ([2898846](https://github.com/observecraft/observecraft/commit/28988462f885b650cf024800b0a2b01e8119c5da))
+* document the MCP server ([b60baf2](https://github.com/observecraft/observecraft/commit/b60baf2fc84378bc900e5e82694e6ee0f7408899))
+
 ## [0.24.0](https://github.com/observecraft/observecraft/compare/v0.23.0...v0.24.0) (2026-11-15)
 
 
