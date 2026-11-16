@@ -821,6 +821,7 @@ pub async fn test_channel(State(st): State<AppState>, Admin(ctx): Admin, Path(id
         message: format!("This is a test notification from ObserveCraft to @{h}. Monitors mention this channel as **@{h}**."),
         at: 0,
         test: true,
+        facts: Default::default(),
     };
     let link = format!("{}/monitors", st.config.public_url);
     let outcome = post(&st, &a, &c, monitor_message(&n, &link, c.display(), &a.id)).await;
@@ -1063,6 +1064,7 @@ mod tests {
             message: "Errors are **up** on billing. See [the runbook](https://wiki.example.com/rb). @slack-ops-alerts @ana@example.com".into(),
             at: 0,
             test: false,
+            facts: Default::default(),
         }
     }
 
@@ -1203,7 +1205,7 @@ mod tests {
 
         let mut n = notice("alert");
         n.org = org.clone();
-        let out = Outgoing { org: org.clone(), title: n.title(), email_body: String::new(), slack_text: "plain".into(), webhook: json!({}) };
+        let out = Outgoing { org: org.clone(), email: Default::default(), slack_text: "plain".into(), webhook: json!({}) };
         assert!(matches!(deliver(st, "slack-main-checkout-alerts", &out, Some((&n, "https://oc.example.com/monitors/7"))).await, Some(Outcome::Sent)));
         assert!(deliver(st, "slack-elsewhere", &out, None).await.is_none());
         assert!(matches!(deliver(st, "slack-checkout-alerts", &out, None).await, Some(Outcome::Sent)));

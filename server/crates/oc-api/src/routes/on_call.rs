@@ -1373,6 +1373,9 @@ struct DuePage {
     policy_id: Option<String>,
     step: i32,
     round: i32,
+    source: String,
+    monitor_group: Option<String>,
+    created_at: i64,
 }
 
 /// Notifies due escalation steps and auto-resolves pages every 5 seconds.
@@ -1437,16 +1440,37 @@ async fn resolve_targets(st: &AppState, org: &str, targets: &[OnCallTarget], at:
     Ok(pick_users(&by_id, &ids))
 }
 
-/// A page's notification to one responder (the link opens it in the Pages tab).
-fn page_message(public_url: &str, page: &DuePage, to: &OnCallUser) -> Outgoing {
+/// A page's notification to one responder (the link opens it in the Pages tab). The email's
+/// Acknowledge and Resolve buttons are signed links for this responder and page
+/// ([`super::on_call_links`]); a test has none.
+fn page_message(public_url: &str, secret: &str, page: &DuePage, to: &OnCallUser, test: bool) -> Outgoing {
     let (page_id, org, title, description, urgency, team) = (page.id, &page.org_id, &page.title, &page.description, &page.urgency, page.team_handle.as_deref());
     let link = format!("{public_url}/on-call/pages/{page_id}");
     let subject = format!("[On-Call] {title}");
-    let team_line = team.map(|t| format!("Team: @{t}\n")).unwrap_or_default();
+    let signed = |action| (!test).then(|| super::on_call_links::action_url(public_url, secret, org, page_id, &to.id, action));
+    let escalation = match (page.step, page.round) {
+        (0, 0) => None,
+        (0, r) => Some(format!("Not acknowledged: starting over (repeat {r})")),
+        (s, _) => Some(format!("Not acknowledged: escalated to step {}", s + 1)),
+    };
+    let facts = crate::email::templates::PageFacts {
+        page_id,
+        title,
+        description,
+        urgency,
+        team,
+        source: &page.source,
+        group: page.monitor_group.as_deref(),
+        opened_at: if page.created_at > 0 { page.created_at } else { now_ms() },
+        escalation: escalation.filter(|_| !test),
+        test,
+        responder: &to.name,
+        ack_url: signed(crate::email::signed_link::Action::Acknowledge),
+        resolve_url: signed(crate::email::signed_link::Action::Resolve),
+    };
     Outgoing {
         org: org.to_string(),
-        title: subject.clone(),
-        email_body: format!("{subject}\n\n{}\n\n{team_line}Urgency: {urgency}\nAcknowledge or resolve: {link}\n", description.trim()),
+        email: crate::email::templates::on_call_page(public_url, &facts),
         slack_text: format!("*{subject}* ({urgency} urgency) for {}\n{}\n<{link}|Acknowledge or resolve>", to.name, description.trim()),
         webhook: json!({
             "event": "on_call.page.triggered",
@@ -1484,7 +1508,8 @@ async fn notify_user(st: &AppState, out: &Outgoing, org: &str, user: &OnCallUser
 async fn escalation_tick(st: &AppState) -> Result<(), ApiError> {
     let mut tx = st.postgres.begin().await?;
     let due: Vec<DuePage> = sqlx::query_as(
-        "SELECT id, org_id, title, description, urgency, team_handle, policy_id::text AS policy_id, step, round FROM on_call_pages \
+        "SELECT id, org_id, title, description, urgency, team_handle, policy_id::text AS policy_id, step, round, source, monitor_group, \
+         (extract(epoch FROM created_at) * 1000)::bigint AS created_at FROM on_call_pages \
          WHERE status = 'triggered' AND next_escalation_at <= now() ORDER BY next_escalation_at LIMIT $1 FOR UPDATE SKIP LOCKED",
     )
     .bind(ESCALATION_BATCH)
@@ -1506,7 +1531,7 @@ async fn escalation_tick(st: &AppState) -> Result<(), ApiError> {
             page_event(&mut *tx, page.id, "failed", SYSTEM_ACTOR, &format!("Step {}: nobody to notify (no one on call or no members)", at.step + 1)).await?;
         }
         for u in &users {
-            let out = page_message(&st.config.public_url, &page, u);
+            let out = page_message(&st.config.public_url, &st.config.secret_key, &page, u, false);
             let (reached, failed) = notify_user(st, &out, &page.org_id, u, &page.urgency).await?;
             sqlx::query("INSERT INTO on_call_page_responders (page_id, user_id) VALUES ($1, $2::uuid) ON CONFLICT DO NOTHING").bind(page.id).bind(&u.id).execute(&mut *tx).await?;
             if !reached.is_empty() {
@@ -1641,8 +1666,11 @@ pub async fn test_profile(State(st): State<AppState>, ctx: AuthContext) -> ApiRe
         policy_id: None,
         step: 0,
         round: 0,
+        source: "manual".into(),
+        monitor_group: None,
+        created_at: now_ms(),
     };
-    let out = page_message(&st.config.public_url, &sample, &me);
+    let out = page_message(&st.config.public_url, &st.config.secret_key, &sample, &me, true);
     let mut results = Vec::new();
     for ch in channels_for(&st, &ctx.org_id, &ctx.user_id, "high").await? {
         let recipient = if ch == "email" { me.email.clone() } else { ch.clone() };
@@ -1785,13 +1813,26 @@ mod tests {
             urgency: "high".into(),
             team_handle: Some("checkout".into()),
             policy_id: None,
-            step: 0,
+            step: 1,
             round: 0,
+            source: "monitor".into(),
+            monitor_group: Some("service:order-service".into()),
+            created_at: 1_794_841_320_000,
         };
         let to = OnCallUser { id: "u1".into(), name: "Ana Example".into(), email: "ana@example.com".into() };
-        let out = page_message("https://oc.example.com", &page, &to);
-        assert_eq!(out.title, "[On-Call] Checkout down");
-        assert!(out.email_body.contains("Team: @checkout\nUrgency: high\nAcknowledge or resolve: https://oc.example.com/on-call/pages/7"));
+        let out = page_message("https://oc.example.com", "test-secret", &page, &to, false);
+        assert_eq!(out.email.subject, "[On-Call] Checkout down");
+        assert!(out.email.text.contains("Page #7 · Checkout down"));
+        assert!(out.email.text.contains("ESCALATED · HIGH URGENCY"));
+        // The buttons are signed for this org, page and responder.
+        let token = |label: &str| out.email.text.lines().find_map(|l| l.strip_prefix(&format!("{label}: https://oc.example.com/api/v1/public/on-call/actions?token="))).map(str::to_string).unwrap();
+        let ack = crate::email::signed_link::verify("test-secret", &token("Acknowledge"), now_ms() / 1000).unwrap();
+        assert_eq!((ack.org.as_str(), ack.page, ack.user.as_str(), ack.action), ("o", 7, "u1", crate::email::signed_link::Action::Acknowledge));
+        assert_eq!(crate::email::signed_link::verify("test-secret", &token("Resolve"), now_ms() / 1000).unwrap().action, crate::email::signed_link::Action::Resolve);
+        // A test has no buttons that act.
+        let test = page_message("https://oc.example.com", "test-secret", &page, &to, true);
+        assert!(!test.email.text.contains("/public/on-call/actions"));
+        assert!(test.email.text.contains("Your On-Call profile: https://oc.example.com/on-call/profile"));
         assert_eq!(out.slack_text, "*[On-Call] Checkout down* (high urgency) for Ana Example\norder-service 5xx\n<https://oc.example.com/on-call/pages/7|Acknowledge or resolve>");
         assert_eq!(out.webhook["event"], "on_call.page.triggered");
         assert_eq!(out.webhook["page"]["team"], "checkout");

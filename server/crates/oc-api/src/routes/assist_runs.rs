@@ -670,8 +670,7 @@ async fn notify(st: &AppState, org: &str, id: &str, c: &Conclusion) {
     let title = format!("Assist {}: {}", c.verdict.replace('_', " "), row.title);
     let out = notifications::Outgoing {
         org: org.to_string(),
-        title: title.clone(),
-        email_body: format!("{title}\n\n{}\n\n{link}\n", c.summary),
+        email: crate::email::templates::notice(&st.config.public_url, &title, &crate::email::templates::NoticeFacts { kind: "Assist", title: &title, text: &c.summary, button: "Open in Assist", link: &link, why: "your organization's Assist settings notify you when a run concludes" }),
         slack_text: format!("*{title}*\n{}\n<{link}|Open in Assist>", c.summary),
         webhook: json!({"event": format!("assist.{}.concluded", row.kind), "title": title, "organization": org, "run": {"id": id, "url": link}, "conclusion": c}),
     };

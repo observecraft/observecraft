@@ -183,8 +183,6 @@ pub struct VerificationSent {
 
 #[utoipa::path(post, path = "/api/v1/me/verify-email", operation_id = "send_email_verification", responses((status = 200, body = VerificationSent), (status = 400, body = crate::error::ErrorBody)), tag = "identity")]
 pub async fn send_verification(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<VerificationSent> {
-    use lettre::message::header::ContentType;
-    use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
     let Some(smtp) = &st.config.smtp_url else {
         return Err(ApiError::BadRequest("Email isn't configured on this install (OC_SMTP_URL)".into()));
     };
@@ -206,13 +204,8 @@ pub async fn send_verification(State(st): State<AppState>, ctx: AuthContext) -> 
         .execute(&st.postgres)
         .await?;
     let link = format!("{}/api/v1/auth/verify-email/{token}", st.config.public_url);
-    let (Ok(from), Ok(to)) = (st.config.smtp_from.parse(), email.parse()) else {
-        return Err(ApiError::BadRequest(format!("Invalid email address {email}")));
-    };
-    let body = format!("Open this link within a day to confirm that {email} is your address on ObserveCraft:\n\n{link}\n\nIf you didn't ask for it, ignore this email.\n");
-    let msg = Message::builder().from(from).to(to).subject("Verify your ObserveCraft email").header(ContentType::TEXT_PLAIN).body(body).map_err(|e| ApiError::BadRequest(e.to_string()))?;
-    let transport = AsyncSmtpTransport::<Tokio1Executor>::from_url(smtp).map_err(|e| ApiError::BadRequest(format!("Invalid OC_SMTP_URL: {e}")))?.build();
-    transport.send(msg).await.map_err(|e| ApiError::BadRequest(format!("SMTP: {e}")))?;
+    let message = crate::email::templates::verification(&st.config.public_url, &email, &link);
+    crate::email::send(smtp, &st.config.smtp_from, &email, &message).await.map_err(|(crate::email::SendError::Invalid(e) | crate::email::SendError::Failed(e))| ApiError::BadRequest(e))?;
     Ok(Json(VerificationSent { email }))
 }
 

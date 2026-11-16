@@ -8024,6 +8024,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/on-call/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Opening the link: a confirmation page with a button; nothing changes. */
+        get: operations["on_call_email_action_page"];
+        put?: never;
+        /** The confirmation's button: acknowledges or resolves the page as the responder, once. */
+        post: operations["on_call_email_action"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/slack/interactive": {
         parameters: {
             query?: never;
@@ -43355,6 +43373,74 @@ export interface operations {
         requestBody?: never;
         responses: {
             303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    on_call_email_action_page: {
+        parameters: {
+            query: {
+                /** @description The signed token of the email's link. */
+                token: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Confirmation page (HTML) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    on_call_email_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description token=<the link's token> */
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": string;
+            };
+        };
+        responses: {
+            /** @description Result page (HTML) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };

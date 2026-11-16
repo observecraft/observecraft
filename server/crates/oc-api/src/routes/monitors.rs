@@ -93,6 +93,14 @@ async fn monitor_series(st: &AppState, org: &str, access: &LogAccess, kind: Moni
     Ok(combine(&f.expr, &results))
 }
 
+/// One group's series between `from` and `to`, for the graph of a notification email (at most
+/// 120 points). Counts logs of every log of the org, as the evaluator does: the email shows the
+/// value the monitor evaluated, never log events.
+pub(crate) async fn group_series(st: &AppState, org: &str, kind: &str, query: &str, group: &str, from: i64, to: i64) -> Result<Vec<(i64, f64)>, ApiError> {
+    let groups = monitor_series(st, org, &LogAccess::org_background(), MonitorType::parse(kind), query, TimeRange { from, to }, 120).await?;
+    Ok(groups.into_iter().find(|g| group_key(&g.tags) == group).map(|g| g.points).unwrap_or_default())
+}
+
 // ================================================================ loading
 
 #[derive(sqlx::FromRow, Clone)]

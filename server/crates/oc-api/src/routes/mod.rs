@@ -87,6 +87,7 @@ pub mod notifications;
 pub mod on_call;
 pub mod slack;
 pub mod on_call_escalation;
+pub mod on_call_links;
 pub mod on_call_schedule;
 pub mod portal_home;
 pub mod pr_gates;
@@ -719,6 +720,8 @@ use crate::state::AppState;
         datadog_api::slack_integration::get,
         datadog_api::slack_integration::update,
         datadog_api::slack_integration::delete,
+        on_call_links::confirm,
+        on_call_links::act,
         on_call::list_schedules,
         on_call::get_schedule,
         on_call::create_schedule,
@@ -1986,6 +1989,8 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/integrations/slack/oauth", post(slack::oauth_start))
         .route("/api/v1/public/slack/oauth/callback", get(slack::oauth_callback))
         .route("/api/v1/public/slack/interactive", post(slack::interactive))
+        // Signed single-use links of On-Call emails (no sign-in; the token names org, page and responder).
+        .route("/api/v1/public/on-call/actions", get(on_call_links::confirm).post(on_call_links::act))
         .route(
             "/api/v1/notification-deliveries",
             get(notifications::deliveries),
@@ -2180,6 +2185,7 @@ mod tests {
             include_str!("notifications.rs"),
             include_str!("on_call.rs"),
             include_str!("on_call_escalation.rs"),
+            include_str!("on_call_links.rs"),
             include_str!("on_call_schedule.rs"),
             include_str!("portal_action_steps.rs"),
             include_str!("portal_actions.rs"),
@@ -2542,6 +2548,13 @@ mod tests {
             ("../connectors/sources/mod.rs", include_str!("../connectors/sources/mod.rs")),
             ("../connectors/sources/crowdstrike_fdr.rs", include_str!("../connectors/sources/crowdstrike_fdr.rs")),
             ("../connectors/sources/proofpoint_pod.rs", include_str!("../connectors/sources/proofpoint_pod.rs")),
+            ("../email/mod.rs", include_str!("../email/mod.rs")),
+            ("../email/chart.rs", include_str!("../email/chart.rs")),
+            ("../email/frame.rs", include_str!("../email/frame.rs")),
+            ("../email/logo.rs", include_str!("../email/logo.rs")),
+            ("../email/preview.rs", include_str!("../email/preview.rs")),
+            ("../email/signed_link.rs", include_str!("../email/signed_link.rs")),
+            ("../email/templates.rs", include_str!("../email/templates.rs")),
             ("../sds/mod.rs", include_str!("../sds/mod.rs")),
             ("../sds/patterns.rs", include_str!("../sds/patterns.rs")),
             ("../sds/config.rs", include_str!("../sds/config.rs")),
@@ -2710,6 +2723,7 @@ mod tests {
             ("notifications.rs", include_str!("notifications.rs")),
             ("on_call.rs", include_str!("on_call.rs")),
             ("on_call_escalation.rs", include_str!("on_call_escalation.rs")),
+            ("on_call_links.rs", include_str!("on_call_links.rs")),
             ("on_call_schedule.rs", include_str!("on_call_schedule.rs")),
             ("portal_action_steps.rs", include_str!("portal_action_steps.rs")),
             ("portal_actions.rs", include_str!("portal_actions.rs")),
@@ -2957,11 +2971,11 @@ mod tests {
     }
 
     /// `LogAccess::org_background()` reads every log of the org: only the monitor engine's own
-    /// evaluation (and backfill), the scorecards' per-service log counts and Cloud SIEM's detection
+    /// evaluation (and backfill, and the graph of its notification emails), the scorecards' per-service log counts and Cloud SIEM's detection
     /// engine may use it, never to serve log events.
     #[test]
     fn unrestricted_log_access_is_only_for_background_jobs() {
-        const ALLOWED: &[(&str, usize)] = &[("monitors.rs", 2), ("scorecards.rs", 1), ("security_engine.rs", 1)];
+        const ALLOWED: &[(&str, usize)] = &[("monitors.rs", 3), ("scorecards.rs", 1), ("security_engine.rs", 1)];
         for (file, src) in server_sources() {
             if file == "../log_access.rs" {
                 continue;
