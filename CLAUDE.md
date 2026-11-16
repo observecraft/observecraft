@@ -291,6 +291,10 @@ or SDK features.
   and client setup under Personal Settings → Application Keys. Our own tool names, never Datadog's.
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
+- **Emails** (`oc-api/src/email/`): every email is built from one layout (`frame.rs`, `templates.rs`: state band, table
+  layout, inline styles, every value escaped) as text + HTML, with the logo and monitor graphs (tiny-skia, `chart.rs`)
+  as inline `cid:` images, never linked by URL (installs are often unreachable from mail clients). Buttons that act
+  without signing in are signed single-use links (`signed_link.rs`; GET confirms, POST acts, `routes/on_call_links.rs`).
 - **Slack** (`routes/slack.rs`, `datadog_api/slack_integration.rs`, page `web/src/pages/integrations/slack/`): workspaces
   are connected through a Slack app (Postgres `slack_accounts`, sealed bot token): "Add to Slack" with this install's app
   (`OC_SLACK_CLIENT_ID` / `_SECRET` / `OC_SLACK_SIGNING_SECRET`) or the bot token of the workspace's own app (manifest on
