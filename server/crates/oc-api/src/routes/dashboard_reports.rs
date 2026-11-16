@@ -760,8 +760,7 @@ async fn send_report(st: &AppState, org: &str, report: &DashboardReport) -> Resu
     let slack = render(&ReportContext { report_name: &report.name, dashboard_title: &report.dashboard_title, frame_label, link: &link, message: &report.message }, &built.widgets).slack;
     let out = Outgoing {
         org: org.to_string(),
-        title: built.subject.clone(),
-        email_body: built.body.clone(),
+        email: report_email(&st.config.public_url, &built.subject, report, frame_label, &link, &built.widgets),
         slack_text: slack,
         webhook: json!({
             "event": "dashboard_report",
@@ -792,6 +791,25 @@ async fn send_report(st: &AppState, org: &str, report: &DashboardReport) -> Resu
         .execute(&st.postgres)
         .await?;
     Ok(deliveries)
+}
+
+/// The report as an HTML email: each widget's series with their current, minimum and maximum.
+fn report_email(public_url: &str, subject: &str, report: &DashboardReport, frame_label: &str, link: &str, widgets: &[ReportWidgetSummary]) -> crate::email::Email {
+    use crate::email::templates::{ReportFacts, ReportSeries, ReportWidget};
+    let widgets = widgets
+        .iter()
+        .map(|w| ReportWidget {
+            title: &w.title,
+            series: w.series.iter().map(|s| ReportSeries { label: &s.label, current: number(s.current), min: number(s.min), max: number(s.max) }).collect(),
+            note: match (&w.error, w.series.is_empty()) {
+                (Some(e), _) => Some(format!("Couldn't be summarized: {e}")),
+                (None, true) => Some(format!("{}: see the dashboard", default_title(&w.kind))),
+                (None, false) => None,
+            },
+        })
+        .collect();
+    let facts = ReportFacts { report_name: &report.name, dashboard_title: &report.dashboard_title, frame_label, message: &report.message, link, widgets };
+    crate::email::templates::report(public_url, subject, &facts)
 }
 
 /// The report's status after a send: sent (all), partial (some) or failed (none), and why.

@@ -6,6 +6,8 @@
 //!   ([`super::slack`]); otherwise `@slack-<name>` is a Slack incoming-webhook channel.
 //! - `@someone@example.com`: email through the install's SMTP server (`OC_SMTP_URL`). Only addresses
 //!   of the organization's members are mailed, so monitors can't be used to send mail to anyone.
+//!   Emails are HTML and text ([`crate::email`]) with the group's graph; each transition has its
+//!   own Message-ID and answers the one that opened the episode, so a recovery joins its alert's thread.
 //! - `@oncall-<team>`: pages the team through On-Call (its escalation policy); a recovery resolves
 //!   the monitor's open pages for that group. Tests only check that the team exists.
 //! - `@workflow-<handle>`: starts the published workflow when it has a monitor trigger for the new
@@ -28,6 +30,7 @@ use utoipa::ToSchema;
 
 use super::monitor_engine::recipients;
 use crate::auth::{Admin, AuthContext, Writer};
+use crate::email::{self, templates, Email};
 use crate::error::{ApiError, ApiResult};
 use crate::state::AppState;
 
@@ -182,16 +185,25 @@ pub(crate) struct Notice {
     pub message: String,
     pub at: i64,
     pub test: bool,
+    pub facts: EventFacts,
+}
+
+/// What the email adds to a transition: the monitor's query, the event and its thread.
+#[derive(Default, Clone)]
+pub(crate) struct EventFacts {
+    pub event_id: Option<i64>,
+    /// The event that opened this episode (the last one that left OK before this one).
+    pub thread_event_id: Option<i64>,
+    /// metric | apm | log | synthetics
+    pub kind: String,
+    pub query: String,
+    pub definition: Option<serde_json::Value>,
+    pub recipients: Vec<String>,
 }
 
 impl Notice {
     pub(crate) fn title(&self) -> String {
-        let what = match self.to.as_str() {
-            "alert" => "Triggered",
-            "warn" => "Warn",
-            "nodata" => "No Data",
-            _ => "Recovered",
-        };
+        let what = templates::state_label(&self.to);
         let group = if self.group.is_empty() || self.group == "*" { String::new() } else { format!(" on {}", self.group) };
         format!("{}[{what}] {}{group}", if self.test { "[Test] " } else { "" }, self.monitor_name)
     }
@@ -213,21 +225,44 @@ fn sign(secret: &str, body: &[u8]) -> String {
 /// One message, rendered for each kind of channel.
 pub(crate) struct Outgoing {
     pub org: String,
-    /// Email subject and the bold first line elsewhere.
-    pub title: String,
-    pub email_body: String,
+    pub email: Email,
     pub slack_text: String,
     pub webhook: serde_json::Value,
 }
 
 impl Notice {
-    fn outgoing(&self, link: &str) -> Outgoing {
+    /// The email: `graph` is the group's PNG when it could be drawn.
+    pub(crate) fn email(&self, public_url: &str, domain: &str, graph: Option<Vec<u8>>) -> Email {
+        let options: Option<super::monitor_engine::MonitorOptions> = self.facts.definition.as_ref().and_then(|d| serde_json::from_value(d.clone()).ok());
+        let query = options.as_ref().map(|o| o.full_query(&self.facts.query)).unwrap_or_else(|| self.facts.query.clone());
+        let facts = templates::MonitorFacts {
+            monitor_id: self.monitor_id,
+            name: &self.monitor_name,
+            kind: &self.facts.kind,
+            priority: self.priority,
+            group: &self.group,
+            to: &self.to,
+            value: self.value,
+            message: &self.message,
+            at: self.at,
+            test: self.test,
+            query: &query,
+            options: options.as_ref(),
+            notified: &self.facts.recipients,
+        };
+        let mut e = templates::monitor(public_url, &self.title(), &facts, graph);
+        if !self.test {
+            e.message_id = self.facts.event_id.map(|id| templates::monitor_message_id(self.monitor_id, id, domain));
+            e.in_reply_to = self.facts.thread_event_id.map(|id| templates::monitor_message_id(self.monitor_id, id, domain));
+        }
+        e
+    }
+
+    fn outgoing(&self, link: &str, public_url: &str, domain: &str, graph: Option<Vec<u8>>) -> Outgoing {
         let value = self.value.map(|v| format!(" (value {v})")).unwrap_or_default();
-        let email_value = self.value.map(|v| format!("Value: {v}\n")).unwrap_or_default();
         Outgoing {
             org: self.org.clone(),
-            title: self.title(),
-            email_body: format!("{}\n\n{}\n\n{email_value}Monitor: {link}\n", self.title(), self.message.trim()),
+            email: self.email(public_url, domain, graph),
             slack_text: format!("*{}*{value}\n{}\n<{link}|View monitor>", self.title(), self.message.trim()),
             webhook: json!({
                 "event": format!("monitor.{}", self.to),
@@ -253,13 +288,46 @@ pub(crate) async fn deliver(st: &AppState, recipient: &str, n: &Notice) -> Outco
         return super::workflows::start_from_monitor(st, handle, n).await;
     }
     let link = format!("{}/monitors/{}", st.config.public_url, n.monitor_id);
-    let out = n.outgoing(&link);
+    // Only emails show the graph: read it for them alone.
+    let graph = if recipient.contains('@') { graph(st, n).await } else { None };
+    let out = n.outgoing(&link, &st.config.public_url, &email::id_domain(&st.config.smtp_from), graph);
     if recipient.starts_with("slack-") {
         if let Some(outcome) = super::slack::deliver(st, recipient, &out, Some((n, &link))).await {
             return outcome;
         }
     }
     send(st, recipient, &out).await
+}
+
+/// How long reading a notification graph's series may take before the email goes without it.
+const GRAPH_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// The group's series over the hour around the transition, drawn; None (logged) when it can't be
+/// read or drawn: the email is sent without it.
+async fn graph(st: &AppState, n: &Notice) -> Option<Vec<u8>> {
+    if n.test || n.facts.event_id.is_none() || n.facts.kind == "synthetics" || n.facts.query.trim().is_empty() {
+        return None;
+    }
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64;
+    let (from, to) = (n.at - 50 * 60_000, (n.at + 10 * 60_000).min(now.max(n.at + 60_000)));
+    let read = tokio::time::timeout(GRAPH_TIMEOUT, super::monitors::group_series(st, &n.org, &n.facts.kind, &n.facts.query, &n.group, from, to)).await;
+    let points = match read {
+        Ok(Ok(p)) => p,
+        Ok(Err(e)) => {
+            tracing::warn!(monitor = n.monitor_id, error = %e, "notification graph: series not read, sending without it");
+            return None;
+        }
+        Err(_) => {
+            tracing::warn!(monitor = n.monitor_id, "notification graph: series timed out, sending without it");
+            return None;
+        }
+    };
+    let options: Option<super::monitor_engine::MonitorOptions> = n.facts.definition.as_ref().and_then(|d| serde_json::from_value(d.clone()).ok());
+    let png = email::chart::render(&templates::monitor_chart(&n.to, options.as_ref(), points, from, to, n.at));
+    if png.is_none() {
+        tracing::info!(monitor = n.monitor_id, group = %n.group, "notification graph: no points to draw, sending without it");
+    }
+    png
 }
 
 /// Sends a message to an email address (of a member) or a channel handle (`slack-…`, `webhook-…`).
@@ -303,8 +371,6 @@ pub(crate) async fn send(st: &AppState, recipient: &str, out: &Outgoing) -> Outc
 }
 
 async fn send_email(st: &AppState, to: &str, out: &Outgoing) -> Outcome {
-    use lettre::message::header::ContentType;
-    use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
     let Some(smtp) = &st.config.smtp_url else {
         return Outcome::Unknown("Email isn't configured on this install (OC_SMTP_URL)".into());
     };
@@ -312,20 +378,10 @@ async fn send_email(st: &AppState, to: &str, out: &Outgoing) -> Outcome {
     if !member.unwrap_or(false) {
         return Outcome::Unknown(format!("{to} isn't an active member of this organization"));
     }
-    let (Ok(from), Ok(to_addr)) = (st.config.smtp_from.parse(), to.parse()) else {
-        return Outcome::Unknown(format!("Invalid email address {to}"));
-    };
-    let email = match Message::builder().from(from).to(to_addr).subject(out.title.clone()).header(ContentType::TEXT_PLAIN).body(out.email_body.clone()) {
-        Ok(m) => m,
-        Err(e) => return Outcome::Failed(e.to_string()),
-    };
-    let transport = match AsyncSmtpTransport::<Tokio1Executor>::from_url(smtp) {
-        Ok(t) => t.build(),
-        Err(e) => return Outcome::Failed(format!("Invalid OC_SMTP_URL: {e}")),
-    };
-    match transport.send(email).await {
-        Ok(_) => Outcome::Sent,
-        Err(e) => Outcome::Failed(format!("SMTP: {e}")),
+    match email::send(smtp, &st.config.smtp_from, to, &out.email).await {
+        Ok(()) => Outcome::Sent,
+        Err(email::SendError::Invalid(e)) => Outcome::Unknown(e),
+        Err(email::SendError::Failed(e)) => Outcome::Failed(e),
     }
 }
 
@@ -375,6 +431,7 @@ pub async fn test(State(st): State<AppState>, Writer(ctx): Writer, Json(req): Js
         message: req.message.chars().take(10_000).collect(),
         at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64,
         test: true,
+        facts: EventFacts::default(),
     };
     let mut out = Vec::new();
     for r in who {
@@ -439,6 +496,12 @@ struct Due {
     value: Option<f64>,
     message: String,
     at: i64,
+    event_id: i64,
+    thread_event_id: Option<i64>,
+    kind: String,
+    query: String,
+    definition: Option<serde_json::Value>,
+    recipients: Vec<String>,
 }
 
 /// Sends due deliveries every 10 seconds (rows are claimed with SKIP LOCKED, so several servers can run it).
@@ -456,13 +519,16 @@ async fn notify_tick(st: &AppState) -> Result<(), ApiError> {
     let mut tx = st.postgres.begin().await?;
     let due: Vec<Due> = sqlx::query_as(
         "SELECT d.id, d.org_id, d.recipient, d.attempts, e.monitor_id, m.name AS monitor_name, m.priority, m.tags, e.group_key, e.from_status, e.to_status, e.value, e.message, \
-         (extract(epoch FROM e.created_at) * 1000)::bigint AS at \
+         (extract(epoch FROM e.created_at) * 1000)::bigint AS at, e.id AS event_id, m.type AS kind, m.query, m.definition, e.recipients, \
+         (SELECT p.id FROM monitor_events p WHERE p.monitor_id = e.monitor_id AND p.group_key = e.group_key AND p.id < e.id AND p.from_status = 'ok' ORDER BY p.id DESC LIMIT 1) AS thread_event_id \
          FROM notification_deliveries d JOIN monitor_events e ON e.id = d.event_id JOIN monitors m ON m.id = e.monitor_id \
          WHERE d.status = 'pending' AND d.next_attempt_at <= now() ORDER BY d.next_attempt_at LIMIT 50 FOR UPDATE OF d SKIP LOCKED",
     )
     .fetch_all(&mut *tx)
     .await?;
     for d in due {
+        // A transition from OK opens its own thread.
+        let opens_thread = d.from_status == "ok";
         let n = Notice {
             org: d.org_id,
             monitor_id: d.monitor_id,
@@ -476,6 +542,14 @@ async fn notify_tick(st: &AppState) -> Result<(), ApiError> {
             message: d.message,
             at: d.at,
             test: false,
+            facts: EventFacts {
+                event_id: Some(d.event_id),
+                thread_event_id: d.thread_event_id.filter(|_| !opens_thread),
+                kind: d.kind,
+                query: d.query,
+                definition: d.definition,
+                recipients: d.recipients,
+            },
         };
         let attempts = d.attempts + 1;
         let (status, error, retry_in) = match deliver(st, &d.recipient, &n).await {
@@ -522,27 +596,59 @@ mod tests {
         assert!(check_url("http://127.0.0.1:9000/hook").is_ok());
     }
 
-    #[test]
-    fn titles() {
-        let n = Notice {
+    fn notice(from: &str, to: &str) -> Notice {
+        Notice {
             org: "o".into(),
             monitor_id: 1,
             monitor_name: "High error rate".into(),
             priority: None,
             tags: vec![],
             group: "service:billing".into(),
-            from: "ok".into(),
-            to: "alert".into(),
+            from: from.into(),
+            to: to.into(),
             value: Some(5.0),
             message: String::new(),
             at: 0,
             test: false,
-        };
+            facts: EventFacts { event_id: Some(9), thread_event_id: Some(7), kind: "metric".into(), query: "avg:system.load.1{*} by {service}".into(), ..EventFacts::default() },
+        }
+    }
+
+    #[test]
+    fn titles() {
+        let n = notice("ok", "alert");
         assert_eq!(n.title(), "[Triggered] High error rate on service:billing");
-        let out = n.outgoing("https://oc.example.com/monitors/1");
+        let out = n.outgoing("https://oc.example.com/monitors/1", "https://oc.example.com", "oc.example.com", None);
         assert_eq!(out.slack_text, "*[Triggered] High error rate on service:billing* (value 5)\n\n<https://oc.example.com/monitors/1|View monitor>");
-        assert_eq!(out.email_body, "[Triggered] High error rate on service:billing\n\n\n\nValue: 5\nMonitor: https://oc.example.com/monitors/1\n");
+        assert_eq!(out.email.subject, "[Triggered] High error rate on service:billing");
         assert_eq!(out.webhook["transition"]["to"], "alert");
         assert_eq!(out.webhook["monitor"]["url"], "https://oc.example.com/monitors/1");
+        let subject = |to: &str| notice("alert", to).title();
+        assert_eq!(subject("warn"), "[Warn] High error rate on service:billing");
+        assert_eq!(subject("nodata"), "[No data] High error rate on service:billing");
+        assert_eq!(subject("ok"), "[Recovered] High error rate on service:billing");
+        assert_eq!(Notice { test: true, ..notice("ok", "alert") }.title(), "[Test] [Triggered] High error rate on service:billing");
+    }
+
+    #[test]
+    fn emails_thread_each_episode() {
+        // The recovery answers the alert that opened the episode.
+        let e = notice("alert", "ok").email("https://oc.example.com", "oc.example.com", None);
+        assert_eq!(e.message_id.as_deref(), Some("<monitor-1.event-9@oc.example.com>"));
+        assert_eq!(e.in_reply_to.as_deref(), Some("<monitor-1.event-7@oc.example.com>"));
+        // Tests get the transport's own id and no thread.
+        let t = Notice { test: true, ..notice("alert", "ok") }.email("https://oc.example.com", "oc.example.com", None);
+        assert_eq!((t.message_id, t.in_reply_to), (None, None));
+    }
+
+    #[test]
+    fn emails_go_without_the_graph_when_there_is_none() {
+        let e = notice("ok", "alert").email("https://oc.example.com", "oc.example.com", None);
+        assert!(!e.html.contains(templates::GRAPH_CID));
+        assert_eq!(e.images.len(), 1);
+        let png = email::chart::render(&templates::monitor_chart("alert", None, vec![(0, 1.0), (60_000, 6.0)], 0, 120_000, 60_000));
+        let e = notice("ok", "alert").email("https://oc.example.com", "oc.example.com", png);
+        assert!(e.html.contains(templates::GRAPH_CID));
+        assert_eq!(e.images.len(), 2);
     }
 }

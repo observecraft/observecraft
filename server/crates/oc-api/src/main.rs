@@ -23,6 +23,7 @@ mod google_workspace;
 mod cache;
 mod config;
 mod demo;
+mod email;
 mod error;
 mod ingest_stats;
 mod live_feed;

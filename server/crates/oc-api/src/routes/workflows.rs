@@ -1301,8 +1301,7 @@ async fn run_step(st: &AppState, ctx: &AuthContext, workflow_name: &str, base: &
                 let link = base["Workflow"]["url"].as_str().unwrap_or_default().to_string();
                 let out = super::notifications::Outgoing {
                     org: ctx.org_id.clone(),
-                    title: title.clone(),
-                    email_body: format!("{title}\n\n{message}\n\nWorkflow run: {link}\n"),
+                    email: crate::email::templates::notice(&st.config.public_url, &title, &crate::email::templates::NoticeFacts { kind: "Workflow", title: &title, text: &message, button: "View workflow run", link: &link, why: &format!("the workflow “{workflow_name}” notifies you") }),
                     slack_text: format!("*{title}*\n{message}\n<{link}|View workflow run>"),
                     webhook: json!({"event": "workflow.notify", "title": title, "message": message, "workflow": base["Workflow"], "timestamp": now_ms()}),
                 };

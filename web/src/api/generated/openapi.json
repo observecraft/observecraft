@@ -20548,6 +20548,58 @@
         }
       }
     },
+    "/api/v1/public/on-call/actions": {
+      "get": {
+        "tags": [
+          "on-call"
+        ],
+        "summary": "Opening the link: a confirmation page with a button; nothing changes.",
+        "operationId": "on_call_email_action_page",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "description": "The signed token of the email's link.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Confirmation page (HTML)"
+          },
+          "400": {},
+          "410": {}
+        }
+      },
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "summary": "The confirmation's button: acknowledges or resolves the page as the responder, once.",
+        "operationId": "on_call_email_action",
+        "requestBody": {
+          "description": "token=<the link's token>",
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Result page (HTML)"
+          },
+          "400": {},
+          "410": {}
+        }
+      }
+    },
     "/api/v1/public/slack/interactive": {
       "post": {
         "tags": [

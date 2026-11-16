@@ -640,8 +640,7 @@ fn notify_response(st: &AppState, org: &str, row: &SurveyRow, respondent: &str) 
     let count = row.responses + 1;
     let out = Outgoing {
         org: org.to_string(),
-        title: title.clone(),
-        email_body: format!("{title}\n\nFrom: {respondent}\nResponses so far: {count}\n\nResults: {link}\n"),
+        email: crate::email::templates::notice(&st.config.public_url, &title, &crate::email::templates::NoticeFacts { kind: "Survey", title: &title, text: &format!("From: {respondent}\nResponses so far: {count}"), button: "View results", link: &link, why: "the survey notifies you of new responses" }),
         slack_text: format!("*{title}*\nFrom: {respondent} · {count} responses so far\n<{link}|View results>"),
         webhook: json!({ "event": "survey.response", "survey": { "id": row.id, "title": row.title, "url": link }, "respondent": respondent, "responses": count }),
     };

@@ -93,6 +93,8 @@ sha1 = "0.11"
 sha2 = "0.11"
 sqlx.workspace = true
 thiserror.workspace = true
+# Notification emails: the logo and the monitor graph drawn as PNGs (email/chart.rs, email/logo.rs).
+tiny-skia = { version = "0.12", default-features = false, features = ["std", "simd", "png-format"] }
 tokio.workspace = true
 # Proofpoint On-Demand's log stream over a WebSocket (connectors/sources/proofpoint_pod.rs).
 tokio-tungstenite = { version = "0.30", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
