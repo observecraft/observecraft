@@ -8,9 +8,8 @@ use std::sync::{Arc, OnceLock, Weak};
 use std::time::Duration;
 
 use axum::extract::State;
-use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::Json;
-use futures::{stream, Stream, StreamExt};
+use futures::{stream, StreamExt};
 use oc_query::{MetricQuery, Param};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{watch, Mutex};
@@ -100,6 +99,10 @@ struct Plan {
 
 /// Widget queries of one request run at once.
 const CONCURRENT_QUERIES: usize = 8;
+
+/// How often a live feed's first snapshot publishes the results completed so far, so widgets
+/// draw as their queries finish instead of all after the slowest.
+const PROGRESS_INTERVAL: Duration = Duration::from_millis(250);
 
 #[derive(clickhouse::Row, Deserialize)]
 struct Meta {
@@ -335,6 +338,7 @@ impl Plan {
         org: &str,
         range: TimeRange,
         previous_to: Option<i64>,
+        progress: Option<&(dyn Fn(DashboardQueryFrame) + Sync)>,
     ) -> DashboardQueryFrame {
         let mut results: Vec<_> = self
             .items
@@ -361,8 +365,12 @@ impl Plan {
         }))
         .buffer_unordered(CONCURRENT_QUERIES);
         let mut scans = 0;
+        // Queries that failed planning are known from the start; the others as they complete.
+        let mut done: Vec<bool> = self.items.iter().map(|p| p.error.is_some()).collect();
+        let mut published = std::time::Instant::now();
         while let Some((i, data, ran)) = work.next().await {
             scans += usize::from(ran);
+            done[i] = true;
             match data {
                 Ok(Fetched::Series(series)) => results[i].series = series,
                 Ok(Fetched::Rows(rows)) => {
@@ -392,27 +400,23 @@ impl Plan {
                     });
                 }
             }
+            if let Some(progress) = progress.filter(|_| published.elapsed() >= PROGRESS_INTERVAL) {
+                progress(self.frame(&results, |i| done[i], range, scans));
+                published = std::time::Instant::now();
+            }
         }
+        self.frame(&results, |_| true, range, scans)
+    }
+
+    /// The results of the items `include` selects, one per widget query id.
+    fn frame(&self, results: &[DashboardQueryResult], include: impl Fn(usize) -> bool, range: TimeRange, scans: usize) -> DashboardQueryFrame {
         let results = results
-            .into_iter()
+            .iter()
             .enumerate()
-            .flat_map(|(i, r)| {
-                self.items[i]
-                    .ids
-                    .iter()
-                    .map(move |id| DashboardQueryResult {
-                        id: id.clone(),
-                        ..r.clone()
-                    })
-            })
+            .filter(|(i, _)| include(*i))
+            .flat_map(|(i, r)| self.items[i].ids.iter().map(move |id| DashboardQueryResult { id: id.clone(), ..r.clone() }))
             .collect();
-        DashboardQueryFrame {
-            results,
-            range,
-            data_scans: scans,
-            unique_queries: self.items.len(),
-            error: None,
-        }
+        DashboardQueryFrame { results, range, data_scans: scans, unique_queries: self.items.len(), error: None }
     }
 }
 
@@ -495,13 +499,15 @@ pub async fn dashboard_query(
 ) -> ApiResult<DashboardQueryFrame> {
     validate(&req)?;
     let plan = Plan::prepare(&st, &org, &req).await?;
-    let frame = plan.execute(&st, &org, req.range, None).await;
+    let frame = plan.execute(&st, &org, req.range, None, None).await;
     Ok(Json(for_client(&frame, &frame, &aggregators(&req))))
 }
 
 struct Published {
     snapshot: DashboardQueryFrame,
     delta: DashboardQueryFrame,
+    /// The first snapshot is still running: `snapshot` holds the results completed so far.
+    loading: bool,
 }
 struct Feed {
     tx: watch::Sender<Option<Arc<Published>>>,
@@ -510,14 +516,18 @@ type Feeds = Mutex<HashMap<String, Weak<Feed>>>;
 static FEEDS: OnceLock<Feeds> = OnceLock::new();
 
 /// A single POST SSE stream sends a full snapshot then aligned bucket replacements every 10s.
-/// Identical subscriptions within the same organization share the plan, scans and retained history.
+/// While the first snapshot runs, results are sent as their queries complete: a `snapshot` with
+/// the first ones, then `partial` events with the next. Identical subscriptions within the same
+/// organization share the plan, scans and retained history. Gzip'd for clients that accept it,
+/// flushed event by event.
 #[utoipa::path(post, path = "/api/v1/query/dashboard/live", request_body = DashboardQueryRequest,
     responses((status = 200, body = DashboardQueryFrame, content_type = "text/event-stream")), tag = "metrics")]
 pub async fn dashboard_live(
     State(st): State<AppState>,
     OrgId(org): OrgId,
+    headers: axum::http::HeaderMap,
     Json(req): Json<DashboardQueryRequest>,
-) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiError> {
+) -> Result<axum::response::Response, ApiError> {
     validate(&req)?;
     let reduced = aggregators(&req);
     let mut ordered = req.queries.clone();
@@ -544,33 +554,128 @@ pub async fn dashboard_live(
         rx
     };
     drop(feeds);
-    let (tx, out) = tokio::sync::mpsc::channel(2);
+    let gzip = accepts_gzip(&headers);
+    let (tx, out) = tokio::sync::mpsc::channel::<Result<axum::body::Bytes, Infallible>>(2);
     tokio::spawn(async move {
-        let mut initial = true;
-        let mut last_to = None;
+        let mut writer = SseWriter::new(gzip);
+        let mut subscriber = Subscriber::default();
+        let mut keepalive = tokio::time::interval(KEEPALIVE);
+        keepalive.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        keepalive.tick().await;
         loop {
             let current = rx.borrow_and_update().clone();
-            if let Some(state) = current {
-                let full = initial
-                    || last_to.is_some_and(|last| {
-                        state.delta.results.iter().any(|r| r.replace_from > last)
-                    });
-                let frame = for_client(if full { &state.snapshot } else { &state.delta }, &state.snapshot, &reduced);
-                let event = Event::default()
-                    .event(if full { "snapshot" } else { "delta" })
-                    .json_data(&frame);
-                initial = false;
-                last_to = Some(frame.range.to);
-                if let Ok(event) = event {
-                    if tx.send(Ok(event)).await.is_err() {
-                        break;
-                    }
+            if let Some((name, frame)) = current.and_then(|state| subscriber.next(&state, &reduced)) {
+                let Ok(data) = serde_json::to_string(&frame) else { break };
+                if tx.send(Ok(writer.event(name, &data))).await.is_err() {
+                    break;
                 }
+                keepalive.reset();
             }
-            tokio::select! { _ = tx.closed() => break, changed = rx.changed() => if changed.is_err() { break; } }
+            tokio::select! {
+                _ = tx.closed() => break,
+                _ = keepalive.tick() => if tx.send(Ok(writer.keepalive())).await.is_err() { break; },
+                changed = rx.changed() => if changed.is_err() { break; },
+            }
         }
     });
-    Ok(Sse::new(tokio_stream::wrappers::ReceiverStream::new(out)).keep_alive(KeepAlive::default()))
+    let mut response = axum::response::Response::new(axum::body::Body::from_stream(tokio_stream::wrappers::ReceiverStream::new(out)));
+    let h = response.headers_mut();
+    h.insert(axum::http::header::CONTENT_TYPE, axum::http::HeaderValue::from_static("text/event-stream"));
+    h.insert(axum::http::header::CACHE_CONTROL, axum::http::HeaderValue::from_static("no-cache"));
+    h.insert(axum::http::header::VARY, axum::http::HeaderValue::from_static("accept-encoding"));
+    if gzip {
+        h.insert(axum::http::header::CONTENT_ENCODING, axum::http::HeaderValue::from_static("gzip"));
+    }
+    Ok(response)
+}
+
+/// A comment line this often keeps idle streams open through proxies.
+const KEEPALIVE: Duration = Duration::from_secs(15);
+
+/// What one subscriber has been sent of a feed, and so what it is sent next.
+#[derive(Default)]
+struct Subscriber {
+    started: bool,
+    last_to: Option<i64>,
+    /// While the first snapshot loads: the results sent so far and the range they are for.
+    loading: Option<(HashSet<String>, i64)>,
+}
+
+impl Subscriber {
+    /// The event for the feed's state `state`, if it has anything this subscriber hasn't had.
+    fn next(&mut self, state: &Published, reduced: &HashMap<String, TimeAggregator>) -> Option<(&'static str, DashboardQueryFrame)> {
+        let snapshot = &state.snapshot;
+        if !self.started {
+            self.started = true;
+            if state.loading {
+                self.loading = Some((snapshot.results.iter().map(|r| r.id.clone()).collect(), snapshot.range.to));
+            } else {
+                self.last_to = Some(snapshot.range.to);
+            }
+            return Some(("snapshot", for_client(snapshot, snapshot, reduced)));
+        }
+        if let Some((sent, to)) = &mut self.loading {
+            if snapshot.range.to != *to {
+                // Updates came before this subscriber read the completed snapshot.
+                self.loading = None;
+                self.last_to = Some(snapshot.range.to);
+                return Some(("snapshot", for_client(snapshot, snapshot, reduced)));
+            }
+            let fresh = DashboardQueryFrame { results: snapshot.results.iter().filter(|r| sent.insert(r.id.clone())).cloned().collect(), ..snapshot.clone_without_results() };
+            if !state.loading {
+                self.loading = None;
+                self.last_to = Some(snapshot.range.to);
+            }
+            return (!fresh.results.is_empty()).then(|| ("partial", for_client(&fresh, snapshot, reduced)));
+        }
+        let full = self.last_to.is_some_and(|last| state.delta.results.iter().any(|r| r.replace_from > last));
+        let frame = for_client(if full { snapshot } else { &state.delta }, snapshot, reduced);
+        self.last_to = Some(frame.range.to);
+        Some((if full { "snapshot" } else { "delta" }, frame))
+    }
+}
+
+impl DashboardQueryFrame {
+    fn clone_without_results(&self) -> Self {
+        DashboardQueryFrame { results: Vec::new(), range: self.range, data_scans: self.data_scans, unique_queries: self.unique_queries, error: self.error.clone() }
+    }
+}
+
+/// Server-sent events as bytes, gzip'd when the client takes it. Each event is flushed whole (a
+/// sync flush), so the client decodes it on arrival; the stream is never finished, as it never ends.
+struct SseWriter {
+    gzip: Option<flate2::write::GzEncoder<Vec<u8>>>,
+}
+
+impl SseWriter {
+    fn new(gzip: bool) -> Self {
+        // The fastest level: snapshots are megabytes of repetitive JSON, compressed per subscriber.
+        SseWriter { gzip: gzip.then(|| flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast())) }
+    }
+
+    fn event(&mut self, name: &str, data: &str) -> axum::body::Bytes {
+        self.write(format!("event: {name}\ndata: {data}\n\n"))
+    }
+
+    fn keepalive(&mut self) -> axum::body::Bytes {
+        self.write(":\n\n".into())
+    }
+
+    fn write(&mut self, text: String) -> axum::body::Bytes {
+        use std::io::Write;
+        let Some(gzip) = &mut self.gzip else { return text.into() };
+        // Writing to memory can't fail.
+        let _ = gzip.write_all(text.as_bytes()).and_then(|_| gzip.flush());
+        std::mem::take(gzip.get_mut()).into()
+    }
+}
+
+/// Whether the request's `Accept-Encoding` takes gzip (not with `q=0`).
+fn accepts_gzip(headers: &axum::http::HeaderMap) -> bool {
+    headers.get_all(axum::http::header::ACCEPT_ENCODING).iter().filter_map(|v| v.to_str().ok()).flat_map(|v| v.split(',')).any(|coding| {
+        let mut parts = coding.split(';').map(str::trim);
+        parts.next().is_some_and(|name| name.eq_ignore_ascii_case("gzip")) && !parts.any(|p| p.strip_prefix("q=").and_then(|q| q.parse::<f32>().ok()) == Some(0.0))
+    })
 }
 
 async fn run_feed(feed: Arc<Feed>, st: AppState, org: String, req: DashboardQueryRequest) {
@@ -589,18 +694,23 @@ async fn run_feed(feed: Arc<Feed>, st: AppState, org: String, req: DashboardQuer
             let _ = feed.tx.send(Some(Arc::new(Published {
                 snapshot: frame.clone(),
                 delta: frame,
+                loading: false,
             })));
             return;
         }
     };
     let mut range = req.range;
-    let snapshot = tokio::select! { _ = feed.tx.closed() => return, frame = plan.execute(&st, &org, range, None) => frame };
+    let progress = |partial: DashboardQueryFrame| {
+        let _ = feed.tx.send(Some(Arc::new(Published { delta: partial.clone(), snapshot: partial, loading: true })));
+    };
+    let snapshot = tokio::select! { _ = feed.tx.closed() => return, frame = plan.execute(&st, &org, range, None, Some(&progress)) => frame };
     let mut snapshot = snapshot;
     if feed
         .tx
         .send(Some(Arc::new(Published {
             snapshot: snapshot.clone(),
             delta: snapshot.clone(),
+            loading: false,
         })))
         .is_err()
     {
@@ -649,7 +759,7 @@ async fn run_feed(feed: Arc<Feed>, st: AppState, org: String, req: DashboardQuer
             from: now - plan.duration,
             to: now,
         };
-        let delta = tokio::select! { _ = feed.tx.closed() => return, frame = plan.execute(&st, &org, next, if reseed { None } else { Some(range.to) }) => frame };
+        let delta = tokio::select! { _ = feed.tx.closed() => return, frame = plan.execute(&st, &org, next, if reseed { None } else { Some(range.to) }, None) => frame };
         if reseed {
             snapshot = delta.clone();
         } else {
@@ -661,6 +771,7 @@ async fn run_feed(feed: Arc<Feed>, st: AppState, org: String, req: DashboardQuer
             .send(Some(Arc::new(Published {
                 snapshot: snapshot.clone(),
                 delta,
+                loading: false,
             })))
             .is_err()
         {
@@ -1442,5 +1553,90 @@ mod tests {
     fn the_aggregator_is_part_of_the_request() {
         let req: DashboardQueryRequest = serde_json::from_str(r#"{"range":{"from":0,"to":1000},"queries":[{"id":"t","query":"sum:x{*} by {host}","points":60,"aggregator":"avg"},{"id":"g","query":"sum:x{*}"}]}"#).unwrap();
         assert_eq!(aggregators(&req), HashMap::from([("t".to_string(), TimeAggregator::Avg)]));
+    }
+
+    fn frame_of(ids: &[&str], to: i64) -> DashboardQueryFrame {
+        DashboardQueryFrame {
+            results: ids
+                .iter()
+                .map(|id| DashboardQueryResult { id: id.to_string(), series: vec![DashboardMetricSeries { name: "*".into(), points: vec![(to - 10_000, 1.0)], ..Default::default() }], kind: "gauge".into(), unit: None, step_ms: 10_000, replace_from: 0, error: None })
+                .collect(),
+            range: TimeRange { from: to - 60_000, to },
+            data_scans: ids.len(),
+            unique_queries: 3,
+            error: None,
+        }
+    }
+
+    fn published(snapshot: DashboardQueryFrame, loading: bool) -> Published {
+        Published { delta: snapshot.clone(), snapshot, loading }
+    }
+
+    fn sent(event: Option<(&'static str, DashboardQueryFrame)>) -> (&'static str, Vec<String>) {
+        let (name, frame) = event.expect("an event");
+        (name, frame.results.into_iter().map(|r| r.id).collect())
+    }
+
+    #[test]
+    fn a_loading_dashboard_sends_each_result_once_as_it_completes() {
+        let mut subscriber = Subscriber::default();
+        let none = HashMap::new();
+        assert_eq!(sent(subscriber.next(&published(frame_of(&["q1"], 60_000), true), &none)), ("snapshot", vec!["q1".to_string()]));
+        assert_eq!(sent(subscriber.next(&published(frame_of(&["q1", "q0"], 60_000), true), &none)), ("partial", vec!["q0".to_string()]));
+        assert!(subscriber.next(&published(frame_of(&["q1", "q0"], 60_000), true), &none).is_none(), "nothing new");
+        assert_eq!(sent(subscriber.next(&published(frame_of(&["q1", "q0", "q2"], 60_000), false), &none)), ("partial", vec!["q2".to_string()]));
+        // Then the feed's updates, as before.
+        let mut update = published(frame_of(&["q0", "q1", "q2"], 70_000), false);
+        update.delta.results.iter_mut().for_each(|r| r.replace_from = 60_000);
+        assert_eq!(sent(subscriber.next(&update, &none)).0, "delta");
+    }
+
+    #[test]
+    fn a_subscriber_that_missed_the_end_of_loading_gets_a_whole_snapshot() {
+        let mut subscriber = Subscriber::default();
+        let none = HashMap::new();
+        assert_eq!(sent(subscriber.next(&published(frame_of(&["q1"], 60_000), true), &none)).0, "snapshot");
+        // The first update came before this subscriber read the completed snapshot.
+        assert_eq!(sent(subscriber.next(&published(frame_of(&["q0", "q1", "q2"], 70_000), false), &none)), ("snapshot", vec!["q0".to_string(), "q1".to_string(), "q2".to_string()]));
+    }
+
+    #[test]
+    fn a_subscriber_joining_a_loaded_feed_gets_the_whole_snapshot() {
+        let mut subscriber = Subscriber::default();
+        assert_eq!(sent(subscriber.next(&published(frame_of(&["q0", "q1"], 60_000), false), &HashMap::new())), ("snapshot", vec!["q0".to_string(), "q1".to_string()]));
+    }
+
+    #[test]
+    fn gzip_events_are_flushed_one_by_one() {
+        use std::io::Write;
+        let mut writer = SseWriter::new(true);
+        let first = writer.event("snapshot", r#"{"n":1}"#);
+        let second = writer.event("delta", r#"{"n":2}"#);
+        let keepalive = writer.keepalive();
+        // Each chunk decodes on its own, without waiting for the next one or the end of the stream.
+        let mut decoder = flate2::write::GzDecoder::new(Vec::new());
+        decoder.write_all(&first).unwrap();
+        decoder.flush().unwrap();
+        assert_eq!(String::from_utf8_lossy(decoder.get_ref()), "event: snapshot\ndata: {\"n\":1}\n\n");
+        decoder.write_all(&second).unwrap();
+        decoder.write_all(&keepalive).unwrap();
+        decoder.flush().unwrap();
+        assert_eq!(String::from_utf8_lossy(decoder.get_ref()), "event: snapshot\ndata: {\"n\":1}\n\nevent: delta\ndata: {\"n\":2}\n\n:\n\n");
+        let mut plain = SseWriter::new(false);
+        assert_eq!(&plain.event("delta", "{}")[..], b"event: delta\ndata: {}\n\n");
+    }
+
+    #[test]
+    fn only_clients_that_accept_gzip_get_it() {
+        let headers = |value: &str| {
+            let mut h = axum::http::HeaderMap::new();
+            h.insert(axum::http::header::ACCEPT_ENCODING, value.parse().unwrap());
+            h
+        };
+        assert!(accepts_gzip(&headers("gzip, deflate, br, zstd")));
+        assert!(accepts_gzip(&headers("br;q=1.0, gzip;q=0.8")));
+        assert!(!accepts_gzip(&headers("br")));
+        assert!(!accepts_gzip(&headers("gzip;q=0")));
+        assert!(!accepts_gzip(&axum::http::HeaderMap::new()));
     }
 }

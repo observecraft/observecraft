@@ -8,6 +8,7 @@ import * as echarts from 'echarts';
 import { Chart } from '../../../components/charts/Chart';
 import type { IntegrationWidgetDefinition } from '../../../api/integrations/evaluate';
 import { queryIntegrationPanel } from '../../../api/integrations/panels';
+import { useDirectPanelSource } from '../queries';
 import { formatMetricValue } from '../../../api/integrations/units';
 import { countryValues, distributionBuckets, groupLabel, hostmapColor, hostmapGroups, hostmapQuery, hostmapScope, sunburstTree, type SunburstNode } from '../../../api/integrations/widgetData';
 import { loadWorldMap } from '../../../api/integrations/worldMap';
@@ -149,12 +150,13 @@ export function IntegrationFreeText({ def }: { def: IntegrationWidgetDefinition 
 /** Hosts as tiles, coloured by the fill query (green lowest, orange highest); hovering names the host and value. */
 export function IntegrationHostmap({ def }: { def: IntegrationWidgetDefinition }) {
   const { range, resolve } = useDashboardContext();
+  const source = useDirectPanelSource();
   const query = hostmapQuery(def);
   const groups = useMemo(() => (Array.isArray(def.group) ? def.group.filter((g): g is string => typeof g === 'string') : []), [def.group]);
   const panel = useMemo(() => (query ? ({ type: 'query_table', requests: [{ q: query }] } as unknown as IntegrationWidgetDefinition) : null), [query]);
   const data = useQuery({
     queryKey: ['integration-hostmap', query, range, resolve(query ?? '')],
-    queryFn: () => queryIntegrationPanel(panel!, resolve, range),
+    queryFn: () => queryIntegrationPanel(panel!, resolve, range, source),
     enabled: !!panel,
     placeholderData: keepPreviousData,
   });

@@ -8127,7 +8127,10 @@ export interface paths {
         put?: never;
         /**
          * A single POST SSE stream sends a full snapshot then aligned bucket replacements every 10s.
-         *     Identical subscriptions within the same organization share the plan, scans and retained history.
+         *     While the first snapshot runs, results are sent as their queries complete: a `snapshot` with
+         *     the first ones, then `partial` events with the next. Identical subscriptions within the same
+         *     organization share the plan, scans and retained history. Gzip'd for clients that accept it,
+         *     flushed event by event.
          */
         post: operations["dashboard_live"];
         delete?: never;

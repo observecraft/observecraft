@@ -5,6 +5,8 @@ import type { EChartsOption, SeriesOption } from 'echarts';
 import { Chart } from '../../../components/charts/Chart';
 import type { IntegrationWidgetDefinition } from '../../../api/integrations/evaluate';
 import { queryIntegrationPanel, type PanelSeries } from '../../../api/integrations/panels';
+import { MetricResultPending } from '../../../api/dashboards/execution';
+import { useDirectPanelSource } from '../queries';
 import { aggregate } from '../../../api/integrations/evaluate';
 import { palette, seriesPalette, token } from '../../../theme/chartTheme';
 import { overlaySeries, overlayStatusToken } from '../../../lib/overlays';
@@ -211,17 +213,29 @@ function seriesColors(series: { palette?: string }[]): (s: { palette?: string },
   };
 }
 
+/** A panel whose results the dashboard's stream hasn't sent yet: null, drawn as loading until they arrive. */
+async function pendingAsNull(panel: Promise<PanelSeries[]>): Promise<PanelSeries[] | null> {
+  try {
+    return await panel;
+  } catch (error) {
+    if (error instanceof MetricResultPending) return null;
+    throw error;
+  }
+}
+
 function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
   const { range: dashboardRange, resolve, metrics: shared, overlays } = useDashboardContext();
   // A widget with its own time frame reads it directly, not the dashboard's shared stream.
   const range = useWidgetRange(def, dashboardRange);
   const metrics = range === dashboardRange ? shared : undefined;
+  const direct = useDirectPanelSource();
+  const source = metrics?.source ?? direct;
   const identity = JSON.stringify(def).replace(/\$[a-zA-Z_]\w*/g, (v) => resolve(`avg:scope{${v}}`));
   const data = useQuery({
     queryKey: ['integration-panel', identity, range, metrics?.version],
     queryFn: () => {
       if (metrics?.error) throw metrics.error;
-      return queryIntegrationPanel(def, resolve, range, metrics?.source);
+      return pendingAsNull(queryIntegrationPanel(def, resolve, range, source));
     },
     enabled: !metrics || metrics.ready || !!metrics.error,
     gcTime: 30_000,
@@ -232,7 +246,7 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
   const background = def.type === 'query_value' && !!def.timeseries_background;
   const trend = useQuery({
     queryKey: ['integration-panel', 'background', identity, range, metrics?.version],
-    queryFn: () => queryIntegrationPanel({ ...def, type: 'timeseries' }, resolve, range, metrics?.source),
+    queryFn: () => pendingAsNull(queryIntegrationPanel({ ...def, type: 'timeseries' }, resolve, range, source)),
     enabled: background && (!metrics || metrics.ready),
     gcTime: 30_000,
     placeholderData: keepPreviousData,
@@ -390,7 +404,7 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
     content = <Chart option={option} height="100%" />;
   }
   return (
-    <WidgetState loading={data.isPending} error={data.error} empty={!series.length && def.type !== 'geomap'}>
+    <WidgetState loading={data.isPending || data.data === null} error={data.error} empty={!series.length && def.type !== 'geomap'}>
       {content}
     </WidgetState>
   );

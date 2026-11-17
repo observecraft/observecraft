@@ -2,6 +2,7 @@ import type { Widget, MetricSeries, TimeAggregator } from './types';
 import { normalizeRequest, preparePanelQuery, serverAggregator } from '../integrations/evaluate';
 import { checkStatusQuery } from '../integrations/checkStatus';
 import type { TimeRange } from '../types';
+import type { PanelDataSource } from '../integrations/panelQueries';
 
 export interface DashboardMetricQuery {
   id: string;
@@ -92,9 +93,19 @@ export function collectDashboardQueries(widgets: Widget[], resolve: (query: stri
   return [...queries.values()].sort((a, b) => metricQueryKey(a.query, a.points, a.aggregator).localeCompare(metricQueryKey(b.query, b.points, b.aggregator))).map((q, i) => ({ id: `q${i}`, ...q }));
 }
 
-/** Replace whole aligned tail buckets; addition alone would retain vanished groups/stale points. */
-export function mergeDashboardFrame(previous: DashboardQueryFrame | undefined, incoming: DashboardQueryFrame, snapshot: boolean): DashboardQueryFrame {
-  if (snapshot || !previous) return incoming;
+/**
+ * The live stream's events: a `snapshot` replaces everything, a `partial` adds the results of
+ * queries that completed since (the first snapshot is sent as its queries complete), a `delta`
+ * replaces whole aligned tail buckets; addition alone would retain vanished groups/stale points.
+ */
+export type DashboardFrameEvent = 'snapshot' | 'partial' | 'delta';
+
+export function mergeDashboardFrame(previous: DashboardQueryFrame | undefined, incoming: DashboardQueryFrame, event: DashboardFrameEvent): DashboardQueryFrame {
+  if (event === 'snapshot' || !previous) return incoming;
+  if (event === 'partial') {
+    const fresh = new Set(incoming.results.map((r) => r.id));
+    return { ...previous, data_scans: incoming.data_scans, results: [...previous.results.filter((r) => !fresh.has(r.id)), ...incoming.results] };
+  }
   const old = new Map(previous.results.map((r) => [r.id, r]));
   return {
     ...incoming,
@@ -111,5 +122,34 @@ export function mergeDashboardFrame(previous: DashboardQueryFrame | undefined, i
       }
       return { ...update, series: [...series.values()].filter((s) => s.points.length) };
     }),
+  };
+}
+
+/** A planned query whose result the live stream hasn't sent yet: its widget keeps loading. */
+export class MetricResultPending extends Error {
+  constructor(query: string) {
+    super(`Waiting for ${query}`);
+    this.name = 'MetricResultPending';
+  }
+}
+
+/** Panels' data from a dashboard frame: the results received so far of the planned `queries`. */
+export function frameSource(frame: DashboardQueryFrame | undefined, queries: DashboardMetricQuery[], error: Error | null): PanelDataSource {
+  const byId = new Map(frame?.results.map((r) => [r.id, r]));
+  const planned = new Map(queries.map((q) => [metricQueryKey(q.query, q.points, q.aggregator), q.id]));
+  return {
+    catalog: async () =>
+      queries.map((q) => ({ name: /:([^{}]+)\{/.exec(q.query)?.[1] ?? '', kind: byId.get(q.id)?.kind ?? 'unknown', unit: byId.get(q.id)?.unit ?? undefined, tags: [], description: '' })),
+    timeseries: async (request) => {
+      if (error && !frame) throw error;
+      return request.queries.flatMap((query) => {
+        const id = planned.get(metricQueryKey(query, request.points ?? 120, request.aggregator));
+        if (id === undefined) throw new Error('Metric query is absent from the dashboard execution plan');
+        const result = byId.get(id);
+        if (!result) throw new MetricResultPending(query);
+        if (result.error) throw new Error(result.error);
+        return result.series;
+      });
+    },
   };
 }

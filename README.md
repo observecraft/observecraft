@@ -120,8 +120,9 @@ reconciliation events every minute. It does not produce Kubernetes object snapsh
 connect a real collector to populate the Kubernetes Explorer inventory.
 
 Dashboard metric panels share a query plan. In live mode, a single authenticated
-`POST /api/v1/query/dashboard/live` SSE connection returns the initial history and then
-replaces the last two aligned buckets every 10 seconds. Compatible gauge/counter queries
+`POST /api/v1/query/dashboard/live` SSE connection returns the initial history as its queries
+complete (panels draw as their own results arrive) and then replaces the last two aligned
+buckets every 10 seconds. The stream is gzip'd, flushed event by event, for clients that accept it. Compatible gauge/counter queries
 share telemetry scans; distributions and span-derived metrics retain their own evaluators.
 Identical subscriptions within an organization share the live plan and history. A paused view
 uses `POST /api/v1/query/dashboard` once. Logs, events and distribution heatmaps use their
