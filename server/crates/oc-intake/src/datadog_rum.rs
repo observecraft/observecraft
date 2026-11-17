@@ -259,7 +259,7 @@ async fn token_app(st: &Shared, token: &str) -> anyhow::Result<Option<TokenApp>>
     let row: Option<Row> = sqlx::query_as(
         "SELECT a.org_id, COALESCE(s.span_retention_days, 0) AS span_retention_days, COALESCE(s.metrics_retention_days, 0) AS metrics_retention_days, \
          COALESCE(s.metrics_5m_days, 0) AS metrics_5m_days, COALESCE(s.metrics_1h_days, 0) AS metrics_1h_days, NULL::text AS flag_environment_id, \
-         a.rum_event_processing_state AS state FROM rum_applications a JOIN orgs o ON o.id = a.org_id LEFT JOIN org_data_settings s ON s.org_id = a.org_id \
+         s.ingest_mbps, s.ingest_rps, a.rum_event_processing_state AS state FROM rum_applications a JOIN orgs o ON o.id = a.org_id LEFT JOIN org_data_settings s ON s.org_id = a.org_id \
          WHERE a.client_token = $1 AND o.status = 'active'",
     )
     .bind(token)
@@ -351,6 +351,35 @@ pub fn cors() -> tower_http::cors::CorsLayer {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    /// A client token resolves to its application's org, with the org's own ingest limits, as an ingest
+    /// key does (`KeyOrg` is read whole). Against Postgres: skipped unless OC_TEST_POSTGRES_URL is set.
+    #[tokio::test]
+    async fn a_client_token_resolves_to_its_org_and_its_ingest_limits() {
+        let Ok(url) = std::env::var("OC_TEST_POSTGRES_URL") else {
+            eprintln!("OC_TEST_POSTGRES_URL unset: skipping");
+            return;
+        };
+        let pg = sqlx::postgres::PgPoolOptions::new().connect(&url).await.expect("postgres");
+        sqlx::migrate!("../../migrations/postgres").run(&pg).await.expect("migrate postgres");
+        let org = format!("rum-token-{:x}", rand::random::<u64>());
+        let token = format!("pub{:x}", rand::random::<u128>());
+        sqlx::query("INSERT INTO orgs (id, name) VALUES ($1, $1)").bind(&org).execute(&pg).await.expect("org");
+        sqlx::query("INSERT INTO org_data_settings (org_id, ingest_mbps, ingest_rps) VALUES ($1, 2.5, 40)").bind(&org).execute(&pg).await.expect("limits");
+        sqlx::query("INSERT INTO rum_applications (org_id, name, type, client_token) VALUES ($1, 'storefront-web', 'browser', $2)")
+            .bind(&org)
+            .bind(&token)
+            .execute(&pg)
+            .await
+            .expect("application");
+        let st = crate::state(crate::Config::from_env(), pg, reqwest::Client::new(), None);
+
+        let app = token_app(&st, &token).await.expect("lookup").expect("known token");
+        assert_eq!(app.org.org_id, org);
+        assert_eq!((app.org.ingest_mbps, app.org.ingest_rps), (Some(2.5), Some(40.0)));
+        assert!(app.keep);
+        assert!(token_app(&st, "pubunknown").await.expect("lookup").is_none());
+    }
 
     #[test]
     fn query_parameters_come_through_the_proxy_too() {
