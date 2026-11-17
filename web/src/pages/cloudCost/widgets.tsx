@@ -58,10 +58,53 @@ const GCP_SERVICES: Record<string, string> = {
   'vertex ai': 'aiplatform',
 };
 
+/** Azure bills' meter categories (`Virtual Machines`, `Storage`) → their resource type's service icon (tile:azure-…). */
+const AZURE_SERVICES: Record<string, string> = {
+  'virtual machines': 'compute-virtualmachines',
+  'virtual machines licenses': 'compute-virtualmachines',
+  'virtual machine scale sets': 'compute-virtualmachinescalesets',
+  storage: 'storage-storageaccounts',
+  'azure database for postgresql': 'dbforpostgresql-flexibleservers',
+  'azure database for mysql': 'dbformysql-flexibleservers',
+  'sql database': 'sql-servers-databases',
+  'sql managed instance': 'sql-managedinstances',
+  'azure cosmos db': 'documentdb-databaseaccounts',
+  'container registry': 'containerregistry-registries',
+  'container instances': 'containerinstance-containergroups',
+  'azure kubernetes service': 'containerservice-managedclusters',
+  'azure container apps': 'app-containerapps',
+  'azure app service': 'web-sites',
+  functions: 'functions',
+  'nat gateway': 'network-natgateways',
+  'load balancer': 'network-loadbalancers',
+  'application gateway': 'network-applicationgateways',
+  'azure firewall': 'network-azurefirewalls',
+  'azure dns': 'network-dnszones',
+  'azure front door service': 'network-frontdoors',
+  'vpn gateway': 'network-virtualnetworkgateways',
+  expressroute: 'network-expressroutecircuits',
+  'ip addresses': 'network-publicipaddresses',
+  'key vault': 'keyvault-vaults',
+  'redis cache': 'cache-redis',
+  'azure cache for redis': 'cache-redis',
+  'log analytics': 'operationalinsights-workspaces',
+  'azure monitor': 'insights-components',
+  'event hubs': 'eventhub-namespaces',
+  'service bus': 'servicebus-namespaces',
+  'event grid': 'eventgrid-topics',
+  'logic apps': 'logic-workflows',
+  'api management': 'apimanagement-service',
+  backup: 'recoveryservices-vaults',
+  'cognitive services': 'cognitiveservices-accounts',
+  'azure databricks': 'databricks-workspaces',
+  'azure data factory v2': 'datafactory-factories',
+  'azure synapse analytics': 'synapse-workspaces',
+};
+
 /** The cloud a billing service name belongs to (`AmazonEC2`, `Microsoft.Compute`, `Compute Engine`), if it's recognisable. */
 function serviceCloud(service: string): 'aws' | 'azure' | 'gcp' | null {
   if (/^(amazon|aws)/i.test(service)) return 'aws';
-  if (/^(microsoft\.|azure|virtualmachines$|foundry)/i.test(service)) return 'azure';
+  if (AZURE_SERVICES[service.toLowerCase()] || /^(microsoft\.|azure|virtualmachines$|foundry)/i.test(service)) return 'azure';
   if (GCP_SERVICES[service.toLowerCase()] || /^(cloud |google|bigquery)/i.test(service)) return 'gcp';
   return null;
 }
@@ -75,6 +118,8 @@ function serviceTile(service: string): string | null {
     return has(key) ? key : null;
   }
   if (cloud === 'azure') {
+    const known = AZURE_SERVICES[service.toLowerCase()];
+    if (known && has(`tile:azure-${known}`)) return `tile:azure-${known}`;
     // Microsoft.Compute → the resource provider's first resource type (tile:azure-compute-…), shortest first.
     const ns = service.toLowerCase() === 'virtualmachines' ? 'compute' : service.replace(/^microsoft\./i, '').toLowerCase();
     const keys = Object.keys(INTEGRATION_LOGOS)
@@ -95,8 +140,11 @@ function serviceTile(service: string): string | null {
   return null;
 }
 
-/** A billing service's icon: its product logo, the cloud's service icon, or its provider's logo; none when unknown. */
-export function ServiceIcon({ service, size = 16 }: { service: string; size?: number }) {
+/**
+ * A billing service's icon: its product logo, the cloud's service icon, or its provider's logo (the cloud its name
+ * belongs to, else `provider` when given); none when unknown.
+ */
+export function ServiceIcon({ service, provider, size = 16 }: { service: string; provider?: string; size?: number }) {
   if (hasBrandLogo(logoKey(service))) {
     return (
       <span className="ccm-provider" title={service} style={{ width: size, height: size }}>
@@ -112,7 +160,7 @@ export function ServiceIcon({ service, size = 16 }: { service: string; size?: nu
       </span>
     );
   }
-  const cloud = serviceCloud(service);
+  const cloud = serviceCloud(service) ?? provider;
   return cloud ? <ProviderIcon provider={cloud} size={size} /> : null;
 }
 

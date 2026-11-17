@@ -4,7 +4,7 @@ import { Empty, ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Select } from '../../components/ui/Dropdown';
 import { squarify } from '../metrics/squarify';
 import { RANGES, filterQuery, money, pctChange, pctLabel, providerLabel, rangeOf, useCosts, useCostTags, type Filters } from './costModel';
-import { CostFilterBar, ProviderIcon } from './widgets';
+import { CostFilterBar, ProviderIcon, ServiceIcon } from './widgets';
 
 const W = 1000;
 const H = 600;
@@ -25,14 +25,24 @@ interface Tile {
   prev: number;
 }
 
-/** Red when a tile cost more than before, green when less; stronger the bigger the change. */
+/** Red when a tile cost more than before, green when less, stronger the bigger the change; blue when it had no cost before. */
 function tone(cost: number, prev: number): string {
   const p = pctChange(cost, prev);
-  if (p == null) return 'var(--ccm-map-up-3)';
+  if (p == null) return 'var(--ccm-map-new)';
   const step = Math.abs(p) < 2 ? 0 : Math.abs(p) < 10 ? 1 : Math.abs(p) < 30 ? 2 : 3;
   if (step === 0) return 'var(--ccm-map-flat)';
   return `var(--ccm-map-${p > 0 ? 'up' : 'down'}-${step})`;
 }
+
+const LEGEND = [
+  { tone: 'down-3', label: '-30% or more' },
+  { tone: 'down-2', label: '-10% to -30%' },
+  { tone: 'down-1', label: '-2% to -10%' },
+  { tone: 'flat', label: 'within 2%' },
+  { tone: 'up-1', label: '+2% to +10%' },
+  { tone: 'up-2', label: '+10% to +30%' },
+  { tone: 'up-3', label: '+30% or more' },
+];
 
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 
@@ -80,11 +90,11 @@ export function CostMapPage() {
           <span>Size: cost over the range</span>
           <span>
             Color: change from the period before
-            <i style={{ background: 'var(--ccm-map-down-3)' }} />
-            <i style={{ background: 'var(--ccm-map-down-1)' }} />
-            <i style={{ background: 'var(--ccm-map-flat)' }} />
-            <i style={{ background: 'var(--ccm-map-up-1)' }} />
-            <i style={{ background: 'var(--ccm-map-up-3)' }} />
+            {LEGEND.map((l) => (
+              <i key={l.tone} title={l.label} style={{ background: `var(--ccm-map-${l.tone})` }} />
+            ))}
+            <i className="ccm-map-legend-new" style={{ background: 'var(--ccm-map-new)' }} />
+            new
           </span>
         </div>
         {q.isPending ? (
@@ -102,6 +112,9 @@ export function CostMapPage() {
                 </div>
                 {p.inner.map((t) => {
                   const big = t.w > 90 && t.h > 40;
+                  // Only the icon in tiles too small for text but large enough to show it.
+                  const iconOnly = !big && t.w > 26 && t.h > 26;
+                  const icon = groupBy === 'servicename' ? <ServiceIcon service={t.item.name} provider={t.item.provider} size={16} /> : null;
                   const scope = filterQuery({ providername: [t.item.provider], [groupBy]: [t.item.name] }, query);
                   return (
                     <button
@@ -119,11 +132,15 @@ export function CostMapPage() {
                     >
                       {big && (
                         <>
-                          <b>{t.item.name}</b>
+                          <b>
+                            {icon}
+                            <span>{t.item.name}</span>
+                          </b>
                           <span>{money(t.item.cost)}</span>
                           <small>{pctLabel(pctChange(t.item.cost, t.item.prev))}</small>
                         </>
                       )}
+                      {iconOnly && icon}
                     </button>
                   );
                 })}
