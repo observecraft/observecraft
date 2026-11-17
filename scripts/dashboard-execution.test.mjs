@@ -13,7 +13,9 @@ const { outputFiles } = require('esbuild').buildSync({
   format: 'esm',
   write: false,
 });
-const { collectDashboardQueries, mergeDashboardFrame, decodeDashboardFrame } = await import(`data:text/javascript;base64,${Buffer.from(outputFiles[0].text).toString('base64')}`);
+const { collectDashboardQueries, mergeDashboardFrame, decodeDashboardFrame, frameSource, MetricResultPending } = await import(
+  `data:text/javascript;base64,${Buffer.from(outputFiles[0].text).toString('base64')}`
+);
 const dashboards = JSON.parse(readFileSync(new URL('../server/seeds/integrations/kubernetes/dashboards.json', import.meta.url)));
 const resolve = (query) => query.replace(/\$\w+(?:\.value)?/g, '*');
 
@@ -166,7 +168,7 @@ test('live bucket replacement removes old points, vanished groups and expired hi
     ],
     15000,
   );
-  const merged = mergeDashboardFrame(before, after, false);
+  const merged = mergeDashboardFrame(before, after, 'delta');
   assert.deepEqual(merged.results[0].series, [
     {
       name: 'a',
@@ -186,7 +188,48 @@ test('live bucket replacement removes old points, vanished groups and expired hi
     ],
     'does not mutate the previous frame',
   );
-  assert.deepEqual(mergeDashboardFrame(before, after, true), after);
+  assert.deepEqual(mergeDashboardFrame(before, after, 'snapshot'), after);
+});
+
+test('results sent as their queries complete are added to the ones already there', () => {
+  const result = (id, value) => ({ id, kind: 'gauge', step_ms: 10000, replace_from: 0, error: null, series: [{ name: '*', points: [[0, value]] }] });
+  const frame = (results) => ({ results, range: { from: 0, to: 60000 }, data_scans: results.length, unique_queries: 3, error: null });
+  const first = mergeDashboardFrame(undefined, frame([result('q1', 1)]), 'snapshot');
+  const second = mergeDashboardFrame(first, frame([result('q0', 0), result('q2', 2)]), 'partial');
+  assert.deepEqual(
+    second.results.map((r) => [r.id, r.series[0].points[0][1]]),
+    [
+      ['q1', 1],
+      ['q0', 0],
+      ['q2', 2],
+    ],
+  );
+  assert.equal(first.results.length, 1, 'does not mutate the previous frame');
+});
+
+test('a query whose result has not arrived yet is pending, not an error', async () => {
+  const queries = [
+    { id: 'q0', query: 'sum:kubernetes.pods.running{*}', points: 120 },
+    { id: 'q1', query: 'avg:kubernetes.cpu.usage.total{*} by {host}', points: 120 },
+  ];
+  const frame = {
+    results: [{ id: 'q0', kind: 'gauge', unit: null, step_ms: 30000, replace_from: 0, error: null, series: [{ name: '*', points: [[0, 4]] }] }],
+    range: { from: 0, to: 3600000 },
+    data_scans: 1,
+    unique_queries: 2,
+    error: null,
+  };
+  const source = frameSource(frame, queries, null);
+  assert.deepEqual(await source.timeseries({ queries: ['sum:kubernetes.pods.running{*}'], range: frame.range, points: 120 }), [{ name: '*', points: [[0, 4]] }]);
+  await assert.rejects(source.timeseries({ queries: ['avg:kubernetes.cpu.usage.total{*} by {host}'], range: frame.range, points: 120 }), MetricResultPending);
+  await assert.rejects(source.timeseries({ queries: ['max:not.planned{*}'], range: frame.range, points: 120 }), /absent from the dashboard execution plan/);
+  assert.deepEqual(
+    (await source.catalog()).map((m) => [m.name, m.kind]),
+    [
+      ['kubernetes.pods.running', 'gauge'],
+      ['kubernetes.cpu.usage.total', 'unknown'],
+    ],
+  );
 });
 
 test('SSE survives arbitrary chunk and UTF-8 boundaries and ignores keepalives', async () => {

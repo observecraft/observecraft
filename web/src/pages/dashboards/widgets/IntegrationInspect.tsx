@@ -5,6 +5,7 @@ import { ChevronsDownUp, ChevronsUpDown, RotateCcw, X } from 'lucide-react';
 import type { Widget } from '../../../api/dashboards/types';
 import { aggregate, normalizeRequest, type IntegrationRequest, type IntegrationWidgetDefinition } from '../../../api/integrations/evaluate';
 import { queryIntegrationPanel, type PanelSeries } from '../../../api/integrations/panels';
+import { useDirectPanelSource } from '../queries';
 import { formatMetricValue, formatUnitValue, presentationUnit } from '../../../api/integrations/units';
 import type { TimeRange } from '../../../api/types';
 import { Chart } from '../../../components/charts/Chart';
@@ -55,10 +56,11 @@ function withEdits(def: IntegrationWidgetDefinition, queries: Record<string, str
 
 function useSeries(def: IntegrationWidgetDefinition, range: TimeRange, enabled = true) {
   const { resolve } = useDashboardContext();
+  const source = useDirectPanelSource();
   const identity = JSON.stringify(def).replace(/\$[a-zA-Z_]\w*/g, (v) => resolve(`avg:scope{${v}}`));
   return useQuery({
     queryKey: ['integration-panel', 'inspect', identity, range],
-    queryFn: () => queryIntegrationPanel({ ...def, type: 'timeseries' }, resolve, range),
+    queryFn: () => queryIntegrationPanel({ ...def, type: 'timeseries' }, resolve, range, source),
     enabled,
     placeholderData: keepPreviousData,
     retry: false,

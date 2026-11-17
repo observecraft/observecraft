@@ -26,6 +26,8 @@ import {
 } from '../../api/dashboards/client';
 import type { CreateDashboardRequest, Dashboard, DashboardSearchRequest, TimeAggregator } from '../../api/dashboards/types';
 import type { TimeRange } from '../../api/types';
+import { useMemo } from 'react';
+import { cachedPanelSource, type PanelDataSource } from '../../api/integrations/panelQueries';
 
 export const dashKeys = {
   all: ['dashboards'] as const,
@@ -161,6 +163,12 @@ export const useDistributionData = (query: string, range: TimeRange) =>
   useQuery({ queryKey: metricKey('dist', query, range), queryFn: () => queryDistribution({ query, range }), placeholderData: keepPreviousData, enabled: !!query });
 
 export const useMonitorSummary = (query: string) => useQuery({ queryKey: ['monitors', 'summary', query], queryFn: () => monitorSummary(query), refetchInterval: 30_000 });
+
+/** Panels' data read directly (not from the dashboard's stream), with one catalog fetch and one request per identical query for all of them. */
+export function useDirectPanelSource(): PanelDataSource {
+  const client = useQueryClient();
+  return useMemo(() => cachedPanelSource(client, { catalog: metricCatalog, timeseries: queryTimeseries }), [client]);
+}
 
 export const useMetricCatalog = () => useQuery({ queryKey: metricKey('catalog'), queryFn: ({ signal }) => metricCatalog(signal), staleTime: Infinity });
 

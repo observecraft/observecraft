@@ -7,7 +7,7 @@ import type { components } from '../generated/schema';
 import { API_MODE, get, patch, post, postTo } from '../http';
 import type { TimeRange } from '../types';
 import { postStream } from '../http';
-import { decodeDashboardFrame, type DashboardMetricQuery, type DashboardQueryFrame } from './execution';
+import { decodeDashboardFrame, type DashboardFrameEvent, type DashboardMetricQuery, type DashboardQueryFrame } from './execution';
 import type {
   CreateDashboardRequest,
   Dashboard,
@@ -175,14 +175,19 @@ export async function queryDashboard(queries: DashboardMetricQuery[], range: Tim
   };
 }
 
-export async function streamDashboard(queries: DashboardMetricQuery[], range: TimeRange, onFrame: (frame: DashboardQueryFrame, snapshot: boolean) => void, signal: AbortSignal): Promise<void> {
-  if (live) return postStream('/api/v1/query/dashboard/live', { queries, range }, (event, frame) => onFrame(decodeDashboardFrame(frame), event === 'snapshot'), signal);
+export async function streamDashboard(
+  queries: DashboardMetricQuery[],
+  range: TimeRange,
+  onFrame: (frame: DashboardQueryFrame, event: DashboardFrameEvent) => void,
+  signal: AbortSignal,
+): Promise<void> {
+  if (live) return postStream('/api/v1/query/dashboard/live', { queries, range }, (event, frame) => onFrame(decodeDashboardFrame(frame), event as DashboardFrameEvent), signal);
   const duration = range.to - range.from;
   while (!signal.aborted) {
     const to = Date.now();
     const frame = await queryDashboard(queries, { from: to - duration, to }, signal);
     if (signal.aborted) return;
-    onFrame(frame, true);
+    onFrame(frame, 'snapshot');
     if (signal.aborted) return;
     await new Promise<void>((resolve) => {
       const done = () => {

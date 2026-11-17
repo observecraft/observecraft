@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { queryDashboard, streamDashboard } from '../../api/dashboards/client';
-import { collectDashboardQueries, mergeDashboardFrame, metricQueryKey, type DashboardQueryFrame } from '../../api/dashboards/execution';
+import { collectDashboardQueries, frameSource, mergeDashboardFrame, metricQueryKey, type DashboardFrameEvent, type DashboardQueryFrame } from '../../api/dashboards/execution';
 import type { PanelDataSource } from '../../api/integrations/panelQueries';
 import type { TimeRange } from '../../api/types';
 import type { Widget } from '../../api/dashboards/types';
@@ -32,7 +32,7 @@ export function useDashboardExecution(widgets: Widget[], resolve: (q: string) =>
       connection.current?.abort.abort();
       const abort = new AbortController();
       connection.current = { key, abort };
-      const onFrame = (frame: DashboardQueryFrame, snapshot: boolean) => {
+      const onFrame = (frame: DashboardQueryFrame, event: DashboardFrameEvent) => {
         if (abort.signal.aborted) return;
         if (frame.error) {
           setState((old) => ({ ...old, key, frame: old.key === key ? old.frame : undefined, error: new Error(frame.error!) }));
@@ -40,7 +40,7 @@ export function useDashboardExecution(widgets: Widget[], resolve: (q: string) =>
         }
         setState((old) => ({
           key,
-          frame: mergeDashboardFrame(old.key === key ? old.frame : undefined, frame, snapshot),
+          frame: mergeDashboardFrame(old.key === key ? old.frame : undefined, frame, event),
           error: frame.error ? new Error(frame.error) : null,
           version: old.version + 1,
         }));
@@ -51,7 +51,7 @@ export function useDashboardExecution(widgets: Widget[], resolve: (q: string) =>
           while (!abort.signal.aborted) {
             try {
               if (!live) {
-                onFrame(await queryDashboard(queries, currentRange.current, abort.signal), true);
+                onFrame(await queryDashboard(queries, currentRange.current, abort.signal), 'snapshot');
                 return;
               }
               await streamDashboard(queries, currentRange.current, onFrame, abort.signal);
@@ -85,28 +85,14 @@ export function useDashboardExecution(widgets: Widget[], resolve: (q: string) =>
   const frame = state.key === key ? state.frame : undefined;
   const error = state.key === key ? state.error : null;
   return useMemo(() => {
-    const byId = new Map(frame?.results.map((r) => [r.id, r]));
-    const byQuery = new Map(queries.map((q) => [metricQueryKey(q.query, q.points, q.aggregator), byId.get(q.id)]));
-    const source: PanelDataSource = {
-      catalog: async () =>
-        queries.map((q) => ({ name: /:([^{}]+)\{/.exec(q.query)?.[1] ?? '', kind: byId.get(q.id)?.kind ?? 'unknown', unit: byId.get(q.id)?.unit ?? undefined, tags: [], description: '' })),
-      timeseries: async (request) => {
-        if (error && !frame) throw error;
-        return request.queries.flatMap((query) => {
-          const result = byQuery.get(metricQueryKey(query, request.points ?? 120, request.aggregator));
-          if (!result) throw new Error('Metric query is absent from the dashboard execution plan');
-          if (result.error) throw new Error(result.error);
-          return result.series;
-        });
-      },
-    };
+    const planned = new Set(queries.map((q) => metricQueryKey(q.query, q.points, q.aggregator)));
     return {
       ready: !queries.length || !!frame,
       error: frame ? null : error,
       connectionError: frame ? error : null,
       version: state.version,
-      source,
-      has: (q: string, points: number) => byQuery.has(metricQueryKey(q, points)),
+      source: frameSource(frame, queries, error),
+      has: (q: string, points: number) => planned.has(metricQueryKey(q, points)),
     };
   }, [frame, error, queries, state.version]);
 }

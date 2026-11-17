@@ -20727,7 +20727,7 @@
         "tags": [
           "metrics"
         ],
-        "summary": "A single POST SSE stream sends a full snapshot then aligned bucket replacements every 10s.\nIdentical subscriptions within the same organization share the plan, scans and retained history.",
+        "summary": "A single POST SSE stream sends a full snapshot then aligned bucket replacements every 10s.\nWhile the first snapshot runs, results are sent as their queries complete: a `snapshot` with\nthe first ones, then `partial` events with the next. Identical subscriptions within the same\norganization share the plan, scans and retained history. Gzip'd for clients that accept it,\nflushed event by event.",
         "operationId": "dashboard_live",
         "requestBody": {
           "content": {
