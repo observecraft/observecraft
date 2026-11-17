@@ -14,6 +14,7 @@ import type {
   Widget,
   WidgetDefinition,
 } from '../dashboards/types';
+import { parseDashboardSearch } from '../dashboards/search';
 import { parseQuery } from '../../lib/searchQuery';
 import { rng } from './generator';
 import { matchesTerms } from './match';
@@ -633,7 +634,10 @@ function summary(d: Dashboard): DashboardSummary {
 // ---------------------------------------------------------------- endpoints
 
 export function searchDashboards(req: DashboardSearchRequest): Promise<DashboardSearchPage> {
-  const q = req.query.trim().toLowerCase();
+  const terms = parseDashboardSearch(req.query);
+  const q = terms.text.toLowerCase();
+  const has = (value: string | undefined, part: string) => !!value?.toLowerCase().includes(part.toLowerCase());
+  const widgetTitles = (ws: Widget[]): string[] => ws.flatMap(({ definition: d }) => [d.title ?? '', ...(d.type === 'group' ? widgetTitles(d.widgets) : [])]);
   const s = db();
   const list = req.listId ? s.lists.find((l) => l.id === req.listId) : null;
   let items = s.dashboards.filter((d) => (req.preset === 'deleted' ? d.deletedAt !== null : d.deletedAt === null));
@@ -644,6 +648,10 @@ export function searchDashboards(req: DashboardSearchRequest): Promise<Dashboard
   if (list) items = items.filter((d) => list.dashboardIds.includes(d.id));
   if (req.team) items = items.filter((d) => d.teams.includes(req.team!));
   if (q) items = items.filter((d) => d.title.toLowerCase().includes(q) || d.author?.name.toLowerCase().includes(q));
+  for (const a of terms.authors) items = items.filter((d) => has(d.author?.name, a));
+  for (const t of terms.teams) items = items.filter((d) => d.teams.some((x) => has(x, t)));
+  if (terms.favorites !== null) items = items.filter((d) => d.starred === terms.favorites);
+  for (const t of terms.widgetTitles) items = items.filter((d) => widgetTitles(d.widgets).some((x) => has(x, t)));
   const dir = req.sort.dir === 'asc' ? 1 : -1;
   items.sort((a, b) => {
     // Starred first, like the reference list.

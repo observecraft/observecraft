@@ -23,6 +23,29 @@
   margin-bottom: 14px;
 }
 
+.dl-search-wrap {
+  position: relative;
+}
+
+.dl-suggest {
+  top: 46px;
+  left: 0;
+  width: min(560px, 100%);
+}
+
+.dl-suggest .suggest-footer {
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.dl-suggest .suggest-footer code {
+  white-space: nowrap;
+}
+
+.dl-suggest section + section {
+  border-top: 1px solid var(--border);
+}
+
 .dl-body {
   display: flex;
   align-items: flex-start;

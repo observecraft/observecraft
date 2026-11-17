@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type InputHTMLAttributes, type Ref } from 'react';
 
 /**
  * A search box whose text lives in the URL (`?q=`). The input keeps its own text: bound straight to the
@@ -6,7 +6,12 @@ import { useEffect, useRef, useState } from 'react';
  * keystroke started from the URL before the previous one). The URL is followed again only when it changes
  * from elsewhere (a link, back and forward).
  */
-export function UrlSearchInput({ value, onChange, placeholder }: { value: string; onChange: (text: string) => void; placeholder: string }) {
+export function UrlSearchInput({
+  value,
+  onChange,
+  placeholder,
+  ...rest
+}: { value: string; onChange: (text: string) => void; placeholder: string; ref?: Ref<HTMLInputElement> } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
   const [text, setText] = useState(value);
   const written = useRef(value);
   useEffect(() => {
@@ -17,6 +22,7 @@ export function UrlSearchInput({ value, onChange, placeholder }: { value: string
   }, [value]);
   return (
     <input
+      {...rest}
       placeholder={placeholder}
       value={text}
       onChange={(e) => {
