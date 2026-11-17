@@ -1743,7 +1743,7 @@
 }
 
 .mon-tl {
-  --label: 220px;
+  --label: 260px;
 }
 
 .mon-tl-axis {
@@ -1794,9 +1794,14 @@
   gap: 8px;
   padding-right: 12px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--fs-md);
+}
+
+.mon-tl-label > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mon-tl-label i,
@@ -2227,7 +2232,8 @@
 
 .mon-overview {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 400px);
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 340px);
+  align-items: start;
   border-bottom: 1px solid var(--border);
 }
 
@@ -2248,8 +2254,6 @@
 }
 
 .mon-overview .mon-query-box code {
-  flex: 1;
-  min-height: 200px;
   font-size: var(--fs-md);
   white-space: pre-wrap;
   word-break: break-word;

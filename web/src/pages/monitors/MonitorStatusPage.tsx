@@ -283,6 +283,17 @@ function groupTags(group: string): [string, string][] {
   });
 }
 
+/**
+ * A timeline row's label: the values of the tags that differ between `groups` (one cluster's nodes → the node), or
+ * every value when they don't differ; the keys are in the filters above and the row's tooltip.
+ */
+function groupLabel(group: string, groups: string[]): string {
+  const tags = groupTags(group);
+  if (!tags.length) return group;
+  const varying = tags.filter(([k, v]) => groups.some((g) => groupTags(g).some(([gk, gv]) => gk === k && gv !== v)));
+  return (varying.length ? varying : tags).map(([, v]) => v || '(none)').join(' · ');
+}
+
 function groupMatches(m: MonitorDetail, group: string, f: GroupFilter): boolean {
   const tags = Object.fromEntries(groupTags(group));
   const state = m.groups.find((x) => x.group === group);
@@ -411,13 +422,13 @@ function History({ m, filters }: { m: MonitorDetail; filters: GroupFilter }) {
           </div>
           {shown.map((g) => (
             <div key={g} className="mon-tl-row">
-              <span className="mon-tl-label" title={g}>
+              <span className="mon-tl-label" title={g.split(',').join('\n')}>
                 <i
                   style={{
                     background: BAR_COLOR[m.groups.find((x) => x.group === g)?.status ?? 'ok'],
                   }}
-                />{' '}
-                {g}
+                />
+                <span>{groupLabel(g, groups)}</span>
               </span>
               <div className="mon-tl-track">
                 {segs
