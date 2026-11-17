@@ -12,7 +12,7 @@ import { useAddToList, useCloneDashboard, useCreateList, useDashboardSearch, use
 import { CreateDashboardModal } from './CreateDashboardModal';
 import { DashboardsHeader } from './DashboardsHeader';
 import '../dashboards.css';
-import { UrlSearchInput } from '../../../components/ui/UrlSearchInput';
+import { DashboardSearch } from './DashboardSearch';
 
 const PAGE = 50;
 
@@ -141,10 +141,7 @@ export function DashboardListPage({ quickGraph = false }: { quickGraph?: boolean
       </DashboardsHeader>
 
       <div className="dl-scroll">
-        <label className="int-search dl-search">
-          <Search size={16} />
-          <UrlSearchInput placeholder="Search dashboards" value={query} onChange={(q) => set({ q, offset: null })} />
-        </label>
+        <DashboardSearch query={query} onChange={(q) => set({ q, offset: null })} matches={rows} recentlyViewed={recent.data ?? []} icon={(d) => <DashIcon d={d} size={16} />} />
 
         <div className="dl-body">
           {showControls && (

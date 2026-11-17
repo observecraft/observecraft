@@ -276,7 +276,50 @@ pub struct DashboardSearchPage {
     pub total: i64,
 }
 
-/// Dashboards matching a preset list, custom list, team and title/author text; starred first.
+/// The search box's text: `author:`, `team:`, `favorites:` and `widgets.title:` filters (values may be quoted),
+/// the rest matched against titles and authors. Other `key:value` words and filters without a value are text.
+#[derive(Debug, Default, PartialEq)]
+struct SearchTerms {
+    text: String,
+    authors: Vec<String>,
+    teams: Vec<String>,
+    favorites: Option<bool>,
+    widget_titles: Vec<String>,
+}
+
+fn parse_search(query: &str) -> SearchTerms {
+    let mut words: Vec<String> = Vec::new();
+    let (mut word, mut quoted) = (String::new(), false);
+    for c in query.chars() {
+        match c {
+            '"' => quoted = !quoted,
+            c if c.is_whitespace() && !quoted => words.extend((!word.is_empty()).then(|| std::mem::take(&mut word))),
+            c => word.push(c),
+        }
+    }
+    words.extend((!word.is_empty()).then_some(word));
+    let mut terms = SearchTerms::default();
+    let mut text = Vec::new();
+    for w in words {
+        let Some((key, value)) = w.split_once(':').filter(|(_, v)| !v.is_empty()) else {
+            if !w.ends_with(':') || !matches!(w.to_ascii_lowercase().as_str(), "author:" | "team:" | "favorites:" | "widgets.title:") {
+                text.push(w);
+            }
+            continue;
+        };
+        match key.to_ascii_lowercase().as_str() {
+            "author" => terms.authors.push(value.to_string()),
+            "team" => terms.teams.push(value.to_string()),
+            "favorites" => terms.favorites = Some(value.eq_ignore_ascii_case("true")),
+            "widgets.title" => terms.widget_titles.push(value.to_string()),
+            _ => text.push(w),
+        }
+    }
+    terms.text = text.join(" ");
+    terms
+}
+
+/// Dashboards matching a preset list, custom list, team and the search box's filters and text; starred first.
 #[utoipa::path(post, path = "/api/v1/dashboards/search", operation_id = "search_dashboards", request_body = DashboardSearchRequest, responses((status = 200, body = DashboardSearchPage)), tag = "dashboards")]
 pub async fn search(
     State(st): State<AppState>,
@@ -326,13 +369,29 @@ pub async fn search(
     if let Some(team) = &req.team {
         qb.push(" AND ").push_bind(team).push(" = ANY(d.teams)");
     }
-    let text = req.query.trim();
-    if !text.is_empty() {
-        let p = ilike(text);
+    let terms = parse_search(&req.query);
+    if !terms.text.is_empty() {
+        let p = ilike(&terms.text);
         qb.push(" AND (d.title ILIKE ")
             .push_bind(p.clone())
             .push(" OR u.name ILIKE ")
             .push_bind(p)
+            .push(")");
+    }
+    for author in &terms.authors {
+        let p = ilike(author);
+        qb.push(" AND (u.name ILIKE ").push_bind(p.clone()).push(" OR u.email ILIKE ").push_bind(p).push(")");
+    }
+    for team in &terms.teams {
+        qb.push(" AND EXISTS (SELECT 1 FROM unnest(d.teams) t WHERE t ILIKE ").push_bind(ilike(team)).push(")");
+    }
+    if let Some(starred) = terms.favorites {
+        qb.push(" AND COALESCE(s.starred, false) = ").push_bind(starred);
+    }
+    for title in &terms.widget_titles {
+        // Every widget's title, groups' widgets included.
+        qb.push(" AND EXISTS (SELECT 1 FROM jsonb_path_query(d.definition, 'lax $.widgets.**.title') t WHERE t #>> '{}' ILIKE ")
+            .push_bind(ilike(title))
             .push(")");
     }
     let dir = match req.sort.dir {
@@ -946,6 +1005,20 @@ mod tests {
     use std::collections::BTreeSet;
 
     #[test]
+    fn search_text_is_split_into_filters_and_free_text() {
+        let t = parse_search(r#"postgres author:"Jane Doe" team:billing favorites:true widgets.title:latency overview"#);
+        assert_eq!(t.text, "postgres overview");
+        assert_eq!(t.authors, vec!["Jane Doe"]);
+        assert_eq!(t.teams, vec!["billing"]);
+        assert_eq!(t.favorites, Some(true));
+        assert_eq!(t.widget_titles, vec!["latency"]);
+        // Keys are case-insensitive, unknown keys and a filter still being typed (`author:`) aren't filters.
+        let t = parse_search("Team:checkout service:api author: Favorites:false");
+        assert_eq!((t.text.as_str(), t.teams, t.favorites, t.authors.len()), ("service:api", vec!["checkout".to_string()], Some(false), 0));
+        assert_eq!(parse_search("  "), SearchTerms::default());
+    }
+
+    #[test]
     fn dashboards_of_integrations_not_enabled_are_hidden() {
         let enabled: BTreeSet<String> = ["aws".to_string(), "kubernetes".to_string()].into();
         let hidden = hidden_logos(&enabled);
@@ -956,6 +1029,55 @@ mod tests {
         for logo in ["authentik", "netbird", "have-i-been-pwned", "azure-active-directory"] {
             assert!(gated().contains(logo), "connectors' dashboards are gated: {logo}");
         }
+    }
+
+    /// The search box's filters select by author, team, starred and a widget's title (in groups too).
+    #[tokio::test]
+    async fn search_filters_by_author_team_favorites_and_widget_title() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "dash-search").await;
+        let mut users = Vec::new();
+        for name in ["Jane Doe", "Omar Haddad"] {
+            let (id,): (String,) = sqlx::query_as("INSERT INTO users (id, org_id, email, name) VALUES (gen_random_uuid(), $1, $2, $3) RETURNING id::text")
+                .bind(&org)
+                .bind(format!("{}-{org}@example.com", name.split(' ').next().unwrap().to_lowercase()))
+                .bind(name)
+                .fetch_one(&st.postgres)
+                .await
+                .unwrap();
+            users.push(id);
+        }
+        let group = serde_json::json!({ "widgets": [{ "id": "g", "definition": { "type": "group", "title": "Checkout", "widgets": [{ "id": "w", "definition": { "type": "timeseries", "title": "p99 latency" } }] } }] });
+        for (id, author, team, definition) in [("checkout", &users[0], "checkout", group), ("billing", &users[1], "billing", serde_json::json!({ "widgets": [] }))] {
+            sqlx::query("INSERT INTO dashboards (id, org_id, title, kind, author_id, teams, definition) VALUES ($1, $2, $3, 'custom', $4::uuid, $5, $6)")
+                .bind(format!("{org}-{id}"))
+                .bind(&org)
+                .bind(format!("{id} overview"))
+                .bind(author)
+                .bind(vec![team.to_string()])
+                .bind(definition)
+                .execute(&st.postgres)
+                .await
+                .unwrap();
+        }
+        sqlx::query("INSERT INTO dashboard_user_state (dashboard_id, user_id, starred) VALUES ($1, $2::uuid, true)").bind(format!("{org}-billing")).bind(&users[0]).execute(&st.postgres).await.unwrap();
+        let find = |query: &str| {
+            let req = DashboardSearchRequest { query: query.into(), preset: PresetList::Custom, list_id: None, team: None, sort: DashboardSort { field: SortField::Title, dir: SortDir::Asc }, offset: 0, limit: 200 };
+            let (st, org, user) = (st.clone(), org.clone(), users[0].clone());
+            async move {
+                let Json(page) = search(State(st), OrgId(org.clone()), CurrentUser(user), Json(req)).await.unwrap();
+                page.dashboards.into_iter().map(|d| d.id.trim_start_matches(&format!("{org}-")).to_string()).collect::<Vec<_>>()
+            }
+        };
+        assert_eq!(find(r#"author:"jane d""#).await, ["checkout"]);
+        assert_eq!(find("author:omar-").await, ["billing"], "by email too");
+        assert_eq!(find("team:BILL").await, ["billing"]);
+        assert_eq!(find("favorites:true").await, ["billing"]);
+        assert_eq!(find("favorites:false").await, ["checkout"]);
+        assert_eq!(find("widgets.title:p99").await, ["checkout"], "a group's widget");
+        assert_eq!(find("overview team:checkout").await, ["checkout"]);
+        assert!(find("widgets.title:p99 team:billing").await.is_empty());
     }
 
     /// A new org sees none of the gated integration dashboards; an AWS account brings AWS Overview,
