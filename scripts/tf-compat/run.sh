@@ -24,7 +24,8 @@
 # internal listener on the next port) against OC_POSTGRES_URL, OC_CLICKHOUSE_URL and OC_CACHE_URL,
 # creates an application key for the default org's first admin and an ingest key with psql (or
 # $OC_TF_PSQL, e.g. "docker exec -i my-postgres psql -U oc -d mydb"), and stops the server at the end.
-# Its log goes to $OC_TF_WORK/server.log.
+# Its log goes to $OC_TF_WORK/server.log. With OC_TF_SERVER_BIN it starts that binary instead of building one (CI
+# passes the server job's build).
 #
 # Other settings: OC_TF_CACHE (OpenTofu binary and provider plugins, default ~/.cache/observecraft/tf-compat),
 # OC_TF_WORK (per-run working directories, default scripts/tf-compat/.work, git-ignored), TF_COMPAT_JOBS (fixtures
@@ -108,14 +109,18 @@ psql_run() {
 start_local_server() {
   : "${OC_POSTGRES_URL:?--local needs OC_POSTGRES_URL}" "${OC_CLICKHOUSE_URL:?--local needs OC_CLICKHOUSE_URL}" "${OC_CACHE_URL:?--local needs OC_CACHE_URL}"
   local port="${OC_TF_PORT:-18480}"
-  log "building observecraft-server"
-  (cd "$repo/server" && cargo build -q --bin observecraft-server)
+  local server="${OC_TF_SERVER_BIN:-}"
+  if [ -z "$server" ]; then
+    log "building observecraft-server"
+    (cd "$repo/server" && cargo build -q --bin observecraft-server)
+    server="$repo/server/target/debug/observecraft-server"
+  fi
   log "starting observecraft-server on 127.0.0.1:$port (log: $work/server.log)"
   # The application_key fixture creates keys with the provider's own key (off by default on servers).
   # A GCP service account of its own, as the gcp_sts fixture's STS delegate needs (fictional).
   OC_GCP_PRINCIPAL_EMAIL="observecraft@example-project.iam.gserviceaccount.com" \
     OC_HTTP_ADDR="127.0.0.1:$port" OC_LOGPROC_ADDR="127.0.0.1:$((port + 1))" OC_SEED_DEMO=false OC_DATADOG_API_ALLOW_APP_KEY_CREATION=true \
-    "$repo/server/target/debug/observecraft-server" >"$work/server.log" 2>&1 &
+    "$server" >"$work/server.log" 2>&1 &
   server_pid=$!
   echo "$server_pid" >"$work/server.pid"
   for _ in $(seq 1 300); do
