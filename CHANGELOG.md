@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.27.0](https://github.com/observecraft/observecraft/compare/v0.26.0...v0.27.0) (2026-11-18)
+
+
+### Features
+
+* **cloud-cost:** service logos on the cost map, a color of its own for new spend ([bd573e6](https://github.com/observecraft/observecraft/commit/bd573e6e5d564ef2bbea3aeca39dc1f864eb0519))
+* **dashboards:** search suggestions and author/team/favorites/widgets.title filters ([78e1062](https://github.com/observecraft/observecraft/commit/78e10623f01fbd6cd32f9bdc49dcb2eb0472e469))
+
+
+### Bug fixes
+
+* **intake:** RUM client tokens read the org's ingest limits ([048fdfe](https://github.com/observecraft/observecraft/commit/048fdfe476d9774681d9d2f569b0f4af147093d6))
+* **monitors:** readable group labels on the status timeline, query box sized to its query ([98e3e6b](https://github.com/observecraft/observecraft/commit/98e3e6bdfcf56e732116191f7568813d0cbcc62d))
+
+
+### Performance
+
+* **dashboards:** draw panels as their queries complete and gzip the live stream ([881b7ee](https://github.com/observecraft/observecraft/commit/881b7ee4357dc2b96f25ae701048c294e0870975))
+
+
+### Dependencies
+
+* bump rust in /server in the docker group ([8410006](https://github.com/observecraft/observecraft/commit/84100062fd498764591c18d7198c05fb9c6151a2))
+* bump the actions group across 1 directory with 8 updates ([75d0fab](https://github.com/observecraft/observecraft/commit/75d0fab3e27e2aaf7feced86bfbc7dff1acc4100))
+* bump the cargo group across 1 directory with 8 updates ([0a7d199](https://github.com/observecraft/observecraft/commit/0a7d1998675360bef80b16809fc0253ce9c1ccd9))
+* bump the npm group across 1 directory with 7 updates ([a891f0e](https://github.com/observecraft/observecraft/commit/a891f0ec90da234b9fbd1552690cd7f060247a66))
+
 ## [0.26.0](https://github.com/observecraft/observecraft/compare/v0.25.0...v0.26.0) (2026-11-16)
 
 
