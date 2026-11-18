@@ -106,7 +106,7 @@ jobs:
   server:
     services:
       clickhouse:
-        image: clickhouse/clickhouse-server:26.8
+        image: clickhouse/clickhouse-server:26.8.37.168@sha256:a56702852d7c8055a021a42a3a60f49daa49e9204a949ea033e51bb327948648 # the version the platform runs
         env:
           CLICKHOUSE_SKIP_USER_SETUP: "1"
         ports: [8123:8123]
@@ -124,8 +124,10 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libclang-dev libxml2-dev libxmlsec1-dev
       - uses: dtolnay/rust-toolchain@ff7f6a3374ce205788da40198ec918bd5d67aea7 # 1.99.0
         with: { components: clippy }
+      # Saved from main only, so pull requests (dependency bumps above all) don't add their targets to the cache every
+      # job restores.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with: { workspaces: server }
+        with: { workspaces: server, save-if: "${{ github.ref == 'refs/heads/main' }}" }
       # libduckdb-sys unpacks its sources once into target/duckdb-sources/<hash> and marks them .complete. A cached copy
       # without the marker makes its build script fail ("Directory not empty") whenever it reruns (a new feature).
       - name: Drop incomplete DuckDB sources restored from the cache
@@ -138,6 +140,14 @@ jobs:
           key: integration-log-samples-${{ hashFiles('scripts/integration-log-samples/fetch.sh') }}
       - name: Fetch integration log samples
         run: make integration-log-samples
+      # A runner that runs out of disk or memory dies without a log ("The hosted runner lost communication with the
+      # server"). Free the preinstalled toolchains the job doesn't use and record what is left before building.
+      - name: Free disk space
+        run: |
+          df -h / /mnt
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift
+          df -h / /mnt
+          free -h
       - run: cargo test --locked --workspace
         working-directory: server
         env:
@@ -153,7 +163,7 @@ jobs:
   tf-compat:
     services:
       clickhouse:
-        image: clickhouse/clickhouse-server:26.8
+        image: clickhouse/clickhouse-server:26.8.37.168@sha256:a56702852d7c8055a021a42a3a60f49daa49e9204a949ea033e51bb327948648 # the version the platform runs
         env:
           CLICKHOUSE_SKIP_USER_SETUP: "1"
         ports: [8123:8123]
