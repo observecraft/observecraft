@@ -48,6 +48,10 @@ jobs:
               - *ci
               - server/**
               - web/src/api/generated/**
+              # tf-compat runs the server job's build.
+              - Makefile
+              - scripts/datadog-fixtures/**
+              - scripts/tf-compat/**
             web:
               - *ci
               - web/**
@@ -121,7 +125,11 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libclang-dev libxml2-dev libxmlsec1-dev
+      # The runner image's package lists usually do; refreshing them costs minutes when Ubuntu's mirror is slow.
+      - name: Install build dependencies
+        run: |
+          packages=(pkg-config libclang-dev libxml2-dev libxmlsec1-dev)
+          sudo apt-get install -y --no-install-recommends "${packages[@]}" || { sudo apt-get update && sudo apt-get install -y --no-install-recommends "${packages[@]}"; }
       - uses: dtolnay/rust-toolchain@ff7f6a3374ce205788da40198ec918bd5d67aea7 # 1.99.0
         with: { components: clippy }
       # Saved from main only, so pull requests (dependency bumps above all) don't add their targets to the cache every
@@ -157,6 +165,20 @@ jobs:
       - name: OpenAPI document is up to date (run `make openapi`)
         run: cargo run --locked -q --bin observecraft-server -- openapi > ../web/src/api/generated/openapi.json && git diff --exit-code
         working-directory: server
+      # tf-compat runs the server and its Datadog API tests from this build instead of compiling them again.
+      - name: Keep the server and its tests for tf-compat
+        if: needs.changes.outputs.tf_compat == 'true'
+        working-directory: server
+        run: |
+          mkdir -p ../server-build
+          cp target/debug/observecraft-server ../server-build/
+          cargo test --locked -p oc-api --bin observecraft-server --no-run --message-format=json \
+            | jq -r 'select(.reason == "compiler-artifact" and .executable != null and .profile.test) | .executable' \
+            | xargs -I{} cp {} ../server-build/observecraft-server-tests
+          ls -la ../server-build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: needs.changes.outputs.tf_compat == 'true'
+        with: { name: server-build, path: server-build/, retention-days: 1, if-no-files-found: error }
 
   # The Datadog-compatible management API (docs/adr/0003): Datadog's recorded API scenarios replayed
   # against the server, then Datadog's Terraform provider run by OpenTofu against a local server.
@@ -191,21 +213,22 @@ jobs:
       OC_CLICKHOUSE_PASSWORD: ""
       OC_POSTGRES_URL: postgres://observecraft:observecraft@localhost:5432/observecraft
       OC_CACHE_URL: redis://localhost:6379/0
-    needs: changes
+    # Runs the server job's build (the server and its unit tests) rather than compiling oc-api again.
+    needs: [changes, server]
     if: needs.changes.outputs.tf_compat == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libclang-dev libxml2-dev libxmlsec1-dev postgresql-client
-      - uses: dtolnay/rust-toolchain@ff7f6a3374ce205788da40198ec918bd5d67aea7 # 1.99.0
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        # Preserve expensive compiled dependencies even when a compatibility assertion fails.
-        with: { workspaces: server, cache-on-failure: true }
-      # libduckdb-sys unpacks its sources once into target/duckdb-sources/<hash> and marks them .complete. A cached copy
-      # without the marker makes its build script fail ("Directory not empty") whenever it reruns (a new feature).
-      - name: Drop incomplete DuckDB sources restored from the cache
-        run: shopt -s nullglob; for d in server/target/duckdb-sources/*/; do [ -f "$d.complete" ] || rm -rf "$d"; done
+      # The server's shared libraries and psql; package lists are refreshed only when the image's are stale.
+      - name: Install runtime dependencies
+        run: |
+          packages=(libxml2 libxmlsec1t64 libxmlsec1t64-openssl postgresql-client)
+          sudo apt-get install -y --no-install-recommends "${packages[@]}" || { sudo apt-get update && sudo apt-get install -y --no-install-recommends "${packages[@]}"; }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: server-build, path: server-build }
+      - name: The build's shared libraries are all installed
+        run: chmod +x server-build/* && ! ldd server-build/* | grep "not found"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/observecraft/tf-compat
@@ -221,13 +244,16 @@ jobs:
           key: datadog-api-client-go-${{ steps.dd-fixtures.outputs.commit }}-${{ hashFiles('scripts/datadog-fixtures/fetch.sh') }}
       - name: Fetch Datadog API contract fixtures
         run: make datadog-fixtures
+      # `cargo test -p oc-api datadog_api`, run from the crate's directory as cargo does.
       - name: Datadog API contract fixtures
-        run: cargo test --locked -p oc-api datadog_api
-        working-directory: server
+        run: ../../../server-build/observecraft-server-tests datadog_api
+        working-directory: server/crates/oc-api
         env:
           OC_REQUIRE_DATADOG_FIXTURES: "1"
       - name: Datadog Terraform provider against a local server
         run: make tf-compat TF_COMPAT_ARGS=--local
+        env:
+          OC_TF_SERVER_BIN: ${{ github.workspace }}/server-build/observecraft-server
 
   # Dependencies must be permissive (ObserveCraft is MIT): server/deny.toml, and the allowlist below for the web app.
   licenses:
