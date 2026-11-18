@@ -198,6 +198,20 @@ pub fn missing_write(kind: ForgeKind, repo: &Value, scopes: Option<&[String]>) -
     }
 }
 
+/// Why a repository can't be read. GitLab and GitHub answer 404, not 403, for a repository the
+/// connection's token has no access to, which "not found at this URL" would misdescribe.
+pub fn unreadable(kind: ForgeKind, path: &str, status: Option<u16>, error: &str) -> String {
+    match (kind, status) {
+        (ForgeKind::Gitlab, Some(404)) => format!(
+            "The GitLab connection's token can't see {path}: GitLab answers 404 for a project the token has no access to. Give the token's user (or the group or project access token) at least the Reporter role on it to read it, Developer to open merge requests, or check the repository's path."
+        ),
+        (ForgeKind::Github, Some(404)) => format!(
+            "The GitHub connection's token can't see {path}: GitHub answers 404 for a repository the token has no access to. Give it the `repo` scope (classic token) or access to this repository with Contents and Pull requests: Read and write (fine-grained token), or check the repository's path."
+        ),
+        _ => format!("Can't read {path}: {error}"),
+    }
+}
+
 // ---------------------------------------------------------------- the merge request
 
 /// What the merge request's description says.
@@ -386,5 +400,17 @@ mod tests {
         assert!(d.starts_with("Fixes a cloud misconfiguration found by ObserveCraft") && d.contains("- Rule: `s3_bucket_level_public_access_block`\n- Resource: `arn:aws:s3:::example-shop-assets`"), "{d}");
         assert!(d.contains("- `terraform plan` must show only the intended change.") && !d.contains("review the change and the pipeline"), "{d}");
         assert_eq!(Kind::MissingTags.label(), "Resource missing provenance tags");
+    }
+
+    #[test]
+    fn a_repository_the_token_cant_see_says_so_rather_than_a_wrong_url() {
+        // GitLab and GitHub answer 404, not 403, for a project the token has no access to.
+        let gl = unreadable(ForgeKind::Gitlab, "example-org/storefront-api", Some(404), "The provider answered: the API was not found at this URL (404 Project Not Found)");
+        assert!(gl.contains("example-org/storefront-api") && gl.contains("GitLab connection's token can't see") && gl.contains("Developer"), "{gl}");
+        let gh = unreadable(ForgeKind::Github, "example-org/storefront-api", Some(404), "The provider answered: the API was not found at this URL (Not Found)");
+        assert!(gh.contains("GitHub connection's token can't see") && gh.contains("Contents"), "{gh}");
+        // Other failures keep the provider's own words.
+        assert_eq!(unreadable(ForgeKind::Gitlab, "example-org/storefront-api", Some(401), "The provider answered: the credentials were refused"), "Can't read example-org/storefront-api: The provider answered: the credentials were refused");
+        assert_eq!(unreadable(ForgeKind::Gitlab, "example-org/storefront-api", None, "timed out"), "Can't read example-org/storefront-api: timed out");
     }
 }

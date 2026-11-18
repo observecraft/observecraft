@@ -26,7 +26,7 @@ use crate::assist::runs::{ChangedFile, CodeChange, Conclusion, Kind as RunKind, 
 use crate::auth::{AuthContext, Writer};
 use crate::error::{ApiError, ApiResult};
 use crate::routes::assist_runs::{self, insert_run, within_limits, Done, RunStep, RunSummary};
-use crate::routes::portal_sources::{send, HttpCall, PortalProvider};
+use crate::routes::portal_sources::{send, send_with_status, HttpCall, PortalProvider};
 use crate::state::AppState;
 
 /// Where Tagging Policies are set (Organization Settings).
@@ -237,7 +237,7 @@ async fn forge_for(st: &AppState, org: &str, repository: &str) -> Result<(Forge,
 /// Why the connection can't open a merge request (none: it can, or the forge didn't say).
 async fn write_blocked(st: &AppState, f: &Forge, path: &str) -> Result<Option<String>, ApiError> {
     let allow = st.config.portal_allow_private;
-    let repo = send(&f.repo_call(path), allow).await.map_err(|e| ApiError::BadRequest(format!("Can't read {path}: {e}")))?;
+    let repo = send_with_status(&f.repo_call(path), allow).await.map_err(|(status, e)| ApiError::BadRequest(model::unreadable(f.kind, path, status, &e)))?;
     let scopes = match f.kind {
         ForgeKind::Gitlab => send(&HttpCall::get(format!("{}/api/v4/personal_access_tokens/self", f.base), f.auth()), allow)
             .await
