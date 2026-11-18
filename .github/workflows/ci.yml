@@ -125,11 +125,21 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # The runner image's package lists usually do; refreshing them costs minutes when Ubuntu's mirror is slow.
+      # Ubuntu's mirror can take minutes for libclang alone: the downloaded packages are cached (refreshed weekly), and the
+      # package lists only refreshed when the runner image's are stale.
+      - id: week
+        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/apt-archives
+          key: apt-build-${{ runner.os }}-${{ runner.arch }}-${{ steps.week.outputs.week }}
       - name: Install build dependencies
         run: |
           packages=(pkg-config libclang-dev libxml2-dev libxmlsec1-dev)
-          sudo apt-get install -y --no-install-recommends "${packages[@]}" || { sudo apt-get update && sudo apt-get install -y --no-install-recommends "${packages[@]}"; }
+          install() { sudo apt-get install -y --no-install-recommends -o Dir::Cache::Archives="$HOME/apt-archives" "${packages[@]}"; }
+          mkdir -p ~/apt-archives/partial
+          install || { sudo apt-get update && install; }
+          sudo chown -R "$USER" ~/apt-archives
       - uses: dtolnay/rust-toolchain@ff7f6a3374ce205788da40198ec918bd5d67aea7 # 1.99.0
         with: { components: clippy }
       # Saved from main only, so pull requests (dependency bumps above all) don't add their targets to the cache every
@@ -149,13 +159,9 @@ jobs:
       - name: Fetch integration log samples
         run: make integration-log-samples
       # A runner that runs out of disk or memory dies without a log ("The hosted runner lost communication with the
-      # server"). Free the preinstalled toolchains the job doesn't use and record what is left before building.
-      - name: Free disk space
-        run: |
-          df -h / /mnt
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift
-          df -h / /mnt
-          free -h
+      # server"): what it had before building.
+      - name: Disk and memory
+        run: df -h / && free -h
       - run: cargo test --locked --workspace
         working-directory: server
         env:
@@ -172,8 +178,9 @@ jobs:
         run: |
           mkdir -p ../server-build
           cp target/debug/observecraft-server ../server-build/
-          cargo test --locked -p oc-api --bin observecraft-server --no-run --message-format=json \
-            | jq -r 'select(.reason == "compiler-artifact" and .executable != null and .profile.test) | .executable' \
+          # The workspace's build, as tested above (`-p oc-api` alone unifies features differently and recompiles).
+          cargo test --locked --workspace --no-run --message-format=json \
+            | jq -r 'select(.reason == "compiler-artifact" and .executable != null and .profile.test and .target.name == "observecraft-server" and (.target.kind | index("bin"))) | .executable' \
             | xargs -I{} cp {} ../server-build/observecraft-server-tests
           ls -la ../server-build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
