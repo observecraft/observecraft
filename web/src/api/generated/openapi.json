@@ -6791,7 +6791,7 @@
         "tags": [
           "dashboards"
         ],
-        "summary": "Dashboards matching a preset list, custom list, team and title/author text; starred first.",
+        "summary": "Dashboards matching a preset list, custom list, team and the search box's filters and text; starred first.",
         "operationId": "search_dashboards",
         "requestBody": {
           "content": {

@@ -2869,7 +2869,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Dashboards matching a preset list, custom list, team and title/author text; starred first. */
+        /** Dashboards matching a preset list, custom list, team and the search box's filters and text; starred first. */
         post: operations["search_dashboards"];
         delete?: never;
         options?: never;
