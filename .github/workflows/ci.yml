@@ -162,8 +162,15 @@ jobs:
       # server"): what it had before building.
       - name: Disk and memory
         run: df -h / && free -h
-      - run: cargo test --locked --workspace
+      # Some runs hang or lose their runner in here, and a job that runs into its own timeout loses its log. The step's
+      # timeout ends it with the runner alive, so the log keeps libtest's "has been running for over 60 seconds" lines;
+      # memory is printed every 30 s in case the runner is starved.
+      - name: cargo test --locked --workspace
+        run: |
+          (while sleep 30; do free -m | awk 'NR == 2 { print "memory: " $3 " MB used, " $7 " MB available" }'; done) &
+          cargo test --locked --workspace
         working-directory: server
+        timeout-minutes: 25
         env:
           OC_REQUIRE_LOG_SAMPLES: "1"
       - run: cargo clippy --locked --workspace --all-targets
