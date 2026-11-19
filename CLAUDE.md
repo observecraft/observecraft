@@ -78,7 +78,8 @@ or SDK features.
     the SDK's `proxy` option as `?ddforward=`), stored in `otel.otel_rum` (`datadog_rum.rs`); applications are
     `datadog_rum_application` (`datadog_api/rum.rs`, `routes/rum.rs`); Product Analytics reads the same events
     (`rum_analytics.rs`);
-  - Session Replay segments of the browser SDK `/api/v2/replay` (multipart, deflate), stored in `otel.otel_rum_replay`
+  - Session Replay segments of the browser SDK `/api/v2/replay` (multipart, deflate; through the SDK's `proxy` option
+    they arrive at `/api/v2/rum` with `ddforward=/api/v2/replay…`, `post_proxied`), stored in `otel.otel_rum_replay`
     (`datadog_replay.rs`); the player, playlists, watch history and heatmaps are `routes/rum_replay.rs`;
   - host metadata `/intake/` and `/api/v2/host_metadata`, stored in Postgres `datadog_hosts`;
   - SBOMs of hosts and container images `/api/v2/sbom` (agent-payload protobuf, `datadog_sbom.rs`), passed to the

@@ -306,6 +306,23 @@ fn now_ms() -> i64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 
+/// Whether a request came through the SDK's proxy option for Session Replay: `ddforward` holds the
+/// endpoint the SDK would have called, `/api/v2/replay?…`.
+pub fn forwarded_to_replay(query: &str) -> bool {
+    url::form_urlencoded::parse(query.as_bytes()).any(|(k, v)| k == "ddforward" && v.split('?').next() == Some("/api/v2/replay"))
+}
+
+/// `POST /api/v2/rum`, the URL the SDK's proxy option sends everything to: Session Replay segments go to
+/// [`crate::datadog_replay::post`], the rest are RUM events ([`post`]).
+pub async fn post_proxied(State(st): State<Shared>, req: axum::extract::Request) -> Response {
+    use axum::handler::Handler;
+    if forwarded_to_replay(req.uri().query().unwrap_or("")) {
+        crate::datadog_replay::post.call(req, st).await
+    } else {
+        post.call(req, st).await
+    }
+}
+
 /// `POST /api/v2/rum`: a batch of RUM events.
 pub async fn post(State(st): State<Shared>, RawQuery(query): RawQuery, headers: HeaderMap, body: Bytes) -> Response {
     let q = params(query.as_deref().unwrap_or(""));
@@ -379,6 +396,34 @@ mod tests {
         assert_eq!((app.org.ingest_mbps, app.org.ingest_rps), (Some(2.5), Some(40.0)));
         assert!(app.keep);
         assert!(token_app(&st, "pubunknown").await.expect("lookup").is_none());
+    }
+
+    #[test]
+    fn the_proxy_says_which_endpoint_a_request_is_for() {
+        assert!(forwarded_to_replay("ddforward=%2Fapi%2Fv2%2Freplay%3Fddsource%3Dbrowser%26dd-api-key%3Dpubxyz"));
+        assert!(!forwarded_to_replay("ddforward=%2Fapi%2Fv2%2Frum%3Fddsource%3Dbrowser"));
+        assert!(!forwarded_to_replay("ddsource=browser&dd-api-key=pubxyz"));
+        assert!(!forwarded_to_replay("ddforward=%2Fapi%2Fv2%2Freplayed"));
+    }
+
+    /// The SDK's proxy option sends Session Replay segments to the RUM URL too, with `/api/v2/replay` in
+    /// `ddforward`: they reach the replay handler (which reads the multipart body before the token)
+    /// instead of being read as RUM events, found empty and acknowledged.
+    #[tokio::test]
+    async fn replay_segments_through_the_proxy_reach_the_replay_handler() {
+        use tower::ServiceExt;
+        let app = axum::Router::new().route("/api/v2/rum", axum::routing::post(post_proxied)).with_state(crate::test_state(crate::Config::from_env()));
+        let call = |query: &'static str| {
+            let app = app.clone();
+            async move {
+                let req = axum::extract::Request::builder().method("POST").uri(format!("/api/v2/rum?{query}")).header(header::CONTENT_TYPE, "text/plain").body(axum::body::Body::from("x")).unwrap();
+                app.oneshot(req).await.unwrap().status()
+            }
+        };
+        let replay = call("ddforward=%2Fapi%2Fv2%2Freplay%3Fddsource%3Dbrowser").await;
+        let rum = call("ddforward=%2Fapi%2Fv2%2Frum%3Fddsource%3Dbrowser").await;
+        assert_eq!(replay, StatusCode::BAD_REQUEST, "the replay handler refuses a body that isn't multipart");
+        assert_ne!(rum, replay, "RUM events ask for the client token first");
     }
 
     #[test]
