@@ -21,7 +21,21 @@ fn files(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// Without `bundled-duckdb` the server links DuckDB's prebuilt shared library, which libduckdb-sys extracts with its
+/// headers (`DEP_DUCKDB_INCLUDE`). Cargo puts it on the loader path only for what it runs itself; the rpath lets the
+/// binaries start from anywhere too (tf-compat runs the CI build directly).
+fn duckdb_rpath() {
+    println!("cargo:rerun-if-env-changed=DEP_DUCKDB_INCLUDE");
+    if std::env::var_os("CARGO_FEATURE_BUNDLED_DUCKDB").is_some() {
+        return;
+    }
+    if let Ok(dir) = std::env::var("DEP_DUCKDB_INCLUDE") {
+        println!("cargo:rustc-link-arg=-Wl,-rpath,{dir}");
+    }
+}
+
 fn main() {
+    duckdb_rpath();
     let root = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("../../../integrations/connectors");
     println!("cargo:rerun-if-changed={}", root.display());
     let mut all = Vec::new();

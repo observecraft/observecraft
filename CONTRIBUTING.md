@@ -53,7 +53,9 @@ make tracegen  # synthetic traces, logs, metrics and CI pipelines (through the i
 make web       # UI on http://localhost:5173
 ```
 
-The first `cargo build` compiles DuckDB (used by Archive Search) from source; it takes a few minutes once.
+The first `cargo build` downloads DuckDB's prebuilt library (used by Archive Search and cloud bills) for the pinned
+version; `cargo run` and `cargo test` find it, and the binaries carry its path. The Docker image compiles DuckDB in
+statically instead (`--features oc-api/bundled-duckdb`, a few minutes the first time).
 
 On first start the server logs a one-time link to set the admin password. Open it, choose a password, and sign in.
 
@@ -229,8 +231,9 @@ fixtures against a disposable local API, Postgres, ClickHouse and Valkey. Keep i
 the Datadog API/authentication, shared storage/migrations, Rust dependency manifests, compatibility scripts
 or CI changes. Frontend-only changes do not need it. OpenTofu/provider downloads are cached separately
 from Rust compilation, and failed compatibility runs retain their Rust dependency cache.
-CI disables development/test debug symbols to reduce native DuckDB compilation, archive sizes and cache
-transfer costs; production images still use the release profile.
+CI disables development/test debug symbols to reduce archive sizes and cache transfer costs, and links DuckDB's
+prebuilt library rather than compiling its C++ (4.5 minutes and 5.6 GiB on a 4-core runner); production images still
+use the release profile and compile DuckDB in.
 Docker dependency layers (including DuckDB) are cached separately from application source with cargo-chef
 and Buildx's GitHub Actions cache. A release still rebuilds when necessary; previous-commit images are not
 reused just because a change appears to be version-only.
