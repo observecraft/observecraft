@@ -25,8 +25,8 @@ use crate::state::AppState;
 pub const PROVIDER: &str = "gitlab";
 /// The Kafka topic the collector reads OTLP JSON traces from (its CI routing sends them to `otel_ci_traces`).
 pub const TRACES_TOPIC: &str = "oc.otlp-json.traces";
-/// How often a project is polled.
-pub const INTERVAL_SECS: i64 = 60;
+/// How often a project is polled (each poll is at least three requests: the project, its pipelines, its deployments).
+pub const INTERVAL_SECS: i64 = 300;
 /// How far back the first sync of a project goes.
 pub const FIRST_SYNC_LOOKBACK_MS: i64 = 7 * 86_400_000;
 /// Each run lists again from a little before the cursor (pipelines updated in the same second).
@@ -529,5 +529,12 @@ mod tests {
         assert_eq!(found.len(), PER_PAGE + 1);
         assert!(found.contains(&(4211, "example-org/storefront-api".to_string())));
         assert!(api::visible_projects_path(since, 1).contains("archived=false"));
+    }
+
+    #[test]
+    fn projects_are_polled_every_five_minutes() {
+        // Every minute, 31 projects made ~93 requests a minute on a self-managed GitLab; pipelines a few
+        // minutes late cost little.
+        assert_eq!(INTERVAL_SECS, 300);
     }
 }
