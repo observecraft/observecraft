@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.27.1](https://github.com/observecraft/observecraft/compare/v0.27.0...v0.27.1) (2026-11-20)
+
+
+### Bug fixes
+
+* **intake:** Session Replay segments sent through the SDK's proxy option are stored ([a845159](https://github.com/observecraft/observecraft/commit/a845159e64d3171f0a4bfeff863a2213c6aa4220))
+* **remediation:** say the connection's token can't see a repository instead of a wrong URL ([0896d94](https://github.com/observecraft/observecraft/commit/0896d940ef2b5acd8a8f9cb6cdd550ffc46bbd1c))
+
+
+### Performance
+
+* **gitlab:** poll pipelines every 5 minutes and import vulnerabilities every 6 hours ([8d87554](https://github.com/observecraft/observecraft/commit/8d87554e4b7200eb4d8e0a85343dce245e3fbad0))
+
 ## [0.27.0](https://github.com/observecraft/observecraft/compare/v0.26.0...v0.27.0) (2026-11-18)
 
 
