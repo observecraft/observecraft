@@ -28,11 +28,12 @@ FROM chef AS build
 ARG CARGO_BUILD_JOBS=4
 COPY --from=planner /src/recipe.json recipe.json
 # Export this dependency layer with Buildx, including DuckDB's expensive native compilation.
-RUN cargo chef cook --release --locked --recipe-path recipe.json --bin observecraft-server --bin oc-intake --bin oc-tracegen
+# The image links DuckDB statically (compiled from source), one self-contained binary; builds elsewhere link it prebuilt.
+RUN cargo chef cook --release --locked --recipe-path recipe.json --features oc-api/bundled-duckdb --bin observecraft-server --bin oc-intake --bin oc-tracegen
 COPY server/ .
 # The bundled connector packages, compiled into the server (crates/oc-api/build.rs reads ../../../integrations).
 COPY integrations/ /integrations/
-RUN cargo build --locked --release --bin observecraft-server --bin oc-intake --bin oc-tracegen
+RUN cargo build --locked --release --features oc-api/bundled-duckdb --bin observecraft-server --bin oc-intake --bin oc-tracegen
 
 FROM debian:bookworm-slim
 # upgrade: security fixes released after the base image was built.

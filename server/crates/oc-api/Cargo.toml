@@ -48,8 +48,12 @@ data-encoding = "2"
 fancy-regex = "0.20"
 # AI Guard's evaluator and sensitive data scanners (linear-time matching on untrusted prompts).
 regex = "1"
-# Archive search over Parquet files (C++ engine compiled in; Parquet reader included).
-duckdb = { version = "=1.20000.1", features = ["bundled", "parquet", "json"] }
+# Archive search and cloud bills over Parquet and CSV files. By default linked against DuckDB's prebuilt shared
+# library for this version (libduckdb-sys downloads it; Parquet and JSON are built in), so CI and development builds
+# don't compile its C++ (4.5 minutes and 5.6 GiB on 4 cores). The image compiles it in statically: `bundled-duckdb`.
+duckdb = "=1.20000.1"
+# Direct, for its `links = "duckdb"` metadata: build.rs reads where the shared library is (DEP_DUCKDB_INCLUDE).
+libduckdb-sys = "=1.20000.1"
 # Profiles: gzip-compressed pprof uploads.
 flate2 = "1"
 # Gzip NDJSON objects decompressed as they stream in (CrowdStrike FDR).
@@ -110,3 +114,7 @@ webpki-roots = "1"
 x509-cert = { version = "0.3", default-features = false, features = ["std"] }
 # Shared cache values, zstd-compressed.
 zstd = "0.14"
+
+[features]
+# DuckDB compiled from source and linked statically (the Docker image: one self-contained binary).
+bundled-duckdb = ["duckdb/bundled", "duckdb/parquet", "duckdb/json"]
