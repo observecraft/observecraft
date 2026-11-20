@@ -31,7 +31,7 @@ use crate::state::AppState;
 
 pub const PROVIDER: &str = "gitlab-security";
 /// How often a project is imported again.
-pub const INTERVAL_SECS: i64 = 1800;
+pub const INTERVAL_SECS: i64 = 6 * 3600;
 /// Vulnerabilities per GraphQL page (small requests: the nodes carry descriptions).
 pub const PAGE_SIZE: usize = 50;
 /// Pages per project import: past them the import is partial and closes nothing.
@@ -801,5 +801,12 @@ mod tests {
 
         let n: i64 = sqlx::query_scalar("SELECT count(*) FROM cs_findings WHERE org_id = $1 AND source = 'gitlab'").bind(&other).fetch_one(&st.postgres).await.unwrap();
         assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn vulnerabilities_are_imported_every_six_hours() {
+        // Each import reads every vulnerability of the project through GraphQL (its completeness resolves
+        // what GitLab no longer lists), heavy on GitLab's database every 30 minutes.
+        assert_eq!(INTERVAL_SECS, 6 * 3600);
     }
 }

@@ -178,7 +178,7 @@ export function GitlabCiSetup() {
         </label>
         <p className="muted">
           The followed projects&apos; Vulnerability Reports (GitLab&apos;s SAST, Secret Detection and Dependency Scanning) appear in <Link to="/code-security">Code Security</Link>, with GitLab&apos;s
-          dismissals as mutes, every 30 minutes. The token&apos;s user needs at least the Developer role on the projects. Turning it off removes the imported results.
+          dismissals as mutes, every 6 hours. The token&apos;s user needs at least the Developer role on the projects. Turning it off removes the imported results.
         </p>
       </Step>
 
@@ -232,7 +232,7 @@ export function GitlabCiSetup() {
 
       <Step n={5} title="Wait for the first pipelines" open onToggle={() => {}} done={s.pipelinesImported > 0}>
         {!saved ? (
-          <p className="muted">Once the connection is saved, ObserveCraft reads the last 7 days of finished pipelines, then new ones every minute.</p>
+          <p className="muted">Once the connection is saved, ObserveCraft reads the last 7 days of finished pipelines, then new ones every 5 minutes.</p>
         ) : (
           <>
             <dl className="ci-sync">

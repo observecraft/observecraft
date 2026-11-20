@@ -68,7 +68,7 @@ or SDK features.
     `datadog-ci sbom upload` goes to the management API (`/api/v2/static-analysis-sca/dependencies`); IAST findings
     are read from the spans' `_dd.iast.json`; advisories come from OSV.dev (`OC_OSV_URL`); with the GitLab CI
     connection's `import_code_security`, GitLab's own scanners' results (Vulnerability Report over GraphQL: SAST,
-    KICS → IaC, Secret Detection, Dependency Scanning; not container scanning) are imported every 30 minutes
+    KICS → IaC, Secret Detection, Dependency Scanning; not container scanning) are imported every 6 hours
     (`gitlab/security.rs`, crawler provider `gitlab-security`, `cs_findings.source = 'gitlab'`,
     `cs_dependency_findings`), merged with uploads of the same finding, GitLab's dismissals as mutes;
   - events `/api/v1/events`, `/api/v2/events` and the events inside `/intake/`, stored in `otel.otel_events`; vendors'
