@@ -35,13 +35,29 @@ use utoipa::ToSchema;
 
 use super::monitor_engine::{parse_group_key, recipients};
 use super::notifications::{Notice, Outcome, Outgoing};
-use crate::auth::{access_from_roles, crypto, Access, Admin, AuthContext};
+use crate::auth::{crypto, Access, Admin, AuthContext};
 use crate::error::{ApiError, ApiResult};
 use crate::state::AppState;
 
-/// The bot scopes the app asks for: post (also to public channels it isn't in), list channels for the
-/// picker and resolve names, and read the email of whoever presses a mute button.
-pub const BOT_SCOPES: [&str; 6] = ["chat:write", "chat:write.public", "channels:read", "groups:read", "users:read", "users:read.email"];
+/// The bot scopes the app asks for: post (also to public channels it isn't in), list channels for the picker and
+/// resolve names, read the email of whoever acts from Slack, `/observecraft`, mentions and direct messages, incident
+/// channels, and link previews with their images (ADR-0010). Asked once, so later features need no reinstall.
+pub const BOT_SCOPES: [&str; 14] = [
+    "chat:write",
+    "chat:write.public",
+    "channels:read",
+    "groups:read",
+    "users:read",
+    "users:read.email",
+    "commands",
+    "app_mentions:read",
+    "im:history",
+    "im:write",
+    "channels:manage",
+    "links:read",
+    "links:write",
+    "files:write",
+];
 /// Mute durations of the buttons, in hours.
 const MUTE_HOURS: [i64; 3] = [1, 4, 24];
 
@@ -619,29 +635,77 @@ pub struct SlackOverview {
     pub redirect_url: String,
     /// Where Slack posts button presses (the app's Interactivity Request URL).
     pub interactivity_url: String,
-    /// A Slack app manifest for workspaces that connect with their own app's bot token.
+    /// Where Slack posts `/observecraft` (the slash command's Request URL).
+    pub commands_url: String,
+    /// Where Slack posts events (Event Subscriptions' Request URL).
+    pub events_url: String,
+    /// The Slack app's manifest: this install's app, or a workspace's own (connected with its bot token).
     pub app_manifest: String,
     pub scopes: Vec<String>,
     pub accounts: Vec<SlackAccount>,
 }
 
 fn redirect_url(st: &AppState) -> String {
-    format!("{}/api/v1/public/slack/oauth/callback", st.config.public_url)
+    format!("{}/api/v1/public/slack/oauth/callback", st.config.slack_public_url)
 }
 
 fn interactivity_url(st: &AppState) -> String {
-    format!("{}/api/v1/public/slack/interactive", st.config.public_url)
+    format!("{}/api/v1/public/slack/interactive", st.config.slack_public_url)
 }
 
-/// The manifest of a Slack app for this install (Slack: Create New App → From a manifest).
-pub fn app_manifest(interactivity: &str) -> String {
-    let scopes = BOT_SCOPES.iter().map(|s| format!("      - {s}")).collect::<Vec<_>>().join("\n");
-    format!(
-        "display_information:\n  name: ObserveCraft\n  description: Monitor alerts, On-Call pages and reports from ObserveCraft\n  background_color: \"#1f2937\"\n\
-features:\n  bot_user:\n    display_name: ObserveCraft\n    always_online: true\n\
-oauth_config:\n  scopes:\n    bot:\n{scopes}\n\
-settings:\n  interactivity:\n    is_enabled: true\n    request_url: {interactivity}\n  org_deploy_enabled: false\n  socket_mode_enabled: false\n  token_rotation_enabled: false\n"
-    )
+fn commands_url(st: &AppState) -> String {
+    format!("{}/api/v1/public/slack/commands", st.config.slack_public_url)
+}
+
+fn events_url(st: &AppState) -> String {
+    format!("{}/api/v1/public/slack/events", st.config.slack_public_url)
+}
+
+/// The manifest of this install's Slack app (Slack: Create New App → From a manifest): Slack calls `slack_base`
+/// (`OC_SLACK_PUBLIC_URL`); links to `ui_base` (`OC_PUBLIC_URL`) are previewed.
+pub fn app_manifest(slack_base: &str, ui_base: &str) -> String {
+    let ui_host = url::Url::parse(ui_base).ok().and_then(|u| u.host_str().map(str::to_string)).unwrap_or_default();
+    let api = format!("{slack_base}/api/v1/public/slack");
+    let mut lines = vec![
+        "display_information:".to_string(),
+        "  name: ObserveCraft".into(),
+        "  description: Alerts, On-Call, incidents and Assist from ObserveCraft".into(),
+        "  background_color: \"#0b5f5c\"".into(),
+        "features:".into(),
+        "  bot_user:".into(),
+        "    display_name: ObserveCraft".into(),
+        "    always_online: true".into(),
+        "  slash_commands:".into(),
+        "    - command: /observecraft".into(),
+        format!("      url: {api}/commands"),
+        "      description: On-Call, monitors, incidents and questions to Assist".into(),
+        "      usage_hint: help | org".into(),
+        "      should_escape: false".into(),
+        "  unfurl_domains:".into(),
+        format!("    - {ui_host}"),
+        "oauth_config:".into(),
+        "  redirect_urls:".into(),
+        format!("    - {api}/oauth/callback"),
+        "  scopes:".into(),
+        "    bot:".into(),
+    ];
+    lines.extend(BOT_SCOPES.iter().map(|s| format!("      - {s}")));
+    lines.extend([
+        "settings:".to_string(),
+        "  event_subscriptions:".into(),
+        format!("    request_url: {api}/events"),
+        "    bot_events:".into(),
+        "      - app_mention".into(),
+        "      - link_shared".into(),
+        "      - message.im".into(),
+        "  interactivity:".into(),
+        "    is_enabled: true".into(),
+        format!("    request_url: {api}/interactive"),
+        "  org_deploy_enabled: false".into(),
+        "  socket_mode_enabled: false".into(),
+        "  token_rotation_enabled: false".into(),
+    ]);
+    lines.join("\n") + "\n"
 }
 
 fn channel_view(account: &AccountRow, c: ChannelRow) -> SlackChannel {
@@ -677,7 +741,9 @@ pub async fn overview(State(st): State<AppState>, ctx: AuthContext) -> ApiResult
         oauth_available: st.config.slack_client_id.is_some() && st.config.slack_client_secret.is_some(),
         redirect_url: redirect_url(&st),
         interactivity_url: interactivity_url(&st),
-        app_manifest: app_manifest(&interactivity_url(&st)),
+        commands_url: commands_url(&st),
+        events_url: events_url(&st),
+        app_manifest: app_manifest(&st.config.slack_public_url, &st.config.public_url),
         scopes: BOT_SCOPES.iter().map(|s| s.to_string()).collect(),
         accounts: out,
     }))
@@ -954,75 +1020,110 @@ pub fn parse_mute(value: &str) -> Option<MuteRequest> {
     Some(MuteRequest { account_id, monitor_id, hours, group: parts.next().unwrap_or_default().to_string() })
 }
 
-/// Button presses on messages the bot posted (Mute 1h / 4h / 1d). Always answers 200 quickly, as
-/// Slack expects; the outcome goes back to the presser as an ephemeral message.
-#[utoipa::path(post, path = "/api/v1/public/slack/interactive", operation_id = "slack_interactive", request_body(content = String, content_type = "application/x-www-form-urlencoded"), responses((status = 200), (status = 401)), tag = "notifications")]
-pub async fn interactive(State(st): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
+/// The connected workspaces (of any organization) of `team` whose app signed this request: the workspace's own
+/// signing secret, or this install's for workspaces installed through "Add to Slack". None when the request is
+/// unsigned, signed by no such app, or older than five minutes (replays).
+pub async fn verified(st: &AppState, headers: &HeaderMap, body: &[u8], team: &str) -> Option<Vec<AccountRow>> {
+    let (timestamp, sent) = signature_headers(headers)?;
+    let candidates: Vec<AccountRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{ACCOUNT_SELECT} WHERE team_id = $1"))).bind(team).fetch_all(&st.postgres).await.ok()?;
+    let verified: Vec<AccountRow> = candidates.into_iter().filter(|a| secret_of(st, a).is_some_and(|s| signed_by(&s, &timestamp, body, &sent))).collect();
+    (!verified.is_empty()).then_some(verified)
+}
+
+/// Whether one of the Slack apps this install knows signed the request (for Slack's URL check, which names no team).
+pub async fn signed_by_known_app(st: &AppState, headers: &HeaderMap, body: &[u8]) -> bool {
+    let Some((timestamp, sent)) = signature_headers(headers) else { return false };
+    if st.config.slack_signing_secret.as_deref().is_some_and(|s| signed_by(s, &timestamp, body, &sent)) {
+        return true;
+    }
+    let own: Vec<(String,)> = sqlx::query_as("SELECT signing_secret_enc FROM slack_accounts WHERE signing_secret_enc IS NOT NULL").fetch_all(&st.postgres).await.unwrap_or_default();
+    own.iter().filter_map(|(enc,)| st.secrets.decrypt(enc).ok()).any(|s| signed_by(&s, &timestamp, body, &sent))
+}
+
+fn secret_of(st: &AppState, a: &AccountRow) -> Option<String> {
+    match &a.signing_secret_enc {
+        Some(s) => st.secrets.decrypt(s).ok(),
+        None if a.installed_via == "oauth" => st.config.slack_signing_secret.clone(),
+        None => None,
+    }
+}
+
+/// The request's timestamp and signature, when the timestamp is within five minutes.
+fn signature_headers(headers: &HeaderMap) -> Option<(String, String)> {
     let header = |n: &str| headers.get(n).and_then(|v| v.to_str().ok()).unwrap_or_default().to_string();
     let (timestamp, sent) = (header("x-slack-request-timestamp"), header("x-slack-signature"));
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
-    if timestamp.parse::<i64>().map(|t| (now - t).abs() > 300).unwrap_or(true) {
-        return StatusCode::UNAUTHORIZED.into_response();
+    timestamp.parse::<i64>().ok().filter(|t| (now - t).abs() <= 300).map(|_| (timestamp, sent))
+}
+
+/// Answers through a `response_url` Slack gave (only Slack's own hooks, never an address from the request).
+pub async fn respond(st: &AppState, response_url: &str, message: &Value) {
+    if !response_url.starts_with(&st.config.slack_hooks_url) {
+        return;
     }
+    if let Err(e) = client().post(response_url).json(message).send().await {
+        tracing::warn!(error = %e, "answering Slack failed");
+    }
+}
+
+/// Button presses on messages the bot posted (Mute 1h / 4h / 1d, the organization choice). Always answers 200
+/// quickly, as Slack expects; the outcome goes back to the presser as an ephemeral message.
+#[utoipa::path(post, path = "/api/v1/public/slack/interactive", operation_id = "slack_interactive", request_body(content = String, content_type = "application/x-www-form-urlencoded"), responses((status = 200), (status = 401)), tag = "notifications")]
+pub async fn interactive(State(st): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
     let Some(payload) = url::form_urlencoded::parse(&body).find(|(k, _)| k == "payload").and_then(|(_, v)| serde_json::from_str::<Value>(&v).ok()) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
     let team = payload["team"]["id"].as_str().or(payload["user"]["team_id"].as_str()).unwrap_or_default().to_string();
-    let candidates: Vec<AccountRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{ACCOUNT_SELECT} WHERE team_id = $1"))).bind(&team).fetch_all(&st.postgres).await.unwrap_or_default();
-    let verified: Vec<AccountRow> = candidates
-        .into_iter()
-        .filter(|a| {
-            let secret = match &a.signing_secret_enc {
-                Some(s) => st.secrets.decrypt(s).ok(),
-                None if a.installed_via == "oauth" => st.config.slack_signing_secret.clone(),
-                None => None,
-            };
-            secret.is_some_and(|s| signed_by(&s, &timestamp, &body, &sent))
-        })
-        .collect();
-    if verified.is_empty() {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
+    let Some(verified) = verified(&st, &headers, &body, &team).await else { return StatusCode::UNAUTHORIZED.into_response() };
     let action = &payload["actions"][0];
-    let Some(mute) = action["value"].as_str().and_then(parse_mute).filter(|_| action["action_id"].as_str().is_some_and(|a| a.starts_with("oc_mute_"))) else {
+    let action_id = action["action_id"].as_str().unwrap_or_default();
+    let value = action["value"].as_str().unwrap_or_default().to_string();
+    let slack_user = payload["user"]["id"].as_str().unwrap_or_default().to_string();
+    let response_url = payload["response_url"].as_str().unwrap_or_default().to_string();
+    if action_id.starts_with("oc_org") {
+        let Some(account) = verified.into_iter().find(|a| a.id == value) else { return StatusCode::UNAUTHORIZED.into_response() };
+        tokio::spawn(async move {
+            let text = match super::slack_app::choose_org(&st, &account, &slack_user).await {
+                Ok(t) | Err(t) => t,
+            };
+            respond(&st, &response_url, &json!({ "response_type": "ephemeral", "replace_original": true, "text": text })).await;
+        });
+        return StatusCode::OK.into_response();
+    }
+    let Some(mute) = parse_mute(&value).filter(|_| action_id.starts_with("oc_mute_")) else {
         // "View monitor" (a link) and anything else: nothing to do.
         return StatusCode::OK.into_response();
     };
     let Some(account) = verified.into_iter().find(|a| a.id == mute.account_id) else { return StatusCode::UNAUTHORIZED.into_response() };
-    let slack_user = payload["user"]["id"].as_str().unwrap_or_default().to_string();
-    let response_url = payload["response_url"].as_str().unwrap_or_default().to_string();
     tokio::spawn(async move {
         let text = match mute_from_slack(&st, &account, &slack_user, &mute).await {
             Ok(t) | Err(t) => t,
         };
-        if response_url.starts_with("https://hooks.slack.com/") {
-            let _ = client().post(&response_url).json(&json!({ "response_type": "ephemeral", "replace_original": false, "text": text })).send().await;
-        }
+        respond(&st, &response_url, &json!({ "response_type": "ephemeral", "replace_original": false, "text": text })).await;
     });
     StatusCode::OK.into_response()
 }
 
-/// Mutes the monitor (and group) as the organization member the Slack user is.
-async fn mute_from_slack(st: &AppState, account: &AccountRow, slack_user: &str, m: &MuteRequest) -> Result<String, String> {
+/// The email on a Slack user's profile, read with the workspace's bot token.
+pub async fn email_of(st: &AppState, account: &AccountRow, slack_user: &str) -> Result<String, String> {
     let token = st.secrets.decrypt(&account.bot_token_enc).map_err(|_| "The Slack token can't be decrypted".to_string())?;
     let info = call_form(st, Some(&token), "users.info", &[("user", slack_user)]).await.map_err(|e| format!("Couldn't identify you: {}", explain(&e.text(), "", "")))?;
     let email = info["user"]["profile"]["email"].as_str().unwrap_or_default().to_string();
     if email.is_empty() {
         return Err("Your Slack profile has no email ObserveCraft can read (users:read.email)".into());
     }
-    let member: Option<(String, String, Vec<String>)> = sqlx::query_as(
-        "SELECT u.id::text, u.name, COALESCE((SELECT array_agg(role_id) FROM user_roles WHERE user_id = u.id), '{}') \
-         FROM users u WHERE u.org_id = $1 AND lower(u.email) = lower($2) AND u.status = 'active'",
-    )
-    .bind(&account.org_id)
-    .bind(&email)
-    .fetch_optional(&st.postgres)
-    .await
-    .map_err(|e| e.to_string())?;
-    let Some((user_id, user_name, roles)) = member else { return Err(format!("{email} isn't a member of this ObserveCraft organization")) };
-    if access_from_roles(&account.org_id, &roles) < Access::Standard {
+    Ok(email)
+}
+
+/// Mutes the monitor (and group) as the organization member the Slack user is.
+async fn mute_from_slack(st: &AppState, account: &AccountRow, slack_user: &str, m: &MuteRequest) -> Result<String, String> {
+    let email = email_of(st, account, slack_user).await?;
+    let member = super::slack_app::member_in(st, &account.org_id, &email).await.map_err(|e| e.to_string())?;
+    let Some(member) = member else { return Err(format!("{email} isn't a member of this ObserveCraft organization")) };
+    if member.access < Access::Standard {
         return Err("Muting monitors needs the Standard or Admin role".into());
     }
+    let (user_id, user_name) = (member.user_id, member.name);
     let monitor: Option<(String,)> = sqlx::query_as("SELECT name FROM monitors WHERE org_id = $1 AND id = $2").bind(&account.org_id).bind(m.monitor_id).fetch_optional(&st.postgres).await.map_err(|e| e.to_string())?;
     let Some((monitor_name,)) = monitor else { return Err("That monitor no longer exists".into()) };
     let scope: Vec<String> = parse_group_key(&m.group).into_iter().map(|(k, v)| format!("{k}:{v}")).collect();
@@ -1144,11 +1245,24 @@ mod tests {
 
     #[test]
     fn the_manifest_asks_for_every_scope() {
-        let m = app_manifest("https://oc.example.com/api/v1/public/slack/interactive");
+        // Slack reaches the install at its Slack address; links people paste are the UI's.
+        let m = app_manifest("https://oc-public.example.com", "https://oc.example.com");
         for s in BOT_SCOPES {
             assert!(m.contains(&format!("      - {s}\n")), "{s}");
         }
-        assert!(m.contains("request_url: https://oc.example.com/api/v1/public/slack/interactive"));
+        for scope in ["commands", "app_mentions:read", "im:history", "im:write", "channels:manage", "links:read", "links:write", "files:write"] {
+            assert!(BOT_SCOPES.contains(&scope), "{scope}");
+        }
+        assert!(m.contains("    request_url: https://oc-public.example.com/api/v1/public/slack/interactive\n"));
+        assert!(m.contains("  slash_commands:\n    - command: /observecraft\n      url: https://oc-public.example.com/api/v1/public/slack/commands\n"));
+        assert!(m.contains("  event_subscriptions:\n    request_url: https://oc-public.example.com/api/v1/public/slack/events\n    bot_events:\n      - app_mention\n      - link_shared\n      - message.im\n"));
+        assert!(m.contains("  redirect_urls:\n    - https://oc-public.example.com/api/v1/public/slack/oauth/callback\n"));
+        assert!(m.contains("  unfurl_domains:\n    - oc.example.com\n"));
+        // Slack reads it as YAML.
+        let y: serde_yaml_ng::Value = serde_yaml_ng::from_str(&m).unwrap();
+        assert_eq!(y["features"]["slash_commands"][0]["command"].as_str(), Some("/observecraft"));
+        assert_eq!(y["settings"]["event_subscriptions"]["bot_events"].as_sequence().map(Vec::len), Some(3));
+        assert_eq!(y["oauth_config"]["scopes"]["bot"].as_sequence().map(Vec::len), Some(BOT_SCOPES.len()));
     }
 
     // ------------------------------------------------------------ against Postgres and a fake Slack

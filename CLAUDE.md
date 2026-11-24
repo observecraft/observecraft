@@ -304,7 +304,12 @@ or SDK features.
   the page). Channels are `datadog_integration_slack_channel` (`slack_channels`, Datadog's display options); monitors
   mention `@slack-<account>-<channel>` or `@slack-<channel>`, posted with `chat.postMessage` as a card; mute buttons
   (`/api/v1/public/slack/interactive`, signature-checked) create downtimes as the member with the Slack user's email.
-  Other `@slack-<name>` handles are the older incoming-webhook channels (`notification_channels`).
+  Other `@slack-<name>` handles are the older incoming-webhook channels (`notification_channels`). The app is
+  controlled from Slack (ADR-0010, `docs/slack.md`, `slack_app.rs`): one app per install, publicly distributed;
+  `/observecraft` (`/commands`) and Events API (`/events`, retries deduplicated in `slack_events`) are verified with a
+  connected app's signing secret, and the Slack user acts as the member with their profile's email (several
+  organizations: chosen once, `slack_user_orgs`); answers after the 200 go to `response_url` (`OC_SLACK_HOOKS_URL`
+  only). `OC_SLACK_PUBLIC_URL` (Helm `slack.publicUrl`) is where Slack reaches a private install.
 - **Self-monitoring** (`self_monitoring.rs`): one server (advisory lock) writes `observecraft.*` gauges every minute
   straight into `otel.metrics_ingest_gauge` (not through Kafka) of the operator's org (`OC_SELF_MONITORING_ORG`, else
   the first instance admin's): ClickHouse system tables, the log ingester's lag, Postgres, jobs, cost, hourly usage per

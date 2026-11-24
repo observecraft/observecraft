@@ -75,6 +75,16 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ $secret }}, key: smtp-url, optional: true } }
             {{- end }}
             - { name: OC_SMTP_FROM, value: {{ .Values.smtp.from | quote }} }
+            # The Slack app (ADR-0010): its credentials, when the secret has them, and where Slack reaches the server.
+            - name: OC_SLACK_CLIENT_ID
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: slack-client-id, optional: true } }
+            - name: OC_SLACK_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: slack-client-secret, optional: true } }
+            - name: OC_SLACK_SIGNING_SECRET
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: slack-signing-secret, optional: true } }
+            {{- with .Values.slack.publicUrl }}
+            - { name: OC_SLACK_PUBLIC_URL, value: {{ . | quote }} }
+            {{- end }}
             - { name: OC_SYNTHETICS_ALLOW_PRIVATE, value: {{ .Values.synthetics.allowPrivateTargets | quote }} }
             {{- if .Values.browser.enabled }}
             - { name: OC_BROWSER_URL, value: "http://{{ include "oc.fullname" . }}-browser:8095" }

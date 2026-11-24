@@ -20600,12 +20600,58 @@
         }
       }
     },
+    "/api/v1/public/slack/commands": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "`/observecraft …`",
+        "operationId": "slack_command",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {},
+          "401": {}
+        }
+      }
+    },
+    "/api/v1/public/slack/events": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Events API callbacks (and the URL check Slack makes when the app's events URL is saved).",
+        "operationId": "slack_events",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {},
+          "401": {}
+        }
+      }
+    },
     "/api/v1/public/slack/interactive": {
       "post": {
         "tags": [
           "notifications"
         ],
-        "summary": "Button presses on messages the bot posted (Mute 1h / 4h / 1d). Always answers 200 quickly, as\nSlack expects; the outcome goes back to the presser as an ephemeral message.",
+        "summary": "Button presses on messages the bot posted (Mute 1h / 4h / 1d, the organization choice). Always answers 200\nquickly, as Slack expects; the outcome goes back to the presser as an ephemeral message.",
         "operationId": "slack_interactive",
         "requestBody": {
           "content": {
@@ -73624,6 +73670,8 @@
           "oauthAvailable",
           "redirectUrl",
           "interactivityUrl",
+          "commandsUrl",
+          "eventsUrl",
           "appManifest",
           "scopes",
           "accounts"
@@ -73637,7 +73685,15 @@
           },
           "appManifest": {
             "type": "string",
-            "description": "A Slack app manifest for workspaces that connect with their own app's bot token."
+            "description": "The Slack app's manifest: this install's app, or a workspace's own (connected with its bot token)."
+          },
+          "commandsUrl": {
+            "type": "string",
+            "description": "Where Slack posts `/observecraft` (the slash command's Request URL)."
+          },
+          "eventsUrl": {
+            "type": "string",
+            "description": "Where Slack posts events (Event Subscriptions' Request URL)."
           },
           "interactivityUrl": {
             "type": "string",

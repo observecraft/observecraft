@@ -195,11 +195,19 @@ function AppSetup({ overview }: { overview: SlackOverview }) {
         <li>
           Invite the bot to private channels it should post to (<code>/invite @ObserveCraft</code>); public channels need nothing.
         </li>
+        <li>
+          Try <code>/observecraft help</code> in Slack. Members act as the ObserveCraft member with their Slack profile&apos;s email, with that member&apos;s role.
+        </li>
       </ol>
+      <p className="muted">
+        Slack must reach the URLs below from the internet. When this install&apos;s UI isn&apos;t public, publish only <code>/api/v1/public/slack</code> and set <code>OC_SLACK_PUBLIC_URL</code> (Helm:{' '}
+        <code>slack.publicUrl</code>) to that address before creating the app.
+      </p>
       <h4 className="aws-subhead">One app for every organization of this install</h4>
       <p className="muted">
-        Set <code>OC_SLACK_CLIENT_ID</code>, <code>OC_SLACK_CLIENT_SECRET</code> and <code>OC_SLACK_SIGNING_SECRET</code> from the app above (with public distribution enabled) and add this redirect
-        URL under OAuth &amp; Permissions: organizations then connect with <strong>Add to Slack</strong>.
+        Turn on <strong>Manage Distribution → Public Distribution</strong> in the app above and set <code>OC_SLACK_CLIENT_ID</code>, <code>OC_SLACK_CLIENT_SECRET</code> and{' '}
+        <code>OC_SLACK_SIGNING_SECRET</code> from it (Helm: the secret&apos;s <code>slack-client-id</code>, <code>slack-client-secret</code> and <code>slack-signing-secret</code>): organizations then
+        connect with <strong>Add to Slack</strong>, from any workspace.
       </p>
       <dl className="aws-facts">
         <dt>Redirect URL</dt>
@@ -209,6 +217,14 @@ function AppSetup({ overview }: { overview: SlackOverview }) {
         <dt>Interactivity URL</dt>
         <dd className="mono">
           {overview.interactivityUrl} <CopyButton text={overview.interactivityUrl} />
+        </dd>
+        <dt>Slash command URL</dt>
+        <dd className="mono">
+          {overview.commandsUrl} <CopyButton text={overview.commandsUrl} />
+        </dd>
+        <dt>Event Subscriptions URL</dt>
+        <dd className="mono">
+          {overview.eventsUrl} <CopyButton text={overview.eventsUrl} />
         </dd>
         <dt>Bot scopes</dt>
         <dd className="mono">{overview.scopes.join(', ')}</dd>

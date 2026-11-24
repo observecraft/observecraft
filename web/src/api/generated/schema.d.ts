@@ -8042,6 +8042,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/slack/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** `/observecraft …` */
+        post: operations["slack_command"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/slack/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Events API callbacks (and the URL check Slack makes when the app's events URL is saved). */
+        post: operations["slack_events"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/slack/interactive": {
         parameters: {
             query?: never;
@@ -8052,8 +8086,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Button presses on messages the bot posted (Mute 1h / 4h / 1d). Always answers 200 quickly, as
-         *     Slack expects; the outcome goes back to the presser as an ephemeral message.
+         * Button presses on messages the bot posted (Mute 1h / 4h / 1d, the organization choice). Always answers 200
+         *     quickly, as Slack expects; the outcome goes back to the presser as an ephemeral message.
          */
         post: operations["slack_interactive"];
         delete?: never;
@@ -24011,8 +24045,12 @@ export interface components {
         };
         SlackOverview: {
             accounts: components["schemas"]["SlackAccount"][];
-            /** @description A Slack app manifest for workspaces that connect with their own app's bot token. */
+            /** @description The Slack app's manifest: this install's app, or a workspace's own (connected with its bot token). */
             appManifest: string;
+            /** @description Where Slack posts `/observecraft` (the slash command's Request URL). */
+            commandsUrl: string;
+            /** @description Where Slack posts events (Event Subscriptions' Request URL). */
+            eventsUrl: string;
             /** @description Where Slack posts button presses (the app's Interactivity Request URL). */
             interactivityUrl: string;
             /** @description "Add to Slack" is available (this install has a Slack app). */
@@ -43444,6 +43482,60 @@ export interface operations {
                 content?: never;
             };
             410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    slack_command: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": string;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    slack_events: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

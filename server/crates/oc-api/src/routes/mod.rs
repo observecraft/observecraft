@@ -86,6 +86,7 @@ pub mod notebooks;
 pub mod notifications;
 pub mod on_call;
 pub mod slack;
+pub mod slack_app;
 pub mod on_call_escalation;
 pub mod on_call_links;
 pub mod on_call_schedule;
@@ -714,6 +715,8 @@ use crate::state::AppState;
         slack::test_channel,
         slack::oauth_start,
         slack::oauth_callback,
+        slack_app::commands,
+        slack_app::events,
         slack::interactive,
         datadog_api::slack_integration::list,
         datadog_api::slack_integration::create,
@@ -1989,6 +1992,8 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/integrations/slack/oauth", post(slack::oauth_start))
         .route("/api/v1/public/slack/oauth/callback", get(slack::oauth_callback))
         .route("/api/v1/public/slack/interactive", post(slack::interactive))
+        .route("/api/v1/public/slack/commands", post(slack_app::commands))
+        .route("/api/v1/public/slack/events", post(slack_app::events))
         // Signed single-use links of On-Call emails (no sign-in; the token names org, page and responder).
         .route("/api/v1/public/on-call/actions", get(on_call_links::confirm).post(on_call_links::act))
         .route(
@@ -2617,6 +2622,7 @@ mod tests {
             ("ci.rs", include_str!("ci.rs")),
             ("gitlab_ci.rs", include_str!("gitlab_ci.rs")),
             ("slack.rs", include_str!("slack.rs")),
+            ("slack_app.rs", include_str!("slack_app.rs")),
             ("datadog_api/slack_integration.rs", include_str!("datadog_api/slack_integration.rs")),
             ("deployment_gates.rs", include_str!("deployment_gates.rs")),
             ("pr_gates.rs", include_str!("pr_gates.rs")),

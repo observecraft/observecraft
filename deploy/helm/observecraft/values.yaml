@@ -41,7 +41,8 @@ secrets:
   # secret-key (encrypts stored secrets: TOTP seeds, SSO and archive credentials; never change it
   # once set), internal-token, clickhouse-password, clickhouse-ingest-password, postgres-password
   # (bundled Postgres), postgres-url (external), cache-url (external cache), smtp-url, scanner-token
-  # (with scanner.enabled), browser-token. The bundled Valkey's password is
+  # (with scanner.enabled), browser-token, and optionally slack-client-id, slack-client-secret and
+  # slack-signing-secret (the Slack app). The bundled Valkey's password is
   # configured in cache.auth (rendering fails until it is).
   existingSecret: ""
   secretKey: ""
@@ -80,6 +81,12 @@ query:
 smtp:
   url: ""
   from: "ObserveCraft <alerts@observecraft.local>"
+
+slack:
+  # -- Where Slack reaches the server (the Slack app's commands, buttons, events and OAuth callback), when
+  # publicUrl isn't reachable from the internet and only its /api/v1/public/slack path is published elsewhere.
+  # The app's credentials are the secret's optional slack-client-id, slack-client-secret and slack-signing-secret.
+  publicUrl: ""
 
 synthetics:
   # -- Let synthetic tests reach loopback, private (RFC 1918), link-local (incl. cloud metadata) and

@@ -237,3 +237,18 @@ test('observecraft-agent: host metrics include the disks and the filesystems’ 
   assert.match(r.stdout, /^\s+disk:\n\s+exclude:\n\s+devices:/m);
   assert.match(r.stdout, /system\.filesystem\.utilization:\n\s+enabled: true/);
 });
+
+test('slack: the Slack app’s credentials come from the secret (optional keys), slack.publicUrl sets where Slack calls', { skip: !hasHelm }, () => {
+  const r = render();
+  assert.ok(r.ok, r.err);
+  for (const [env, key] of [
+    ['OC_SLACK_CLIENT_ID', 'slack-client-id'],
+    ['OC_SLACK_CLIENT_SECRET', 'slack-client-secret'],
+    ['OC_SLACK_SIGNING_SECRET', 'slack-signing-secret'],
+  ])
+    assert.match(server(r.out), new RegExp(`name: ${env}\\n\\s+valueFrom: \\{ secretKeyRef: \\{ name: oc-observecraft-secrets, key: ${key}, optional: true \\} \\}`));
+  assert.doesNotMatch(server(r.out), /OC_SLACK_PUBLIC_URL/);
+  const pub = render(['slack.publicUrl=https://oc-public.example.com']);
+  assert.ok(pub.ok, pub.err);
+  assert.match(server(pub.out), /name: OC_SLACK_PUBLIC_URL, value: "https:\/\/oc-public.example.com"/);
+});
