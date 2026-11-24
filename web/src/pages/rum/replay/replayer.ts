@@ -2,6 +2,8 @@
 // changes) inside a sandboxed iframe that runs no scripts. Event handlers, `javascript:` URLs and
 // script elements of the recording are dropped; the node ids of the recording map to the rebuilt nodes.
 
+import { fromChangeFormat } from './changeFormat';
+
 type Rec = { type: number; timestamp: number; data?: Record<string, unknown> };
 interface SNode {
   type: number;
@@ -31,10 +33,14 @@ export interface ReplayerCallbacks {
   onClick?: (c: Cursor) => void;
 }
 
-/** The records of a recording, oldest first. */
+/** The records of a recording, oldest first, with those of the SDK's change format read into the older one. */
 export function flatten(segments: { records: unknown[] }[]): Rec[] {
-  return segments.flatMap((s) => s.records as Rec[]).sort((a, b) => a.timestamp - b.timestamp);
+  return fromChangeFormat(segments.flatMap((s) => s.records as Rec[]).sort((a, b) => a.timestamp - b.timestamp)) as Rec[];
 }
+
+// The rebuilt nodes belong to the iframe's document, whose classes aren't this window's: `instanceof Element` is false.
+const isElement = (n: Node | undefined): n is Element => n?.nodeType === 1;
+const isField = (n: Node | undefined): n is HTMLInputElement => isElement(n) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(n.tagName);
 
 /** Whether an attribute of the recording may be set on the rebuilt page. */
 function safeAttribute(name: string, value: string): boolean {
@@ -126,7 +132,8 @@ export class Replayer {
         const tag = (n.tagName ?? 'div').toLowerCase();
         if (BLOCKED_TAGS.has(tag)) return null;
         const isSvg = svg || !!n.isSVG || tag === 'svg';
-        const el = isSvg ? doc.createElementNS(SVG_NS, tag) : doc.createElement(tag === 'link' ? 'style' : tag);
+        // SVG names are case-sensitive (linearGradient, clipPath).
+        const el = isSvg ? doc.createElementNS(SVG_NS, n.tagName ?? tag) : doc.createElement(tag === 'link' ? 'style' : tag);
         for (const [k, raw] of Object.entries(n.attributes ?? {})) {
           const v = String(raw);
           // The SDK inlines stylesheets as `_cssText`; linked stylesheets aren't fetched.
@@ -180,7 +187,7 @@ export class Replayer {
         const target = this.nodes.get(Number(d.id));
         const doc = this.doc();
         if (target === doc || target === doc?.documentElement || target === doc?.body) doc?.defaultView?.scrollTo(Number(d.x), Number(d.y));
-        else if (target instanceof Element) target.scrollTo(Number(d.x), Number(d.y));
+        else if (isElement(target)) target.scrollTo(Number(d.x), Number(d.y));
         break;
       }
       case Source.ViewportResize:
@@ -188,9 +195,9 @@ export class Replayer {
         break;
       case Source.Input: {
         const el = this.nodes.get(Number(d.id));
-        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+        if (isField(el)) {
           if (typeof d.text === 'string') el.value = d.text;
-          if (typeof d.isChecked === 'boolean' && el instanceof HTMLInputElement) el.checked = d.isChecked;
+          if (typeof d.isChecked === 'boolean' && el.tagName === 'INPUT') el.checked = d.isChecked;
         }
         break;
       }
@@ -206,7 +213,7 @@ export class Replayer {
     for (const a of (d.adds as { parentId: number; nextId: number | null; node: SNode }[]) ?? []) {
       const parent = this.nodes.get(a.parentId);
       if (!parent) continue;
-      const svg = parent instanceof SVGElement;
+      const svg = isElement(parent) && parent.namespaceURI === SVG_NS;
       const node = this.build(a.node, svg);
       if (!node) continue;
       const next = a.nextId != null ? this.nodes.get(a.nextId) : null;
@@ -218,7 +225,7 @@ export class Replayer {
     }
     for (const a of (d.attributes as { id: number; attributes: Record<string, string | null> }[]) ?? []) {
       const el = this.nodes.get(a.id);
-      if (!(el instanceof Element)) continue;
+      if (!isElement(el)) continue;
       for (const [k, v] of Object.entries(a.attributes)) {
         if (v == null) el.removeAttribute(k);
         else if (k === '_cssText') el.textContent = v;

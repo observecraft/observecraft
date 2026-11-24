@@ -44,8 +44,8 @@ const pageOf = (view: string) =>
   );
 const ctaTop = (fields: number) => 64 + (fields ? 170 + fields * 56 + 10 : 170);
 
-/** Meta, Focus and FullSnapshot records of a page, and the ids of its button, cart counter and inputs. */
-function openView(page: number, href: string, at: number, cart: number): { records: Rec[]; cta: number; cartText: number; inputs: number[]; body: number } {
+/** Meta, Focus and FullSnapshot records of a page, the ids of its button, cart counter and inputs, and the size of its string table. */
+function openView(page: number, href: string, at: number, cart: number, changeFormat = false): { records: Rec[]; cta: number; cartText: number; inputs: number[]; body: number; strings: number } {
   const [, title, lead, ctaLabel, cards, fields] = PAGES[page];
   let next = 0;
   const id = () => ++next;
@@ -83,17 +83,67 @@ function openView(page: number, href: string, at: number, cart: number): { recor
   const body = el('body', {}, [header, el('main', {}, main), el('footer', {}, [text('© Example Shop · shop.example.com')])]);
   const html = el('html', { lang: 'en' }, [head, body]);
   const doc = { type: 0, id: 0, childNodes: [{ type: 1, id: id(), name: 'html', publicId: '', systemId: '' }, html] };
-  return {
+  const opened = {
     records: [
       { type: 4, timestamp: at, data: { href, width: WIDTH, height: HEIGHT } },
       { type: 6, timestamp: at, data: { has_focus: true } },
       { type: 2, timestamp: at + 1, data: { node: doc, initialOffset: { top: 0, left: 0 } } },
-    ],
+    ] as Rec[],
     cta: cta.id as number,
     cartText: cartText.id as number,
     inputs,
     body: body.id as number,
+    strings: 0,
   };
+  if (!changeFormat) return opened;
+  const { record, ids, strings } = inChangeFormat(doc, at + 1);
+  const to = (old: number) => ids.get(old)!;
+  return { ...opened, records: [...opened.records.slice(0, 2), record], cta: to(opened.cta), cartText: to(opened.cartText), inputs: inputs.map(to), body: to(opened.body), strings };
+}
+
+/**
+ * A full snapshot in the change format recent browser SDKs record (`format: 1`: a string table, then the nodes in
+ * document order with ids implied by that order), the ids it gives the snapshot's nodes and the size of its string table.
+ */
+function inChangeFormat(doc: Rec, timestamp: number): { record: Rec; ids: Map<number, number>; strings: number } {
+  const strings = new Map<string, number>();
+  const ref = (s: string) => strings.get(s) ?? (strings.set(s, strings.size), strings.size - 1);
+  const ids = new Map<number, number>();
+  const adds: unknown[] = [];
+  const sheets: string[] = [];
+  const attached: number[][] = [];
+  const walk = (n: Rec, parent: number | null, previous: number | null) => {
+    const id = ids.size;
+    ids.set(n.id as number, id);
+    // After the previous sibling when it was the node just added, else at the end of the parent.
+    const at = parent === null ? null : previous === id - 1 ? 0 : id - parent;
+    const attrs = (n.attributes ?? {}) as Record<string, string>;
+    if (n.type === 0) adds.push([at, ref('#document')]);
+    else if (n.type === 1) adds.push([at, ref('#doctype'), ref(String(n.name)), ref(''), ref('')]);
+    else if (n.type === 3) adds.push([at, ref('#text'), ref(String(n.textContent))]);
+    else {
+      adds.push([
+        at,
+        ref(String(n.tagName).toUpperCase()),
+        ...Object.entries(attrs)
+          .filter(([k]) => k !== '_cssText')
+          .map(([k, v]) => [ref(k), ref(v)]),
+      ]);
+      if (attrs._cssText !== undefined) attached.push([id, sheets.push(attrs._cssText) - 1]);
+    }
+    let last: number | null = null;
+    for (const c of (n.childNodes ?? []) as Rec[]) {
+      walk(c, id, last);
+      last = ids.get(c.id as number)!;
+    }
+  };
+  walk(doc, null, null);
+  const data = [
+    [1, ...adds],
+    [7, ...sheets.map((css) => [ref(css)])],
+    [8, ...attached],
+  ];
+  return { record: { type: 2, format: 1, timestamp, data: [[11, [0, ...strings.keys()]], ...data] }, ids, strings: strings.size };
 }
 
 function hash(s: string): number {
@@ -108,11 +158,13 @@ function recording(id: string, startedAt: number) {
   const views = evs.filter((e) => e.type === 'view');
   let cart = 0;
   let rand = hash(id);
+  // Half the sessions are recorded in the change format of recent SDKs, so the player shows both.
+  const changeFormat = rand % 2 === 1;
   const r = () => (rand = Math.imul(rand ^ (rand >>> 15), 2246822507) >>> 0) / 4294967296;
   return views.map((v, i) => {
     const end = views[i + 1]?.t ?? v.t + Number(v.attrs['view.time_spent'] ?? 20e9) / 1e6;
     const page = pageOf(v.attrs['view.name']);
-    const opened = openView(page, v.attrs['view.url'] ?? 'https://shop.example.com/', v.t, cart);
+    const opened = openView(page, v.attrs['view.url'] ?? 'https://shop.example.com/', v.t, cart, changeFormat);
     const records: Rec[] = [...opened.records];
     let mouse = [640, 400];
     const clicks = evs.filter((e) => e.type === 'action' && e.attrs['view.id'] === v.attrs['view.id']).map((e) => e.t);
@@ -137,7 +189,18 @@ function recording(id: string, startedAt: number) {
           records.push({ type: 3, timestamp: t + 200 + dt, data: { source: 2, type: kind, id: opened.cta, x: Math.round(target[0]), y: Math.round(target[1]) } });
         if (page === 2) {
           cart++;
-          records.push({ type: 3, timestamp: t + 400, data: { source: 0, adds: [], removes: [], attributes: [], texts: [{ id: opened.cartText, value: String(cart) }] } });
+          records.push(
+            changeFormat
+              ? {
+                  type: 12,
+                  timestamp: t + 400,
+                  data: [
+                    [11, [4, String(cart)]],
+                    [4, [opened.cartText, opened.strings++]],
+                  ],
+                }
+              : { type: 3, timestamp: t + 400, data: { source: 0, adds: [], removes: [], attributes: [], texts: [{ id: opened.cartText, value: String(cart) }] } },
+          );
         }
       }
     }

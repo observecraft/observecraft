@@ -80,7 +80,9 @@ or SDK features.
     (`rum_analytics.rs`);
   - Session Replay segments of the browser SDK `/api/v2/replay` (multipart, deflate; through the SDK's `proxy` option
     they arrive at `/api/v2/rum` with `ddforward=/api/v2/replay…`, `post_proxied`), stored in `otel.otel_rum_replay`
-    (`datadog_replay.rs`); the player, playlists, watch history and heatmaps are `routes/rum_replay.rs`;
+    (`datadog_replay.rs`); the player, playlists, watch history and heatmaps are `routes/rum_replay.rs`; recent SDKs
+    record in the compact change format (full snapshots with `format: 1`, records of type 12), which the player reads
+    into the older one (`web/src/pages/rum/replay/changeFormat.ts`);
   - host metadata `/intake/` and `/api/v2/host_metadata`, stored in Postgres `datadog_hosts`;
   - SBOMs of hosts and container images `/api/v2/sbom` (agent-payload protobuf, `datadog_sbom.rs`), passed to the
     server and stored in Postgres `csm_sbom_entities` / `csm_packages` (Cloud Security, `cloud_security.rs`);
