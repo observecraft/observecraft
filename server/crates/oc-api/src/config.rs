@@ -43,6 +43,12 @@ pub struct Config {
     pub slack_signing_secret: Option<String>,
     /// `OC_SLACK_API_URL` (default `https://slack.com/api`): Slack's Web API (tests point it elsewhere).
     pub slack_api_url: String,
+    /// `OC_SLACK_PUBLIC_URL` (default `OC_PUBLIC_URL`): where Slack reaches this install (commands, buttons, events,
+    /// OAuth), when the UI isn't reachable from the internet and only `/api/v1/public/slack` is published.
+    pub slack_public_url: String,
+    /// `OC_SLACK_HOOKS_URL` (default `https://hooks.slack.com/`): the only place a Slack `response_url` may point to
+    /// (tests point it elsewhere).
+    pub slack_hooks_url: String,
     /// `OC_CLOUD_CRAWLERS` (default `aws,azure,gcp`): the cloud integrations whose metrics this server
     /// crawls (they publish to Kafka, so they need it) and whose bills it imports (Cloud Cost
     /// Management's `cost_bill_configs`); empty turns them off.
@@ -220,6 +226,8 @@ impl Config {
             slack_client_secret: env::var("OC_SLACK_CLIENT_SECRET").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
             slack_signing_secret: env::var("OC_SLACK_SIGNING_SECRET").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
             slack_api_url: var("OC_SLACK_API_URL", "https://slack.com/api").trim_end_matches('/').to_string(),
+            slack_public_url: env::var("OC_SLACK_PUBLIC_URL").ok().map(|s| s.trim().trim_end_matches('/').to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| var("OC_PUBLIC_URL", "http://localhost:5173").trim_end_matches('/').to_string()),
+            slack_hooks_url: var("OC_SLACK_HOOKS_URL", "https://hooks.slack.com/"),
             gcp_principal_email: env::var("OC_GCP_PRINCIPAL_EMAIL").ok().map(|s| s.trim().to_string()).filter(|s| s.contains('@')),
             cloud_crawlers: var("OC_CLOUD_CRAWLERS", "aws,azure,gcp").split(',').map(|c| c.trim().to_ascii_lowercase()).filter(|c| !c.is_empty()).collect(),
             cloud_crawl_interval_secs: var("OC_CLOUD_CRAWL_INTERVAL_SECS", "600").parse().unwrap_or(600).max(60),

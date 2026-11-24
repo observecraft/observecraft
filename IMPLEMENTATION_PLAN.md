@@ -1,64 +1,77 @@
-# Implementation plan: browser tests and AI Testing (AI test generation)
+# Implementation plan: the ObserveCraft Slack app (control from Slack)
 
-Synthetic Monitoring has API tests (HTTP, SSL, DNS, TCP) only. Datadog's Bits Testing explores a site from a starting
-URL, maps its user journeys and generates browser tests (plus API and network tests) grouped into suites to review.
-Browser tests come first; the agent then explores with the same browser and proposes tests in that model. Ours is
-called AI Testing: Bits is Datadog's brand, which ObserveCraft doesn't use.
+Today the Slack integration posts monitor alerts and On-Call pages, and its only action is Mute (1h / 4h / 1d) on
+an alert. The goal is a Slack app teams work from: On-Call, incidents and monitors controlled from Slack, and
+questions to Assist answered in Slack, as Datadog's Slack app does for its products (functional reference only;
+our own names, messages and layout).
 
 Decisions:
-- `oc-browser` (TypeScript + Playwright, Apache-2.0) is its own container: it runs steps (screenshot, URL, error
-  and duration per step, a Playwright trace on failure) and serves agent sessions (accessibility snapshot with
-  refs, actions on refs that come back with a stable locator, network log, saved `storageState`). Stateless: no
-  database, no tenancy; the server calls it over internal HTTP with a shared token (`OC_BROWSER_URL`,
-  `OC_BROWSER_TOKEN`).
-- The Rust server keeps the platform: the step model and its validation (`browser/steps.rs`, the API contract),
-  scheduling, monitors, results, screenshots, metrics, credentials, TOTP, and the agent (Assist's loop).
-- SSRF: every request the browser makes is resolved and refused when internal (same rules as `synthetics_net`,
-  `OC_SYNTHETICS_ALLOW_PRIVATE`), before and after DNS; the container has no other egress.
-- Steps follow Datadog's browser step model (step types, `params.element.userLocator`, `allowFailure`,
-  `isCritical`, `timeout`).
-- Login and SSO are a real browser following redirects; the agent signs in with an agent profile's credentials
-  (secure variables, TOTP); sessions are reused with `storageState`. No SSO-specific code.
-- Later (not in this plan): pentesting on the same `oc-browser` API (snapshot, act, network log, replay), with
-  Strix (Apache-2.0) or Nuclei (MIT) plus our agent; never ZAP; domain ownership verified first.
+- **One app per install, publicly distributed.** Slack sends every command, button and event of an app to one URL,
+  and every ObserveCraft install has its own, so each operator creates the app from the manifest the install
+  generates, turns on Slack's Public Distribution, and sets `OC_SLACK_CLIENT_ID` / `_CLIENT_SECRET` /
+  `_SIGNING_SECRET`; any workspace then installs it with "Add to Slack" (OAuth). No Marketplace listing and no
+  central relay (a hosted service the project would run); a listing can come later on top. Manual installs with a
+  workspace's own app (bot token + signing secret) keep working with the same features.
+- **Who acts is the Slack user's ObserveCraft membership.** The Slack profile's email (`users:read.email`) is matched
+  to an active member of the workspace's organization, as Mute does today; actions run with that member's role
+  (writes need Standard or Admin) and are audited as them. A workspace connected to several organizations asks the
+  user once which one, remembered per Slack user. Nobody is identified from request input.
+- **Slack's 3-second rule.** Commands, buttons and events are verified (signature, 5-minute timestamp window),
+  acknowledged at once and handled in the background; answers go through `response_url`, `chat.postMessage` or
+  `chat.update`. Event retries are deduplicated by `event_id`.
+- **Messages are updated in place.** The messages the bot posts for pages, alerts and incidents are recorded
+  (Postgres, per channel and `ts`), so a status change edits the card instead of posting a new one; details go in
+  its thread.
+- **One command:** `/observecraft <action>` (`help`, `oncall`, `monitors`, `incident`, `ask`), plus mentions of the
+  bot, buttons, modals and a message shortcut. Our own names; nothing named after Datadog's products.
+- **Reuse, not parallel models.** Slack calls the same code as the UI's handlers (incidents, On-Call pages,
+  downtimes, Assist runs with their read-only tools); channels stay `datadog_integration_slack_channel`.
+- **Scopes grow with the stages.** The page already lists missing scopes of OAuth installs and asks for a reinstall;
+  manual installs update their app from the new manifest.
 
-## Stage 1: oc-browser runs steps
-Goal: the server validates steps (`browser/steps.rs`); `oc-browser` (`browser/` at the repo root) runs them in a
-fresh context (go to URL, click, type, select, hover, press key, scroll, refresh, wait, assertions on
-page/element/URL/JavaScript, extract variable), retrying assertions until their timeout, refusing internal
-addresses, with a screenshot, URL, duration, error and failure code per step.
-Success Criteria: Rust validation tests; oc-browser tests against local pages in a real Chromium (each step type,
-allowFailure/isCritical, variables, timeouts, blocked private addresses, the token).
-Status: Complete (Rust: 4 validation tests; oc-browser: 25 tests, 8 in a real Chromium; per-run proxy per
-context; the Playwright trace on failure moved to Stage 2 with result storage)
+## Stage 1: The app's foundation
+Goal: ADR-0010 and `docs/slack.md` (create, distribute and install the app); the manifest gains the slash command,
+event subscriptions, the OAuth redirect URL and the new scopes; shared request verification and member resolution
+(out of the Mute handler); `POST /api/v1/public/slack/commands` (`help`, and the organization choice when a
+workspace has several) and `POST /api/v1/public/slack/events` (URL verification, deduplication); the Helm chart
+takes the three `OC_SLACK_*` values from its secret; the Slack page shows the distribution setup.
+Success Criteria: route tests with signed and unsigned requests (stale timestamps, wrong secret, unknown team,
+retries), member resolution (non-member, viewer, several organizations), the manifest's content; `make test`; the
+page live and mock.
+Status: Complete (`slack_app.rs`: `/observecraft help|org`, events with URL check and `event_id` deduplication,
+members by email with the organization choice in `slack_user_orgs`; 6 new route tests and the manifest parsed as YAML;
+`OC_SLACK_PUBLIC_URL` / `OC_SLACK_HOOKS_URL`; Helm `slack.publicUrl` and the secret's `slack-*` keys; the page lists
+every URL Slack needs)
 
-## Stage 2: Browser tests in Synthetic Monitoring
-Goal: `browser` test type with steps, scheduled and run like API tests (retries, monitor state, metrics
-`synthetics.browser.*`, results with step details; screenshots kept 30 days); Chromium in Compose and Helm;
-New Test → Browser Test editor, test page and result detail with step screenshots; mocks.
-Success Criteria: route tests (create, validate, run, record); `make test`; the editor and a run seen in the
-browser, live and mock.
-Status: Complete (video of failed and manual runs; screenshots and videos in ClickHouse; the Helm chart's
-`browser.enabled` stays off until the release workflow publishes the oc-browser image; no Playwright trace yet)
+## Stage 2: On-Call from Slack
+Goal: pages are posted as cards with Acknowledge, Resolve and Reassign (a modal to pick the responder); the card is
+updated in place as the page changes, wherever it changed (Slack, UI, email links); `/observecraft oncall [team]`
+shows who is on call now and next.
+Success Criteria: tests for the card per page state, each action through the On-Call handlers (roles, a page
+already resolved), the in-place update and the command; a page acknowledged from Slack in a real workspace.
+Status: Not Started
 
-## Stage 3: AI Testing agent
-Goal: a `testing` run explores from a starting URL (optionally restricted to its domain, optionally as an agent
-profile with saved credentials) with browser tools (open, read the page's interactive elements, click, type, back),
-compares journeys with existing tests and proposes suites (browser tests, plus HTTP/SSL tests of the hosts it
-met); also "generate tests from a description". Proposals are stored for review; accepting creates the tests and
-the suite.
-Success Criteria: tools and proposal validation tested with a scripted model and browser; accept/reject routes
-tested; tenancy on every query.
-Status: Complete (oc-browser sessions with refs and computed locators; `testing` runs, 80 turns; proposals made of
-recorded actions and sample-run before they are stored; accept → tests every 15 minutes + a suite per journey; agent
-profiles name global variables. Not yet: approvals before actions ("ask about every action"), API and network test
-proposals, proposals shown while the job runs (they are saved when it ends), a run with a real model)
+## Stage 3: Monitors from Slack
+Goal: alert cards get Unmute (once muted) and Resolve beside Mute, and their recovery edits the alert card (thread
+note) instead of a new message; `/observecraft monitors [query]` lists what is alerting, with the same buttons.
+Success Criteria: tests for the buttons (roles, a downtime already removed), the card's states and the command's
+search; muted, unmuted and resolved from Slack in a real workspace.
+Status: Not Started
 
-## Stage 4: AI Testing UI
-Goal: Synthetics → AI Testing tab: prompt with suggestions, conversation with the job card (starting URL,
-restrict to domain, location, agent profile), the run's live timeline, Suites to review (edit, accept, reject),
-all jobs; agent profiles in Synthetics settings; mocks.
-Success Criteria: typecheck, mock and live run seen in the browser; docs and CLAUDE.md updated.
-Status: Complete (Synthetics → AI Testing: prompt and job card, the job's live timeline (Assist's RunView) and its
-proposed suites, Suites to review, All jobs, Agent profiles; mocks; seen in mock mode, routes checked live. Not yet: a
-job with a real model)
+## Stage 4: Incidents from Slack
+Goal: `/observecraft incident` opens a modal (title, severity, commander, services) and declares the incident; the
+app creates its channel (`#inc-<id>-<slug>`, invites the declarer and commander) with a card for status, severity
+and commander; changes made anywhere are posted to the channel; in the channel, `/observecraft incident status|
+resolve` and the message shortcut "Add to incident timeline" (no history scope needed).
+Success Criteria: tests for the modal's validation, declaring as the member, the channel name, the card, posting
+changes and the shortcut; an incident run end to end from Slack in a real workspace.
+Status: Not Started
+
+## Stage 5: Assist in Slack and link previews
+Goal: mentioning the bot or `/observecraft ask …` starts an Assist run as the member (read-only tools, their
+permissions, the org's limits) and answers in the thread when it finishes; links to ObserveCraft (monitors,
+dashboards and their widgets, incidents, log and trace searches) unfurl with a summary and, for graphs, an image
+drawn by the email chart renderer and uploaded to Slack (never a URL Slack must reach).
+Success Criteria: tests for starting the run from a mention and a command (non-member, limits), posting the answer,
+each unfurl kind; a question answered and a dashboard link previewed in a real workspace.
+Status: Not Started

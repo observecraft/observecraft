@@ -7,26 +7,58 @@ const fail = (message: string): never => {
   throw new Error(message);
 };
 
-const SCOPES = ['chat:write', 'chat:write.public', 'channels:read', 'groups:read', 'users:read', 'users:read.email'];
+// The server's BOT_SCOPES and app_manifest (routes/slack.rs).
+const SCOPES = [
+  'chat:write',
+  'chat:write.public',
+  'channels:read',
+  'groups:read',
+  'users:read',
+  'users:read.email',
+  'commands',
+  'app_mentions:read',
+  'im:history',
+  'im:write',
+  'channels:manage',
+  'links:read',
+  'links:write',
+  'files:write',
+];
 const ORIGIN = typeof window === 'undefined' ? 'https://observecraft.example.com' : window.location.origin;
-const INTERACTIVITY = `${ORIGIN}/api/v1/public/slack/interactive`;
+const API = `${ORIGIN}/api/v1/public/slack`;
 
 const MANIFEST = `display_information:
   name: ObserveCraft
-  description: Monitor alerts, On-Call pages and reports from ObserveCraft
-  background_color: "#1f2937"
+  description: Alerts, On-Call, incidents and Assist from ObserveCraft
+  background_color: "#0b5f5c"
 features:
   bot_user:
     display_name: ObserveCraft
     always_online: true
+  slash_commands:
+    - command: /observecraft
+      url: ${API}/commands
+      description: On-Call, monitors, incidents and questions to Assist
+      usage_hint: help | org
+      should_escape: false
+  unfurl_domains:
+    - ${new URL(ORIGIN).host}
 oauth_config:
+  redirect_urls:
+    - ${API}/oauth/callback
   scopes:
     bot:
 ${SCOPES.map((s) => `      - ${s}`).join('\n')}
 settings:
+  event_subscriptions:
+    request_url: ${API}/events
+    bot_events:
+      - app_mention
+      - link_shared
+      - message.im
   interactivity:
     is_enabled: true
-    request_url: ${INTERACTIVITY}
+    request_url: ${API}/interactive
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false
@@ -82,8 +114,10 @@ function checkChannelName(raw: string): string {
 export const getSlackOverview = (): Promise<SlackOverview> =>
   delay({
     oauthAvailable: true,
-    redirectUrl: `${ORIGIN}/api/v1/public/slack/oauth/callback`,
-    interactivityUrl: INTERACTIVITY,
+    redirectUrl: `${API}/oauth/callback`,
+    interactivityUrl: `${API}/interactive`,
+    commandsUrl: `${API}/commands`,
+    eventsUrl: `${API}/events`,
     appManifest: MANIFEST,
     scopes: SCOPES,
     accounts: db(),
