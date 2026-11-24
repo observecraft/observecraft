@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.2](https://github.com/observecraft/observecraft/compare/v0.27.1...v0.27.2) (2026-11-24)
+
+
+### Bug fixes
+
+* **rum:** play Session Replay recordings in the browser SDK's change format ([c6c4b7a](https://github.com/observecraft/observecraft/commit/c6c4b7a466ebfbee4f523d891b54ad329dbb9294))
+
 ## [0.27.1](https://github.com/observecraft/observecraft/compare/v0.27.0...v0.27.1) (2026-11-20)
 
 
