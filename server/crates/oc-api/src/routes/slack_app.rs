@@ -183,13 +183,15 @@ pub async fn commands(State(st): State<AppState>, headers: HeaderMap, body: Byte
 /// Events API callbacks (and the URL check Slack makes when the app's events URL is saved).
 #[utoipa::path(post, path = "/api/v1/public/slack/events", operation_id = "slack_events", request_body = Object, responses((status = 200), (status = 401)), tag = "notifications")]
 pub async fn events(State(st): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
+    // The raw body is checked before anything reads it: one of this install's Slack apps signed it.
+    if !super::slack::signed_by_known_app(&st, &headers, &body).await {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
     let Ok(payload) = serde_json::from_slice::<Value>(&body) else { return StatusCode::BAD_REQUEST.into_response() };
     if payload["type"] == "url_verification" {
-        if !super::slack::signed_by_known_app(&st, &headers, &body).await {
-            return StatusCode::UNAUTHORIZED.into_response();
-        }
         return Json(json!({ "challenge": payload["challenge"] })).into_response();
     }
+    // Then that it is the app of a workspace connected to ObserveCraft as this team.
     let team = payload["team_id"].as_str().unwrap_or_default();
     if verified(&st, &headers, &body, team).await.is_none() {
         return StatusCode::UNAUTHORIZED.into_response();
@@ -429,6 +431,10 @@ mod tests {
         let (status, v) = text_of(events(State(st.clone()), signed(SECRET, &now(), &check), Bytes::from(check.clone())).await).await;
         assert_eq!((status, v["challenge"].as_str()), (StatusCode::OK, Some("c-123")));
         assert_eq!(events(State(st.clone()), signed("other-secret", &now(), &check), Bytes::from(check)).await.status(), StatusCode::UNAUTHORIZED);
+        // Nothing unsigned is read, not even as JSON (events, and button presses' payload).
+        assert_eq!(events(State(st.clone()), HeaderMap::new(), Bytes::from_static(b"{not json")).await.status(), StatusCode::UNAUTHORIZED);
+        let press = Bytes::from_static(b"payload=%7Bnot+json");
+        assert_eq!(super::super::slack::interactive(State(st.clone()), HeaderMap::new(), press).await.status(), StatusCode::UNAUTHORIZED);
 
         let event_id = format!("Ev{}", org.replace('-', ""));
         let callback = json!({ "type": "event_callback", "team_id": team, "event_id": event_id, "event": { "type": "app_mention", "user": "U0ANA", "text": "<@U0BOT> hi" } }).to_string();

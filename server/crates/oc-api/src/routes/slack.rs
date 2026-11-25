@@ -1070,6 +1070,10 @@ pub async fn respond(st: &AppState, response_url: &str, message: &Value) {
 /// quickly, as Slack expects; the outcome goes back to the presser as an ephemeral message.
 #[utoipa::path(post, path = "/api/v1/public/slack/interactive", operation_id = "slack_interactive", request_body(content = String, content_type = "application/x-www-form-urlencoded"), responses((status = 200), (status = 401)), tag = "notifications")]
 pub async fn interactive(State(st): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
+    // The raw body is checked before anything reads it; `verified` then ties it to the payload's team.
+    if !signed_by_known_app(&st, &headers, &body).await {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
     let Some(payload) = url::form_urlencoded::parse(&body).find(|(k, _)| k == "payload").and_then(|(_, v)| serde_json::from_str::<Value>(&v).ok()) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
