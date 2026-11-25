@@ -187,8 +187,10 @@ jobs:
         run: |
           mkdir -p ../server-build
           cp target/debug/observecraft-server ../server-build/
-          # The prebuilt DuckDB they link (their rpath names this runner's target directory).
-          cp target/duckdb-download/*/*/libduckdb.so ../server-build/
+          # The prebuilt DuckDB they link (their rpath names this runner's target directory). libduckdb-sys extracts it
+          # to target/duckdb-download and its build output; a restored cache has only the latter (the build script
+          # doesn't run again), so either is taken.
+          cp "$(find target/duckdb-download target/debug/build/libduckdb-sys-*/out -name libduckdb.so 2>/dev/null | head -1)" ../server-build/
           # The workspace's build, as tested above (`-p oc-api` alone unifies features differently and recompiles).
           cargo test --locked --workspace --no-run --message-format=json \
             | jq -r 'select(.reason == "compiler-artifact" and .executable != null and .profile.test and .target.name == "observecraft-server" and (.target.kind | index("bin"))) | .executable' \
