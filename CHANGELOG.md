@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.28.0](https://github.com/observecraft/observecraft/compare/v0.27.2...v0.28.0) (2026-11-26)
+
+
+### Features
+
+* **slack:** /observecraft and Slack events, acting as the member with the Slack user's email ([68e22f7](https://github.com/observecraft/observecraft/commit/68e22f7ee1b0206bfcce3873440dfc8f057a1e10))
+
+
+### Bug fixes
+
+* **slack:** check Slack's signature before reading a request's body ([34e8100](https://github.com/observecraft/observecraft/commit/34e8100cf4228038c00fd2b67e4c7a2c31e237fc))
+
+
+### Dependencies
+
+* bump the cargo group in /server with 6 updates ([a7dceb9](https://github.com/observecraft/observecraft/commit/a7dceb91f5a9bc17058a5f418ef304e77b10da8d))
+* bump the npm group in /web with 5 updates ([1728b1d](https://github.com/observecraft/observecraft/commit/1728b1d9856be8a40e3ddf9c3d8fc9c9ef72d5d9))
+
 ## [0.27.2](https://github.com/observecraft/observecraft/compare/v0.27.1...v0.27.2) (2026-11-24)
 
 
