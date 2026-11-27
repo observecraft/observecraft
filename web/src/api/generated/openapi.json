@@ -12721,6 +12721,142 @@
         }
       }
     },
+    "/api/v1/integrations/vanta": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The Vanta connection and each resource type's last sync (no secret).",
+        "operationId": "vanta_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VantaStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Saves the Vanta connection (admins). The secret is sealed; leave it out to keep the saved one (only while the client\nid stays the same).",
+        "operationId": "vanta_save",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VantaInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VantaStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Removes the Vanta connection, its secret and its sync (admins). What was sent stays in Vanta.",
+        "operationId": "vanta_delete",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/vanta/sync": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Syncs now instead of within the hour (admins).",
+        "operationId": "vanta_sync",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/vanta/test": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Tests the app's credentials before or after saving them (admins).",
+        "operationId": "vanta_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VantaInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VantaTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/integrations/{id}/install": {
       "put": {
         "tags": [
@@ -81247,6 +81383,180 @@
           "uses": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "VantaConnection": {
+        "type": "object",
+        "description": "The connection as saved; the secret is never answered.",
+        "required": [
+          "region",
+          "clientId",
+          "resourceIds",
+          "updatedAt"
+        ],
+        "properties": {
+          "clientId": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "resourceIds": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          }
+        }
+      },
+      "VantaInput": {
+        "type": "object",
+        "description": "What an admin enters.",
+        "properties": {
+          "clientId": {
+            "type": "string",
+            "description": "The private app's client id (Vanta → Settings → Developer Console).",
+            "default": ""
+          },
+          "clientSecret": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its client secret; leave it out to keep the saved one (only while the client id stays the same).",
+            "default": null
+          },
+          "region": {
+            "type": "string",
+            "description": "`us` (api.vanta.com) or `gov` (api.vanta-gov.com).",
+            "default": ""
+          },
+          "resourceIds": {
+            "type": "object",
+            "description": "The Developer Console's `resourceId` of each resource type to send (`user_account`, …); a type left out or\nempty isn't sent.",
+            "default": {},
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "VantaStatus": {
+        "type": "object",
+        "required": [
+          "types"
+        ],
+        "properties": {
+          "connection": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/VantaConnection",
+                "description": "None until an admin connects Vanta."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CrawlIssue",
+                "description": "Why the last sync failed (credentials refused, throttled, …), or its warning."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastSyncAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last sync that sent something."
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VantaTypeStatus"
+            },
+            "description": "Every resource type ObserveCraft sends, configured or not."
+          }
+        }
+      },
+      "VantaTest": {
+        "type": "object",
+        "description": "A connection test's result.",
+        "required": [
+          "ok",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VantaTypeStatus": {
+        "type": "object",
+        "description": "A resource type's last sync.",
+        "required": [
+          "resourceType",
+          "configured",
+          "sent",
+          "accepted",
+          "rejected"
+        ],
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "configured": {
+            "type": "boolean",
+            "description": "It has a `resourceId`, so it is sent."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "sent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "syncedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms."
           }
         }
       },

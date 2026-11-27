@@ -3,6 +3,7 @@ pub mod apm_monitors;
 pub mod apm_pods;
 pub mod apm_settings;
 pub mod authentik_integration;
+pub mod vanta_integration;
 pub mod connector_oauth;
 pub mod connectors;
 pub mod fleetdm_integration;
@@ -922,6 +923,11 @@ use crate::state::AppState;
         entra_logs::put_entra_logs,
         entra_logs::test_entra_logs,
         authentik_integration::get_authentik,
+        vanta_integration::get_vanta,
+        vanta_integration::put_vanta,
+        vanta_integration::delete_vanta,
+        vanta_integration::test_vanta,
+        vanta_integration::sync_vanta,
         authentik_integration::put_authentik,
         authentik_integration::delete_authentik,
         authentik_integration::test_authentik,
@@ -1778,6 +1784,9 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/integrations/azure/accounts/{id}/entra-logs", get(entra_logs::get_entra_logs).put(entra_logs::put_entra_logs))
         .route("/api/v1/integrations/azure/accounts/{id}/entra-logs/test", axum::routing::post(entra_logs::test_entra_logs))
         .route("/api/v1/integrations/authentik", get(authentik_integration::get_authentik).put(authentik_integration::put_authentik).delete(authentik_integration::delete_authentik))
+        .route("/api/v1/integrations/vanta", get(vanta_integration::get_vanta).put(vanta_integration::put_vanta).delete(vanta_integration::delete_vanta))
+        .route("/api/v1/integrations/vanta/test", post(vanta_integration::test_vanta))
+        .route("/api/v1/integrations/vanta/sync", post(vanta_integration::sync_vanta))
         .route("/api/v1/integrations/authentik/test", axum::routing::post(authentik_integration::test_authentik))
         .route("/api/v1/integrations/authentik/sync", axum::routing::post(authentik_integration::sync_authentik))
         .route("/api/v1/connectors", get(connectors::list_connectors))
@@ -2170,6 +2179,7 @@ mod tests {
             include_str!("ci.rs"),
             include_str!("gitlab_ci.rs"),
             include_str!("authentik_integration.rs"),
+            include_str!("vanta_integration.rs"),
             include_str!("entra_logs.rs"),
             include_str!("connectors.rs"),
             include_str!("../connectors/mod.rs"),
@@ -2510,6 +2520,11 @@ mod tests {
     fn server_sources() -> Vec<(&'static str, &'static str)> {
         vec![
             ("authentik_integration.rs", include_str!("authentik_integration.rs")),
+            ("vanta_integration.rs", include_str!("vanta_integration.rs")),
+            ("../vanta/mod.rs", include_str!("../vanta/mod.rs")),
+            ("../vanta/api.rs", include_str!("../vanta/api.rs")),
+            ("../vanta/sync.rs", include_str!("../vanta/sync.rs")),
+            ("../vanta/users.rs", include_str!("../vanta/users.rs")),
             ("connectors.rs", include_str!("connectors.rs")),
             ("connector_oauth.rs", include_str!("connector_oauth.rs")),
             ("fleetdm_integration.rs", include_str!("fleetdm_integration.rs")),

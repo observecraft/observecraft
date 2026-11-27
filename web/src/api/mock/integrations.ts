@@ -6,6 +6,7 @@ import type { CollectedMetric, CollectorConfig, IntegrationDetail, IntegrationHo
 import { rng } from './generator';
 import { authentikConnected } from './authentik';
 import { fleetdmConnected } from './fleetdm';
+import { vantaConnected } from './vanta';
 import { gitlabAuditConnected } from './gitlabAudit';
 import { googleWorkspaceConnected } from './googleWorkspace';
 import { entraConnected } from './entra';
@@ -791,6 +792,19 @@ const CURATED: Entry[] = [
     },
   },
   {
+    id: 'vanta',
+    name: 'Vanta',
+    categories: ['Security', 'Compliance'],
+    about: 'Sends the organization’s compliance evidence to a private Vanta app every hour, as Vanta’s Datadog integration reads Datadog’s: members for access reviews and offboarding reminders.',
+    collect: {
+      kind: 'notify',
+      settings: [
+        { key: 'client_id', label: 'Client id', placeholder: 'The app’s client id' },
+        { key: 'client_secret', label: 'Client secret', placeholder: '••••', secret: true },
+      ],
+    },
+  },
+  {
     id: 'netbird',
     name: 'NetBird',
     categories: ['Network', 'Security', 'Log Collection'],
@@ -1073,6 +1087,7 @@ const CONNECTED: Record<string, () => boolean> = {
   azure: azureConnected,
   'azure-active-directory': entraConnected,
   fleetdm: fleetdmConnected,
+  vanta: vantaConnected,
   'gitlab-audit-events': gitlabAuditConnected,
   'google-workspace': googleWorkspaceConnected,
   'google-cloud': gcpConnected,

@@ -75,3 +75,45 @@ drawn by the email chart renderer and uploaded to Slack (never a URL Slack must 
 Success Criteria: tests for starting the run from a mention and a command (non-member, limits), posting the answer,
 each unfurl kind; a question answered and a dashboard link previewed in a real workspace.
 Status: Not Started
+
+# Implementation plan: Vanta (send compliance evidence)
+
+Vanta's own Datadog integration reads Datadog's users and infrastructure monitors, Cloud Security's vulnerabilities
+(libraries, hosts and containers) and findings, and Cloud SIEM's detection rules, log indexes and notification rules.
+ObserveCraft sends the same evidence to Vanta through a private Build Integrations app (Vanta Developer Console →
+Build Integrations → Private: client credentials, one `resourceId` per resource type). Vanta's API, not Datadog's:
+Datadog has no Vanta push, so it is our own model (`docs/vanta.md`).
+
+Decisions:
+- **Per org, on the cloud crawlers' jobs.** Integrations → Vanta: the client id, the client secret (sealed), Vanta's
+  region (`https://api.vanta.com` or `https://api.vanta-gov.com`, nothing else) and the `resourceId` of each type to
+  send. One job per connection (provider `vanta`) every hour: Vanta keeps one active token per app (a new one revokes
+  the previous), so one run gets a token and sends every configured type in turn.
+- **Full state.** Each `PUT /v1/resources/<type>` carries all the resources of the type (Vanta deletes the ones left
+  out), at most 10,000 (the most severe first, with a warning) and 10 MB; 10 requests a minute per token.
+- **Status per type** (Postgres `vanta_sync_results`): sent, accepted, rejected, error, when.
+- **Same evidence as Datadog's integration**, where ObserveCraft has it. Not yet: SIEM notification rules, identity
+  risks and attack paths (not built).
+
+## Stage 1: Connection and users
+Goal: the connection (save, test with a token, remove, sync now), the hourly job, the per-type status, and members as
+`user_account` (role → permission level, status, MFA, SSO or password, created and last login).
+Success Criteria: tests for the mapping, the sync (one token, the request shape, accepted/rejected, refused token,
+throttling, the 10,000 cap, a type without `resourceId` skipped), and the routes (secret sealed and never answered,
+org isolation, the region allow-list, the job); `make test`; the page live and mock.
+Status: Complete (17 Rust tests: API answers and errors, member mapping and query, the sync, the routes; the Vanta tile
+as a native connector with Vanta's mark (site icon); Integrations → Vanta in mock mode, light and dark)
+
+## Stage 2: Vulnerabilities
+Goal: hosts, container images and repositories as `vulnerable_component`, then their CVEs as `package_vulnerability`
+(Cloud Security's host and image vulnerabilities, Code Security's libraries), components first.
+Status: Not Started
+
+## Stage 3: Security findings
+Goal: Cloud Security's misconfigurations as `security_task` (open or closed, priority from severity).
+Status: Not Started
+
+## Stage 4: Monitors and Cloud SIEM
+Goal: monitors, detection rules and log indexes as custom resources; their schemas and suggested Vanta Custom Tests in
+`docs/vanta.md`.
+Status: Not Started

@@ -20,6 +20,7 @@ mod fleetdm;
 mod gitlab;
 mod gitlab_audit;
 mod google_workspace;
+mod vanta;
 mod cache;
 mod config;
 mod demo;
@@ -247,6 +248,9 @@ async fn main() -> anyhow::Result<()> {
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, authentik::crawler::LOGS_TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(authentik::crawler::AuthentikCrawler { api: Arc::new(authentik::api::Rest { allow_private: state.config.portal_allow_private }), sink: logs });
         tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, authentik::crawler::INTERVAL_SECS, concurrency)));
+        // The Vanta sync: each org's compliance evidence to its private Vanta app, hourly.
+        let sync: Arc<dyn cloud::jobs::Crawler> = Arc::new(vanta::sync::VantaCrawler { api: Arc::new(vanta::api::Rest) });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), sync, vanta::sync::INTERVAL_SECS, concurrency)));
         // The Microsoft Entra ID logs' poller: the Azure app registrations' tenants' sign-ins, audits and risk
         // detections from Microsoft Graph, as logs (JSON logs).
         let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, entra::crawler::LOGS_TOPIC));
