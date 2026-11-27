@@ -107,13 +107,15 @@ as a native connector with Vanta's mark (site icon); Integrations → Vanta in m
 ## Stage 2: Vulnerabilities
 Goal: hosts, container images and repositories as `vulnerable_component`, then their CVEs as `package_vulnerability`
 (Cloud Security's host and image vulnerabilities, Code Security's libraries), components first.
-Status: Not Started
+Status: Complete (open only, most severe first, CVSS or the label's bound as Vanta's 0–10 severity; a library per service
+and repository)
 
 ## Stage 3: Security findings
 Goal: Cloud Security's misconfigurations as `security_task` (open or closed, priority from severity).
-Status: Not Started
+Status: Complete (failing, muted and resolved in 90 days; muted and resolved closed with when)
 
 ## Stage 4: Monitors and Cloud SIEM
 Goal: monitors, detection rules and log indexes as custom resources; their schemas and suggested Vanta Custom Tests in
 `docs/vanta.md`.
-Status: Not Started
+Status: Complete (one Developer Console resource each, schemas from `vanta::custom::schema` shown on the page; monitors
+muted by an active unscoped downtime; Cloud SIEM's log detection rules)

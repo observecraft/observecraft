@@ -297,8 +297,10 @@ or SDK features.
   Integrations API, client credentials sealed in Postgres `vanta_connections`, one `resourceId` per type, only
   `api.vanta.com` / `api.vanta-gov.com`) every hour on the cloud crawlers' jobs (provider `vanta`, one job per
   connection: Vanta keeps one token per app); each `PUT /v1/resources/<type>` is the type's full state (≤ 10,000),
-  results per type in `vanta_sync_results`. Sent: members as `user_account`; planned: vulnerabilities, security findings,
-  monitors and SIEM (what Vanta reads from Datadog).
+  results per type in `vanta_sync_results`. What Vanta reads from Datadog: members (`user_account`), Cloud Security's and
+  Code Security's open vulnerabilities (`vulnerable_component` then `package_vulnerability`), misconfigurations
+  (`security_task`), and monitors, SIEM detection rules and log indexes as custom resources (`vanta/custom.rs` gives
+  their schemas, shown on the page). Not sent: SIEM notification rules, identity risks and attack paths (not built).
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **Emails** (`oc-api/src/email/`): every email is built from one layout (`frame.rs`, `templates.rs`: state band, table

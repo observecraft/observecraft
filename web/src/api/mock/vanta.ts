@@ -8,9 +8,49 @@ type Input = S['VantaInput'];
 type Status = S['VantaStatus'];
 type Test = S['VantaTest'];
 
-/** The resource types the server sends (crate::vanta::sync::TYPES). */
-const TYPES = ['user_account'];
-const MEMBERS = 14;
+/** The resource types the server sends (crate::vanta::sync::TYPES), their base type and what the mock org sends of each. */
+const TYPES: [string, string, number][] = [
+  ['user_account', 'UserAccount', 14],
+  ['vulnerable_component', 'VulnerableComponent', 23],
+  ['package_vulnerability', 'PackageVulnerability', 187],
+  ['security_task', 'SecurityTask', 41],
+  ['monitor', 'CustomResource', 36],
+  ['detection_rule', 'CustomResource', 58],
+  ['log_index', 'CustomResource', 3],
+];
+
+/** The custom resources' schemas (crate::vanta::custom::schema). */
+const SCHEMAS: Record<string, [string, string][]> = {
+  monitor: [
+    ['monitorType', 'string'],
+    ['muted', 'boolean'],
+    ['notifies', 'boolean'],
+    ['priority', 'string'],
+    ['query', 'string'],
+    ['recipients', 'string'],
+    ['status', 'string'],
+    ['tags', 'string'],
+  ],
+  detection_rule: [
+    ['contentPack', 'string'],
+    ['enabled', 'boolean'],
+    ['isDefault', 'boolean'],
+    ['notifies', 'boolean'],
+    ['query', 'string'],
+    ['severity', 'string'],
+    ['tags', 'string'],
+  ],
+  log_index: [
+    ['dailyLimit', 'float64'],
+    ['exclusionFilters', 'int32'],
+    ['filter', 'string'],
+    ['flexRetentionDays', 'int32'],
+    ['position', 'int32'],
+    ['retentionDays', 'int32'],
+  ],
+};
+
+const schema = (kind: string): string | null => (SCHEMAS[kind] ? JSON.stringify({ properties: Object.fromEntries(SCHEMAS[kind].map(([name, type]) => [name, { type }])) }, null, 2) : null);
 
 let saved: { region: string; clientId: string; resourceIds: Record<string, string>; at: number } | null = null;
 let syncedAt = 0;
@@ -29,15 +69,21 @@ function checked(input: Input): { region: string; clientId: string; resourceIds:
   const resourceIds: Record<string, string> = {};
   for (const [t, id] of Object.entries(input.resourceIds ?? {})) {
     if (!id?.trim()) continue;
-    if (!TYPES.includes(t)) fail(`ObserveCraft doesn't send ${t} to Vanta (it sends ${TYPES.join(', ')})`);
+    if (!TYPES.some(([k]) => k === t)) fail(`ObserveCraft doesn't send ${t} to Vanta (it sends ${TYPES.map(([k]) => k).join(', ')})`);
     resourceIds[t] = id.trim();
   }
+  if (resourceIds.package_vulnerability && !resourceIds.vulnerable_component) fail('Vulnerabilities name their vulnerable components: send the vulnerable components too');
   return { region, clientId, resourceIds };
 }
 
 function status(): Status {
   if (!saved) {
-    return { connection: null, lastSyncAt: null, error: null, types: TYPES.map((t) => ({ resourceType: t, configured: false, syncedAt: null, sent: 0, accepted: 0, rejected: 0, error: null })) };
+    return {
+      connection: null,
+      lastSyncAt: null,
+      error: null,
+      types: TYPES.map(([t, base]) => ({ resourceType: t, baseType: base, schema: schema(t), configured: false, syncedAt: null, sent: 0, accepted: 0, rejected: 0, error: null })),
+    };
   }
   // The first sync a few seconds after saving, or when Sync now was pressed since.
   const at = syncedAt > saved.at ? syncedAt : saved.at + 20_000;
@@ -46,11 +92,10 @@ function status(): Status {
     connection: { region: saved.region, clientId: saved.clientId, resourceIds: saved.resourceIds, updatedAt: saved.at },
     lastSyncAt: synced ? at : null,
     error: null,
-    types: TYPES.map((t) => {
+    types: TYPES.map(([t, base, count]) => {
       const configured = !!saved?.resourceIds[t];
-      return configured && synced
-        ? { resourceType: t, configured, syncedAt: at, sent: MEMBERS, accepted: MEMBERS, rejected: 0, error: null }
-        : { resourceType: t, configured, syncedAt: null, sent: 0, accepted: 0, rejected: 0, error: null };
+      const common = { resourceType: t, baseType: base, schema: schema(t), configured };
+      return configured && synced ? { ...common, syncedAt: at, sent: count, accepted: count, rejected: 0, error: null } : { ...common, syncedAt: null, sent: 0, accepted: 0, rejected: 0, error: null };
     }),
   };
 }

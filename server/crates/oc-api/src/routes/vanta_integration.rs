@@ -19,7 +19,7 @@ use crate::cloud::jobs::{self, CrawlIssue};
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, OrgId};
 use crate::vanta::api::{Rest, VantaApi, API_URLS};
-use crate::vanta::sync::{Connection, PROVIDER, SCOPE, TYPES};
+use crate::vanta::sync::{base_type, Connection, PROVIDER, SCOPE, TYPES};
 
 const MAX_FIELD_CHARS: usize = 512;
 
@@ -54,6 +54,10 @@ pub struct VantaConnection {
 #[serde(rename_all = "camelCase")]
 pub struct VantaTypeStatus {
     pub resource_type: String,
+    /// The Developer Console base type its resource is created with.
+    pub base_type: String,
+    /// For custom resources, the schema (JSON Type Definition) to create the resource with.
+    pub schema: Option<String>,
     /// It has a `resourceId`, so it is sent.
     pub configured: bool,
     /// Epoch ms.
@@ -127,6 +131,9 @@ pub fn validate(input: &VantaInput) -> Result<(String, String, HashMap<String, S
         }
         ids.insert(t.clone(), id.to_string());
     }
+    if ids.contains_key("package_vulnerability") && !ids.contains_key("vulnerable_component") {
+        return Err("Vulnerabilities name their vulnerable components: send the vulnerable components too".into());
+    }
     Ok((url.to_string(), client_id.to_string(), ids))
 }
 
@@ -173,11 +180,21 @@ async fn saved(st: &AppState, org: &str) -> Result<Option<(String, VantaConnecti
     Ok(row.map(|(id, api_url, client_id, ids, updated_at)| (id, VantaConnection { region: region_of(&api_url).into(), client_id, resource_ids: ids.0, updated_at })))
 }
 
+/// A type's status: what creating its resource needs, and its last sync.
+fn type_status(kind: &str, configured: bool, last: Option<&ResultRow>) -> VantaTypeStatus {
+    let schema = crate::vanta::custom::schema(kind).map(|s| serde_json::to_string_pretty(&s).unwrap_or_default());
+    let mut out = VantaTypeStatus { resource_type: kind.to_string(), base_type: base_type(kind).to_string(), schema, configured, synced_at: None, sent: 0, accepted: 0, rejected: 0, error: None };
+    if let Some((_, at, sent, accepted, rejected, error)) = last {
+        (out.synced_at, out.sent, out.accepted, out.rejected, out.error) = (Some(*at), *sent, *accepted, *rejected, error.clone());
+    }
+    out
+}
+
 /// The org's connection and each type's last sync.
 pub async fn status(st: &AppState, org: &str) -> Result<VantaStatus, sqlx::Error> {
     let mut out = VantaStatus { connection: None, last_sync_at: None, error: None, types: Vec::new() };
     let Some((id, connection)) = saved(st, org).await? else {
-        out.types = TYPES.iter().map(|t| VantaTypeStatus { resource_type: t.to_string(), configured: false, synced_at: None, sent: 0, accepted: 0, rejected: 0, error: None }).collect();
+        out.types = TYPES.iter().map(|t| type_status(t, false, None)).collect();
         return Ok(out);
     };
     let rows: Vec<ResultRow> =
@@ -186,10 +203,7 @@ pub async fn status(st: &AppState, org: &str) -> Result<VantaStatus, sqlx::Error
         .iter()
         .map(|t| {
             let configured = connection.resource_ids.get(*t).is_some_and(|v| !v.trim().is_empty());
-            match rows.iter().find(|r| r.0 == *t) {
-                Some((_, at, sent, accepted, rejected, error)) => VantaTypeStatus { resource_type: t.to_string(), configured, synced_at: Some(*at), sent: *sent, accepted: *accepted, rejected: *rejected, error: error.clone() },
-                None => VantaTypeStatus { resource_type: t.to_string(), configured, synced_at: None, sent: 0, accepted: 0, rejected: 0, error: None },
-            }
+            type_status(t, configured, rows.iter().find(|r| r.0 == *t))
         })
         .collect();
     out.connection = Some(connection);
@@ -306,6 +320,7 @@ mod tests {
             (json!({"region": "us", "clientId": ""}), "client id"),
             (json!({"region": "us", "clientId": "vci", "resourceIds": {"computers": "res_x"}}), "computers"),
             (json!({"region": "us", "clientId": "vci", "resourceIds": {"user_account": "res\nx"}}), "resourceId"),
+            (json!({"region": "us", "clientId": "vci", "resourceIds": {"package_vulnerability": "res_v"}}), "vulnerable components"),
         ] {
             let err = validate(&input(body.clone())).unwrap_err();
             assert!(err.contains(needle), "{body}: {err}");
@@ -332,7 +347,12 @@ mod tests {
         let saved_a = put_vanta(State(st.clone()), Admin(a.clone()), Json(input(body))).await.unwrap().0;
         let conn = saved_a.connection.clone().unwrap();
         assert_eq!((conn.region.as_str(), conn.client_id.as_str()), ("us", "vci_example"));
-        assert_eq!(saved_a.types.iter().map(|t| (t.resource_type.as_str(), t.configured)).collect::<Vec<_>>(), [("user_account", true)]);
+        assert_eq!(saved_a.types.len(), TYPES.len(), "every type, configured or not");
+        assert_eq!((saved_a.types[0].resource_type.as_str(), saved_a.types[0].configured, saved_a.types[0].base_type.as_str()), ("user_account", true, "UserAccount"));
+        let monitor = saved_a.types.iter().find(|t| t.resource_type == "monitor").unwrap();
+        assert_eq!((monitor.configured, monitor.base_type.as_str()), (false, "CustomResource"));
+        assert!(monitor.schema.as_deref().unwrap().contains("\"notifies\""), "custom resources come with the schema to create them with");
+        assert!(saved_a.types[0].schema.is_none());
         assert!(!serde_json::to_string(&saved_a).unwrap().contains(secret));
         let sealed: String = sqlx::query_scalar("SELECT client_secret_enc FROM vanta_connections WHERE org_id = $1").bind(&a.org_id).fetch_one(&st.postgres).await.unwrap();
         assert!(!sealed.contains(secret));

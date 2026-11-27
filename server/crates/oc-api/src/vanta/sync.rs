@@ -22,8 +22,29 @@ pub const SCOPE: &str = "sync";
 pub const INTERVAL_SECS: i64 = 3600;
 /// Resources Vanta takes per `PUT`.
 pub const MAX_RESOURCES: usize = 10_000;
-/// The resource types sent, in this order (components before the vulnerabilities that name them).
-pub const TYPES: [&str; 1] = ["user_account"];
+/// The resource types sent, in this order (components before the vulnerabilities that name them). The last three are
+/// custom resources of their own in Vanta (one Developer Console resource each).
+pub const TYPES: [&str; 7] = ["user_account", "vulnerable_component", "package_vulnerability", "security_task", "monitor", "detection_rule", "log_index"];
+
+/// The Build Integrations endpoint (`/v1/resources/<endpoint>`) a type is sent to.
+pub fn endpoint(kind: &str) -> &str {
+    match kind {
+        "package_vulnerability" => "package_vulnerability_connectors",
+        "monitor" | "detection_rule" | "log_index" => "custom_resource",
+        k => k,
+    }
+}
+
+/// The Developer Console base type a type's resource is created with.
+pub fn base_type(kind: &str) -> &'static str {
+    match kind {
+        "user_account" => "UserAccount",
+        "vulnerable_component" => "VulnerableComponent",
+        "package_vulnerability" => "PackageVulnerability",
+        "security_task" => "SecurityTask",
+        _ => "CustomResource",
+    }
+}
 
 /// An org's connection, with its secret unsealed.
 #[derive(Clone, Debug)]
@@ -89,7 +110,7 @@ pub async fn sync(api: &dyn VantaApi, conn: &Connection, resources: Vec<(&str, V
         items.truncate(MAX_RESOURCES);
         let sent = items.len();
         let body = json!({ "resourceId": resource_id(t), "resources": items });
-        match api.put(&conn.api_url, &token, t, &body).await {
+        match api.put(&conn.api_url, &token, endpoint(t), &body).await {
             Ok(answer) => {
                 let (a, r) = counts(&answer, sent);
                 (taken, accepted, sent_total) = (taken + 1, accepted + a, sent_total + sent);
@@ -131,12 +152,25 @@ pub async fn connection(st: &AppState, org: &str) -> Result<Option<Connection>, 
     }))
 }
 
-/// A type's resources, read from ObserveCraft.
-async fn collect(st: &AppState, org: &str, resource_type: &str) -> Result<Vec<Value>, sqlx::Error> {
-    match resource_type {
-        "user_account" => super::users::user_accounts(st, org).await,
-        _ => Ok(Vec::new()),
+/// The resources of each of `types`, read from ObserveCraft (the vulnerabilities once for both their types).
+async fn collect(st: &AppState, org: &str, types: &[&'static str], now_ms: i64) -> Result<Vec<(&'static str, Vec<Value>)>, crate::error::ApiError> {
+    let needs_vulnerabilities = types.iter().any(|t| matches!(*t, "vulnerable_component" | "package_vulnerability"));
+    let mut vulnerabilities = if needs_vulnerabilities { super::vulnerabilities::collect(st, org).await? } else { Default::default() };
+    let mut out = Vec::new();
+    for t in types {
+        let items = match *t {
+            "user_account" => super::users::user_accounts(st, org).await?,
+            "vulnerable_component" => std::mem::take(&mut vulnerabilities.components),
+            "package_vulnerability" => std::mem::take(&mut vulnerabilities.vulnerabilities),
+            "security_task" => super::findings::security_tasks(st, org).await?,
+            "monitor" => super::custom::monitors(st, org, now_ms).await?,
+            "detection_rule" => super::custom::detection_rules(st, org).await?,
+            "log_index" => super::custom::log_indexes(st, org).await?,
+            _ => Vec::new(),
+        };
+        out.push((*t, items));
     }
+    Ok(out)
 }
 
 /// Keeps each type's result for the page.
@@ -180,10 +214,10 @@ impl Crawler for VantaCrawler {
         if conn.id != job.account_id || job.scope != SCOPE {
             return Ok(Outcome::Idle);
         }
-        let mut resources = Vec::new();
-        for t in conn.types() {
-            resources.push((t, collect(st, &job.org_id, t).await?));
-        }
+        let resources = match collect(st, &job.org_id, &conn.types(), now_ms).await {
+            Ok(r) => r,
+            Err(e) => return Ok(Outcome::Failed(Issue { kind: "other", message: format!("Reading ObserveCraft's records failed: {e}"), missing_action: None, backoff: Backoff::Exponential })),
+        };
         let (outcome, results) = sync(self.api.as_ref(), &conn, resources, now_ms).await;
         save_results(st, &conn.id, &results).await?;
         Ok(outcome)
@@ -252,6 +286,21 @@ mod tests {
     const NOW: i64 = 1_795_000_000_000;
 
     #[test]
+    fn kinds_go_to_vantas_endpoints_in_a_fixed_order() {
+        assert_eq!(endpoint("monitor"), "custom_resource");
+        assert_eq!(endpoint("detection_rule"), "custom_resource");
+        assert_eq!(endpoint("log_index"), "custom_resource");
+        assert_eq!(endpoint("package_vulnerability"), "package_vulnerability_connectors");
+        assert_eq!(endpoint("vulnerable_component"), "vulnerable_component");
+        assert_eq!(endpoint("user_account"), "user_account");
+        assert_eq!(endpoint("security_task"), "security_task");
+        // Components before the vulnerabilities that name them, whatever order they were saved in.
+        let all = conn(&[("log_index", "r7"), ("package_vulnerability", "r3"), ("user_account", "r1"), ("vulnerable_component", "r2"), ("monitor", "r5"), ("security_task", "r4"), ("detection_rule", "r6")]);
+        assert_eq!(all.types(), TYPES);
+        assert_eq!(TYPES, ["user_account", "vulnerable_component", "package_vulnerability", "security_task", "monitor", "detection_rule", "log_index"]);
+    }
+
+    #[test]
     fn only_types_with_a_resource_id_are_sent() {
         assert_eq!(conn(&[("user_account", "res_users")]).types(), ["user_account"]);
         assert!(conn(&[("user_account", " ")]).types().is_empty());
@@ -261,11 +310,11 @@ mod tests {
     #[tokio::test]
     async fn one_token_then_each_types_full_state_in_order() {
         let api = FakeVanta::default();
-        let c = conn(&[("user_account", "res_users"), ("custom_resource", "res_monitors")]);
-        let (outcome, results) = sync(&api, &c, vec![("user_account", items("u", 3)), ("custom_resource", items("m", 2))], NOW).await;
+        let c = conn(&[("user_account", "res_users"), ("monitor", "res_monitors")]);
+        let (outcome, results) = sync(&api, &c, vec![("user_account", items("u", 3)), ("monitor", items("m", 2))], NOW).await;
         assert_eq!(*api.tokens.lock().unwrap(), 1, "one token for the run: a new one revokes the last");
         let pushes = api.pushes.lock().unwrap().clone();
-        assert_eq!(pushes.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>(), ["user_account", "custom_resource"]);
+        assert_eq!(pushes.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>(), ["user_account", "custom_resource"], "a monitor is one of Vanta's custom resources");
         assert_eq!(pushes[0].1["resourceId"], "res_users");
         assert_eq!(pushes[0].1["resources"].as_array().unwrap().len(), 3);
         assert_eq!(pushes[1].1["resourceId"], "res_monitors");
@@ -304,12 +353,12 @@ mod tests {
     #[tokio::test]
     async fn rejected_items_and_a_refused_type_are_warnings_while_others_go_through() {
         let api = FakeVanta { reject: 1, errors: HashMap::from([("custom_resource".to_string(), VantaError::Invalid("Vanta answered 422: missing field".into()))]), ..Default::default() };
-        let c = conn(&[("user_account", "res_users"), ("custom_resource", "res_monitors")]);
-        let (outcome, results) = sync(&api, &c, vec![("user_account", items("u", 3)), ("custom_resource", items("m", 2))], NOW).await;
+        let c = conn(&[("user_account", "res_users"), ("monitor", "res_monitors")]);
+        let (outcome, results) = sync(&api, &c, vec![("user_account", items("u", 3)), ("monitor", items("m", 2))], NOW).await;
         match outcome {
             Outcome::Collected { metrics, points, warning: Some(w), .. } => {
                 assert_eq!((metrics, points), (2, 3), "accepted and sent of the types Vanta took");
-                assert!(w.message.contains("user_account: 1 of 3 rejected") && w.message.contains("custom_resource: Vanta answered 422"), "{}", w.message);
+                assert!(w.message.contains("user_account: 1 of 3 rejected") && w.message.contains("monitor: Vanta answered 422"), "{}", w.message);
             }
             other => panic!("{other:?}"),
         }
@@ -327,8 +376,8 @@ mod tests {
     #[tokio::test]
     async fn throttling_stops_the_run_for_the_next_one() {
         let api = FakeVanta { errors: HashMap::from([("user_account".to_string(), VantaError::Throttled("Vanta answered 429".into()))]), ..Default::default() };
-        let c = conn(&[("user_account", "res_users"), ("custom_resource", "res_monitors")]);
-        let (outcome, results) = sync(&api, &c, vec![("user_account", items("u", 1)), ("custom_resource", items("m", 1))], NOW).await;
+        let c = conn(&[("user_account", "res_users"), ("monitor", "res_monitors")]);
+        let (outcome, results) = sync(&api, &c, vec![("user_account", items("u", 1)), ("monitor", items("m", 1))], NOW).await;
         assert!(matches!(outcome, Outcome::Failed(Issue { kind: "throttled", .. })), "{outcome:?}");
         assert_eq!(api.pushes.lock().unwrap().len(), 1, "no more requests once Vanta throttles");
         assert_eq!(results.len(), 2);

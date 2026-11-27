@@ -26712,12 +26712,16 @@ export interface components {
         VantaTypeStatus: {
             /** Format: int32 */
             accepted: number;
+            /** @description The Developer Console base type its resource is created with. */
+            baseType: string;
             /** @description It has a `resourceId`, so it is sent. */
             configured: boolean;
             error?: string | null;
             /** Format: int32 */
             rejected: number;
             resourceType: string;
+            /** @description For custom resources, the schema (JSON Type Definition) to create the resource with. */
+            schema?: string | null;
             /** Format: int32 */
             sent: number;
             /**
