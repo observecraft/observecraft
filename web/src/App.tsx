@@ -29,6 +29,7 @@ import { SlackPage } from './pages/integrations/slack/SlackPage';
 import { AuthentikIntegrationPage } from './pages/integrations/authentik/AuthentikIntegrationPage';
 import { ConnectorPage } from './pages/integrations/connectors/ConnectorPage';
 import { FleetdmIntegrationPage } from './pages/integrations/fleetdm/FleetdmIntegrationPage';
+import { VantaIntegrationPage } from './pages/integrations/vanta/VantaIntegrationPage';
 import { GitlabAuditIntegrationPage } from './pages/integrations/gitlabAudit/GitlabAuditIntegrationPage';
 import { GoogleWorkspaceIntegrationPage } from './pages/integrations/googleWorkspace/GoogleWorkspaceIntegrationPage';
 import { AzurePage } from './pages/integrations/azure/AzurePage';
@@ -401,6 +402,7 @@ function Shell() {
             <Route path="/integrations/netbird" element={<Navigate to="/integrations/connectors/netbird" replace />} />
             <Route path="/integrations/connectors/:id" element={<ConnectorPage />} />
             <Route path="/integrations/fleetdm" element={<FleetdmIntegrationPage />} />
+            <Route path="/integrations/vanta" element={<VantaIntegrationPage />} />
             <Route path="/integrations/gitlab-audit-events" element={<GitlabAuditIntegrationPage />} />
             <Route path="/integrations/google-workspace" element={<GoogleWorkspaceIntegrationPage />} />
             <Route path="/integrations/aws/add" element={<AddAwsAccountPage />} />

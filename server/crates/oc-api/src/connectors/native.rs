@@ -79,6 +79,17 @@ pub fn all() -> Vec<Arc<dyn Connector>> {
             "SELECT id::text, base_url FROM authentik_connections WHERE org_id = $1",
         ),
         native(
+            "vanta",
+            "Vanta",
+            "Vanta",
+            "The org's compliance evidence sent to a private Vanta app: members for access reviews (then vulnerabilities, security findings, monitors and SIEM).",
+            &["Security", "Compliance"],
+            "vanta",
+            "/integrations/vanta",
+            crate::vanta::sync::PROVIDER,
+            "SELECT id::text, client_id FROM vanta_connections WHERE org_id = $1",
+        ),
+        native(
             "fleetdm",
             "FleetDM",
             "Fleet Device Management",

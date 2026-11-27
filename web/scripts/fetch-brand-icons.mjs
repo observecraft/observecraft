@@ -89,6 +89,7 @@ export const BRANDS = {
   zenoh: { ...site('zenoh.io'), ids: ['zenoh-router'] },
   supervisord: { ...site('supervisord.org'), ids: ['supervisord'] },
   vertica: { ...site('www.vertica.com'), ids: ['vertica'] },
+  vanta: { ...site('www.vanta.com'), ids: ['vanta'] },
   arista: { ...commons('Arista-networks-logo.svg'), ids: ['snmp-arista'] },
   aruba: { ...commons('Aruba Networks logo.svg'), ids: ['snmp-aruba'] },
   barracuda: { ...commons('Barracuda Networks logo.svg'), ids: ['cloudgen-firewall', 'barracuda-secure-edge'] },

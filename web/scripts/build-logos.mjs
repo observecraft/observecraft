@@ -208,6 +208,7 @@ const MAP = {
   // Downloaded logos (fetch-brand-icons.mjs)
   netbird: 'brand:netbird',
   fleetdm: 'brand:fleetdm',
+  vanta: 'brand:vanta',
 };
 
 /** App logo key → LobeHub icon file (MIT), for providers SVG Logos doesn't have. */

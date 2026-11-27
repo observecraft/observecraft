@@ -25,6 +25,7 @@ for (const p of PACKAGES) registerConnector(p.entry);
 const NATIVE: Entry[] = [
   ['authentik', 'authentik', 'The instance’s events (logins, failed logins, policy and model changes) as logs.', '/integrations/authentik'],
   ['fleetdm', 'FleetDM', 'A Fleet server’s activities as logs; its hosts and policies as metrics.', '/integrations/fleetdm'],
+  ['vanta', 'Vanta', 'The org’s compliance evidence sent to a private Vanta app: members for access reviews.', '/integrations/vanta'],
   ['gitlab-audit-events', 'GitLab Audit Events', 'An instance’s, group’s or project’s audit events as logs.', '/integrations/gitlab-audit-events'],
   ['google-workspace', 'Google Workspace', 'The Reports API’s activities (logins, Drive, admin, tokens, …) as logs.', '/integrations/google-workspace'],
   ['azure-active-directory', 'Microsoft Entra ID', 'A tenant’s sign-in, audit and risk detection logs from Microsoft Graph.', '/integrations/azure?detail=entra'],

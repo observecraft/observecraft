@@ -5017,6 +5017,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/vanta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Vanta connection and each resource type's last sync (no secret). */
+        get: operations["vanta_status"];
+        /**
+         * Saves the Vanta connection (admins). The secret is sealed; leave it out to keep the saved one (only while the client
+         *     id stays the same).
+         */
+        put: operations["vanta_save"];
+        post?: never;
+        /** Removes the Vanta connection, its secret and its sync (admins). What was sent stays in Vanta. */
+        delete: operations["vanta_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/vanta/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Syncs now instead of within the hour (admins). */
+        post: operations["vanta_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/vanta/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tests the app's credentials before or after saving them (admins). */
+        post: operations["vanta_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/{id}/install": {
         parameters: {
             query?: never;
@@ -26597,6 +26653,79 @@ export interface components {
             /** Format: int64 */
             uses: number;
         };
+        /** @description The connection as saved; the secret is never answered. */
+        VantaConnection: {
+            clientId: string;
+            region: string;
+            resourceIds: {
+                [key: string]: string;
+            };
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+        };
+        /** @description What an admin enters. */
+        VantaInput: {
+            /**
+             * @description The private app's client id (Vanta → Settings → Developer Console).
+             * @default
+             */
+            clientId: string;
+            /**
+             * @description Its client secret; leave it out to keep the saved one (only while the client id stays the same).
+             * @default null
+             */
+            clientSecret: string | null;
+            /**
+             * @description `us` (api.vanta.com) or `gov` (api.vanta-gov.com).
+             * @default
+             */
+            region: string;
+            /**
+             * @description The Developer Console's `resourceId` of each resource type to send (`user_account`, …); a type left out or
+             *     empty isn't sent.
+             * @default {}
+             */
+            resourceIds: {
+                [key: string]: string;
+            };
+        };
+        VantaStatus: {
+            connection?: components["schemas"]["VantaConnection"] | null;
+            error?: components["schemas"]["CrawlIssue"] | null;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last sync that sent something.
+             */
+            lastSyncAt?: number | null;
+            /** @description Every resource type ObserveCraft sends, configured or not. */
+            types: components["schemas"]["VantaTypeStatus"][];
+        };
+        /** @description A connection test's result. */
+        VantaTest: {
+            message: string;
+            ok: boolean;
+        };
+        /** @description A resource type's last sync. */
+        VantaTypeStatus: {
+            /** Format: int32 */
+            accepted: number;
+            /** @description It has a `resourceId`, so it is sent. */
+            configured: boolean;
+            error?: string | null;
+            /** Format: int32 */
+            rejected: number;
+            resourceType: string;
+            /** Format: int32 */
+            sent: number;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            syncedAt?: number | null;
+        };
         VerificationSent: {
             email: string;
         };
@@ -37308,6 +37437,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SlackOAuthStart"];
+                };
+            };
+        };
+    };
+    vanta_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VantaStatus"];
+                };
+            };
+        };
+    };
+    vanta_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VantaInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VantaStatus"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    vanta_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    vanta_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    vanta_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VantaInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VantaTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

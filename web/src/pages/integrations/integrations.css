@@ -1074,6 +1074,7 @@
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--bg);
+  color: var(--text);
   font-size: var(--fs-lg);
 }
 

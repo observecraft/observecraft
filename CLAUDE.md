@@ -292,6 +292,13 @@ or SDK features.
   are read-only calls of the UI's handlers (Assist's read-only tools through `OrgTools::call`), with row, text and
   31-day range caps, a 30 s timeout, a per-user burst limit and an `mcp.tool_call` audit event; the UI shows the endpoint
   and client setup under Personal Settings → Application Keys. Our own tool names, never Datadog's.
+- **Vanta** (Integrations → Vanta, `oc-api/src/vanta/`, `routes/vanta_integration.rs`, `docs/vanta.md`; Datadog has
+  no Vanta push, Vanta reads Datadog itself): the org's compliance evidence sent to a private Vanta app (Build
+  Integrations API, client credentials sealed in Postgres `vanta_connections`, one `resourceId` per type, only
+  `api.vanta.com` / `api.vanta-gov.com`) every hour on the cloud crawlers' jobs (provider `vanta`, one job per
+  connection: Vanta keeps one token per app); each `PUT /v1/resources/<type>` is the type's full state (≤ 10,000),
+  results per type in `vanta_sync_results`. Sent: members as `user_account`; planned: vulnerabilities, security findings,
+  monitors and SIEM (what Vanta reads from Datadog).
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **Emails** (`oc-api/src/email/`): every email is built from one layout (`frame.rs`, `templates.rs`: state band, table

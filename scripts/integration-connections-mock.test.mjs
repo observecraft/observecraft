@@ -14,6 +14,7 @@ const { outputFiles } = require('esbuild').buildSync({
       "export { listCatalog } from './api/mock/integrations';",
       "export * as authentik from './api/mock/authentik';",
       "export * as fleetdm from './api/mock/fleetdm';",
+      "export * as vanta from './api/mock/vanta';",
       "export * as gitlabAudit from './api/mock/gitlabAudit';",
       "export * as googleWorkspace from './api/mock/googleWorkspace';",
       "export * as connectors from './api/mock/connectors';",
@@ -44,6 +45,7 @@ const token = 'mock-token-of-twenty-characters';
 const CASES = {
   authentik: { connect: () => web.authentik.saveAuthentik({ baseUrl: 'https://auth.example.com', token }), remove: () => web.authentik.deleteAuthentik() },
   fleetdm: { connect: () => web.fleetdm.saveFleetdm({ baseUrl: 'https://fleet.example.com', token }), remove: () => web.fleetdm.deleteFleetdm() },
+  vanta: { connect: () => web.vanta.saveVanta({ region: 'us', clientId: 'vci_example', clientSecret: token, resourceIds: { user_account: 'res_users' } }), remove: () => web.vanta.deleteVanta() },
   'gitlab-audit-events': { connect: () => web.gitlabAudit.saveGitlabAudit({ baseUrl: 'https://gitlab.example.com', token, scope: 'instance' }), remove: () => web.gitlabAudit.deleteGitlabAudit() },
   'google-workspace': {
     connect: () =>
