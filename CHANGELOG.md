@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.29.0](https://github.com/observecraft/observecraft/compare/v0.28.0...v0.29.0) (2026-11-27)
+
+
+### Features
+
+* **vanta:** send the organization's members to Vanta as compliance evidence ([06a85dc](https://github.com/observecraft/observecraft/commit/06a85dc5a290f4d323801dbce72eb659fdf6105b))
+* **vanta:** send vulnerabilities, security findings, monitors, detection rules and log indexes ([104496b](https://github.com/observecraft/observecraft/commit/104496bccad58f11dd3992f01a8ed36c3e259e74))
+
+
+### Bug fixes
+
+* **mcp:** give 2026-07-28 tools/list results ttlMs and cacheScope ([3af15da](https://github.com/observecraft/observecraft/commit/3af15da51885467a5f7e92dcc2bdaceaaaba8b8e))
+
 ## [0.28.0](https://github.com/observecraft/observecraft/compare/v0.27.2...v0.28.0) (2026-11-26)
 
 
