@@ -21,6 +21,8 @@ pub const LEGACY: [&str; 3] = ["2025-11-25", "2025-06-18", "2025-03-26"];
 /// What a legacy request without `MCP-Protocol-Version` speaks.
 const UNSTATED: &str = "2025-03-26";
 const VERSION_META: &str = "io.modelcontextprotocol/protocolVersion";
+/// How long a 2026-07-28 client may cache `tools/list`: the tools change only with a release.
+pub const LIST_TTL_MS: u64 = 3_600_000;
 
 pub const PARSE_ERROR: i64 = -32700;
 pub const INVALID_REQUEST: i64 = -32600;
@@ -227,6 +229,10 @@ pub async fn dispatch(req: Request, toolbox: &(impl Toolbox + Sync)) -> Reply {
     };
     if req.era == Era::Modern {
         result["resultType"] = json!("complete");
+        if req.method == "tools/list" {
+            result["ttlMs"] = json!(LIST_TTL_MS);
+            result["cacheScope"] = json!("private");
+        }
     }
     Reply::ok(json!({"jsonrpc": "2.0", "id": id, "result": result}))
 }
@@ -296,6 +302,7 @@ mod tests {
         let b = answer(&h, json!({"jsonrpc": "2.0", "id": "two", "method": "tools/list"})).await.body.unwrap();
         assert_eq!(b["id"], "two");
         assert_eq!(b["result"]["tools"][0]["name"], "echo");
+        assert!(b["result"].get("ttlMs").is_none());
 
         let b = answer(&h, json!({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "echo", "arguments": {"say": "hi"}}})).await.body.unwrap();
         assert_eq!(b["result"], json!({"content": [{"type": "text", "text": "hi"}], "isError": false}));
@@ -316,6 +323,11 @@ mod tests {
         assert_eq!(b["result"]["supportedVersions"], json!(supported()));
         assert_eq!(b["result"]["resultType"], "complete");
         assert_eq!(b["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"], "observecraft");
+
+        // List results say how long a client may cache them, and that they are the key's own.
+        let b = answer(&modern("tools/list", None), json!({"jsonrpc": "2.0", "id": 4, "method": "tools/list", "params": {"_meta": meta()}})).await.body.unwrap();
+        assert_eq!(b["result"]["tools"][0]["name"], "echo");
+        assert_eq!((b["result"]["ttlMs"].clone(), b["result"]["cacheScope"].clone()), (json!(LIST_TTL_MS), json!("private")));
 
         let b = answer(&modern("tools/call", Some("echo")), json!({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "echo", "arguments": {"say": "hi"}, "_meta": meta()}})).await.body.unwrap();
         assert_eq!(b["result"]["content"][0]["text"], "hi");

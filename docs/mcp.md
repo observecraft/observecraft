@@ -83,7 +83,8 @@ user, the tool and its arguments.
 
 Streamable HTTP, JSON answers only (no SSE streams, no sessions): any server replica answers any request. Protocol
 versions `2026-07-28` (stateless, with `server/discover`) and `2025-11-25`, `2025-06-18`, `2025-03-26` (`initialize`
-handshake). Methods: `initialize`, `server/discover`, `ping`, `tools/list`, `tools/call`. `GET` answers 405. Requests
+handshake). Methods: `initialize`, `server/discover`, `ping`, `tools/list`, `tools/call`; in `2026-07-28`, `tools/list`
+may be cached for an hour per key (`ttlMs`, `cacheScope: private`). `GET` answers 405. Requests
 with a browser `Origin` other than the installation's own are refused.
 
 Try it with curl:
