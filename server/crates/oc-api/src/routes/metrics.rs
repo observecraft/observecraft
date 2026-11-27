@@ -1823,6 +1823,13 @@ mod tests {
         (sql, [params, params, params].concat())
     }
 
+    /// An hour boundary two days ago (seconds), for tests that write points: inside every tier's retention (raw points
+    /// are kept 30 days, and a point past its TTL is dropped as it is written), whenever the tests run.
+    fn recent_hour() -> i64 {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+        now - now % 3600 - 2 * 86_400
+    }
+
     const DAY: i64 = 86_400_000;
     const NOW: i64 = 1_793_000_000_000;
     const TIERS: Tiers = Tiers {
@@ -1850,7 +1857,7 @@ mod tests {
 
         // Two hours from an hour boundary, a point every 10s: 3 gauge series, a cumulative counter
         // with a reset, and a delta counter. Each goes into the old table and the ingest table.
-        let start = 1_793_095_200_i64; // 2026-10-27 10:00:00 UTC
+        let start = recent_hour();
         let gauge = format!(
             "SELECT map('oc.org_id', '{org}', 'host.name', concat('i-0a1b2c3d4e5f6000', toString(number % 3))) AS ResourceAttributes, 'storefront-api' AS ServiceName, \
              'system.cpu.utilization' AS MetricName, map('state', if(number % 2 = 0, 'user', 'system')) AS Attributes, \
@@ -1965,7 +1972,7 @@ mod tests {
         }
         let org = format!("cluster-{}-{}", std::process::id(), now_ms());
         let ch = live.client.clone().with_setting("param_oc_org", &org);
-        let start = 1_793_095_200_i64;
+        let start = recent_hour();
         let select = format!(
             "SELECT map('oc.org_id', '{org}', 'host.name', concat('i-0a1b2c3d4e5f6', toString(number % 40))) AS ResourceAttributes, 'storefront-api' AS ServiceName, \
              'system.cpu.utilization' AS MetricName, map('state', if(number % 3 = 0, 'user', 'system')) AS Attributes, \
@@ -2250,7 +2257,7 @@ mod tests {
             .with_setting("param_oc_org", &org);
 
         // Two hours from an hour boundary, a point every 10s per series (two hosts).
-        let start = 1_793_095_200_i64;
+        let start = recent_hour();
         let common = |name: &str| {
             format!(
                 "map('oc.org_id', '{org}', 'host.name', concat('i-0a1b2c3d4e5f6000', toString(number % 2))) AS ResourceAttributes, 'checkout' AS ServiceName, \
