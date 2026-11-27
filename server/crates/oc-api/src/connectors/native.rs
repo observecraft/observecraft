@@ -82,7 +82,7 @@ pub fn all() -> Vec<Arc<dyn Connector>> {
             "vanta",
             "Vanta",
             "Vanta",
-            "The org's compliance evidence sent to a private Vanta app: members for access reviews (then vulnerabilities, security findings, monitors and SIEM).",
+            "The org's compliance evidence sent to a private Vanta app: members, vulnerabilities, security findings, monitors, detection rules and log indexes.",
             &["Security", "Compliance"],
             "vanta",
             "/integrations/vanta",

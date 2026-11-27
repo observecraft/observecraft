@@ -9,6 +9,7 @@ import { deleteVanta, saveVanta, syncVanta, testVanta, vantaStatus, type VantaIn
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { timeAgo } from '../../../lib/format';
 import { useAccess } from '../../settings/queries';
+import { CodeBlock } from '../../../components/code/CodeBlock';
 import { IntegrationLogo } from '../IntegrationLogo';
 import { Step } from '../Step';
 import '../../settings/settings.css';
@@ -17,7 +18,7 @@ import '../aws/aws.css';
 import '../../delivery/delivery.css';
 
 const DESCRIPTION =
-  'Vanta automates compliance (SOC 2, ISO 27001, HIPAA, …) from evidence your tools provide. ObserveCraft sends its own to a private Vanta app every hour, as Vanta’s Datadog integration reads Datadog’s: who has access to ObserveCraft, for access reviews and offboarding reminders.';
+  'Vanta automates compliance (SOC 2, ISO 27001, HIPAA, …) from evidence your tools provide. ObserveCraft sends its own to a private Vanta app every hour, as Vanta’s Datadog integration reads Datadog’s: who has access, vulnerabilities, security findings, monitors, detection rules and log indexes.';
 
 const TABS = [
   { id: 'configure', label: 'Configuration' },
@@ -25,10 +26,19 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
-/** The resource types ObserveCraft sends (crate::vanta::sync::TYPES), as the Developer Console names their base type. */
-const TYPES: { id: string; name: string; base: string; what: string }[] = [
-  { id: 'user_account', name: 'Members', base: 'UserAccount', what: 'Who has access to ObserveCraft, for access reviews and offboarding reminders.' },
-];
+/** The resource types ObserveCraft sends (crate::vanta::sync::TYPES): their names here and what they carry. */
+const TYPES: Record<string, { name: string; what: string }> = {
+  user_account: { name: 'Members', what: 'Who has access to ObserveCraft, for access reviews and offboarding reminders.' },
+  vulnerable_component: { name: 'Vulnerable components', what: 'Hosts, container images, services and repositories with open vulnerabilities (needed by Vulnerabilities).' },
+  package_vulnerability: {
+    name: 'Vulnerabilities',
+    what: 'Open vulnerabilities of host and image packages (Cloud Security) and libraries (Code Security), for the Vulnerability Inventory and its SLAs.',
+  },
+  security_task: { name: 'Security findings', what: 'Cloud Security’s misconfigurations, open or closed, with their priority, for the security alert SLA.' },
+  monitor: { name: 'Monitors', what: 'Every monitor: what it watches, whom it notifies and whether it is muted, as infrastructure monitoring evidence.' },
+  detection_rule: { name: 'Detection rules', what: 'Cloud SIEM’s log detection rules: enabled, severity, notifications.' },
+  log_index: { name: 'Log indexes', what: 'Log retention, flex retention, daily limits and exclusion filters.' },
+};
 
 /** What a `user_account` carries, from the member. */
 const USER_FIELDS: [string, string][] = [
@@ -143,15 +153,31 @@ function Configure() {
       </Step>
 
       <Step n={2} title="Add a resource per type to send" open onToggle={() => {}} done={anyType}>
-        <p className="muted">In the app, add a resource for each type below, with the base type shown, and copy its resourceId here. A type without one isn&apos;t sent.</p>
-        {TYPES.map((t) => (
-          <label key={t.id} className="rt-field">
-            <span>
-              {t.name} <span className="muted">(base type {t.base})</span>
-            </span>
-            <input value={form.resourceIds[t.id] ?? ''} onChange={(e) => set({ resourceIds: { ...form.resourceIds, [t.id]: e.target.value } })} placeholder="resourceId" disabled={!isAdmin} />
-            <span className="muted">{t.what}</span>
-          </label>
+        <p className="muted">
+          In the app, add a resource for each type to send, with the base type shown, and copy its resourceId here; a type without one isn&apos;t sent. The last three are custom resources: create each
+          with the schema shown.
+        </p>
+        {s.types.map((t) => (
+          <div key={t.resourceType}>
+            <label className="rt-field">
+              <span>
+                {TYPES[t.resourceType]?.name ?? t.resourceType} <span className="muted">(base type {t.baseType})</span>
+              </span>
+              <input
+                value={form.resourceIds[t.resourceType] ?? ''}
+                onChange={(e) => set({ resourceIds: { ...form.resourceIds, [t.resourceType]: e.target.value } })}
+                placeholder="resourceId"
+                disabled={!isAdmin}
+              />
+              <span className="muted">{TYPES[t.resourceType]?.what}</span>
+            </label>
+            {t.schema && (
+              <details>
+                <summary className="muted">Schema of the custom resource</summary>
+                <CodeBlock code={t.schema} language="json" />
+              </details>
+            )}
+          </div>
         ))}
       </Step>
 
@@ -247,7 +273,7 @@ function Configure() {
               <tbody>
                 {s.types.map((t) => (
                   <tr key={t.resourceType}>
-                    <td>{TYPES.find((x) => x.id === t.resourceType)?.name ?? t.resourceType}</td>
+                    <td>{TYPES[t.resourceType]?.name ?? t.resourceType}</td>
                     <td>{!t.configured ? <span className="muted">Not sent (no resourceId)</span> : t.syncedAt ? timeAgo(t.syncedAt) : '—'}</td>
                     <td>{t.sent.toLocaleString()}</td>
                     <td>{t.accepted.toLocaleString()}</td>
@@ -299,10 +325,22 @@ function DataSent() {
           </div>
         ))}
       </dl>
-      <h3>Coming next</h3>
+      <h3>Vulnerabilities</h3>
       <p className="muted">
-        Vulnerabilities of hosts, container images and libraries; Cloud Security&apos;s misconfigurations as security tasks; monitors, detection rules and log indexes, as Vanta&apos;s Datadog
-        integration reads them.
+        Open vulnerabilities of hosts and container images (Cloud Security) and of libraries, per service and repository (Code Security), as <code>PackageVulnerability</code> resources of their{' '}
+        <code>VulnerableComponent</code> (sent first): package and version, severity on Vanta&apos;s 0–10 scale (the CVSS score, else the severity&apos;s lower bound), CVE, whether a fix exists and
+        the version to upgrade to. Muted and resolved ones aren&apos;t sent, so Vanta closes them.
+      </p>
+      <h3>Security findings</h3>
+      <p className="muted">
+        Cloud Security&apos;s failed checks as <code>SecurityTask</code> resources: open while the check fails, closed when it passes again or is muted (with when), priority P0 (critical) to P4, and
+        the provider, account, region, resource type and check as labels. Resolved findings are sent for 90 days.
+      </p>
+      <h3>Monitors, detection rules and log indexes</h3>
+      <p className="muted">
+        Custom resources of their own in Vanta (create each with the schema shown on the Configuration tab), for Custom Tests such as &quot;every monitor notifies someone&quot;, &quot;no monitor stays
+        muted&quot;, &quot;every detection rule is enabled and notifies&quot; or &quot;logs are kept at least 90 days&quot;. Cloud SIEM&apos;s notification rules aren&apos;t sent: ObserveCraft
+        doesn&apos;t have them yet.
       </p>
     </div>
   );

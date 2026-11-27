@@ -795,7 +795,8 @@ const CURATED: Entry[] = [
     id: 'vanta',
     name: 'Vanta',
     categories: ['Security', 'Compliance'],
-    about: 'Sends the organization’s compliance evidence to a private Vanta app every hour, as Vanta’s Datadog integration reads Datadog’s: members for access reviews and offboarding reminders.',
+    about:
+      'Sends the organization’s compliance evidence to a private Vanta app every hour, as Vanta’s Datadog integration reads Datadog’s: members for access reviews, vulnerabilities, Cloud Security findings, monitors, Cloud SIEM detection rules and log indexes.',
     collect: {
       kind: 'notify',
       settings: [
