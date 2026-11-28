@@ -15,7 +15,7 @@ pub fn schema(kind: &str) -> Option<Value> {
     let props: &[(&str, &str)] = match kind {
         "monitor" => &[("monitorType", "string"), ("query", "string"), ("priority", "string"), ("status", "string"), ("notifies", "boolean"), ("recipients", "string"), ("muted", "boolean"), ("tags", "string")],
         "detection_rule" => &[("enabled", "boolean"), ("severity", "string"), ("query", "string"), ("notifies", "boolean"), ("isDefault", "boolean"), ("contentPack", "string"), ("tags", "string")],
-        "log_index" => &[("filter", "string"), ("retentionDays", "int32"), ("flexRetentionDays", "int32"), ("dailyLimit", "float64"), ("exclusionFilters", "int32"), ("position", "int32")],
+        "log_index" => &[("filter", "string"), ("retentionDays", "int32"), ("flexRetentionDays", "int32"), ("dailyLimitMillions", "int32"), ("exclusionFilters", "int32"), ("position", "int32")],
         _ => return None,
     };
     Some(json!({ "properties": props.iter().map(|(name, t)| (name.to_string(), json!({ "type": t }))).collect::<serde_json::Map<_, _>>() }))
@@ -134,7 +134,7 @@ pub fn log_index_resource(i: &LogIndex, ui: &str) -> Value {
             "filter": i.filter,
             "retentionDays": i.retention_days,
             "flexRetentionDays": i.flex_retention_days.unwrap_or(0),
-            "dailyLimit": i.daily_quota.unwrap_or(0) as f64,
+            "dailyLimitMillions": i.daily_quota.map_or(0, |q| (q + 999_999) / 1_000_000),
             "exclusionFilters": exclusions,
             "position": i.position,
         },
@@ -185,8 +185,8 @@ mod tests {
                 let ok = match want {
                     "string" => value.is_string(),
                     "boolean" => value.is_boolean(),
-                    "int32" => value.is_i64(),
-                    "float64" => value.is_number(),
+                    // Vanta's custom properties: string, int32, boolean and timestamp only.
+                    "int32" => value.as_i64().is_some_and(|n| i32::try_from(n).is_ok()),
                     _ => false,
                 };
                 assert!(ok, "{kind}.{name}: {value} isn't a {want}");
@@ -324,7 +324,7 @@ mod tests {
                     "filter": "",
                     "retentionDays": 15,
                     "flexRetentionDays": 180,
-                    "dailyLimit": 0.0,
+                    "dailyLimitMillions": 0,
                     "exclusionFilters": 1,
                     "position": 0,
                 },
@@ -332,9 +332,12 @@ mod tests {
         );
         let mut i = index();
         i.flex_retention_days = None;
-        i.daily_quota = Some(5_000_000_000);
-        let v = log_index_resource(&i, UI);
-        assert_eq!((v["customProperties"]["flexRetentionDays"].as_i64(), v["customProperties"]["dailyLimit"].as_f64()), (Some(0), Some(5e9)));
+        // Millions of events, rounded up, so a limit above int32 still fits and a small one isn't 0 (none).
+        for (quota, millions) in [(5_000_000_000, 5000), (250_000, 1), (1_500_000, 2)] {
+            i.daily_quota = Some(quota);
+            let v = log_index_resource(&i, UI);
+            assert_eq!((v["customProperties"]["flexRetentionDays"].as_i64(), v["customProperties"]["dailyLimitMillions"].as_i64()), (Some(0), Some(millions)));
+        }
     }
 
     #[tokio::test]
