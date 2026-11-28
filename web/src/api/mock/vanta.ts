@@ -41,7 +41,7 @@ const SCHEMAS: Record<string, [string, string][]> = {
     ['tags', 'string'],
   ],
   log_index: [
-    ['dailyLimit', 'float64'],
+    ['dailyLimitMillions', 'int32'],
     ['exclusionFilters', 'int32'],
     ['filter', 'string'],
     ['flexRetentionDays', 'int32'],
