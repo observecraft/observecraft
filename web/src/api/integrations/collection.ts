@@ -86,6 +86,7 @@ const OWN: Record<string, { to: string; label: string }> = {
   fleetdm: { to: '/integrations/fleetdm', label: 'FleetDM' },
   'gitlab-audit-events': { to: '/integrations/gitlab-audit-events', label: 'GitLab Audit Events' },
   'google-workspace': { to: '/integrations/google-workspace', label: 'Google Workspace' },
+  vanta: { to: '/integrations/vanta', label: 'Vanta' },
   slack: { to: '/integrations/slack', label: 'Slack' },
   // Datadog's documentation tiles for Kubernetes distributions: the Agent's Helm chart, which the Kubernetes page sets up.
   ...Object.fromEntries(
