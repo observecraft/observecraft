@@ -35,8 +35,9 @@ COPY server/ .
 COPY integrations/ /integrations/
 RUN cargo build --locked --release --features oc-api/bundled-duckdb --bin observecraft-server --bin oc-intake --bin oc-tracegen
 
-FROM debian:bookworm-slim
-# upgrade: security fixes released after the base image was built.
+FROM debian:bookworm-slim AS runtime
+# upgrade: security fixes released after the base image was built. The workflows rebuild this stage without
+# the layer cache (no-cache-filters), or a cached layer would keep the packages of an older build.
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends ca-certificates libxml2 libxslt1.1 libxmlsec1 libxmlsec1-openssl libssl3 libstdc++6 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 10001 observecraft \
