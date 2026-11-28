@@ -378,6 +378,8 @@ jobs:
         with:
           context: .
           file: server/Dockerfile
+          # Always re-run the runtime stage's apt-get upgrade (server/Dockerfile).
+          no-cache-filters: runtime
           load: true
           tags: ghcr.io/observecraft/observecraft:ci
           cache-from: type=gha,scope=amd64

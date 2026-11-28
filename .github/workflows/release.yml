@@ -125,6 +125,8 @@ jobs:
         with:
           context: .
           file: server/Dockerfile
+          # Always re-run the runtime stage's apt-get upgrade (server/Dockerfile).
+          no-cache-filters: runtime
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           labels: |
