@@ -183,12 +183,22 @@ pub async fn ingest_sbom(State(st): State<AppState>, headers: HeaderMap, body: B
     }
 }
 
+/// An image's name: its first tag as a full reference (`<repo>:<tag>`); a bare tag (as the Datadog Agent sends them)
+/// gets the repository of the id (`<repo>@sha256:<digest>`). Without tags, the id.
+fn image_name(id: &str, repo_tags: &[String]) -> String {
+    let Some(tag) = repo_tags.first() else { return id.to_string() };
+    match id.split_once('@') {
+        Some((repo, _)) if !tag.contains(['/', ':']) && !repo.is_empty() => format!("{repo}:{tag}"),
+        _ => tag.clone(),
+    }
+}
+
 pub async fn store_sbom(st: &AppState, org: &str, upload: &SbomUpload) -> Result<(), sqlx::Error> {
     for e in &upload.entities {
         if e.id.is_empty() || !matches!(e.kind.as_str(), "host" | "container_image") {
             continue;
         }
-        let name = if e.kind == "host" { upload.host.clone() } else { e.repo_tags.first().cloned().unwrap_or_else(|| e.id.clone()) };
+        let name = if e.kind == "host" { upload.host.clone() } else { image_name(&e.id, &e.repo_tags) };
         let mut tx = st.postgres.begin().await?;
         sqlx::query(
             "INSERT INTO csm_sbom_entities (org_id, id, kind, name, host, repo_tags, repo_digests, in_use, os, kernel, arch, env, tags) \
@@ -1486,6 +1496,18 @@ mod tests {
     /// An image with a vulnerable package shows up as a vulnerability, a host SBOM's OS is kept, and a
     /// heartbeat keeps the packages. Live: skipped unless OC_TEST_POSTGRES_URL and
     /// OC_TEST_CLICKHOUSE_URL are set.
+    #[test]
+    fn an_image_is_named_by_its_repository_and_tag() {
+        // The Datadog Agent sends bare tags and the repository in the id (`<repo>@sha256:<digest>`).
+        assert_eq!(image_name("registry.example.com/storefront-api@sha256:abc", &["1.42.0".into()]), "registry.example.com/storefront-api:1.42.0");
+        // Full references (as other senders do) are kept, a registry port included.
+        assert_eq!(image_name("sha256:abc", &["registry.example.com/storefront-api:1.42.0".into()]), "registry.example.com/storefront-api:1.42.0");
+        assert_eq!(image_name("sha256:abc", &["localhost:5000/storefront-api:1.42.0".into()]), "localhost:5000/storefront-api:1.42.0");
+        // No repository to add: the tag, else the id.
+        assert_eq!(image_name("sha256:abc", &["1.42.0".into()]), "1.42.0");
+        assert_eq!(image_name("registry.example.com/storefront-api@sha256:abc", &[]), "registry.example.com/storefront-api@sha256:abc");
+    }
+
     #[tokio::test]
     async fn sboms_become_vulnerabilities() {
         let Some((_, states)) = crate::test_support::replicas(1).await else { return };
