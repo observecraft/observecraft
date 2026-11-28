@@ -23,6 +23,7 @@ const OWN_PAGES: Record<string, string> = {
   fleetdm: '/integrations/fleetdm',
   'gitlab-audit-events': '/integrations/gitlab-audit-events',
   'google-workspace': '/integrations/google-workspace',
+  vanta: '/integrations/vanta',
 };
 
 /** Integrations with their own page, and those a connector package collects (its page; push-only ones keep the modal). */
