@@ -1,6 +1,6 @@
 // Integrations → Vanta: connects the org to a private Vanta app (Build Integrations); ObserveCraft sends its compliance
-// evidence to it every hour, as Vanta's own Datadog integration reads Datadog's: members for access reviews first
-// (then vulnerabilities, security findings, monitors and SIEM). Vanta needs no access to ObserveCraft.
+// evidence to it every hour (members, vulnerabilities, security findings and signals, monitors and SIEM). Vanta needs no
+// access to ObserveCraft.
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Check, ChevronRight, CircleCheck, RefreshCw } from 'lucide-react';
@@ -18,7 +18,7 @@ import '../aws/aws.css';
 import '../../delivery/delivery.css';
 
 const DESCRIPTION =
-  'Vanta automates compliance (SOC 2, ISO 27001, HIPAA, …) from evidence your tools provide. ObserveCraft sends its own to a private Vanta app every hour, as Vanta’s Datadog integration reads Datadog’s: who has access, vulnerabilities, security findings, monitors, detection rules and log indexes.';
+  'Vanta automates compliance (SOC 2, ISO 27001, HIPAA, …) from evidence your tools provide. ObserveCraft sends its own to a private Vanta app every hour: who has access, vulnerabilities, security findings and signals, monitors, detection rules and log indexes. Vanta needs no access to ObserveCraft.';
 
 const TABS = [
   { id: 'configure', label: 'Configuration' },
@@ -34,7 +34,7 @@ const TYPES: Record<string, { name: string; what: string }> = {
     name: 'Vulnerabilities',
     what: 'Open vulnerabilities of host and image packages (Cloud Security) and libraries (Code Security), for the Vulnerability Inventory and its SLAs.',
   },
-  security_task: { name: 'Security findings', what: 'Cloud Security’s misconfigurations, open or closed, with their priority, for the security alert SLA.' },
+  security_task: { name: 'Security findings', what: 'Cloud Security’s misconfigurations and security signals, open or closed, with their priority, for the security alert SLA.' },
   monitor: { name: 'Monitors', what: 'Every monitor: what it watches, whom it notifies and whether it is muted, as infrastructure monitoring evidence.' },
   detection_rule: { name: 'Detection rules', what: 'Cloud SIEM’s log detection rules: enabled, severity, notifications.' },
   log_index: { name: 'Log indexes', what: 'Log retention, flex retention, daily limits and exclusion filters.' },
@@ -334,7 +334,8 @@ function DataSent() {
       <h3>Security findings</h3>
       <p className="muted">
         Cloud Security&apos;s failed checks as <code>SecurityTask</code> resources: open while the check fails, closed when it passes again or is muted (with when), priority P0 (critical) to P4, and
-        the provider, account, region, resource type and check as labels. Resolved findings are sent for 90 days.
+        the provider, account, region, resource type and check as labels. Security signals (Cloud SIEM, App &amp; API Protection, Workload Protection) too: open while open or under review, closed once
+        archived; suppressed ones aren&apos;t sent. Resolved findings and signals are sent for 90 days.
       </p>
       <h3>Monitors, detection rules and log indexes</h3>
       <p className="muted">

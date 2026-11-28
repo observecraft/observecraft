@@ -8,7 +8,7 @@ so the install doesn't have to be reachable from the internet.
 |---|---|---|
 | Active users | The org's members | `user_account` (UserAccount) |
 | Cloud Security vulnerabilities (libraries, hosts, containers) | Open vulnerabilities of hosts and container images (Cloud Security) and libraries (Code Security) | `vulnerable_component` (VulnerableComponent), then `package_vulnerability` (PackageVulnerability) |
-| Cloud Security findings | Misconfigurations (the account scans' failed checks) | `security_task` (SecurityTask) |
+| Cloud Security findings | Misconfigurations (the account scans' failed checks) and security signals (Cloud SIEM, App & API Protection, Workload Protection) | `security_task` (SecurityTask) |
 | Infrastructure monitors | Monitors | `monitor` (CustomResource) |
 | Cloud SIEM detection rules | Log detection rules | `detection_rule` (CustomResource) |
 | Cloud SIEM log indexes | Log indexes | `log_index` (CustomResource) |
@@ -64,10 +64,16 @@ Open vulnerabilities only (muted and resolved ones aren't sent, so Vanta closes 
 
 ## Security findings (`security_task`)
 
-Cloud Security's failed checks (the AWS account scans): `OPEN` while the check fails; `CLOSED` when it was muted or
-passes again, with when (`closedTimestamp`). Priority from the severity: critical `P0`, high `P1`, medium `P2`, low `P3`,
-else `P4`. Labels: `cloud-security`, the provider, account, region, resource type and check (and `muted`). Checks that
-never failed aren't findings; resolved findings are sent for 90 days.
+Priority from the severity: critical `P0`, high `P1`, medium `P2`, low `P3`, else `P4`. Open ones are sent first, most
+severe first; resolved ones are sent for 90 days, with when (`closedTimestamp`).
+
+- **Misconfigurations**: Cloud Security's failed checks (the AWS account scans): `OPEN` while the check fails; `CLOSED`
+  when it was muted or passes again. Labels: `cloud-security`, the provider, account, region, resource type and check
+  (and `muted`). Checks that never failed aren't findings.
+- **Security signals**: Cloud SIEM's, App & API Protection's and Workload Protection's signals: `OPEN` while open or under
+  review, `CLOSED` once archived. Their ids are `signal:<id>`, linking to the signal; labels `security-signal`, the
+  rule type, rule id, source and env. Suppressed signals aren't sent. Vanta's Datadog integration doesn't read signals:
+  this gives alerts from logs and traces an SLA in Vanta too.
 
 ## Custom resources
 
@@ -120,7 +126,7 @@ Suggested tests: rules are enabled; high and critical rules notify someone.
 ```json
 {
   "properties": {
-    "dailyLimit": { "type": "float64" },
+    "dailyLimitMillions": { "type": "int32" },
     "exclusionFilters": { "type": "int32" },
     "filter": { "type": "string" },
     "flexRetentionDays": { "type": "int32" },
@@ -130,5 +136,6 @@ Suggested tests: rules are enabled; high and critical rules notify someone.
 }
 ```
 
-`flexRetentionDays` and `dailyLimit` are 0 when there is none; `exclusionFilters` counts the enabled ones. Suggested
-tests: logs are kept at least as long as your policy (for example `retentionDays + flexRetentionDays >= 90`).
+`flexRetentionDays` and `dailyLimitMillions` (the daily limit in millions of events, rounded up) are 0 when there is
+none; `exclusionFilters` counts the enabled ones. Custom properties are `string`, `int32`, `boolean` or `timestamp`
+only. Suggested tests: logs are kept at least as long as your policy (for example `retentionDays + flexRetentionDays >= 90`).
