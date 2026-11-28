@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.30.0](https://github.com/observecraft/observecraft/compare/v0.29.0...v0.30.0) (2026-11-28)
+
+
+### Features
+
+* **vanta:** send security signals as security tasks, created by the install's sender address ([baa4b03](https://github.com/observecraft/observecraft/commit/baa4b03156594d347746e0a54984faf97015f9b3))
+
+
+### Bug fixes
+
+* **ci:** rebuild the image's runtime stage without the layer cache so apt-get upgrade picks up security fixes ([97fd266](https://github.com/observecraft/observecraft/commit/97fd266f915118bff61e45566024444eaad5dc9a))
+* **cloud-security:** name container images by repository and tag when the Agent sends bare tags ([601e2fb](https://github.com/observecraft/observecraft/commit/601e2fb868d6120c6429d82944d51879e056c97f))
+* **integrations:** open the Vanta tile's own page instead of installing it ([9951e39](https://github.com/observecraft/observecraft/commit/9951e398347f45d93246623de11f2b3766b0ad74))
+* **vanta:** send the log index daily limit as int32 millions of events, a type Vanta accepts ([3c2a0f4](https://github.com/observecraft/observecraft/commit/3c2a0f49267c0d94c5ca781dd201a9d374e88fca))
+
 ## [0.29.0](https://github.com/observecraft/observecraft/compare/v0.28.0...v0.29.0) (2026-11-27)
 
 
