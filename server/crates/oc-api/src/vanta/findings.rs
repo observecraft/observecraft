@@ -1,7 +1,12 @@
-//! Cloud Security's misconfigurations (the account scans' failed checks, `posture_findings`) as Vanta `security_task`
-//! resources, as Vanta reads Cloud Security's findings from Datadog for its security alert SLA tests: open while the
-//! check fails, closed when it passes again or was muted, with its priority from the severity. Checks that never failed
-//! aren't findings; resolved ones are kept [`RESOLVED_DAYS`] days, so Vanta sees when they were fixed.
+//! Security alerts as Vanta `security_task` resources, for its security alert SLA tests, with their priority from the
+//! severity:
+//! - Cloud Security's misconfigurations (the account scans' failed checks, `posture_findings`), as Vanta reads Cloud
+//!   Security's findings from Datadog: open while the check fails, closed when it passes again or was muted. Checks that
+//!   never failed aren't findings.
+//! - Security signals (`security_signals`: Cloud SIEM, App & API Protection, Workload Protection): open or under review,
+//!   closed once archived. Suppressed signals aren't sent.
+//!
+//! Resolved ones are kept [`RESOLVED_DAYS`] days, so Vanta sees when they were fixed.
 
 use serde_json::{json, Value};
 
@@ -33,18 +38,31 @@ pub struct Finding {
     pub muted_at: Option<i64>,
 }
 
-/// A finding as Vanta's `security_task`.
-pub fn security_task(f: &Finding, ui: &str) -> Value {
-    let rfc3339 = |ms: i64| chrono::DateTime::from_timestamp_millis(ms).unwrap_or_default().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-    let title = if f.resource_name.is_empty() { format!("{}: {}", f.title, f.resource_uid) } else { format!("{}: {}", f.title, f.resource_name) };
-    let open = f.evaluation == "fail" && !f.muted;
-    let priority = match f.severity.as_str() {
+fn rfc3339(ms: i64) -> String {
+    chrono::DateTime::from_timestamp_millis(ms).unwrap_or_default().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+}
+
+/// The tasks' creator, which Vanta wants as an email: the install's sender address (`OC_SMTP_FROM`).
+pub fn creator(smtp_from: &str) -> String {
+    smtp_from.parse::<lettre::message::Mailbox>().map_or_else(|_| "alerts@observecraft.local".to_string(), |m| m.email.to_string())
+}
+
+/// Vanta's priority for a severity.
+fn priority(severity: &str) -> &'static str {
+    match severity {
         "critical" => "P0",
         "high" => "P1",
         "medium" => "P2",
         "low" => "P3",
         _ => "P4",
-    };
+    }
+}
+
+/// A finding as Vanta's `security_task`.
+pub fn security_task(f: &Finding, ui: &str, creator: &str) -> Value {
+    let title = if f.resource_name.is_empty() { format!("{}: {}", f.title, f.resource_uid) } else { format!("{}: {}", f.title, f.resource_name) };
+    let open = f.evaluation == "fail" && !f.muted;
+    let priority = priority(&f.severity);
     let mut labels: Vec<&str> = ["cloud-security", &f.provider, &f.account_id, &f.region, &f.resource_type, &f.check_id].into_iter().filter(|l| !l.is_empty()).collect();
     if f.muted {
         labels.push("muted");
@@ -60,7 +78,7 @@ pub fn security_task(f: &Finding, ui: &str) -> Value {
         "taskState": if open { "OPEN" } else { "CLOSED" },
         "priority": priority,
         "assignees": [],
-        "creator": "ObserveCraft Cloud Security",
+        "creator": creator,
         "labels": labels,
     });
     if !open {
@@ -71,8 +89,50 @@ pub fn security_task(f: &Finding, ui: &str) -> Value {
     v
 }
 
-/// The org's findings to send: failing ones (open, or closed when muted) and those resolved in the last
-/// [`RESOLVED_DAYS`] days; open ones first, most severe first.
+/// A security signal as read for Vanta (times in epoch ms).
+#[derive(sqlx::FromRow, Clone, Debug)]
+pub struct Signal {
+    pub id: String,
+    pub rule_id: String,
+    pub rule_type: String,
+    pub title: String,
+    pub severity: String,
+    pub source: String,
+    pub env: String,
+    /// open | under_review | archived
+    pub state: String,
+    pub first_seen: i64,
+    pub last_seen: i64,
+    pub state_updated_at: Option<i64>,
+}
+
+/// A signal as Vanta's `security_task` (ids prefixed `signal:`, apart from the findings' UUIDs).
+pub fn signal_task(s: &Signal, ui: &str, creator: &str) -> Value {
+    let id = format!("signal:{}", s.id);
+    let open = s.state != "archived";
+    let labels: Vec<&str> = ["security-signal", &s.rule_type, &s.rule_id, &s.source, &s.env].into_iter().filter(|l| !l.is_empty()).collect();
+    let mut v = json!({
+        "uniqueId": id,
+        "displayName": s.title,
+        "externalUrl": format!("{ui}/security/signals?signal={}", url::form_urlencoded::byte_serialize(s.id.as_bytes()).collect::<String>()),
+        "taskId": id,
+        "taskTitle": s.title,
+        "createdTimestamp": rfc3339(s.first_seen),
+        "updatedTimestamp": rfc3339(s.last_seen),
+        "taskState": if open { "OPEN" } else { "CLOSED" },
+        "priority": priority(&s.severity),
+        "assignees": [],
+        "creator": creator,
+        "labels": labels,
+    });
+    if !open {
+        v["closedTimestamp"] = json!(rfc3339(s.state_updated_at.unwrap_or(s.last_seen)));
+    }
+    v
+}
+
+/// The org's security alerts to send: failing findings (open, or closed when muted), open and under-review signals, and
+/// both resolved in the last [`RESOLVED_DAYS`] days; open ones first, most severe first.
 pub async fn security_tasks(st: &AppState, org: &str) -> Result<Vec<Value>, sqlx::Error> {
     let rows: Vec<Finding> = sqlx::query_as(
         "SELECT f.id::text AS id, f.provider, f.account_id, f.check_id, COALESCE(NULLIF(c.title, ''), f.check_id) AS title, f.resource_uid, f.resource_name, f.resource_type, \
@@ -86,7 +146,21 @@ pub async fn security_tasks(st: &AppState, org: &str) -> Result<Vec<Value>, sqlx
     .bind(RESOLVED_DAYS)
     .fetch_all(&st.postgres)
     .await?;
-    Ok(rows.iter().map(|f| security_task(f, &st.config.public_url)).collect())
+    let signals: Vec<Signal> = sqlx::query_as(
+        "SELECT id, rule_id, rule_type, title, severity, source, env, state, (extract(epoch FROM first_seen) * 1000)::bigint AS first_seen, \
+         (extract(epoch FROM last_seen) * 1000)::bigint AS last_seen, (extract(epoch FROM state_updated_at) * 1000)::bigint AS state_updated_at \
+         FROM security_signals WHERE org_id = $1 AND NOT suppressed \
+         AND (state <> 'archived' OR COALESCE(state_updated_at, last_seen) > now() - make_interval(days => $2)) ORDER BY first_seen, id",
+    )
+    .bind(org)
+    .bind(RESOLVED_DAYS)
+    .fetch_all(&st.postgres)
+    .await?;
+    let (ui, from) = (&st.config.public_url, creator(&st.config.smtp_from));
+    let mut tasks: Vec<Value> = rows.iter().map(|f| security_task(f, ui, &from)).chain(signals.iter().map(|s| signal_task(s, ui, &from))).collect();
+    // Stable: within a state and priority, the findings' and signals' own order.
+    tasks.sort_by_key(|t| (t["taskState"] != "OPEN", t["priority"].as_str().unwrap_or("P4").to_string()));
+    Ok(tasks)
 }
 
 #[cfg(test)]
@@ -94,6 +168,7 @@ mod tests {
     use super::*;
 
     const UI: &str = "https://observecraft.example.com";
+    const FROM: &str = "alerts@observecraft.example.com";
 
     fn finding() -> Finding {
         Finding {
@@ -119,7 +194,7 @@ mod tests {
     #[test]
     fn a_failing_check_is_an_open_task() {
         assert_eq!(
-            security_task(&finding(), UI),
+            security_task(&finding(), UI, FROM),
             json!({
                 "uniqueId": "00000000-0000-4000-8000-0000000000f1",
                 "displayName": "Ensure S3 buckets block public access: example-shop-assets",
@@ -131,7 +206,7 @@ mod tests {
                 "taskState": "OPEN",
                 "priority": "P1",
                 "assignees": [],
-                "creator": "ObserveCraft Cloud Security",
+                "creator": "alerts@observecraft.example.com",
                 "labels": ["cloud-security", "aws", "123456789012", "us-east-1", "AwsS3Bucket", "s3_bucket_public_access"],
             })
         );
@@ -142,16 +217,16 @@ mod tests {
         let mut f = finding();
         f.muted = true;
         f.muted_at = Some(1_795_100_000_000);
-        let t = security_task(&f, UI);
+        let t = security_task(&f, UI, FROM);
         assert_eq!((t["taskState"].as_str(), t["closedTimestamp"].as_str()), (Some("CLOSED"), Some("2026-11-19T14:53:20Z")));
         assert!(t["labels"].as_array().unwrap().contains(&json!("muted")));
         let mut f = finding();
         f.evaluation = "pass".into();
         f.changed_at = 1_795_000_000_000;
-        let t = security_task(&f, UI);
+        let t = security_task(&f, UI, FROM);
         assert_eq!((t["taskState"].as_str(), t["closedTimestamp"].as_str()), (Some("CLOSED"), Some("2026-11-18T11:06:40Z")));
         // An open task has no closedTimestamp at all (Vanta refuses one).
-        assert!(security_task(&finding(), UI).get("closedTimestamp").is_none());
+        assert!(security_task(&finding(), UI, FROM).get("closedTimestamp").is_none());
     }
 
     #[test]
@@ -159,11 +234,114 @@ mod tests {
         let mut f = finding();
         for (severity, priority) in [("critical", "P0"), ("high", "P1"), ("medium", "P2"), ("low", "P3"), ("informational", "P4")] {
             f.severity = severity.into();
-            assert_eq!(security_task(&f, UI)["priority"], priority);
+            assert_eq!(security_task(&f, UI, FROM)["priority"], priority);
         }
         // Empty labels are left out.
         f.region = String::new();
-        assert!(!security_task(&f, UI)["labels"].as_array().unwrap().contains(&json!("")));
+        assert!(!security_task(&f, UI, FROM)["labels"].as_array().unwrap().contains(&json!("")));
+    }
+
+    #[test]
+    fn the_creator_is_the_installs_sender_address() {
+        // Vanta wants an email; the install's From address, else a fixed one.
+        assert_eq!(creator("ObserveCraft <alerts@observecraft.example.com>"), "alerts@observecraft.example.com");
+        assert_eq!(creator("alerts@observecraft.example.com"), "alerts@observecraft.example.com");
+        assert_eq!(creator("not an address"), "alerts@observecraft.local");
+    }
+
+    fn signal() -> Signal {
+        Signal {
+            id: "AAAAAZNvMB9jX2V4YW1wbGU".into(),
+            rule_id: "abc-def-ghi".into(),
+            rule_type: "log_detection".into(),
+            title: "Brute force attempt on storefront-api".into(),
+            severity: "critical".into(),
+            source: "nginx".into(),
+            env: "prod".into(),
+            state: "open".into(),
+            first_seen: 1_790_000_000_000,
+            last_seen: 1_795_000_000_000,
+            state_updated_at: None,
+        }
+    }
+
+    #[test]
+    fn an_open_signal_is_an_open_task() {
+        assert_eq!(
+            signal_task(&signal(), UI, FROM),
+            json!({
+                "uniqueId": "signal:AAAAAZNvMB9jX2V4YW1wbGU",
+                "displayName": "Brute force attempt on storefront-api",
+                "externalUrl": "https://observecraft.example.com/security/signals?signal=AAAAAZNvMB9jX2V4YW1wbGU",
+                "taskId": "signal:AAAAAZNvMB9jX2V4YW1wbGU",
+                "taskTitle": "Brute force attempt on storefront-api",
+                "createdTimestamp": "2026-09-21T14:13:20Z",
+                "updatedTimestamp": "2026-11-18T11:06:40Z",
+                "taskState": "OPEN",
+                "priority": "P0",
+                "assignees": [],
+                "creator": "alerts@observecraft.example.com",
+                "labels": ["security-signal", "log_detection", "abc-def-ghi", "nginx", "prod"],
+            })
+        );
+        // Under review is still open; info is the lowest priority.
+        let mut s = signal();
+        s.state = "under_review".into();
+        s.severity = "info".into();
+        let t = signal_task(&s, UI, FROM);
+        assert_eq!((t["taskState"].as_str(), t["priority"].as_str()), (Some("OPEN"), Some("P4")));
+        assert!(t.get("closedTimestamp").is_none());
+    }
+
+    #[test]
+    fn an_archived_signal_is_closed_when_it_was_archived() {
+        let mut s = signal();
+        s.state = "archived".into();
+        s.state_updated_at = Some(1_795_100_000_000);
+        let t = signal_task(&s, UI, FROM);
+        assert_eq!((t["taskState"].as_str(), t["closedTimestamp"].as_str()), (Some("CLOSED"), Some("2026-11-19T14:53:20Z")));
+        // Archived without a recorded time: when it was last seen.
+        s.state_updated_at = None;
+        assert_eq!(signal_task(&s, UI, FROM)["closedTimestamp"], "2026-11-18T11:06:40Z");
+    }
+
+    #[tokio::test]
+    async fn open_and_recently_archived_signals_are_sent_with_the_findings_open_ones_first() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let (org, other) = (crate::test_support::new_org(st, "vanta-signals").await, crate::test_support::new_org(st, "vanta-signals").await);
+        sqlx::query("INSERT INTO posture_checks (provider, check_id, title, severity) VALUES ('aws', 'vanta_test_check', 'Example check', 'high') ON CONFLICT DO NOTHING").execute(&st.postgres).await.unwrap();
+        sqlx::query("INSERT INTO posture_findings (org_id, provider, account_ref, account_id, check_id, resource_uid, resource_name, evaluation, severity, muted, first_seen_at, evaluation_changed_at) \
+             VALUES ($1, 'aws', '00000000-0000-4000-8000-00000000a001'::uuid, '123456789012', 'vanta_test_check', 'bucket', 'bucket', 'fail', 'high', false, now() - interval '9 days', now() - interval '9 days')")
+            .bind(&org)
+            .execute(&st.postgres)
+            .await
+            .unwrap();
+        for (o, id, severity, state, suppressed, updated) in [
+            (&org, "s-medium", "medium", "open", false, "NULL"),
+            (&org, "s-critical", "critical", "under_review", false, "now() - interval '1 day'"),
+            (&org, "s-archived", "critical", "archived", false, "now() - interval '2 days'"),
+            (&org, "s-archived-long-ago", "critical", "archived", false, "now() - interval '200 days'"),
+            (&org, "s-suppressed", "critical", "open", true, "NULL"),
+            (&other, "s-other-org", "critical", "open", false, "NULL"),
+        ] {
+            sqlx::query(sqlx::AssertSqlSafe(format!(
+                "INSERT INTO security_signals (org_id, id, rule_id, rule_name, title, severity, first_seen, last_seen, state, suppressed, state_updated_at) \
+                 VALUES ($1, $2, 'rule-1', 'Rule', $2, $3, now() - interval '300 days', now() - interval '3 days', $4, $5, {updated})"
+            )))
+            .bind(o)
+            .bind(id)
+            .bind(severity)
+            .bind(state)
+            .bind(suppressed)
+            .execute(&st.postgres)
+            .await
+            .unwrap();
+        }
+        let tasks = security_tasks(st, &org).await.unwrap();
+        let sent: Vec<(&str, &str)> = tasks.iter().map(|t| (t["taskTitle"].as_str().unwrap(), t["taskState"].as_str().unwrap())).collect();
+        assert_eq!(sent, [("s-critical", "OPEN"), ("Example check: bucket", "OPEN"), ("s-medium", "OPEN"), ("s-archived", "CLOSED")]);
+        assert!(tasks.iter().all(|t| t["creator"] == creator(&st.config.smtp_from)));
     }
 
     #[tokio::test]

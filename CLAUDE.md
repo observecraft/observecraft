@@ -300,7 +300,9 @@ or SDK features.
   results per type in `vanta_sync_results`. What Vanta reads from Datadog: members (`user_account`), Cloud Security's and
   Code Security's open vulnerabilities (`vulnerable_component` then `package_vulnerability`), misconfigurations
   (`security_task`), and monitors, SIEM detection rules and log indexes as custom resources (`vanta/custom.rs` gives
-  their schemas, shown on the page). Not sent: SIEM notification rules, identity risks and attack paths (not built).
+  their schemas, shown on the page); beyond it, security signals as `security_task` too (`vanta/findings.rs`). Custom
+  resources need a Private app on a customer account. Not sent: SIEM notification rules, identity risks and attack
+  paths (not built).
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **Emails** (`oc-api/src/email/`): every email is built from one layout (`frame.rs`, `templates.rs`: state band, table
